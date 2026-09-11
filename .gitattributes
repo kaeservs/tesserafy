@@ -1,0 +1,15 @@
+# Normalize to LF in the repository and on checkout. Keeps diffs clean across
+# Windows development, Linux CI, and Vercel builds.
+* text=auto eol=lf
+
+# Binary — never touch.
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
+
+# Generated — collapse in diffs and exclude from language stats.
+pnpm-lock.yaml linguist-generated=true -diff
+packages/db/src/generated.ts linguist-generated=true -diff

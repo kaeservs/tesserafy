@@ -1,0 +1,47 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# environment — never commit real credentials
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# supabase
+supabase/.temp/
+supabase/.branches/
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# evaluation artifacts — data is versioned, run output is not
+services/eval/runs/
+services/eval/.cache/
+
+# electron
+apps/desktop/release/
+
+# editor / os
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*

@@ -21,6 +21,16 @@ https://claude.ai/code/artifact/a7cdd883-3bc5-48f5-84da-a0fe6b21f329
 | P7 | Electron HUD | Overlay over a live Zoom call; scorecard updates; meeting stays visible and clickable; screen-share behaviour matches S1. |
 | P8 | Prepare and Act | An insight moves from approval to a created ticket carrying its evidence citations. No auto-creation anywhere. |
 
+## MVP
+
+**Decided 2026-09-15: the MVP is post-call — P0 through P5.** Import
+transcripts, evidence-backed signals, a post-call scorecard and
+cross-conversation insights. The live path and the Electron HUD (P6, P7) are
+v2; P8 follows.
+
+P2 is built before P1: it needs no data, no network and no model, so it
+proceeds while P1 waits on transcripts.
+
 ## Latency budget (P6/P7 contract)
 
 | Stage | Budget |
@@ -52,7 +62,10 @@ agent frameworks.
 
 ## Open decisions
 
-- Real transcripts available? Everything from P1 builds against data.
+- Real transcripts: **none yet (2026-09-15).** Build P1 against synthetic
+  transcripts, labelled as synthetic. Every precision/recall number is
+  provisional until real transcripts replace them; P3's gate is not passed on
+  synthetic data.
 - macOS access for S1/S2? Content protection is a different mechanism there.
 - S2 priority: lowest latency or lowest cost?
 - Live minutes in pricing — metered, bundled allowance, or higher base. Live

@@ -15,3 +15,4 @@ accepted ADR to change the decision; write a new one that supersedes it.
 | 0003 | Deterministic scoring over latching criterion states | accepted |
 | 0004 | Tenant isolation enforced in the retrieval layer | accepted |
 | 0005 | pgvector installed in the `extensions` schema | accepted |
+| 0006 | Scoring rules ADR 0003 left open | proposed |

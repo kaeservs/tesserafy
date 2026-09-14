@@ -1,0 +1,22 @@
+{
+  "name": "@tesserafy/ai",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --project unit",
+    "test:integration": "vitest run --project integration"
+  },
+  "dependencies": {
+    "@tesserafy/db": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "26.5.1",
+    "typescript": "7.0.2",
+    "vitest": "5.0.0"
+  }
+}

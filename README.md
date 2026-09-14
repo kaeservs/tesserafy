@@ -26,7 +26,8 @@ Every claim the system makes is traceable to a quoted span with a timestamp.
 
 ## Status
 
-**Phase 0 — Foundation.** No application code yet. See
+**Phase 0 — Foundation.** Tenancy schema, guarded `retrieve()` and the
+cross-tenant tests are in; the web app is not yet scaffolded. See
 [docs/engineering/build-plan.md](docs/engineering/build-plan.md) for the phase
 sequence and the gate each phase must pass.
 

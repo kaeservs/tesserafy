@@ -54,8 +54,12 @@ backfilled.
 
     pnpm install
     pnpm dev          # web app
-    pnpm test         # all workspaces
+    pnpm test         # all workspaces, unit only, no network
     pnpm typecheck
+    pnpm guard:retrieval             # ADR 0004 grep guard
+    pnpm exec supabase start         # local stack (needs Docker)
+    pnpm exec supabase test db       # pgTAP tenant isolation
+    pnpm test:integration            # RLS + retrieve() cross-tenant, local stack only
 
 ## Conventions
 
@@ -69,7 +73,8 @@ backfilled.
 
 ## MCP routing
 
-Use `n8n-selfhosted` for n8n and `claude.ai Supabase-tesserafy` for Supabase.
+Use `n8n-selfhosted` for n8n, `claude.ai Supabase-tesserafy` for Supabase and
+`github` (project `.mcp.json`, repo `kaeservs/tesserafy`) for GitHub.
 The `claude.ai n8n` connector and the project-scoped `supabase` server point at
 different infrastructure — do not use them.
 

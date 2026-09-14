@@ -1,0 +1,71 @@
+#!/usr/bin/env node
+// Enforces ADR 0004 by grep: only packages/ai/src/retrieval may touch the
+// vector search function or the embeddings table. Feature code that queries
+// them directly — even correctly filtered — fails CI.
+
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+
+const FORBIDDEN = /\b(match_segments|segment_embeddings)\b/;
+
+const ALLOWED = [
+  /^packages\/ai\/src\/retrieval\//,
+  /^packages\/ai\/test\//, // tests of the guard itself
+  /^packages\/db\/test\//, // RLS tests assert the table is unreadable
+  /^packages\/db\/src\/generated\.ts$/,
+  /^supabase\//,
+  /^docs\//,
+  /^scripts\/check-retrieval-guard\.mjs$/,
+  /\.md$/,
+];
+
+const files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], {
+  encoding: 'utf8',
+})
+  .split('\n')
+  .filter(Boolean)
+  .filter((file) => !ALLOWED.some((pattern) => pattern.test(file)));
+
+const violations = [];
+for (const file of files) {
+  let text;
+  try {
+    text = readFileSync(file, 'utf8');
+  } catch {
+    continue; // deleted in the working tree
+  }
+  text.split('\n').forEach((line, index) => {
+    if (FORBIDDEN.test(line)) violations.push(`${file}:${index + 1}: ${line.trim()}`);
+  });
+}
+
+// The web app runs as the signed-in user so RLS applies. It never holds the
+// service-role key, nor a client built from it.
+const SERVICE_ROLE = /\b(SUPABASE_SERVICE_ROLE_KEY|createServiceClient)\b/;
+const serviceRoleViolations = [];
+for (const file of files.filter((f) => f.startsWith('apps/web/'))) {
+  let text;
+  try {
+    text = readFileSync(file, 'utf8');
+  } catch {
+    continue;
+  }
+  text.split('\n').forEach((line, index) => {
+    if (SERVICE_ROLE.test(line)) serviceRoleViolations.push(`${file}:${index + 1}: ${line.trim()}`);
+  });
+}
+
+if (violations.length > 0) {
+  console.error('Retrieval guard: vector search outside packages/ai/src/retrieval (ADR 0004).');
+  console.error('Use retrieve(companyId, query, opts) from @tesserafy/ai instead.\n');
+  for (const v of violations) console.error(`  ${v}`);
+}
+if (serviceRoleViolations.length > 0) {
+  console.error('Retrieval guard: service-role access inside apps/web.\n');
+  for (const v of serviceRoleViolations) console.error(`  ${v}`);
+}
+if (violations.length > 0 || serviceRoleViolations.length > 0) {
+  process.exit(1);
+}
+
+console.log(`Retrieval guard: ${files.length} files checked, no violations.`);

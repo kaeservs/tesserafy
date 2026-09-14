@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // No @types/node: this package runs unchanged in Node, the browser and the
+    // Electron renderer, so it may not touch any platform API.
+    "types": []
+  },
+  "include": ["src", "test"]
+}

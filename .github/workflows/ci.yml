@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Typecheck, unit tests, retrieval guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm guard:retrieval
+
+  tenant-isolation:
+    # The P0 gate. Release-blocking: make this a required status check on main.
+    name: Tenant isolation (local Supabase)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Start Supabase (applies migrations and seed)
+        run: pnpm exec supabase start
+
+      - name: Export connection details
+        run: |
+          pnpm exec supabase status -o env \
+            --override-name api.url=SUPABASE_URL \
+            --override-name auth.anon_key=SUPABASE_ANON_KEY \
+            --override-name auth.service_role_key=SUPABASE_SERVICE_ROLE_KEY \
+            | grep -E '^SUPABASE_(URL|ANON_KEY|SERVICE_ROLE_KEY)=' >> "$GITHUB_ENV"
+
+      - name: Direct query (pgTAP)
+        run: pnpm exec supabase test db
+
+      - name: API and retrieve()
+        run: pnpm test:integration

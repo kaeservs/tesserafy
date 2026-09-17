@@ -17,3 +17,4 @@ accepted ADR to change the decision; write a new one that supersedes it.
 | 0005 | pgvector installed in the `extensions` schema | accepted |
 | 0006 | Scoring rules ADR 0003 left open | proposed |
 | 0007 | Signals and their evidence | proposed |
+| 0008 | The retrieval module owns writes to the vector table | proposed |

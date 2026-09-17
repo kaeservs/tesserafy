@@ -12,7 +12,10 @@
     "test:integration": "vitest run --project integration"
   },
   "dependencies": {
-    "@tesserafy/db": "workspace:*"
+    "@anthropic-ai/sdk": "^0.126.0",
+    "@tesserafy/db": "workspace:*",
+    "@tesserafy/ingest": "workspace:*",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "26.5.1",

@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // No @types/node. Parsing and chunking take strings and return values;
+    // reading files and talking to the database happen in the caller, which
+    // keeps this package testable without a filesystem or a network.
+    "types": []
+  },
+  "include": ["src", "test"]
+}

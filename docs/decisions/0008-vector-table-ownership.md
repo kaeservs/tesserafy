@@ -23,8 +23,24 @@ correctly filtered ones — the leak outlives the bug that caused it.
 ## Decision
 
 The retrieval module owns the vector table for writes as well as reads.
-`storeSegmentEmbeddings(companyId, rows, opts)` lives beside `retrieve()`, and
-the guard stays exactly as strict.
+`storeTranscript(companyId, input, opts)` lives beside `retrieve()`, and the
+guard stays exactly as strict.
+
+The write is a single call to `ingest_transcript()`, a Postgres function that
+inserts the conversation, its segments and their embeddings in one
+transaction. supabase-js cannot span a transaction across calls, and the
+alternative — three round trips with a compensating delete when one fails —
+is only as reliable as the compensating delete itself, which is another
+network call and useless if the process dies. A function body is a
+transaction; a transcript lands whole or not at all, with no cleanup path to
+get wrong.
+
+Segment ids are minted by the caller rather than the database. Embeddings are
+computed before anything is written, so the caller already knows which id
+holds which words and never matches rows back by their contents. Matching
+after the fact can mis-pair a vector with another segment's words, and that
+failure is silent: it surfaces as bad retrieval months later, not as an
+error.
 
 The tenant comes from the `companyId` argument and nowhere else. Callers pass
 segment ids and vectors; they cannot pass a `company_id` per row, so no caller

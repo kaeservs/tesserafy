@@ -13,54 +13,86 @@ import type { SupabaseClient } from '@tesserafy/db';
 import { assertEmbedding } from '../providers/embedder';
 import { isCompanyId, type CompanyId } from './company-id';
 
-export interface SegmentEmbedding {
-  readonly segmentId: string;
+/** A segment with its vector, ready to be written. Ids are the caller's. */
+export interface EmbeddedSegment {
+  readonly id: string;
+  readonly speaker: string | null;
+  readonly startMs: number;
+  readonly endMs: number;
+  readonly text: string;
   readonly embedding: readonly number[];
+}
+
+export interface StoreTranscriptInput {
+  readonly title: string;
+  /** ISO 8601, or null when the source does not say when the call happened. */
+  readonly occurredAt: string | null;
+  /** The model that produced the vectors, e.g. 'nomic-embed-text'. */
+  readonly model: string;
+  readonly segments: readonly EmbeddedSegment[];
 }
 
 export interface StoreOptions {
   /** A service-role client. */
   readonly db: SupabaseClient;
-  /** The model that produced these vectors, e.g. 'nomic-embed-text'. */
-  readonly model: string;
 }
 
 /**
- * Stores one embedding per segment, and returns how many were written.
+ * Writes a conversation, its segments and their embeddings in one
+ * transaction, and returns the new conversation id.
  *
- * The insert relies on the composite foreign key (company_id, segment_id) to
- * reject a segment that belongs to another tenant: the database refuses the
- * row rather than this code trusting its caller.
+ * The work happens inside `ingest_transcript`, a function body being the only
+ * transaction available across several inserts from here. Nothing partial can
+ * survive a failure, so there is no cleanup path that could itself fail.
  */
-export async function storeSegmentEmbeddings(
+export async function storeTranscript(
   companyId: CompanyId,
-  rows: readonly SegmentEmbedding[],
+  input: StoreTranscriptInput,
   opts: StoreOptions,
-): Promise<number> {
+): Promise<string> {
   if (!isCompanyId(companyId)) {
     throw new TypeError(
-      `storeSegmentEmbeddings() requires a valid companyId, got ${JSON.stringify(companyId)}`,
+      `storeTranscript() requires a valid companyId, got ${JSON.stringify(companyId)}`,
     );
   }
-  if (opts.model.trim().length === 0) {
-    throw new Error('storeSegmentEmbeddings() requires the model name that produced the vectors');
+  if (input.title.trim().length === 0) {
+    throw new Error('storeTranscript() requires a title');
   }
-  if (rows.length === 0) return 0;
+  if (input.model.trim().length === 0) {
+    throw new Error('storeTranscript() requires the model name that produced the vectors');
+  }
+  if (input.segments.length === 0) {
+    throw new Error('storeTranscript() was given no segments');
+  }
 
-  const payload = rows.map((row) => {
-    assertEmbedding(row.embedding);
+  // Checked here as well as by the column type: a wrong-width vector caught
+  // in TypeScript names the segment, where Postgres would only name the cast.
+  const segments = input.segments.map((segment) => {
+    assertEmbedding(segment.embedding);
     return {
-      segment_id: row.segmentId,
-      company_id: companyId,
-      embedding: [...row.embedding],
-      model: opts.model,
+      id: segment.id,
+      speaker: segment.speaker,
+      start_ms: segment.startMs,
+      end_ms: segment.endMs,
+      text: segment.text,
+      embedding: [...segment.embedding],
     };
   });
 
-  const { error } = await opts.db.from('segment_embeddings').insert(payload);
+  const { data, error } = await opts.db.rpc('ingest_transcript', {
+    p_company_id: companyId,
+    p_title: input.title.trim(),
+    p_occurred_at: input.occurredAt,
+    p_model: input.model,
+    p_segments: segments,
+  });
+
   if (error) {
-    throw new Error(`Storing segment embeddings failed: ${error.message}`, { cause: error });
+    throw new Error(`ingest_transcript failed: ${error.message}`, { cause: error });
+  }
+  if (typeof data !== 'string') {
+    throw new Error(`ingest_transcript returned no conversation id (got ${JSON.stringify(data)})`);
   }
 
-  return payload.length;
+  return data;
 }

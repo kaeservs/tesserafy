@@ -1,84 +1,47 @@
 /**
- * The writer without a database. The fake below implements only the few
- * supabase-js calls the writer makes, and records them, so these tests can
- * assert what would have been written — including the tenant on every row.
+ * The writer without a database. Ingest is one RPC — `ingest_transcript`, a
+ * single transaction — so these tests assert what would have been sent, and
+ * above all that each vector travels with the words it was made from.
  */
 import type { SupabaseClient } from '@tesserafy/db';
 import type { SegmentDraft } from '@tesserafy/ingest';
 import { describe, expect, it, vi } from 'vitest';
-import { storeSegmentEmbeddings, toCompanyId, writeTranscript, type Embedder } from '../src/index';
+import { storeTranscript, toCompanyId, writeTranscript, type Embedder } from '../src/index';
 
 const A = toCompanyId('00000000-0000-4000-8000-00000000000a');
 const CONVERSATION_ID = '00000000-0000-4000-8000-0000000000a1';
 
-interface Recorded {
-  table: string;
-  op: 'insert' | 'delete';
-  payload?: unknown;
+interface IngestArgs {
+  p_company_id: string;
+  p_title: string;
+  p_occurred_at: string | null;
+  p_model: string;
+  p_segments: {
+    id: string;
+    speaker: string | null;
+    start_ms: number;
+    end_ms: number;
+    text: string;
+    embedding: number[];
+  }[];
 }
 
-interface FakeOptions {
-  /** Return segment rows in this order, by draft index. */
-  segmentOrder?: number[];
-  failOn?: 'conversation' | 'segments' | 'embeddings';
+function fakeDb(result: { data?: unknown; error?: { message: string } } = {}) {
+  // `data` is honoured when present even if it is null — that is the case a
+  // test wants to pin.
+  const data = result.error ? null : 'data' in result ? result.data : CONVERSATION_ID;
+  const rpc = vi.fn(async () => ({ data, error: result.error ?? null }));
+  return { db: { rpc } as unknown as SupabaseClient, rpc };
 }
 
-function createFakeDb(drafts: readonly SegmentDraft[], options: FakeOptions = {}) {
-  const calls: Recorded[] = [];
-  const error = (message: string) => ({ data: null, error: { message } });
-
-  const thenable = <T>(value: T) => ({
-    then: (resolve: (v: T) => unknown) => Promise.resolve(value).then(resolve),
-  });
-
-  const db = {
-    from(table: string) {
-      return {
-        insert(payload: unknown) {
-          calls.push({ table, op: 'insert', payload });
-
-          if (table === 'conversations') {
-            const result =
-              options.failOn === 'conversation'
-                ? error('conversations insert failed')
-                : { data: { id: CONVERSATION_ID }, error: null };
-            return { select: () => ({ single: async () => result }) };
-          }
-
-          if (table === 'segments') {
-            if (options.failOn === 'segments') {
-              return { select: () => thenable(error('segments insert failed')) };
-            }
-            const order = options.segmentOrder ?? drafts.map((_, i) => i);
-            const rows = order.map((i) => ({
-              id: `seg-${i}`,
-              start_ms: drafts[i]!.startMs,
-              text: drafts[i]!.text,
-            }));
-            return { select: () => thenable({ data: rows, error: null }) };
-          }
-
-          // segment_embeddings
-          return thenable(
-            options.failOn === 'embeddings' ? error('embeddings insert failed') : { error: null },
-          );
-        },
-        delete() {
-          calls.push({ table, op: 'delete' });
-          const eq = () => ({ eq, ...thenable({ error: null }) });
-          return { eq };
-        },
-      };
-    },
-  };
-
-  return { db: db as unknown as SupabaseClient, calls };
+function embedding(fill: number): number[] {
+  return new Array<number>(768).fill(fill);
 }
 
 function fakeEmbedder(overrides: Partial<Embedder> = {}): Embedder {
   return {
     model: 'nomic-embed-text',
-    embed: vi.fn(async () => new Array<number>(768).fill(0.5)),
+    embed: vi.fn<(text: string) => Promise<number[]>>(async () => embedding(0.5)),
     ...overrides,
   };
 }
@@ -89,155 +52,172 @@ function draft(index: number, text: string, startMs: number): SegmentDraft {
 
 const DRAFTS = [draft(0, 'We export it every Friday.', 0), draft(1, 'By hand, yes.', 2000)];
 
-const INPUT = { title: 'Acme — discovery call', occurredAt: '2026-09-01T15:00:00Z', segments: DRAFTS };
+const INPUT = {
+  title: 'Acme — discovery call',
+  occurredAt: '2026-09-01T15:00:00Z',
+  segments: DRAFTS,
+};
+
+function argsOf(rpc: ReturnType<typeof fakeDb>['rpc']): IngestArgs {
+  return (rpc.mock.calls[0] as unknown as [string, IngestArgs])[1];
+}
 
 describe('writeTranscript', () => {
-  it('writes the conversation, its segments and their embeddings', async () => {
-    const { db, calls } = createFakeDb(DRAFTS);
-    const embedder = fakeEmbedder();
+  it('writes the whole transcript in a single call', async () => {
+    const { db, rpc } = fakeDb();
 
-    const result = await writeTranscript(A, INPUT, { db, embedder });
+    const result = await writeTranscript(A, INPUT, { db, embedder: fakeEmbedder() });
 
-    expect(result).toEqual({
-      conversationId: CONVERSATION_ID,
-      segmentCount: 2,
-      embeddedCount: 2,
-    });
-    expect(calls.map((c) => `${c.op} ${c.table}`)).toEqual([
-      'insert conversations',
-      'insert segments',
-      'insert segment_embeddings',
-    ]);
+    expect(result).toEqual({ conversationId: CONVERSATION_ID, segmentCount: 2 });
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect((rpc.mock.calls[0] as unknown as [string])[0]).toBe('ingest_transcript');
   });
 
-  it('stamps every row with the companyId argument', async () => {
-    const { db, calls } = createFakeDb(DRAFTS);
+  it('sends the tenant from the companyId argument', async () => {
+    const { db, rpc } = fakeDb();
 
     await writeTranscript(A, INPUT, { db, embedder: fakeEmbedder() });
 
-    for (const call of calls) {
-      const rows = Array.isArray(call.payload) ? call.payload : [call.payload];
-      for (const row of rows) {
-        expect((row as { company_id: string }).company_id).toBe(A);
-      }
-    }
+    expect(argsOf(rpc).p_company_id).toBe(A);
   });
 
-  it('embeds each segment with its own text when rows come back out of order', async () => {
-    // An insert makes no promise about the order of returned rows, and the
-    // wrong pairing here would attach a vector to somebody else's words.
-    const { db } = createFakeDb(DRAFTS, { segmentOrder: [1, 0] });
-    const embed = vi.fn<(text: string) => Promise<number[]>>(
-      async () => new Array<number>(768).fill(0.5),
+  it('pairs every vector with its own words', async () => {
+    // The failure this guards against is silent: a vector attached to another
+    // segment's words shows up only as bad retrieval, months later.
+    const embed = vi.fn<(text: string) => Promise<number[]>>(async (text) =>
+      embedding(text.length),
     );
+    const { db, rpc } = fakeDb();
 
     await writeTranscript(A, INPUT, { db, embedder: fakeEmbedder({ embed }) });
 
-    expect(embed.mock.calls.map(([text]) => text)).toEqual([
-      'By hand, yes.',
-      'We export it every Friday.',
-    ]);
+    for (const segment of argsOf(rpc).p_segments) {
+      expect(segment.embedding[0]).toBe(segment.text.length);
+    }
   });
 
-  it('records the embedding model on every vector', async () => {
-    const { db, calls } = createFakeDb(DRAFTS);
+  it('mints a distinct id for every segment', async () => {
+    const { db, rpc } = fakeDb();
 
     await writeTranscript(A, INPUT, { db, embedder: fakeEmbedder() });
 
-    const embeddings = calls.find((c) => c.table === 'segment_embeddings')!.payload as {
-      model: string;
-    }[];
-    expect(embeddings.every((row) => row.model === 'nomic-embed-text')).toBe(true);
+    const ids = argsOf(rpc).p_segments.map((s) => s.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const id of ids) {
+      expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    }
   });
 
-  it('deletes the conversation when writing segments fails', async () => {
-    const { db, calls } = createFakeDb(DRAFTS, { failOn: 'segments' });
+  it('carries speaker, timings and text through unchanged', async () => {
+    const { db, rpc } = fakeDb();
 
-    await expect(writeTranscript(A, INPUT, { db, embedder: fakeEmbedder() })).rejects.toThrow(
-      /Writing segments failed/,
-    );
-    expect(calls.at(-1)).toMatchObject({ table: 'conversations', op: 'delete' });
+    await writeTranscript(A, INPUT, { db, embedder: fakeEmbedder(), newId: () => 'fixed-id' });
+
+    expect(argsOf(rpc).p_segments[1]).toMatchObject({
+      id: 'fixed-id',
+      speaker: 'customer',
+      start_ms: 2000,
+      end_ms: 3000,
+      text: 'By hand, yes.',
+    });
+    expect(argsOf(rpc).p_title).toBe('Acme — discovery call');
+    expect(argsOf(rpc).p_occurred_at).toBe('2026-09-01T15:00:00Z');
+    expect(argsOf(rpc).p_model).toBe('nomic-embed-text');
   });
 
-  it('deletes the conversation when embedding fails part-way', async () => {
-    const { db, calls } = createFakeDb(DRAFTS);
+  it('writes nothing when embedding fails', async () => {
     const embed = vi
       .fn<(text: string) => Promise<number[]>>()
-      .mockResolvedValueOnce(new Array<number>(768).fill(0.5))
+      .mockResolvedValueOnce(embedding(0.5))
       .mockRejectedValueOnce(new Error('Ollama embed failed: 500'));
+    const { db, rpc } = fakeDb();
 
     await expect(
       writeTranscript(A, INPUT, { db, embedder: fakeEmbedder({ embed }) }),
     ).rejects.toThrow(/Ollama embed failed/);
-    expect(calls.at(-1)).toMatchObject({ table: 'conversations', op: 'delete' });
+    expect(rpc).not.toHaveBeenCalled();
   });
 
-  it('deletes the conversation when storing embeddings fails', async () => {
-    const { db, calls } = createFakeDb(DRAFTS, { failOn: 'embeddings' });
+  it('surfaces a failed ingest without any cleanup of its own', async () => {
+    const { db, rpc } = fakeDb({ error: { message: 'duplicate key value' } });
 
     await expect(writeTranscript(A, INPUT, { db, embedder: fakeEmbedder() })).rejects.toThrow(
-      /Storing segment embeddings failed/,
+      /ingest_transcript failed: duplicate key value/,
     );
-    expect(calls.at(-1)).toMatchObject({ table: 'conversations', op: 'delete' });
+    // The transaction rolled back in Postgres; there is nothing to undo here.
+    expect(rpc).toHaveBeenCalledTimes(1);
   });
 
   it('refuses a companyId that is not one', async () => {
-    const { db } = createFakeDb(DRAFTS);
+    const { db, rpc } = fakeDb();
 
     await expect(
       writeTranscript('not-a-uuid' as never, INPUT, { db, embedder: fakeEmbedder() }),
     ).rejects.toThrow(TypeError);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
-  it('refuses a transcript with no title or no segments', async () => {
-    const { db } = createFakeDb(DRAFTS);
+  it('refuses a transcript with no segments before embedding anything', async () => {
+    const { db, rpc } = fakeDb();
     const embedder = fakeEmbedder();
 
     await expect(
-      writeTranscript(A, { ...INPUT, title: '  ' }, { db, embedder }),
-    ).rejects.toThrow(/requires a title/);
-    await expect(
       writeTranscript(A, { ...INPUT, segments: [] }, { db, embedder }),
     ).rejects.toThrow(/no segments/);
+    expect(embedder.embed).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
   });
 });
 
-describe('storeSegmentEmbeddings', () => {
-  it('writes nothing and returns zero for an empty list', async () => {
-    const { db, calls } = createFakeDb([]);
+describe('storeTranscript', () => {
+  const segment = {
+    id: '00000000-0000-4000-8000-000000000a11',
+    speaker: 'customer',
+    startMs: 0,
+    endMs: 1000,
+    text: 'We export it every Friday.',
+    embedding: embedding(1),
+  };
+  const input = { title: 'Acme', occurredAt: null, model: 'nomic-embed-text', segments: [segment] };
 
-    expect(await storeSegmentEmbeddings(A, [], { db, model: 'nomic-embed-text' })).toBe(0);
-    expect(calls).toHaveLength(0);
+  it('returns the conversation id the function produced', async () => {
+    const { db } = fakeDb();
+
+    expect(await storeTranscript(A, input, { db })).toBe(CONVERSATION_ID);
   });
 
   it('rejects a vector of the wrong width before it reaches the database', async () => {
-    const { db, calls } = createFakeDb([]);
+    const { db, rpc } = fakeDb();
 
     await expect(
-      storeSegmentEmbeddings(A, [{ segmentId: 'seg-0', embedding: [1, 2, 3] }], {
-        db,
-        model: 'nomic-embed-text',
-      }),
+      storeTranscript(A, { ...input, segments: [{ ...segment, embedding: [1, 2, 3] }] }, { db }),
     ).rejects.toThrow(/768-dimension embedding/);
-    expect(calls).toHaveLength(0);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
-  it('requires the model that produced the vectors', async () => {
-    const { db } = createFakeDb([]);
+  it('requires a title, a model and at least one segment', async () => {
+    const { db } = fakeDb();
 
-    await expect(
-      storeSegmentEmbeddings(A, [{ segmentId: 'seg-0', embedding: new Array(768).fill(1) }], {
-        db,
-        model: '  ',
-      }),
-    ).rejects.toThrow(/requires the model name/);
+    await expect(storeTranscript(A, { ...input, title: ' ' }, { db })).rejects.toThrow(
+      /requires a title/,
+    );
+    await expect(storeTranscript(A, { ...input, model: ' ' }, { db })).rejects.toThrow(
+      /requires the model name/,
+    );
+    await expect(storeTranscript(A, { ...input, segments: [] }, { db })).rejects.toThrow(
+      /no segments/,
+    );
+  });
+
+  it('fails loudly when the function returns no id', async () => {
+    const { db } = fakeDb({ data: null });
+
+    await expect(storeTranscript(A, input, { db })).rejects.toThrow(/returned no conversation id/);
   });
 
   it('refuses a companyId that is not one', async () => {
-    const { db } = createFakeDb([]);
+    const { db } = fakeDb();
 
-    await expect(
-      storeSegmentEmbeddings('nope' as never, [], { db, model: 'nomic-embed-text' }),
-    ).rejects.toThrow(TypeError);
+    await expect(storeTranscript('nope' as never, input, { db })).rejects.toThrow(TypeError);
   });
 });

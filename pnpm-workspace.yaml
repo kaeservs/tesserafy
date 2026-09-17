@@ -1,3 +1,7 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# esbuild unpacks a platform binary in its install script; tsx needs it.
+allowBuilds:
+  esbuild: true

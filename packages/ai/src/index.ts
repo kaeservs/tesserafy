@@ -49,3 +49,8 @@ export {
   type UsageLike,
   type UsageSink,
 } from './telemetry/usage';
+export {
+  writeSignals,
+  type WriteSignalsInput,
+  type WriteSignalsOptions,
+} from './ingest/write-signals';

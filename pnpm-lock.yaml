@@ -209,6 +209,9 @@ importers:
       '@tesserafy/db':
         specifier: workspace:*
         version: link:../db
+      '@tesserafy/ingest':
+        specifier: workspace:*
+        version: link:../ingest
     devDependencies:
       '@types/node':
         specifier: 26.5.1

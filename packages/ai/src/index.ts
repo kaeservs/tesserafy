@@ -12,3 +12,14 @@ export {
   type Embedder,
   type OllamaEmbedderOptions,
 } from './providers/embedder';
+export {
+  storeSegmentEmbeddings,
+  type SegmentEmbedding,
+  type StoreOptions,
+} from './retrieval/store';
+export {
+  writeTranscript,
+  type TranscriptInput,
+  type WriteTranscriptOptions,
+  type WrittenTranscript,
+} from './ingest/write-transcript';

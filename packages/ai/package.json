@@ -12,7 +12,8 @@
     "test:integration": "vitest run --project integration"
   },
   "dependencies": {
-    "@tesserafy/db": "workspace:*"
+    "@tesserafy/db": "workspace:*",
+    "@tesserafy/ingest": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "26.5.1",

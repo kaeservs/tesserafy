@@ -24,3 +24,28 @@ export {
   type WriteTranscriptOptions,
   type WrittenTranscript,
 } from './ingest/write-transcript';
+export {
+  extractSignals,
+  renderTranscript,
+  T3_DETECTOR,
+  T3_MODEL,
+  type ExtractableSegment,
+  type ExtractionResult,
+  type ExtractOptions,
+} from './tiers/t3-extract';
+export {
+  resolveSignals,
+  type ClaimedSignal,
+  type QuotableSegment,
+  type RejectedSignal,
+  type RejectionReason,
+  type ResolvedEvidence,
+  type ResolvedSignal,
+} from './tiers/evidence';
+export {
+  logUsage,
+  toUsageEvent,
+  type UsageEvent,
+  type UsageLike,
+  type UsageSink,
+} from './telemetry/usage';

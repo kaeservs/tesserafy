@@ -55,3 +55,56 @@ button {
 .muted {
   color: var(--muted);
 }
+
+/* Conversation detail. Following a signal's quote jumps to its segment, and
+   :target holds the highlight there so the reader can see where they landed —
+   no client JavaScript involved. */
+.signals,
+.evidence,
+.transcript {
+  list-style: none;
+  padding: 0;
+}
+
+.signal {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.signal-kind {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.evidence {
+  margin: 0.4rem 0 0;
+  font-size: 0.95rem;
+}
+
+.segment {
+  /* Without this the anchored segment lands under the header. */
+  scroll-margin-top: 4rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid transparent;
+}
+
+.segment:target {
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.segment-meta {
+  font-size: 0.8rem;
+}
+
+.segment p {
+  margin: 0.2rem 0 0;
+}
+
+mark {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: inherit;
+  padding: 0 0.1em;
+  border-radius: 3px;
+}

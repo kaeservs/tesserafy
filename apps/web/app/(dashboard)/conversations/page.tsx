@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -28,7 +29,9 @@ export default async function ConversationsPage() {
         <ul style={{ listStyle: 'none', padding: 0 }}>
           {conversations.map((c) => (
             <li key={c.id} style={{ padding: '0.75rem 0', borderBottom: '1px solid var(--border)' }}>
-              <div>{c.title}</div>
+              <div>
+                <Link href={`/conversations/${c.id}`}>{c.title}</Link>
+              </div>
               <div className="muted">
                 {companyName(c.companies)}
                 {c.occurred_at && ` · ${new Date(c.occurred_at).toLocaleDateString('en-GB')}`}

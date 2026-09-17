@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    // Operator tooling: it reads files and environment variables, unlike the
+    // packages it drives.
+    "types": ["node"]
+  },
+  "include": ["*.ts"]
+}

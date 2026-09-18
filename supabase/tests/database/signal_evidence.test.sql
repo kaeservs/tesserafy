@@ -9,7 +9,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(9);
+select plan(10);
 
 -- A user who belongs to company A only.
 insert into auth.users (id, email, aud, role)
@@ -82,6 +82,13 @@ select is(
    where e.signal_id = '00000000-0000-4000-8000-000000000a21'),
   'takes us most of Friday afternoon',
   'the seeded evidence quotes its segment exactly'
+);
+
+-- The deferred checks must pass for the seeded rows. This test rolls back, so
+-- without forcing them here a trigger that only fails at commit goes unseen.
+select lives_ok(
+  'set constraints all immediate',
+  'the seeded signal satisfies the deferred evidence check'
 );
 
 -- A signal with no evidence fails when the deferred constraint is checked.

@@ -5,7 +5,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(8);
+select plan(9);
 
 -- The seeded fixture already holds a signal for company A, so these tests
 -- count only what they write themselves.
@@ -45,6 +45,13 @@ select lives_ok(
 );
 
 select is((select count(*)::int from written), 2, 'one id is returned per signal');
+
+-- These tests roll back, so the deferred triggers would never fire on their
+-- own. Forcing them here is what catches a trigger that only fails at commit.
+select lives_ok(
+  'set constraints all immediate',
+  'the deferred evidence checks pass for what was just written'
+);
 
 select is(
   (select count(*)::int from public.signal_evidence e

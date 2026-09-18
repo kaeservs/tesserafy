@@ -47,7 +47,10 @@ select lives_ok(
 select is((select count(*)::int from written), 2, 'one id is returned per signal');
 
 -- These tests roll back, so the deferred triggers would never fire on their
--- own. Forcing them here is what catches a trigger that only fails at commit.
+-- own. Forcing them here is what catches a trigger that only fails at commit —
+-- as one did. Note the failure mode: a constraint trigger's events run at the
+-- end of the outer statement, so a regression aborts the whole file rather
+-- than failing this one assertion. Loud either way.
 select lives_ok(
   'set constraints all immediate',
   'the deferred evidence checks pass for what was just written'

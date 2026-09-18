@@ -9,7 +9,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(10);
+select plan(9);
 
 -- A user who belongs to company A only.
 insert into auth.users (id, email, aud, role)
@@ -84,42 +84,54 @@ select is(
   'the seeded evidence quotes its segment exactly'
 );
 
--- The deferred checks must pass for the seeded rows. This test rolls back, so
--- without forcing them here a trigger that only fails at commit goes unseen.
-select lives_ok(
-  'set constraints all immediate',
-  'the seeded signal satisfies the deferred evidence check'
-);
-
 -- A signal with no evidence fails when the deferred constraint is checked.
-savepoint no_evidence;
-insert into public.signals
-  (id, company_id, conversation_id, kind, summary, confidence, detector, model)
-values ('00000000-0000-4000-8000-000000000a99',
-        '00000000-0000-4000-8000-00000000000a',
-        '00000000-0000-4000-8000-0000000000a1',
-        'problem', 'unbacked claim', 0.9, 'test', 'test');
+--
+-- The write and the flush have to happen inside one function. A constraint
+-- trigger's queued events fire at the end of the *outer* statement, so
+-- `throws_ok('set constraints all immediate')` would let the error escape past
+-- pgTAP's handler and abort the file instead of failing one assertion.
 
-select throws_ok(
-  'set constraints all immediate',
+create function pg_temp.unbacked_signal_state() returns text
+language plpgsql as $probe$
+begin
+  insert into public.signals
+    (id, company_id, conversation_id, kind, summary, confidence, detector, model)
+  values ('00000000-0000-4000-8000-000000000a99',
+          '00000000-0000-4000-8000-00000000000a',
+          '00000000-0000-4000-8000-0000000000a1',
+          'problem', 'unbacked claim', 0.9, 'test', 'test');
+  set constraints all immediate;
+  return 'no error';
+exception when others then
+  -- The failed subtransaction takes the insert with it.
+  return sqlstate;
+end;
+$probe$;
+
+select is(
+  pg_temp.unbacked_signal_state(),
   '23514',
-  null,
   'a signal with no evidence cannot be committed'
 );
-rollback to savepoint no_evidence;
 
 -- Removing the last piece of evidence is the same violation from the other side.
-savepoint orphaned;
-delete from public.signal_evidence
-where signal_id = '00000000-0000-4000-8000-000000000a21';
+create function pg_temp.orphaned_signal_state() returns text
+language plpgsql as $probe$
+begin
+  delete from public.signal_evidence
+  where signal_id = '00000000-0000-4000-8000-000000000a21';
+  set constraints all immediate;
+  return 'no error';
+exception when others then
+  return sqlstate;
+end;
+$probe$;
 
-select throws_ok(
-  'set constraints all immediate',
+select is(
+  pg_temp.orphaned_signal_state(),
   '23514',
-  null,
   'deleting the last evidence row leaves an unbacked signal and is rejected'
 );
-rollback to savepoint orphaned;
 
 
 -- ---------------------------------------------------------------------------

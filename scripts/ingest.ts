@@ -32,6 +32,7 @@ interface Args {
   occurredAt: string | null;
   dryRun: boolean;
   extract: boolean;
+  json: boolean;
 }
 
 function parseArgs(argv: readonly string[]): Args {
@@ -45,6 +46,7 @@ function parseArgs(argv: readonly string[]): Args {
     occurredAt: null,
     dryRun: false,
     extract: true,
+    json: false,
   };
 
   for (let i = 0; i < rest.length; i++) {
@@ -64,6 +66,9 @@ function parseArgs(argv: readonly string[]): Args {
         break;
       case '--no-extract':
         args.extract = false;
+        break;
+      case '--json':
+        args.json = true;
         break;
       default:
         usage(`unknown option ${flag}`);
@@ -85,6 +90,8 @@ Options:
   --title <text>        Defaults to the transcript's own title, else the filename.
   --occurred-at <iso>   When the call happened.
   --dry-run             Parse and chunk only. Writes nothing, calls nothing.
+  --json                With --dry-run, print the segments as JSON. The eval
+                        harness reads this to validate a corpus offline.
   --no-extract          Write the transcript but skip T3 extraction.
 
 Environment:
@@ -116,6 +123,27 @@ async function main(): Promise<void> {
   const transcript = parseFile(args.file);
   const segments = toSegments(transcript.turns);
   const title = args.title ?? transcript.title ?? args.file;
+
+  if (args.dryRun && args.json) {
+    // Ids match scripts/extract.ts, so a label resolved here resolves there.
+    process.stdout.write(
+      `${JSON.stringify(
+        {
+          title: transcript.title,
+          segments: segments.map((segment) => ({
+            id: `s${segment.index}`,
+            speaker: segment.speaker,
+            start_ms: segment.startMs,
+            text: segment.text,
+          })),
+        },
+        null,
+        2,
+      )}
+`,
+    );
+    return;
+  }
 
   console.info(
     `Parsed ${transcript.turns.length} turns into ${segments.length} segments — "${title}"`,

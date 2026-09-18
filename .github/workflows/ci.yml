@@ -25,6 +25,15 @@ jobs:
       - run: pnpm test
       - run: pnpm guard:retrieval
 
+      # The eval harness grades what ships, so its matching rule is part of
+      # what can break. Standard library only — no Python dependencies.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Eval harness unit tests
+        run: python -m unittest discover -s tests -t .
+        working-directory: services/eval
+
   tenant-isolation:
     # The P0 gate. Release-blocking: make this a required status check on main.
     name: Tenant isolation (local Supabase)

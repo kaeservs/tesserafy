@@ -68,3 +68,20 @@ export {
   type DetectOptions,
 } from './tiers/t1-detect';
 export { locate } from './tiers/evidence';
+export {
+  clusterSignals,
+  loadSignals,
+  type ClusterableSignal,
+  type ClusterOptions,
+  type SignalCluster,
+} from './insights/cluster';
+export {
+  renderCluster,
+  synthesiseInsight,
+  T3_SYNTHESISER,
+  T3_SYNTHESIS_MODEL,
+  type RejectedCluster,
+  type SynthesisedInsight,
+  type SynthesiseOptions,
+} from './insights/synthesise';
+export { writeInsight, type WriteInsightOptions } from './insights/write-insight';

@@ -9,17 +9,17 @@ https://claude.ai/code/artifact/a7cdd883-3bc5-48f5-84da-a0fe6b21f329
 
 ## Phases
 
-| # | Phase | Gate |
-|---|---|---|
-| P0 | Foundation | Two seeded companies. User A cannot reach company B's data via API, direct query, or `retrieve()`. Test green in CI. |
-| P1 | Batch intelligence slice | Every displayed signal links to a timestamped quote; clicking scrolls to that segment. |
-| P2 | Scoring engine | ~40 unit tests over synthetic detector sequences, no LLM in the test path. Score monotonic except on explicit contradiction. |
-| P3 | Evaluation harness | A committed precision/recall number for problem detection, feature-request detection and criterion correctness, with the date measured. |
-| P4 | Bulk transcript import | 50 transcripts ingest in one run; cost per transcript recorded; failures are per-file. |
-| P5 | Retrieval and insights | One insight with >= 3 evidence items from >= 2 conversations, each citing customer and timestamp. Cross-tenant test still green. |
-| P6 | Live path, browser first | Measured p50/p95 for utterance -> visible score against the latency budget. |
-| P7 | Electron HUD | Overlay over a live Zoom call; scorecard updates; meeting stays visible and clickable; screen-share behaviour matches S1. |
-| P8 | Prepare and Act | An insight moves from approval to a created ticket carrying its evidence citations. No auto-creation anywhere. |
+| # | Phase | Gate | Status |
+|---|---|---|---|
+| P0 | Foundation | Two seeded companies. User A cannot reach company B's data via API, direct query, or `retrieve()`. Test green in CI. | Done |
+| P1 | Batch intelligence slice | Every displayed signal links to a timestamped quote; clicking scrolls to that segment. | Built; gate not yet witnessed in a browser |
+| P2 | Scoring engine | ~40 unit tests over synthetic detector sequences, no LLM in the test path. Score monotonic except on explicit contradiction. | Done — 56 tests |
+| P3 | Evaluation harness | A committed precision/recall number for problem detection, feature-request detection and criterion correctness, with the date measured. | Done — numbers in `services/eval/benchmarks/results.md` |
+| P4 | Bulk transcript import | 50 transcripts ingest in one run; cost per transcript recorded; failures are per-file. | Built; run at 10 transcripts, not 50 |
+| P5 | Retrieval and insights | One insight with >= 3 evidence items from >= 2 conversations, each citing customer and timestamp. Cross-tenant test still green. | Built; one insight in production across 4 conversations |
+| P6 | Live path, browser first | Measured p50/p95 for utterance -> visible score against the latency budget. | In progress — live scorecard page measures against ADR 0010 |
+| P7 | Electron HUD | Overlay over a live Zoom call; scorecard updates; meeting stays visible and clickable; screen-share behaviour matches S1. | Blocked on S1 results |
+| P8 | Prepare and Act | An insight moves from approval to a created ticket carrying its evidence citations. No auto-creation anywhere. | Not started |
 
 ## MVP
 
@@ -32,6 +32,10 @@ P2 is built before P1: it needs no data, no network and no model, so it
 proceeds while P1 waits on transcripts.
 
 ## Latency budget (P6/P7 contract)
+
+> Superseded by ADR 0010. The figures below were targets written before
+> measurement; T1 measured at ~1450 ms against the 700 ms budgeted here, and
+> the revised contract is ~2 s utterance to visible score.
 
 | Stage | Budget |
 |---|---|
@@ -50,9 +54,9 @@ arrives — each answers a question whose answer could change the plan.
 
 | # | Box | Question | Status |
 |---|---|---|---|
-| S1 | 1 day | Does `setContentProtection(true)` exclude the overlay from a shared screen — Zoom desktop, Meet in Chrome, Teams; window vs full-screen share? | Not started. Windows only; macOS untested. |
+| S1 | 1 day | Does `setContentProtection(true)` exclude the overlay from a shared screen — Zoom desktop, Meet in Chrome, Teams; window vs full-screen share? | Apparatus built (`apps/desktop`), results pending a human in a meeting. Windows only; macOS untested. |
 | S2 | 1 day | Which streaming STT hits the 300 ms partial budget, at what real $/min? | Not started |
-| S3 | 2 days | Can `claude-haiku-4-5` detect criteria accurately from a 600-token window? How does a local model compare? | Not started. Output seeds the P3 eval set. |
+| S3 | 2 days | Can `claude-haiku-4-5` detect criteria accurately from a 600-token window? How does a local model compare? | **Done** — 84% F1, but 1450 ms against a 700 ms budget, and a local 4B model is 25x slower at 25% F1. Budget revised by ADR 0010. |
 
 ## Explicitly not building yet
 

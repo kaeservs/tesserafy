@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { fetchCriteria } from '@tesserafy/db';
 import { LiveScorecard, type PlayableSegment } from '@/components/live-scorecard';
+import { toPrompts, toScorecard } from '@/lib/criteria';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -40,6 +42,10 @@ export default async function LivePage({ params }: { params: Promise<{ id: strin
     text: row.text,
   }));
 
+  // Read as the signed-in user like everything else on this page; criteria are
+  // reference data, so RLS lets any member read them.
+  const criteria = await fetchCriteria(supabase, 'discovery');
+
   const { title } = conversation as { title: string };
 
   return (
@@ -49,10 +55,15 @@ export default async function LivePage({ params }: { params: Promise<{ id: strin
       </p>
       <h1>Live scorecard</h1>
       <p className="muted">
-        Replaying {segments.length} utterances through the real detector. The score comes from the
+        Replaying {segments.length} utterances through the real detector, against{' '}
+        {criteria.length} criteria (discovery v{criteria[0]?.version}). The score comes from the
         scoring engine, never from the model.
       </p>
-      <LiveScorecard segments={segments} />
+      <LiveScorecard
+        segments={segments}
+        prompts={toPrompts(criteria)}
+        scorecard={toScorecard(criteria)}
+      />
     </main>
   );
 }

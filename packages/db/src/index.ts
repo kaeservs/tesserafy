@@ -31,3 +31,5 @@ export function createUserClient({ url, key }: SupabaseConnection): SupabaseClie
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
+
+export { fetchCriteria, type CriterionRow } from './queries/criteria';

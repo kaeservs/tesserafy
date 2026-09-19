@@ -1,8 +1,8 @@
 'use client';
 
-import { apply, initialState, score, type DetectorEvent } from '@tesserafy/scoring';
+import type { CriterionPrompt } from '@tesserafy/ai';
+import { apply, initialState, score, type CriteriaSet, type DetectorEvent } from '@tesserafy/scoring';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { DISCOVERY_CRITERIA, DISCOVERY_SCORECARD } from '@/lib/criteria';
 
 /**
  * The live path, browser first.
@@ -44,9 +44,17 @@ function percentile(samples: readonly number[], p: number): number | null {
   return sorted[Math.max(0, Math.ceil(sorted.length * p) - 1)] ?? null;
 }
 
-export function LiveScorecard({ segments }: { segments: PlayableSegment[] }) {
+export function LiveScorecard({
+  segments,
+  prompts,
+  scorecard,
+}: {
+  segments: PlayableSegment[];
+  prompts: CriterionPrompt[];
+  scorecard: CriteriaSet;
+}) {
   const [played, setPlayed] = useState(0);
-  const [state, setState] = useState(() => initialState(DISCOVERY_SCORECARD));
+  const [state, setState] = useState(() => initialState(scorecard));
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [playing, setPlaying] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -75,7 +83,7 @@ export function LiveScorecard({ segments }: { segments: PlayableSegment[] }) {
       const response = await fetch('/api/detect', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ criteria: DISCOVERY_CRITERIA, window }),
+        body: JSON.stringify({ criteria: prompts, window }),
       });
       if (!response.ok) {
         throw new Error(`detect failed: ${response.status}`);
@@ -103,7 +111,7 @@ export function LiveScorecard({ segments }: { segments: PlayableSegment[] }) {
       inFlight.current = false;
       setBusy(false);
     }
-  }, [played, segments]);
+  }, [played, segments, prompts]);
 
   useEffect(() => {
     if (!playing) return;
@@ -133,7 +141,7 @@ export function LiveScorecard({ segments }: { segments: PlayableSegment[] }) {
           onClick={() => {
             setPlaying(false);
             setPlayed(0);
-            setState(initialState(DISCOVERY_SCORECARD));
+            setState(initialState(scorecard));
             setMeasurements([]);
             setError(null);
           }}

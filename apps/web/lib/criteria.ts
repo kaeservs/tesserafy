@@ -1,59 +1,40 @@
 import { defineCriteriaSet, type CriteriaSet } from '@tesserafy/scoring';
+import type { CriterionRow } from '@tesserafy/db';
 import type { CriterionPrompt } from '@tesserafy/ai';
 
 /**
- * The discovery scorecard.
+ * Criteria come from the database (`criteria_definitions`), not from here.
  *
- * Criteria are seed data, not code — a new engagement type should be a row,
- * not a deploy. This lives here because the criteria table does not exist yet
- * and P6 needs something to score against; moving it into the database is part
- * of that work, and until then this constant is the single copy the live path
- * and the eval corpus share.
- *
- * Weights are equal. Weighting them differently is a product judgement about
- * what a good discovery call is, and nobody has made it yet — equal weights at
- * least make the score legible: it is the share of criteria confirmed.
+ * These two functions are the only translation: rows into the prompts T1 is
+ * given, and rows into the set the scoring engine validates. `defineCriteriaSet`
+ * is what rejects a row with impossible thresholds, so a bad row fails at load
+ * rather than producing a quietly wrong score.
  */
-export const DISCOVERY_CRITERIA: readonly CriterionPrompt[] = [
-  {
-    key: 'pain_quantified',
-    label: 'Pain quantified',
-    definition:
-      'The customer states what a problem costs them in time, money, headcount or accuracy. A complaint with no size is not enough.',
-  },
-  {
-    key: 'current_process_known',
-    label: 'Current process known',
-    definition:
-      'The customer describes how the work is done today — the tools, the steps or who does it.',
-  },
-  {
-    key: 'desired_outcome_stated',
-    label: 'Desired outcome stated',
-    definition:
-      'The customer says what they want instead, either as a request or by describing how they would like it to work.',
-  },
-  {
-    key: 'timeline_stated',
-    label: 'Timeline stated',
-    definition:
-      'The customer names a date, deadline or period for the change they are considering. Scheduling the next meeting does not count.',
-  },
-  {
-    key: 'budget_indicated',
-    label: 'Budget indicated',
-    definition:
-      'The customer refers to budget, funding, price sensitivity or when money can be committed.',
-  },
-];
 
-/** The same criteria as the scoring engine needs them: weights and thresholds. */
-export const DISCOVERY_SCORECARD: CriteriaSet = defineCriteriaSet({
-  engagementType: 'discovery',
-  version: 1,
-  criteria: DISCOVERY_CRITERIA.map((criterion) => ({
-    key: criterion.key,
-    label: criterion.label,
-    weight: 1,
-  })),
-});
+export function toPrompts(rows: readonly CriterionRow[]): CriterionPrompt[] {
+  return rows.map((row) => ({
+    key: row.key,
+    label: row.label,
+    definition: row.definition,
+  }));
+}
+
+export function toScorecard(rows: readonly CriterionRow[]): CriteriaSet {
+  const first = rows[0];
+  if (!first) throw new Error('toScorecard() was given no criteria');
+
+  return defineCriteriaSet({
+    engagementType: first.engagement_type,
+    version: first.version,
+    criteria: rows.map((row) => ({
+      key: row.key,
+      label: row.label,
+      weight: row.weight,
+      thresholds: {
+        candidate: row.candidate_threshold,
+        confirm: row.confirm_threshold,
+        corroboratingSegments: row.corroborating_segments,
+      },
+    })),
+  });
+}

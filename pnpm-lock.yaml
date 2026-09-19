@@ -236,6 +236,9 @@ importers:
       '@tesserafy/ingest':
         specifier: workspace:*
         version: link:../ingest
+      '@tesserafy/scoring':
+        specifier: workspace:*
+        version: link:../scoring
       zod:
         specifier: ^4.6.5
         version: 4.6.5

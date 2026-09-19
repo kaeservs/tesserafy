@@ -61,7 +61,9 @@ def load(path: Path) -> list[dict]:
     return items
 
 
-def resolve(raw: dict, segments: list[Segment], root: Path) -> Item:
+def resolve(
+    raw: dict, segments: list[Segment], root: Path, kinds: tuple[str, ...] = KINDS
+) -> Item:
     """Turns one raw item into labels anchored to real spans of real segments."""
     item_id = raw.get("id")
     if not item_id:
@@ -77,8 +79,8 @@ def resolve(raw: dict, segments: list[Segment], root: Path) -> Item:
         quote = (raw_label.get("quote") or "").strip()
         where = f"{item_id} label {index}"
 
-        if kind not in KINDS:
-            raise DatasetError(f"{where}: kind must be one of {KINDS}, got {kind!r}")
+        if kind not in kinds:
+            raise DatasetError(f"{where}: kind must be one of {kinds}, got {kind!r}")
         if not quote:
             raise DatasetError(f"{where}: no quote")
 

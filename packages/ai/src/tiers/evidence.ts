@@ -134,7 +134,7 @@ export function resolveSignals(
  * two cues will often normalise the spacing. Nothing else is forgiven — a
  * changed word is a paraphrase, and the whole point is to catch those.
  */
-function locate(text: string, quote: string): { start: number; end: number } | null {
+export function locate(text: string, quote: string): { start: number; end: number } | null {
   const trimmed = quote.trim();
   if (trimmed.length === 0) return null;
 

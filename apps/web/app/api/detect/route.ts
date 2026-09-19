@@ -1,0 +1,110 @@
+import Anthropic from '@anthropic-ai/sdk';
+import { detectCriteria, type CriterionPrompt, type DetectableSegment } from '@tesserafy/ai';
+import { createClient as createTokenClient } from '@supabase/supabase-js';
+import { NextResponse, type NextRequest } from 'next/server';
+import { publicSupabaseEnv } from '@/lib/env';
+import { createClient } from '@/lib/supabase/server';
+
+/**
+ * T1 criterion detection, run server-side.
+ *
+ * Spike S3 measured the two obvious places to run T1 and both missed the
+ * 700 ms budget: from a client the round trip alone costs ~750 ms, and a local
+ * 4B model took ~54 s per window. Running it beside the model is the only
+ * remaining candidate, and this endpoint exists to measure it rather than
+ * assume it — `usage.durationMs` is what the model took, and the caller's own
+ * clock gives the round trip, so the difference is the network cost this
+ * topology is supposed to remove.
+ *
+ * It holds an Anthropic key and no database credentials. There is deliberately
+ * no service-role client here: the retrieval guard fails CI if one appears
+ * under apps/web, and detection needs no tenant data — the window is supplied
+ * by the caller, who had to be signed in to get this far.
+ */
+export const runtime = 'nodejs';
+
+/** Near the model, which is the entire point of this endpoint. */
+export const preferredRegion = 'iad1';
+
+interface DetectBody {
+  criteria?: CriterionPrompt[];
+  window?: DetectableSegment[];
+  variant?: 'full' | 'compact';
+}
+
+/**
+ * Cookies for the web app, a bearer token for everything else.
+ *
+ * The Electron overlay is the reason the second path exists: it holds a
+ * Supabase session but no browser cookie jar, and it is the main caller this
+ * endpoint is being built for.
+ */
+async function signedInUser(request: NextRequest): Promise<boolean> {
+  const header = request.headers.get('authorization');
+  if (header?.startsWith('Bearer ')) {
+    const { url, publishableKey } = publicSupabaseEnv();
+    const client = createTokenClient(url, publishableKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data } = await client.auth.getUser(header.slice('Bearer '.length));
+    return data.user !== null;
+  }
+
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  return data.user !== null;
+}
+
+export async function POST(request: NextRequest) {
+  if (!(await signedInUser(request))) {
+    return NextResponse.json({ error: 'not signed in' }, { status: 401 });
+  }
+
+  if (!process.env['ANTHROPIC_API_KEY']) {
+    return NextResponse.json({ error: 'ANTHROPIC_API_KEY is not set' }, { status: 503 });
+  }
+
+  let body: DetectBody;
+  try {
+    body = (await request.json()) as DetectBody;
+  } catch {
+    return NextResponse.json({ error: 'body must be JSON' }, { status: 400 });
+  }
+
+  const { criteria, window, variant } = body;
+  if (!Array.isArray(criteria) || criteria.length === 0) {
+    return NextResponse.json({ error: 'criteria must be a non-empty array' }, { status: 400 });
+  }
+  if (!Array.isArray(window) || window.length === 0) {
+    return NextResponse.json({ error: 'window must be a non-empty array' }, { status: 400 });
+  }
+
+  const receivedAt = Date.now();
+  try {
+    const result = await detectCriteria(window, {
+      client: new Anthropic(),
+      criteria,
+      ...(variant ? { variant } : {}),
+      // The response carries usage, so the default console sink would only
+      // duplicate it into the platform's logs.
+      onUsage: () => {},
+    });
+
+    return NextResponse.json({
+      events: result.events,
+      rejected: result.rejected,
+      detector: result.detector,
+      model: result.model,
+      usage: result.usage,
+      // Everything this endpoint spent that was not the model: parsing,
+      // auth and its own overhead. The caller subtracts its round trip from
+      // this to see what the network actually costs.
+      serverMs: Date.now() - receivedAt,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'detection failed' },
+      { status: 502 },
+    );
+  }
+}

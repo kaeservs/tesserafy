@@ -45,7 +45,13 @@ Do not break these without an ADR that supersedes the existing one.
 Live calls put the frozen prefix (system + criteria definitions + context pack)
 before the cache breakpoint and the rolling transcript window after it. Check
 `usage.cache_read_input_tokens` is non-zero — a timestamp leaking into the
-prefix silently kills the cache and the cost model with it.
+prefix silently kills the cache and the cost model with it. Measured caveat:
+with only a system prompt and five criteria the prefix is below Haiku's
+minimum cacheable size and the cache never engages at all (spike S3).
+
+T1 runs server-side, not from the client: measurement put the network cost of
+calling from a laptop at ~840 ms of a budget the model alone already exceeds
+(ADR 0010).
 
 Log `response.usage` on every API call. Cost telemetry added later cannot be
 backfilled.

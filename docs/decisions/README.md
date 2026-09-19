@@ -19,3 +19,4 @@ accepted ADR to change the decision; write a new one that supersedes it.
 | 0007 | Signals and their evidence | proposed |
 | 0008 | The retrieval module owns writes to the vector table | proposed |
 | 0009 | What counts as a correct extraction | proposed |
+| 0010 | The live latency budget, as measured | proposed |

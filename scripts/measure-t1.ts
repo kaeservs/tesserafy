@@ -44,7 +44,14 @@ function requireEnv(name: string): string {
   return value;
 }
 
-/** A session for the given user, without a browser. */
+/**
+ * A session for the given user, without a browser.
+ *
+ * The admin API mints a sign-in link; following it without redirects hands
+ * back the session in the URL fragment. That is read rather than the JSON
+ * shape of generate_link, which differs between Supabase versions — the
+ * fragment is the part the flow itself depends on.
+ */
 async function accessToken(email: string): Promise<string> {
   const url = requireEnv('SUPABASE_URL');
   const key = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
@@ -57,21 +64,24 @@ async function accessToken(email: string): Promise<string> {
   if (!generated.ok) {
     throw new Error(`generate_link failed: ${generated.status} ${await generated.text()}`);
   }
-  const link = (await generated.json()) as { properties?: { hashed_token?: string } };
-  const hashed = link.properties?.hashed_token;
-  if (!hashed) throw new Error('generate_link returned no hashed_token');
 
-  const verified = await fetch(new URL('/auth/v1/verify', url), {
-    method: 'POST',
-    headers: { apikey: key, 'content-type': 'application/json' },
-    body: JSON.stringify({ type: 'magiclink', token_hash: hashed }),
-  });
-  if (!verified.ok) {
-    throw new Error(`verify failed: ${verified.status} ${await verified.text()}`);
+  const body = (await generated.json()) as {
+    action_link?: string;
+    properties?: { action_link?: string };
+  };
+  const link = body.action_link ?? body.properties?.action_link;
+  if (!link) throw new Error('generate_link returned no action link');
+
+  const verified = await fetch(link, { redirect: 'manual' });
+  const location = verified.headers.get('location');
+  if (!location) {
+    throw new Error(`verify did not redirect: ${verified.status} ${await verified.text()}`);
   }
-  const session = (await verified.json()) as { access_token?: string };
-  if (!session.access_token) throw new Error('verify returned no access token');
-  return session.access_token;
+
+  const fragment = location.split('#')[1] ?? '';
+  const token = new URLSearchParams(fragment).get('access_token');
+  if (!token) throw new Error(`no access token in the verify redirect: ${location.slice(0, 120)}`);
+  return token;
 }
 
 function percentile(samples: readonly number[], p: number): number {
@@ -84,6 +94,7 @@ async function main(): Promise<void> {
   const windowPath = flag('--window') ?? '';
   const runs = Number(flag('--runs') ?? 5);
   const email = flag('--email') ?? requireEnv('T1_PROBE_EMAIL');
+  const variant = rest.includes('--compact') ? 'compact' : undefined;
   if (!criteriaPath || !windowPath) {
     console.error('measure:t1: --criteria and --window are required');
     process.exit(2);
@@ -112,7 +123,7 @@ async function main(): Promise<void> {
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ criteria: criteria.criteria, window }),
+      body: JSON.stringify({ criteria: criteria.criteria, window, ...(variant ? { variant } : {}) }),
     });
     const roundTrip = Date.now() - startedAt;
 

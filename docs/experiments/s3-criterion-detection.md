@@ -3,7 +3,8 @@
 **Question:** can `claude-haiku-4-5` detect criteria accurately from a ~600
 token window, inside the 700 ms T1 budget? How does a local model compare?
 
-**Status:** first result, 2026-09-19. Local model not yet run.
+**Status:** complete, 2026-09-19. Both arms measured, plus the server-side
+topology the first two results pointed at.
 
 ## Method
 
@@ -63,6 +64,41 @@ calls of each shape, from this machine:
 So the shape of T1 latency is roughly **750 ms of fixed cost plus 10-12 ms per
 output token**, with structured output adding a wide variance band on top.
 
+## Result — a local model
+
+`qwen3:4b` through Ollama on this machine's CPU, same prompt, same window
+rendering, same quote rule, same grading:
+
+| Arm | Precision | Recall | F1 | p50 | p95 |
+|---|---|---|---|---|---|
+| `claude-haiku-4-5` | 83% | 86% | 84% | 2153 ms | 3459 ms |
+| `qwen3:4b` (local, CPU) | 42% | 18% | **25%** | **53,948 ms** | 70,163 ms |
+
+Per-criterion recall was 14% / 22% / 29% / 0% / 0%: it found almost no
+`timeline_stated` or `budget_indicated` at all. Its false positives were the
+wrong kind of wrong — it quoted the *seller* ("Our tablets capture that at the
+line", "Renewal is in six weeks"), which the prompt forbids in the most
+explicit rule it has.
+
+Twenty-five times slower for a quarter of the accuracy. On this hardware, at
+this size, this is not a candidate.
+
+## Result — running T1 beside the model
+
+Both client-side arms missed the budget, so the remaining candidate was to run
+detection server-side near the model. `/api/detect` deployed to `iad1`, six
+runs each, measured by `pnpm measure:t1`:
+
+| Configuration | Model p50 | Caller waits (p50) |
+|---|---|---|
+| From this laptop (client-side) | — | 2153 ms |
+| Server-side, full output | **1432 ms** | 2269 ms |
+| Server-side, compact output | **1453 ms** | 2510 ms |
+
+Co-location removes about 840 ms of network. Endpoint overhead is nil —
+`serverMs` and the model's own duration differ by under 2 ms — so there is
+nothing left to trim on our side of the call.
+
 ## Conclusions
 
 **1. Accuracy is good enough to proceed on.** 84% F1 on a five-criterion
@@ -98,7 +134,29 @@ Note the compact variant also traded accuracy — F1 78% against 84%, losing
 recall — so it is not free even where latency is not the constraint. The
 default stays `full`.
 
-**3. Prompt caching never engaged — 0 tokens read, 0 written.** The frozen
+**3. The 700 ms T1 budget is not reachable at all, from anywhere.** This is
+the finding that outlives the spike. The model alone takes 1432 ms for this
+task, co-located, with no network in the way and no overhead of ours. Compact
+output changes it by 21 ms — the third independent confirmation that latency
+here is not output-bound but a floor for the task shape.
+
+ADR 0002 budgets 700 ms for T1 and 1.3 s from utterance to visible score. That
+was written before anything was measured, and measurement now contradicts it.
+Three honest responses, none of them purely technical:
+
+- **Revise the budget** to what is achievable: ~1.5 s detection, so roughly
+  2 s utterance-to-score. Live still feels live at 2 s; it is a different
+  product promise from 1.3 s, and the HUD's design should say which it makes.
+- **Make T1's task smaller.** Every measured configuration asks the model to
+  find evidence *and* quote it. A detector that only classified, with quoting
+  done afterwards, is a different and cheaper request — but invariant 4 says
+  a criterion state without a quoted span is not evidence, so this trades
+  against the product's central claim.
+- **Let the scorecard settle asynchronously.** The score updates when
+  detection lands rather than pretending to be live to the second. This is the
+  cheapest change and the most honest about what the system can do.
+
+**4. Prompt caching never engaged — 0 tokens read, 0 written.** The frozen
 prefix here is the system prompt plus five criteria, roughly 450 tokens, and
 Haiku 4.5's minimum cacheable prefix is larger than that. Nothing errors; the
 cache simply does not happen, which is exactly the silent failure ADR 0002
@@ -116,13 +174,15 @@ existed to find that, and it did.
 
 ## Next
 
-- **Run a local model through the same harness.** Now the decisive experiment,
-  not a cost footnote: it is the only configuration with no network floor.
-- **Measure T1 from a host near the model region**, to separate network cost
-  from model cost. Until that number exists, ADR 0002's 1.3 s
-  utterance-to-score budget rests on an untested assumption about where T1
-  runs.
-- Sharpen `timeline_stated` and re-measure.
+- **Decide what ADR 0002's budget becomes.** The measurements are in; the
+  choice between a revised budget, a smaller T1 task and an asynchronous
+  scorecard is a product decision, and P6 cannot be planned without it.
+- Sharpen `timeline_stated` (57% F1, the weakest criterion) and re-measure.
+- Re-test with a plain JSON instruction instead of a schema: the tiny-prompt
+  probe showed structured output widening the variance band (834-3238 ms
+  against 732-1828 ms), which matters for p95 even if it does not move p50.
+- Replace whole-conversation windows with real rolling windows once a long
+  transcript exists.
 - Run a local model through the same harness (`--model` accepts an Ollama id
   once a chat model is pulled) for the cost and latency comparison.
 - Replace whole-conversation windows with real rolling windows once a long

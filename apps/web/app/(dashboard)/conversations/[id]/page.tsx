@@ -95,6 +95,9 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
       </p>
       <h1>{title}</h1>
       <p className="muted">
+        <Link href={`/live/${id}`}>Replay as a live scorecard →</Link>
+      </p>
+      <p className="muted">
         {occurredAt ? new Date(occurredAt).toLocaleDateString('en-GB') : 'Date unknown'} ·{' '}
         {segments.length} segments · {signals.length} signals
       </p>

@@ -205,6 +205,9 @@ importers:
       '@tesserafy/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@tesserafy/scoring':
+        specifier: workspace:*
+        version: link:../../packages/scoring
       next:
         specifier: 16.3.5
         version: 16.3.5(@types/node@26.5.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)

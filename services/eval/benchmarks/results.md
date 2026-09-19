@@ -59,7 +59,28 @@ labels pass would be fitting ten synthetic conversations, and the number would
 stop meaning anything. The next real improvement is fifty labelled snippets
 from spike S3.
 
-## Not measured
+## Criterion correctness
 
-Criterion correctness. It needs T1 detectors and criteria seed rows, which do
-not exist yet (ADR 0009).
+Measured 2026-09-19 by spike S3, which built the T1 detector this dimension
+needed. Same corpus of conversations, a second labelling pass over five
+discovery criteria, graded by the same span-overlap rule.
+
+| Date | Windows | Labels | Detector | Model | Overall P / R / F1 |
+|---|---|---|---|---|---|
+| 2026-09-19 | 10 | 28 | `t1-detect@2026-09-19` | `claude-haiku-4-5` | 83% / 86% / 84% |
+
+Per criterion, the weakness is concentrated rather than spread:
+`budget_indicated` 100% F1, `desired_outcome_stated` 93%, `pain_quantified`
+88%, `current_process_known` 82%, **`timeline_stated` 57%** — it missed "we're
+on a July renewal" and counted the seller's "renewal is in six weeks" as the
+customer stating one. That is a definition to sharpen, not a model to replace.
+
+Full method, the local-model comparison and the latency findings:
+`docs/experiments/s3-criterion-detection.md`.
+
+## Still not measured
+
+Nothing from the phase gate. The synthesis step added in P5 has no labelled
+set yet — whether an insight is the right insight is a harder thing to label
+than whether a quote supports a criterion, and it needs real transcripts
+before it is worth designing.

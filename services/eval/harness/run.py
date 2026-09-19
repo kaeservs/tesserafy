@@ -24,12 +24,13 @@ from harness.match import Gold, Pairing, Prediction, Span, pair, score
 
 EVAL_ROOT = Path(__file__).resolve().parent.parent
 REPO_ROOT = EVAL_ROOT.parent.parent
+TSX = str(REPO_ROOT / "node_modules" / ".bin" / "tsx")
 
 
 def extract(transcript: Path) -> dict:
     """Runs the shipped extractor. stdout is JSON; stderr carries usage."""
     result = subprocess.run(
-        ["pnpm", "--silent", "extract", str(transcript)],
+        [TSX, "scripts/extract.ts", str(transcript)],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -203,7 +204,7 @@ def main() -> int:
 def extract_segments_only(transcript: Path) -> dict:
     """Chunking without the model, for --dry-run corpus validation."""
     result = subprocess.run(
-        ["pnpm", "--silent", "ingest", str(transcript), "--dry-run", "--json"],
+        [TSX, "scripts/ingest.ts", str(transcript), "--dry-run", "--json"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,

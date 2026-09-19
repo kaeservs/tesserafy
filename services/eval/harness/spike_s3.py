@@ -34,10 +34,13 @@ from harness.match import Gold, Pairing, Prediction, Span, pair, score
 
 EVAL_ROOT = Path(__file__).resolve().parent.parent
 REPO_ROOT = EVAL_ROOT.parent.parent
+TSX = str(REPO_ROOT / "node_modules" / ".bin" / "tsx")
 
 
 def detect(transcript: Path, criteria: Path, model: str | None, compact: bool = False) -> dict:
-    command = ["pnpm", "--silent", "detect", str(transcript), "--criteria", str(criteria)]
+    # tsx directly, not through pnpm: pnpm intercepts unknown flags such as
+    # --model before they reach the script, and forwards a literal "--".
+    command = [TSX, "scripts/detect.ts", str(transcript), "--criteria", str(criteria)]
     if model:
         command += ["--model", model]
     if compact:
@@ -211,7 +214,7 @@ def main() -> int:
 
 def segments_only(transcript: Path) -> dict:
     result = subprocess.run(
-        ["pnpm", "--silent", "ingest", str(transcript), "--dry-run", "--json"],
+        [TSX, "scripts/ingest.ts", str(transcript), "--dry-run", "--json"],
         cwd=REPO_ROOT, capture_output=True, text=True, shell=sys.platform == "win32",
     )
     if result.returncode != 0:

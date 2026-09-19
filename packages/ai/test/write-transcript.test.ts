@@ -6,7 +6,14 @@
 import type { SupabaseClient } from '@tesserafy/db';
 import type { SegmentDraft } from '@tesserafy/ingest';
 import { describe, expect, it, vi } from 'vitest';
-import { storeTranscript, toCompanyId, writeTranscript, type Embedder } from '../src/index';
+import {
+  conversationForSource,
+  DuplicateSource,
+  storeTranscript,
+  toCompanyId,
+  writeTranscript,
+  type Embedder,
+} from '../src/index';
 
 const A = toCompanyId('00000000-0000-4000-8000-00000000000a');
 const CONVERSATION_ID = '00000000-0000-4000-8000-0000000000a1';
@@ -16,6 +23,7 @@ interface IngestArgs {
   p_title: string;
   p_occurred_at: string | null;
   p_model: string;
+  p_source_key: string | null;
   p_segments: {
     id: string;
     speaker: string | null;
@@ -26,7 +34,7 @@ interface IngestArgs {
   }[];
 }
 
-function fakeDb(result: { data?: unknown; error?: { message: string } } = {}) {
+function fakeDb(result: { data?: unknown; error?: { message: string; code?: string } } = {}) {
   // `data` is honoured when present even if it is null — that is the case a
   // test wants to pin.
   const data = result.error ? null : 'data' in result ? result.data : CONVERSATION_ID;
@@ -219,5 +227,46 @@ describe('storeTranscript', () => {
     const { db } = fakeDb();
 
     await expect(storeTranscript('nope' as never, input, { db })).rejects.toThrow(TypeError);
+  });
+
+  it('passes the source key through, and null when there is none', async () => {
+    const { db, rpc } = fakeDb();
+
+    await storeTranscript(A, { ...input, sourceKey: 'calls/acme.vtt' }, { db });
+    await storeTranscript(A, input, { db });
+
+    const args = rpc.mock.calls.map((call) => (call as unknown as [string, IngestArgs])[1]);
+    expect(args[0]?.p_source_key).toBe('calls/acme.vtt');
+    expect(args[1]?.p_source_key).toBeNull();
+  });
+
+  it('reports a re-import as a duplicate, not a failure', async () => {
+    // A batch run treats this as "skip"; anything else would fail a whole
+    // import because one file was already there.
+    const { db } = fakeDb({ error: { message: 'duplicate key value', code: '23505' } });
+
+    await expect(
+      storeTranscript(A, { ...input, sourceKey: 'calls/acme.vtt' }, { db }),
+    ).rejects.toThrow(DuplicateSource);
+  });
+});
+
+describe('conversationForSource', () => {
+  it('returns the conversation a previous import created', async () => {
+    const { db } = fakeDb({ data: CONVERSATION_ID });
+
+    expect(await conversationForSource(A, 'calls/acme.vtt', { db })).toBe(CONVERSATION_ID);
+  });
+
+  it('returns null when the source has never been imported', async () => {
+    const { db } = fakeDb({ data: null });
+
+    expect(await conversationForSource(A, 'calls/new.vtt', { db })).toBeNull();
+  });
+
+  it('refuses a companyId that is not one', async () => {
+    const { db } = fakeDb();
+
+    await expect(conversationForSource('nope' as never, 'k', { db })).rejects.toThrow(TypeError);
   });
 });

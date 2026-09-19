@@ -22,7 +22,7 @@ import { parseTurns, parseVtt, toSegments, type ParsedTranscript } from '@tesser
 
 const [file, ...rest] = process.argv.slice(2);
 if (!file) {
-  console.error('usage: pnpm detect <file.vtt> --criteria <criteria.json> [--model <id>]');
+  console.error('usage: pnpm detect <file.vtt> --criteria <criteria.json> [--model <id>] [--compact]');
   process.exit(2);
 }
 
@@ -37,6 +37,7 @@ if (!criteriaPath) {
   process.exit(2);
 }
 const model = flag('--model');
+const variant = rest.includes('--compact') ? 'compact' : 'full';
 
 function parseFile(path: string): ParsedTranscript {
   const source = readFileSync(path, 'utf8');
@@ -64,6 +65,7 @@ async function main(): Promise<void> {
   const result = await detectCriteria(window, {
     client: new Anthropic(),
     criteria: criteria.criteria,
+    variant,
     ...(model ? { model } : {}),
     onUsage: (event) => console.error(JSON.stringify({ event: 'model.usage', ...event })),
   });

@@ -36,10 +36,12 @@ EVAL_ROOT = Path(__file__).resolve().parent.parent
 REPO_ROOT = EVAL_ROOT.parent.parent
 
 
-def detect(transcript: Path, criteria: Path, model: str | None) -> dict:
+def detect(transcript: Path, criteria: Path, model: str | None, compact: bool = False) -> dict:
     command = ["pnpm", "--silent", "detect", str(transcript), "--criteria", str(criteria)]
     if model:
         command += ["--model", model]
+    if compact:
+        command += ["--compact"]
 
     result = subprocess.run(
         command, cwd=REPO_ROOT, capture_output=True, text=True, shell=sys.platform == "win32"
@@ -80,6 +82,7 @@ def main() -> int:
     parser.add_argument("--criteria", type=Path, required=True)
     parser.add_argument("--model", default=None, help="defaults to the T1 model in packages/ai")
     parser.add_argument("--repeat", type=int, default=1, help="calls per window; >1 exercises the cache")
+    parser.add_argument("--compact", action="store_true", help="terser output shape (S3 latency experiment)")
     parser.add_argument("--dry-run", action="store_true", help="validate labels, call nothing")
     args = parser.parse_args()
 
@@ -103,7 +106,7 @@ def main() -> int:
             if args.dry_run:
                 payload = segments_only(transcript)
             else:
-                payload = detect(transcript, criteria_path, args.model)
+                payload = detect(transcript, criteria_path, args.model, args.compact)
                 usage = payload["usage"]
                 latencies.append(usage["durationMs"])
                 cache_reads.append(usage["cacheReadInputTokens"])

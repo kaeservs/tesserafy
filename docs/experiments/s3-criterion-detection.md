@@ -36,6 +36,33 @@ Cache: **0 of 20 calls read the prefix.**
 Cost: $0.0019 per call — about **$0.25 for a 45-minute call** at ~135 calls.
 Two observations were dropped for quoting text that was not in the window.
 
+## Result — terser output, and where the time actually goes
+
+The first write-up blamed latency on output size: 178 tokens per call at
+Haiku's generation rate is most of two seconds. That was wrong, and the
+experiment that settled it took four cents.
+
+A `compact` variant asks for quotes of at most ten words and at most three
+observations per window:
+
+| Variant | Precision | Recall | F1 | Output/call | p50 | p95 |
+|---|---|---|---|---|---|---|
+| full | 83% | 86% | 84% | 178 tok | 2153 ms | 3459 ms |
+| compact | 87% | 71% | 78% | 134 tok | 2065 ms | 2251 ms |
+
+**A quarter less output bought four per cent less latency.** Time per output
+token went *up*, which only happens when a fixed cost dominates. Three timed
+calls of each shape, from this machine:
+
+| Call | Samples | Output |
+|---|---|---|
+| Plain, tiny prompt | 732 / 883 / 1828 ms | 4 tokens |
+| Structured output, tiny prompt | 834 / 2076 / 3238 ms | 9 tokens |
+| Plain, ~100 words | 2243 / 2305 / 2451 ms | 139 tokens |
+
+So the shape of T1 latency is roughly **750 ms of fixed cost plus 10-12 ms per
+output token**, with structured output adding a wide variance band on top.
+
 ## Conclusions
 
 **1. Accuracy is good enough to proceed on.** 84% F1 on a five-criterion
@@ -46,23 +73,30 @@ a timeline. A tighter definition — the customer's own words, about the change
 they are considering — is the obvious next iteration, and the corpus will say
 whether it worked.
 
-**2. Latency misses the budget by 3x, and the cause is not the model.**
-Average output is 178 tokens per call. At Haiku's generation rate that is most
-of the 2.1 seconds; the model is not slow to start, it is being asked to write
-too much. The levers, in the order worth trying:
+**2. The 700 ms budget is unreachable from here, and shortening the output
+does not rescue it.** A four-token response costs 732 ms at its fastest. The
+budget is spent before the model says anything useful, so no amount of prompt
+tightening gets T1 under it from this machine. Trimming output is still worth
+having — the compact variant cut p95 by a third, from 3459 ms to 2251 ms,
+which matters for the tail — but it is a variance fix, not a budget fix.
 
-- Shorter observations. `polarity`, `confidence`, `segment_id`, `quote` per
-  observation is verbose; a quote is the bulk of it. Capping quotes to a short
-  phrase should cut output materially.
-- Fewer observations per call. A rolling window overlaps its neighbours, so
-  the same evidence gets re-reported; asking only for what is new in this
-  window would shrink output and cost together.
-- Streaming does not help the number that matters here. The scorecard cannot
-  update until the whole JSON object is parseable, so time-to-last-token is
-  the budget, not time-to-first.
+What the fixed cost is made of, in the order worth attacking:
 
-Swapping models is the last lever, not the first — a faster model writing 178
-tokens still spends most of a second doing it.
+- **Network round trip.** These calls leave a laptop in Dubai for the API. A
+  T1 caller running server-side near the model region should see a much lower
+  floor; that is a deployment-topology question, and the live path's topology
+  is not decided yet. Measuring it needs a host in that region, which this
+  spike did not have.
+- **Structured output variance.** The same tiny prompt ranged 834-3238 ms with
+  a schema attached versus 732-1828 ms without. Worth re-testing with a plain
+  JSON instruction and a tolerant parser.
+- **On-device inference removes the round trip entirely.** A local model has no
+  network floor at all, which reframes the local-model question: it is not
+  only about cost, it may be the only way to reach the budget from a client.
+
+Note the compact variant also traded accuracy — F1 78% against 84%, losing
+recall — so it is not free even where latency is not the constraint. The
+default stays `full`.
 
 **3. Prompt caching never engaged — 0 tokens read, 0 written.** The frozen
 prefix here is the system prompt plus five criteria, roughly 450 tokens, and
@@ -82,7 +116,12 @@ existed to find that, and it did.
 
 ## Next
 
-- Re-run with a terser output shape and re-measure latency.
+- **Run a local model through the same harness.** Now the decisive experiment,
+  not a cost footnote: it is the only configuration with no network floor.
+- **Measure T1 from a host near the model region**, to separate network cost
+  from model cost. Until that number exists, ADR 0002's 1.3 s
+  utterance-to-score budget rests on an untested assumption about where T1
+  runs.
 - Sharpen `timeline_stated` and re-measure.
 - Run a local model through the same harness (`--model` accepts an Ollama id
   once a chat model is pulled) for the cost and latency comparison.

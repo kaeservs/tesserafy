@@ -1,6 +1,6 @@
 # 0002 — Tiered AI architecture split by latency tolerance
 
-**Status:** accepted · 2026-09-12
+**Status:** accepted · 2026-09-12 · budget amended by ADR 0010 (2026-09-19)
 
 ## Context
 
@@ -36,6 +36,12 @@ context pack) before the cache breakpoint and the rolling window after it. A
 the entire prefix.
 
 ## Consequences
+
+> **The latency budget in this ADR was a target, not a measurement.** Spike S3
+> measured T1 at ~1450 ms where this ADR budgeted 700 ms. ADR 0010 revises the
+> budget and the product promise that rests on it; the tiering decision itself
+> stands.
+
 
 - More work in Phase 1 than a single pipeline would need, and substantially
   less in Phase 6.

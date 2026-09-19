@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Tesserafy overlay — spike S1</title>
+    <style>
+      :root { color-scheme: dark; font: 14px/1.45 system-ui, sans-serif; }
+      body {
+        margin: 0;
+        padding: 16px;
+        color: #f5f5f4;
+        /* Deliberately opaque enough to be unmistakable in a screenshot of a
+           share. A subtle overlay would make a failed test look like a pass. */
+        background: rgba(12, 10, 9, 0.92);
+        border: 2px solid #f97316;
+        border-radius: 12px;
+        -webkit-app-region: drag;
+        user-select: none;
+      }
+      h1 { font-size: 15px; margin: 0 0 4px; }
+      .banner {
+        background: #f97316;
+        color: #0c0a09;
+        font-weight: 700;
+        padding: 6px 8px;
+        border-radius: 6px;
+        margin-bottom: 12px;
+      }
+      button, label { -webkit-app-region: no-drag; }
+      button {
+        font: inherit;
+        color: inherit;
+        background: transparent;
+        border: 1px solid #57534e;
+        border-radius: 6px;
+        padding: 6px 10px;
+        cursor: pointer;
+      }
+      .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+      .state { color: #a8a29e; }
+      ol { margin: 8px 0 0; padding-left: 18px; color: #d6d3d1; }
+      li { margin-bottom: 6px; }
+      code { color: #fdba74; }
+    </style>
+  </head>
+  <body>
+    <div class="banner">IF YOU SEE THIS IN THE SHARE, PROTECTION FAILED</div>
+    <h1>Tesserafy overlay — spike S1</h1>
+    <p class="state" id="platform">…</p>
+
+    <div class="row">
+      <button id="protection">Protection: on</button>
+      <button id="clickthrough">Click-through: off</button>
+    </div>
+
+    <p class="state">Test, for each of Zoom, Meet in Chrome, and Teams:</p>
+    <ol>
+      <li>Share <strong>entire screen</strong> — is this box in the share?</li>
+      <li>Share <strong>a single window</strong> (the meeting) — is it?</li>
+      <li>Turn protection <strong>off</strong> and repeat: it <em>should</em> appear, which proves the test itself works.</li>
+      <li>With click-through on, can you click the meeting underneath?</li>
+    </ol>
+
+    <script src="./renderer.js"></script>
+  </body>
+</html>

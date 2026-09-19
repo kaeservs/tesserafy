@@ -1,0 +1,16 @@
+{
+  "name": "@tesserafy/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "main": "dist/main/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "pnpm build && electron .",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "26.5.1",
+    "electron": "39.2.6",
+    "typescript": "7.0.2"
+  }
+}

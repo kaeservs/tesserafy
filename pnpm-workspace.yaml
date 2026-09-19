@@ -5,3 +5,5 @@ packages:
 # esbuild unpacks a platform binary in its install script; tsx needs it.
 allowBuilds:
   esbuild: true
+  # Electron's install script downloads the platform binary.
+  electron: true

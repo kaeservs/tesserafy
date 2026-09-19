@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { clock } from '@/lib/highlight';
 import { createClient } from '@/lib/supabase/server';
+import { Decide } from './decide';
 
 /**
  * One insight, and every quote it rests on.
@@ -39,11 +40,17 @@ export default async function InsightPage({ params }: { params: Promise<{ id: st
 
   const { data: insight } = await supabase
     .from('insights')
-    .select('id, title, summary, synthesiser, model, created_at')
+    .select('id, title, summary, synthesiser, model, created_at, status')
     .eq('id', id)
     .maybeSingle();
 
   if (!insight) notFound();
+
+  const { data: ticket } = await supabase
+    .from('insight_tickets')
+    .select('url')
+    .eq('insight_id', id)
+    .maybeSingle();
 
   const { data: citations, error: citationsError } = await supabase
     .from('insight_evidence')
@@ -83,11 +90,12 @@ export default async function InsightPage({ params }: { params: Promise<{ id: st
     ),
   );
 
-  const { title, summary, synthesiser, model } = insight as {
+  const { title, summary, synthesiser, model, status } = insight as {
     title: string;
     summary: string;
     synthesiser: string;
     model: string;
+    status: string;
   };
 
   return (
@@ -99,8 +107,14 @@ export default async function InsightPage({ params }: { params: Promise<{ id: st
       <p>{summary}</p>
       <p className="muted">
         {signals.length} signals across {conversationIds.length} conversations · {synthesiser} ·{' '}
-        {model}
+        {model} · {status}
       </p>
+
+      <Decide
+        insightId={id}
+        status={status}
+        ticketUrl={(ticket as { url: string } | null)?.url ?? null}
+      />
 
       <section aria-labelledby="evidence-heading">
         <h2 id="evidence-heading">Evidence</h2>

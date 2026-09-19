@@ -20,6 +20,8 @@ export interface TranscriptInput {
   readonly title: string;
   /** ISO 8601, or null when the source does not say when the call happened. */
   readonly occurredAt: string | null;
+  /** Stable identifier for the import; a re-run with the same key is refused. */
+  readonly sourceKey?: string;
   readonly segments: readonly SegmentDraft[];
 }
 
@@ -74,6 +76,7 @@ export async function writeTranscript(
       title: input.title,
       occurredAt: input.occurredAt,
       model: opts.embedder.model,
+      ...(input.sourceKey ? { sourceKey: input.sourceKey } : {}),
       segments,
     },
     { db: opts.db },

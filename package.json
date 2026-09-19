@@ -17,6 +17,7 @@
     "lint": "pnpm -r lint",
     "guard:retrieval": "node scripts/check-retrieval-guard.mjs",
     "ingest": "tsx scripts/ingest.ts",
+    "ingest:batch": "tsx scripts/ingest-batch.ts",
     "extract": "tsx scripts/extract.ts",
     "detect": "tsx scripts/detect.ts",
     "db:types": "supabase gen types typescript --local > packages/db/src/generated.ts"

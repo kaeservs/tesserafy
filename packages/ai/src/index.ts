@@ -13,6 +13,8 @@ export {
   type OllamaEmbedderOptions,
 } from './providers/embedder';
 export {
+  conversationForSource,
+  DuplicateSource,
   storeTranscript,
   type EmbeddedSegment,
   type StoreOptions,

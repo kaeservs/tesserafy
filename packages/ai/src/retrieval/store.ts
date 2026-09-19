@@ -13,6 +13,11 @@ import type { SupabaseClient } from '@tesserafy/db';
 import { assertEmbedding } from '../providers/embedder';
 import { isCompanyId, type CompanyId } from './company-id';
 
+/** The transcript has been imported before, under the same source key. */
+export class DuplicateSource extends Error {
+  override readonly name = 'DuplicateSource';
+}
+
 /** A segment with its vector, ready to be written. Ids are the caller's. */
 export interface EmbeddedSegment {
   readonly id: string;
@@ -29,6 +34,12 @@ export interface StoreTranscriptInput {
   readonly occurredAt: string | null;
   /** The model that produced the vectors, e.g. 'nomic-embed-text'. */
   readonly model: string;
+  /**
+   * Stable identifier for the import, unique per company. A re-run with the
+   * same key is refused by the database rather than duplicating the
+   * conversation.
+   */
+  readonly sourceKey?: string;
   readonly segments: readonly EmbeddedSegment[];
 }
 
@@ -85,9 +96,17 @@ export async function storeTranscript(
     p_occurred_at: input.occurredAt,
     p_model: input.model,
     p_segments: segments,
+    p_source_key: input.sourceKey ?? null,
   });
 
   if (error) {
+    // 23505 is the unique index on (company_id, source_key): this transcript
+    // is already imported, which a batch run treats as "skip", not "fail".
+    if (error.code === '23505') {
+      throw new DuplicateSource(
+        `A conversation for source "${input.sourceKey}" already exists in this company`,
+      );
+    }
     throw new Error(`ingest_transcript failed: ${error.message}`, { cause: error });
   }
   if (typeof data !== 'string') {
@@ -95,4 +114,30 @@ export async function storeTranscript(
   }
 
   return data;
+}
+
+/**
+ * The conversation a previous import created for this source, or null.
+ *
+ * A batch run asks before doing the expensive work — embedding a transcript
+ * that is already imported costs the same as embedding a new one.
+ */
+export async function conversationForSource(
+  companyId: CompanyId,
+  sourceKey: string,
+  opts: StoreOptions,
+): Promise<string | null> {
+  if (!isCompanyId(companyId)) {
+    throw new TypeError(`conversationForSource() requires a valid companyId`);
+  }
+
+  const { data, error } = await opts.db.rpc('conversation_for_source', {
+    p_company_id: companyId,
+    p_source_key: sourceKey,
+  });
+
+  if (error) {
+    throw new Error(`conversation_for_source failed: ${error.message}`, { cause: error });
+  }
+  return typeof data === 'string' ? data : null;
 }

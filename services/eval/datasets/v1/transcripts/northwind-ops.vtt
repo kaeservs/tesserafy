@@ -1,0 +1,24 @@
+WEBVTT
+
+NOTE Northwind Freight — operations review
+
+00:00:02.000 --> 00:00:07.000
+<v Dana Whitfield>You mentioned last time that dispatch was getting messy. What does that look like now?
+
+00:00:08.000 --> 00:00:18.500
+<v Marcus Oyelaran>Every morning one of the dispatchers rebuilds the run sheet from three different screens. It takes about ninety minutes before anyone can leave the yard.
+
+00:00:19.000 --> 00:00:24.000
+<v Marcus Oyelaran>And if a driver calls in sick after that, the whole thing gets rebuilt by hand.
+
+00:00:25.000 --> 00:00:29.000
+<v Dana Whitfield>Ninety minutes of a dispatcher, every day.
+
+00:00:30.000 --> 00:00:38.000
+<v Marcus Oyelaran>Closer to two hours on Mondays. What I really want is for it to just redraw itself when someone drops out.
+
+00:00:40.000 --> 00:00:46.000
+<v Dana Whitfield>We can do that. Our routing engine handles re-optimisation in seconds, and most customers see it pay back in a week.
+
+00:00:47.000 --> 00:00:52.000
+<v Marcus Oyelaran>Sure. The other thing is we're on a July renewal, so budget is a conversation for May.

@@ -38,7 +38,7 @@ export interface ExtractionResult extends ResolutionResult {
 }
 
 /** Bumped whenever the prompt or schema changes; stored on every signal. */
-export const T3_DETECTOR = 't3-extract@2026-09-17';
+export const T3_DETECTOR = 't3-extract@2026-09-19';
 
 const ClaimedSignalSchema = z.object({
   kind: z.enum(['problem', 'feature_request']),
@@ -69,6 +69,8 @@ Rules:
 - Extract only what the customer said. Never extract the seller's claims, or your own inference about what the customer probably meant.
 - Every signal must quote the transcript. Copy the quote character for character from a single segment, and give that segment's id. Do not join two segments into one quote, tidy grammar, expand contractions, or fix transcription errors — the quote is shown to a user beside the recording, and a quote that does not match what was said destroys their trust in every other quote on the page.
 - If you cannot support a claim with an exact quote, do not make the claim.
+- One signal per distinct cost. A restatement, a cause, or a number that sizes a problem you have already extracted is more evidence for that signal, not another signal. A useful test: if one change would resolve both, they are one.
+- The customer's own constraints — budget cycles, other projects, staffing, capacity — are context, not problems. Extract what hurts their business, not what makes buying difficult.
 - Prefer a few well-evidenced signals over many weak ones. An empty list is a valid answer for a conversation that contains no problems or requests.
 - confidence is about the evidence, not about how important the signal seems.`;
 

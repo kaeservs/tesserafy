@@ -67,6 +67,26 @@ def to_golds(item: dataset.Item) -> list[Gold]:
     ]
 
 
+def detail(item_id: str, pairing: Pairing) -> dict:
+    """What matched and what did not, in the words of both sides."""
+    return {
+        "id": item_id,
+        "matched": [
+            {"kind": gold.kind, "label": gold.quote, "predicted": prediction.summary}
+            for prediction, gold in pairing.matched
+        ],
+        "false_positives": [
+            {
+                "kind": p.kind,
+                "summary": p.summary,
+                "spans": [f"{s.segment_id}:{s.start}-{s.end}" for s in p.spans],
+            }
+            for p in pairing.false_positives
+        ],
+        "false_negatives": [{"kind": g.kind, "label": g.quote} for g in pairing.false_negatives],
+    }
+
+
 def percent(value: float | None) -> str:
     return "not measured" if value is None else f"{value * 100:.0f}%"
 
@@ -88,6 +108,7 @@ def main() -> int:
         raw_items = raw_items[: args.limit]
 
     pairings: list[Pairing] = []
+    details: list[dict] = []
     totals = {"input_tokens": 0, "output_tokens": 0}
     paraphrased = 0
     kept = 0
@@ -119,7 +140,9 @@ def main() -> int:
         if args.dry_run:
             continue
 
-        pairings.append(pair(to_predictions(payload), to_golds(item)))
+        pairing = pair(to_predictions(payload), to_golds(item))
+        pairings.append(pairing)
+        details.append(detail(item.id, pairing))
 
     if args.dry_run:
         print("Corpus is valid: every label resolves to exactly one span.", file=sys.stderr)
@@ -143,6 +166,9 @@ def main() -> int:
         "paraphrase_rate": (paraphrased / (kept + paraphrased)) if (kept + paraphrased) else None,
         "criterion_correctness": "not measured — needs T1 detectors and criteria seed data",
         "usage": totals,
+        # Counts say how well it did; only this says what it got wrong, which
+        # is the half that tells you what to change.
+        "items_detail": details,
     }
 
     runs = EVAL_ROOT / "runs"
@@ -160,6 +186,17 @@ def main() -> int:
     print(f"paraphrase rate    {percent(report['paraphrase_rate'])}")
     print(f"tokens             {totals['input_tokens']} in / {totals['output_tokens']} out")
     print(f"written to         {out.relative_to(EVAL_ROOT)}")
+
+    disagreements = [d for d in details if d["false_positives"] or d["false_negatives"]]
+    if disagreements:
+        print()
+        print("Disagreements")
+        for item in disagreements:
+            print(f"  {item['id']}")
+            for fp in item["false_positives"]:
+                print(f"    + [{fp['kind']}] {fp['summary']}")
+            for fn in item["false_negatives"]:
+                print(f"    - [{fn['kind']}] missed: {fn['label']!r}")
     return 0
 
 

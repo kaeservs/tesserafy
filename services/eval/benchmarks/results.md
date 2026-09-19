@@ -3,34 +3,61 @@
 One row per run worth keeping. Numbers are only comparable within a corpus
 version, and only meaningful next to the detector that produced them.
 
-| Date | Corpus | Items | Detector | Model | Overall P / R / F1 | Problem P / R | Feature request P / R | Paraphrase |
+| Date | Corpus | Items | Labels | Detector | Overall P / R / F1 | Problem P / R | Feature request P / R | Paraphrase |
 |---|---|---|---|---|---|---|---|---|
-| 2026-09-18 | v1 discovery-calls (synthetic) | 1 | `t3-extract@2026-09-17` | `claude-opus-5` | 50% / 67% / 57% | 50% / 50% | 50% / 100% | 0% |
+| 2026-09-18 | v1 (1 conversation) | 1 | 3 | `t3-extract@2026-09-17` | 50% / 67% / 57% | 50% / 50% | 50% / 100% | 0% |
+| 2026-09-19 | v1 discovery-calls | 10 | 22 | `t3-extract@2026-09-17` | 79% / 100% / 88% | 70% / 100% | 100% / 100% | 0% |
+| 2026-09-19 | v1 discovery-calls | 10 | 22 | `t3-extract@2026-09-19` | **95% / 91% / 93%** | 92% / 86% | 100% / 100% | 0% |
 
-## Reading the first row
+All on `claude-opus-5`. The first row measured one conversation and is kept
+only to show where the harness started.
 
-**It measures the harness, not the extractor.** One conversation and three
-labels cannot support a claim about quality; every count moves the percentages
-by tens of points. It is committed because the phase gate asks for a number
-with the date it was measured, and because the failures it surfaced are
-informative:
+## What the corpus can and cannot tell you
 
-- **One miss.** The transcript states two distinct problems in one segment —
-  the export costing a Friday, and a column being mistyped. The extractor
-  returned a single signal quoting the whole segment. Matching is one-to-one,
-  so it scored one hit and one miss. Whether that is a model failure or a
-  labelling convention worth revisiting is exactly the question a corpus is
-  for; the rule in `datasets/v1/README.md` says two signals, so for now it
-  counts as a miss.
-- **Two false positives.** One is a feature request the extractor found and
-  the corpus does not label ("the warehouse team works nights, so timing
-  matters"). Reasonable reading, unlabelled — a gap in the labels rather than
-  a fault in the model. The other is the second half of the merged problem
-  above.
+**It is synthetic.** The transcripts and the labels were written by the same
+author, so a high score means the extractor agrees with one person's reading
+of invented conversations. It is a regression detector, not evidence of
+quality. Real transcripts produce a v2 corpus; these numbers do not transfer
+to it.
 
-Both are the harness doing its job: disagreements between what a labeller
-expected and what the model produced are the only thing that makes a number
-worth running.
+Ten conversations and twenty-two labels also means one disagreement moves a
+figure by four or five points. Read movements, not decimals.
+
+## The prompt change between rows two and three
+
+Row two's failures were all one behaviour: the extractor split a single
+problem into its facets. "On Mondays it's closer to two hours" sizes the
+dispatch rebuild; "customers can't answer these questions themselves" is the
+cause of the ticket volume; three of Solstice's four findings were aspects of
+stalled adoption. Recall was perfect — nothing was missed, and the two
+conversations that contain no signals correctly produced none.
+
+`t3-extract@2026-09-19` adds two rules: one signal per distinct cost, with
+restatements and magnitudes folded in as further evidence; and the customer's
+own constraints (budget, capacity, other projects) are context rather than
+problems.
+
+Precision went 79% → 95%. Recall went 100% → 91%, and **the two new misses are
+the same rule working in reverse**:
+
+- `acme-discovery`: the labels call the Friday cost and the mistyped column two
+  problems — time and accuracy. The new rule's test ("would one change resolve
+  both?") says one, because automating the export fixes both.
+- `helios-support`: same shape. Ticket volume and two analysts doing nothing
+  else are one problem under the merge test, two under the labels.
+
+Both extractions are defensible. What this actually surfaced is that the
+corpus has no stated convention for when a cost is distinct — so that argument
+now belongs in `datasets/v1/README.md`, not in a percentage.
+
+The change was kept because for a user-facing insight list, a duplicate entry
+is more damaging than a merged one: it makes the list look padded, and the
+evidence behind the duplicates is the same words.
+
+**Resisting the obvious next move:** tuning the prompt again until these two
+labels pass would be fitting ten synthetic conversations, and the number would
+stop meaning anything. The next real improvement is fifty labelled snippets
+from spike S3.
 
 ## Not measured
 

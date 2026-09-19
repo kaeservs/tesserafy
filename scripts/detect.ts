@@ -15,6 +15,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import {
   detectCriteria,
   locate,
+  renderWindow,
+  systemPrompt,
   type CriterionPrompt,
   type DetectableSegment,
 } from '@tesserafy/ai';
@@ -44,6 +46,89 @@ function parseFile(path: string): ParsedTranscript {
   return extname(path).toLowerCase() === '.json' ? parseTurns(JSON.parse(source)) : parseVtt(source);
 }
 
+/**
+ * Spike S3's local arm. A model id of `ollama:<tag>` goes to a local Ollama
+ * instead of the API, using the same system prompt, the same window rendering
+ * and the same quote rule, so the two arms differ only in where inference
+ * happens.
+ *
+ * This lives in the spike script rather than in packages/ai on purpose: no
+ * product path speaks to a local chat model yet, and a provider abstraction
+ * added before the measurement would be a guess about what the answer is.
+ */
+async function detectWithOllama(
+  window: DetectableSegment[],
+  criteria: CriterionPrompt[],
+  tag: string,
+  variant: 'full' | 'compact',
+): Promise<{ observations: RawObservation[]; durationMs: number; evalCount: number }> {
+  const baseUrl = process.env['OLLAMA_URL'] ?? 'http://127.0.0.1:11434';
+  const body = {
+    model: tag,
+    stream: false,
+    options: { temperature: 0 },
+    format: {
+      type: 'object',
+      properties: {
+        observations: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              criterion_key: { type: 'string' },
+              polarity: { type: 'string', enum: ['supports', 'contradicts'] },
+              confidence: { type: 'number' },
+              segment_id: { type: 'string' },
+              quote: { type: 'string' },
+            },
+            required: ['criterion_key', 'polarity', 'confidence', 'segment_id', 'quote'],
+          },
+        },
+      },
+      required: ['observations'],
+    },
+    messages: [
+      { role: 'system', content: systemPrompt(criteria, variant) },
+      { role: 'user', content: renderWindow(window) },
+    ],
+  };
+
+  const startedAt = Date.now();
+  const response = await fetch(new URL('/api/chat', baseUrl), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(`Ollama chat failed: ${response.status} ${await response.text()}`);
+  }
+  const payload = (await response.json()) as {
+    message?: { content?: string };
+    eval_count?: number;
+  };
+  const durationMs = Date.now() - startedAt;
+
+  let observations: RawObservation[] = [];
+  try {
+    observations = (JSON.parse(payload.message?.content ?? '{}') as { observations?: RawObservation[] })
+      .observations ?? [];
+  } catch {
+    // A local model can still emit unparseable JSON despite the schema. That
+    // is a result, not a crash: it counts as finding nothing.
+    observations = [];
+  }
+
+  return { observations, durationMs, evalCount: payload.eval_count ?? 0 };
+}
+
+interface RawObservation {
+  criterion_key: string;
+  polarity: string;
+  confidence: number;
+  segment_id: string;
+  quote: string;
+}
+
 async function main(): Promise<void> {
   const criteria = JSON.parse(readFileSync(criteriaPath!, 'utf8')) as {
     engagement_type: string;
@@ -61,6 +146,84 @@ async function main(): Promise<void> {
   }));
 
   const byId = new Map(window.map((segment) => [segment.id, segment]));
+
+  if (model?.startsWith('ollama:')) {
+    const tag = model.slice('ollama:'.length);
+    const known = new Set(criteria.criteria.map((criterion) => criterion.key));
+    const { observations, durationMs, evalCount } = await detectWithOllama(
+      window,
+      criteria.criteria,
+      tag,
+      variant,
+    );
+
+    const kept: RawObservation[] = [];
+    const rejected: { reason: string; summary: string; quote?: string }[] = [];
+    for (const observation of observations) {
+      const summary = `${observation.criterion_key}: ${observation.quote}`;
+      const segment = byId.get(observation.segment_id);
+      if (!known.has(observation.criterion_key) || !segment) {
+        rejected.push({ reason: 'unknown-segment', summary, quote: observation.quote });
+        continue;
+      }
+      if (!(observation.confidence >= 0 && observation.confidence <= 1)) {
+        rejected.push({ reason: 'confidence-out-of-range', summary });
+        continue;
+      }
+      if (!locate(segment.text, observation.quote)) {
+        rejected.push({ reason: 'quote-not-found', summary, quote: observation.quote });
+        continue;
+      }
+      kept.push(observation);
+    }
+
+    const usage = {
+      tier: 't1',
+      model: tag,
+      inputTokens: 0,
+      outputTokens: evalCount,
+      cacheCreationInputTokens: 0,
+      cacheReadInputTokens: 0,
+      durationMs,
+    };
+    console.error(JSON.stringify({ event: 'model.usage', ...usage }));
+
+    process.stdout.write(
+      `${JSON.stringify(
+        {
+          engagement_type: criteria.engagement_type,
+          criteria_version: criteria.version,
+          detector: `t1-detect-local@${tag}`,
+          model: tag,
+          usage,
+          segments: window.map((segment) => ({
+            id: segment.id,
+            speaker: segment.speaker,
+            start_ms: segment.startMs,
+            text: segment.text,
+          })),
+          observations: kept.map((observation) => {
+            const segment = byId.get(observation.segment_id)!;
+            const span = locate(segment.text, observation.quote)!;
+            return {
+              criterion_key: observation.criterion_key,
+              polarity: observation.polarity === 'contradicts' ? 'contradicts' : 'supports',
+              confidence: observation.confidence,
+              segment_id: observation.segment_id,
+              quote: segment.text.slice(span.start, span.end),
+              quote_start: span.start,
+              quote_end: span.end,
+            };
+          }),
+          rejected,
+        },
+        null,
+        2,
+      )}
+`,
+    );
+    return;
+  }
 
   const result = await detectCriteria(window, {
     client: new Anthropic(),

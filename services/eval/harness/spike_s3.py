@@ -34,12 +34,17 @@ from harness.match import Gold, Pairing, Prediction, Span, pair, score
 
 EVAL_ROOT = Path(__file__).resolve().parent.parent
 REPO_ROOT = EVAL_ROOT.parent.parent
+TSX = str(REPO_ROOT / "node_modules" / ".bin" / "tsx")
 
 
-def detect(transcript: Path, criteria: Path, model: str | None) -> dict:
-    command = ["pnpm", "--silent", "detect", str(transcript), "--criteria", str(criteria)]
+def detect(transcript: Path, criteria: Path, model: str | None, compact: bool = False) -> dict:
+    # tsx directly, not through pnpm: pnpm intercepts unknown flags such as
+    # --model before they reach the script, and forwards a literal "--".
+    command = [TSX, "scripts/detect.ts", str(transcript), "--criteria", str(criteria)]
     if model:
         command += ["--model", model]
+    if compact:
+        command += ["--compact"]
 
     result = subprocess.run(
         command, cwd=REPO_ROOT, capture_output=True, text=True, shell=sys.platform == "win32"
@@ -80,6 +85,7 @@ def main() -> int:
     parser.add_argument("--criteria", type=Path, required=True)
     parser.add_argument("--model", default=None, help="defaults to the T1 model in packages/ai")
     parser.add_argument("--repeat", type=int, default=1, help="calls per window; >1 exercises the cache")
+    parser.add_argument("--compact", action="store_true", help="terser output shape (S3 latency experiment)")
     parser.add_argument("--dry-run", action="store_true", help="validate labels, call nothing")
     args = parser.parse_args()
 
@@ -103,7 +109,7 @@ def main() -> int:
             if args.dry_run:
                 payload = segments_only(transcript)
             else:
-                payload = detect(transcript, criteria_path, args.model)
+                payload = detect(transcript, criteria_path, args.model, args.compact)
                 usage = payload["usage"]
                 latencies.append(usage["durationMs"])
                 cache_reads.append(usage["cacheReadInputTokens"])
@@ -208,7 +214,7 @@ def main() -> int:
 
 def segments_only(transcript: Path) -> dict:
     result = subprocess.run(
-        ["pnpm", "--silent", "ingest", str(transcript), "--dry-run", "--json"],
+        [TSX, "scripts/ingest.ts", str(transcript), "--dry-run", "--json"],
         cwd=REPO_ROOT, capture_output=True, text=True, shell=sys.platform == "win32",
     )
     if result.returncode != 0:

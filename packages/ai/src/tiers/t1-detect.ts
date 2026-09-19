@@ -46,6 +46,13 @@ export interface DetectOptions {
   readonly model?: string;
   readonly maxTokens?: number;
   readonly onUsage?: UsageSink;
+  /**
+   * 'compact' asks for the shortest quote that carries the evidence, and caps
+   * how many observations a window may report. Spike S3 measures whether that
+   * buys back the latency budget: the response is written token by token, so
+   * output length is most of the wall clock.
+   */
+  readonly variant?: 'full' | 'compact';
 }
 
 export interface DetectionResult {
@@ -74,7 +81,10 @@ const DetectionSchema = z.object({ observations: z.array(ObservationSchema) });
  * conversation — no timestamps, no ids, no counts — or the cache never hits
  * and the live cost model is wrong by an order of magnitude.
  */
-export function systemPrompt(criteria: readonly CriterionPrompt[]): string {
+export function systemPrompt(
+  criteria: readonly CriterionPrompt[],
+  variant: 'full' | 'compact' = 'full',
+): string {
   const list = criteria
     .map((criterion) => `- ${criterion.key} (${criterion.label}): ${criterion.definition}`)
     .join('\n');
@@ -91,7 +101,13 @@ Rules:
 - Quote the window character for character, from a single segment, and give that segment's id. Never paraphrase, tidy or join segments.
 - Report the customer's words, not the seller's questions. A seller asking "what's your timeline?" is not evidence of a timeline.
 - Use "contradicts" only for an explicit statement against a criterion — "we have no budget for this", not the absence of any mention. Silence is never evidence.
-- confidence is how strongly these exact words support the criterion, not how important it seems.`;
+- confidence is how strongly these exact words support the criterion, not how important it seems.${
+    variant === 'compact'
+      ? `
+- Quote the shortest phrase that carries the evidence — at most ten words. A longer quote is not stronger evidence.
+- Report at most three observations, the strongest ones. This window will be seen again with more context.`
+      : ''
+  }`;
 }
 
 export async function detectCriteria(
@@ -118,7 +134,7 @@ export async function detectCriteria(
     system: [
       {
         type: 'text',
-        text: systemPrompt(opts.criteria),
+        text: systemPrompt(opts.criteria, opts.variant ?? 'full'),
         cache_control: { type: 'ephemeral' },
       },
     ],
@@ -179,7 +195,8 @@ export async function detectCriteria(
     });
   }
 
-  return { events, rejected, model, detector: T1_DETECTOR, usage };
+  const detector = opts.variant === 'compact' ? `${T1_DETECTOR}-compact` : T1_DETECTOR;
+  return { events, rejected, model, detector, usage };
 }
 
 /** The volatile half of the request: everything after the cache breakpoint. */

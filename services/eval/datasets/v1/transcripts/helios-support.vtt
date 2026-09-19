@@ -1,0 +1,21 @@
+WEBVTT
+
+NOTE Helios Analytics — support escalation review
+
+00:00:01.000 --> 00:00:06.000
+<v Priya Raman>Thanks for making time. I know the ticket volume conversation is a sore one.
+
+00:00:07.000 --> 00:00:16.000
+<v Ines Vogel>It is. Roughly forty per cent of our tickets are people asking where a number came from, and every one of those is a human digging through a warehouse query.
+
+00:00:17.000 --> 00:00:23.000
+<v Ines Vogel>Two of my analysts do almost nothing else. They were hired to build models.
+
+00:00:24.000 --> 00:00:28.000
+<v Priya Raman>Do the customers ever get the answer themselves?
+
+00:00:29.000 --> 00:00:36.000
+<v Ines Vogel>Not today. If the dashboard could show the lineage behind a figure, most of those tickets would never be opened.
+
+00:00:38.000 --> 00:00:43.000
+<v Ines Vogel>We used to have a problem with refresh times too, but the warehouse migration fixed that in March.

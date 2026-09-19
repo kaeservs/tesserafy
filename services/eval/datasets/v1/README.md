@@ -25,6 +25,23 @@ this signal, evidenced by this quote.
    signal, especially for the close calls — that is what keeps a corpus
    consistent as it grows past one person.
 
+## When is a cost distinct?
+
+The rule that most often decides a label, and the one the corpus and the
+extractor have disagreed on: *two costs are one signal when a single change
+would resolve both.*
+
+The Friday export and the mistyped column in `acme-discovery` are labelled as
+two problems — time and accuracy — because a reader would act on them
+differently. `t3-extract@2026-09-19` merges them, since automating the export
+fixes both, and that disagreement is why row three of `benchmarks/results.md`
+shows 91% recall rather than 100%.
+
+Neither reading is wrong. The convention here is: **label the costs a reader
+would act on separately, even when one change would fix both.** If that proves
+to be the wrong call as real transcripts arrive, change it here first, then
+re-measure — do not quietly relabel to make a number move.
+
 ## Known gaps
 
 Three labels over one conversation is far too small to draw conclusions from.

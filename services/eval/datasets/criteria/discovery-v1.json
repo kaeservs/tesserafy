@@ -1,0 +1,31 @@
+{
+  "engagement_type": "discovery",
+  "version": 1,
+  "criteria": [
+    {
+      "key": "pain_quantified",
+      "label": "Pain quantified",
+      "definition": "The customer states what a problem costs them in time, money, headcount or accuracy. A complaint with no size is not enough."
+    },
+    {
+      "key": "current_process_known",
+      "label": "Current process known",
+      "definition": "The customer describes how the work is done today — the tools, the steps or who does it."
+    },
+    {
+      "key": "desired_outcome_stated",
+      "label": "Desired outcome stated",
+      "definition": "The customer says what they want instead, either as a request or by describing how they would like it to work."
+    },
+    {
+      "key": "timeline_stated",
+      "label": "Timeline stated",
+      "definition": "The customer names a date, deadline or period for the change they are considering. Scheduling the next meeting does not count."
+    },
+    {
+      "key": "budget_indicated",
+      "label": "Budget indicated",
+      "definition": "The customer refers to budget, funding, price sensitivity or when money can be committed."
+    }
+  ]
+}

@@ -54,3 +54,15 @@ export {
   type WriteSignalsInput,
   type WriteSignalsOptions,
 } from './ingest/write-signals';
+export {
+  detectCriteria,
+  renderWindow,
+  systemPrompt,
+  T1_DETECTOR,
+  T1_MODEL,
+  type CriterionPrompt,
+  type DetectableSegment,
+  type DetectionResult,
+  type DetectOptions,
+} from './tiers/t1-detect';
+export { locate } from './tiers/evidence';

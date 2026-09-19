@@ -15,6 +15,7 @@
     "@anthropic-ai/sdk": "^0.126.0",
     "@tesserafy/db": "workspace:*",
     "@tesserafy/ingest": "workspace:*",
+    "@tesserafy/scoring": "workspace:*",
     "zod": "^4.6.5"
   },
   "devDependencies": {

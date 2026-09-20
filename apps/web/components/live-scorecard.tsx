@@ -125,7 +125,7 @@ export function LiveScorecard({
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="toolbar">
         <button type="button" onClick={() => void step()} disabled={busy || played >= segments.length}>
           Next utterance
         </button>
@@ -154,31 +154,25 @@ export function LiveScorecard({
       </div>
 
       {error && (
-        <p role="alert" style={{ marginTop: '0.75rem' }}>
-          {error}
-        </p>
+        <p role="alert">{error}</p>
       )}
 
-      <section aria-labelledby="score-heading" style={{ marginTop: '1.25rem' }}>
-        <h2 id="score-heading" style={{ marginBottom: '0.25rem' }}>
-          {Math.round(card.score)}
-          <span className="muted" style={{ fontSize: '1rem', fontWeight: 400 }}>
-            {' '}
-            / 100
-          </span>
-        </h2>
-        <p className="muted" style={{ marginTop: 0 }}>
-          {card.earnedWeight} of {card.totalWeight} criteria confirmed
+      <section aria-labelledby="score-heading">
+        <h2 id="score-heading">Scorecard</h2>
+        {/* Announced politely: the score changes while someone is reading
+            elsewhere on the page, and a screen reader should say so without
+            interrupting. */}
+        <p aria-live="polite">
+          <span className="score">{Math.round(card.score)}</span>
+          <span className="score-unit"> / 100 · {card.earnedWeight} of {card.totalWeight} confirmed</span>
         </p>
 
         <ul className="signals">
           {card.criteria.map((criterion) => (
             <li key={criterion.key} className="signal">
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+              <div className="criterion">
                 <span>{criterion.label}</span>
-                <span className={criterion.status === 'confirmed' ? undefined : 'muted'}>
-                  {criterion.status}
-                </span>
+                <span className={`state state-${criterion.status}`}>{criterion.status}</span>
               </div>
               {criterion.evidence.length > 0 && (
                 <ul className="evidence">

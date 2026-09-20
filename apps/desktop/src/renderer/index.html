@@ -4,30 +4,67 @@
     <meta charset="utf-8" />
     <title>Tesserafy</title>
     <style>
-      :root { color-scheme: dark; font: 13px/1.45 system-ui, sans-serif; }
+      /*
+       * The overlay is read out of the corner of an eye during a conversation
+       * someone is having. That is the whole design constraint:
+       *
+       *   - glanceable in under a second, so state is a mark and a weight as
+       *     well as a colour;
+       *   - quiet, so nothing animates and nothing is brighter than it needs
+       *     to be — a scorecard that pulls attention off the customer costs
+       *     more than it gives;
+       *   - legible over anything, since it floats over whatever is on screen.
+       */
+      :root { color-scheme: dark; font: 13px/1.5 system-ui, sans-serif; }
+
       body {
-        margin: 0; padding: 14px; color: #f5f5f4;
-        background: rgba(12, 10, 9, 0.9);
-        border: 1px solid #292524; border-radius: 12px;
-        -webkit-app-region: drag; user-select: none;
+        margin: 0;
+        padding: 12px 14px;
+        color: #f5f5f4;
+        background: rgba(12, 10, 9, 0.88);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(120, 113, 108, 0.35);
+        border-radius: 12px;
+        -webkit-app-region: drag;
+        user-select: none;
       }
-      header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
-      h1 { font-size: 13px; margin: 0; font-weight: 600; letter-spacing: 0.02em; }
-      .score { font-size: 26px; font-weight: 700; line-height: 1; }
-      .score span { font-size: 12px; font-weight: 400; color: #a8a29e; }
-      ul { list-style: none; margin: 0; padding: 0; }
-      li { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-bottom: 1px solid #1c1917; }
-      li:last-child { border-bottom: 0; }
-      .state { color: #78716c; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
-      .state.confirmed { color: #4ade80; }
+
+      header { display: flex; justify-content: space-between; align-items: baseline; }
+      h1 { font-size: 11px; margin: 0; font-weight: 600; letter-spacing: 0.08em;
+           text-transform: uppercase; color: #a8a29e; }
+      .score { font-size: 28px; font-weight: 700; line-height: 1; }
+      .score span { font-size: 11px; font-weight: 400; color: #78716c; }
+
+      ul { list-style: none; margin: 10px 0 0; padding: 0; }
+      li { display: flex; justify-content: space-between; align-items: baseline;
+           gap: 10px; padding: 5px 0; }
+      li + li { border-top: 1px solid rgba(120, 113, 108, 0.18); }
+      .label { color: #e7e5e4; }
+
+      /* State is never colour alone: peripheral vision reads shape and weight
+         long before it reads hue. */
+      .state { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: #78716c; }
+      .state::before { margin-right: 5px; }
+      .state.confirmed { color: #4ade80; font-weight: 700; }
+      .state.confirmed::before { content: "●"; }
       .state.candidate { color: #fbbf24; }
-      .state.contradicted { color: #f87171; }
-      footer { margin-top: 10px; display: flex; gap: 8px; align-items: center; }
-      button { -webkit-app-region: no-drag; font: inherit; color: inherit; background: transparent;
-               border: 1px solid #44403c; border-radius: 6px; padding: 4px 8px; cursor: pointer; }
-      .muted { color: #78716c; font-size: 11px; }
+      .state.candidate::before { content: "◐"; }
+      .state.contradicted { color: #f87171; font-weight: 700; }
+      .state.contradicted::before { content: "✕"; }
+      .state.unobserved::before { content: "○"; }
+
+      footer { margin-top: 12px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+      button { -webkit-app-region: no-drag; font: inherit; font-size: 11px; color: #d6d3d1;
+               background: transparent; border: 1px solid rgba(120, 113, 108, 0.35);
+               border-radius: 6px; padding: 3px 7px; cursor: pointer; }
+      button:hover { border-color: #a8a29e; }
+      .muted { color: #78716c; font-size: 10px; }
+
+      /* Loud on purpose, and only when protection is off: this is the one
+         state where the overlay is a liability rather than a tool. */
       .banner { background: #f97316; color: #0c0a09; font-weight: 700; padding: 5px 7px;
-                border-radius: 6px; margin-bottom: 10px; font-size: 11px; }
+                border-radius: 6px; margin-bottom: 10px; font-size: 10px;
+                letter-spacing: 0.04em; }
       .banner[hidden] { display: none; }
     </style>
   </head>
@@ -39,7 +76,7 @@
       <div class="score"><span id="scoreValue">0</span><span> / 100</span></div>
     </header>
 
-    <ul id="criteria"></ul>
+    <ul id="criteria" aria-live="polite"></ul>
 
     <footer>
       <button id="listen">Listen</button>

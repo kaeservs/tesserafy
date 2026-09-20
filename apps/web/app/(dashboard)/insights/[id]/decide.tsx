@@ -53,7 +53,7 @@ export function Decide({
   };
 
   return (
-    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+    <div className="toolbar">
       {status === 'proposed' && (
         <>
           <button type="button" onClick={() => decide('approved')} disabled={pending}>
@@ -83,9 +83,7 @@ export function Decide({
       )}
 
       {error && (
-        <p role="alert" style={{ width: '100%', margin: 0 }}>
-          {error}
-        </p>
+        <p role="alert">{error}</p>
       )}
     </div>
   );

@@ -13,22 +13,20 @@ export function LoginForm() {
   }
 
   return (
-    <form action={action} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+    <form action={action} className="toolbar">
       <input
         name="email"
         type="email"
         placeholder="you@company.com"
         autoComplete="email"
         required
-        style={{ flex: '1 1 16rem' }}
+        className="grow"
       />
       <button type="submit" disabled={pending}>
         {pending ? 'Sending…' : 'Email me a link'}
       </button>
       {state.status === 'error' && (
-        <p role="alert" style={{ width: '100%', margin: 0 }}>
-          {state.message}
-        </p>
+        <p role="alert">{state.message}</p>
       )}
     </form>
   );

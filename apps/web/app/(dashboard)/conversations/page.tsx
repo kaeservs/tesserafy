@@ -26,9 +26,9 @@ export default async function ConversationsPage() {
           company.
         </p>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0 }}>
+        <ul className="signals">
           {conversations.map((c) => (
-            <li key={c.id} style={{ padding: '0.75rem 0', borderBottom: '1px solid var(--border)' }}>
+            <li key={c.id} className="signal">
               <div>
                 <Link href={`/conversations/${c.id}`}>{c.title}</Link>
               </div>

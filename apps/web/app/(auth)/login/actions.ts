@@ -1,7 +1,7 @@
 'use server';
 
 import { headers } from 'next/headers';
-import { createClient } from '@/lib/supabase/server';
+import { createSignInClient } from '@/lib/supabase/sign-in';
 
 export interface LoginState {
   status: 'idle' | 'sent' | 'error';
@@ -19,11 +19,13 @@ export async function sendMagicLink(_prev: LoginState, formData: FormData): Prom
     return { status: 'error', message: 'Could not determine the site origin.' };
   }
 
-  const supabase = await createClient();
+  const supabase = await createSignInClient();
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: `${origin}/auth/callback`,
+      // A page, not the route handler: the session comes back in the URL
+      // fragment, which only a browser can read.
+      emailRedirectTo: `${origin}/auth/confirm`,
       // Invite-only: accounts are created server-side and attached to a
       // company. A self-registered user would belong to no tenant.
       shouldCreateUser: false,

@@ -1,9 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { detectCriteria, type CriterionPrompt, type DetectableSegment } from '@tesserafy/ai';
-import { createClient as createTokenClient } from '@supabase/supabase-js';
 import { NextResponse, type NextRequest } from 'next/server';
-import { publicSupabaseEnv } from '@/lib/env';
-import { createClient } from '@/lib/supabase/server';
+import { caller } from '@/lib/supabase/caller';
 
 /**
  * T1 criterion detection, run server-side.
@@ -32,31 +30,10 @@ interface DetectBody {
   variant?: 'full' | 'compact';
 }
 
-/**
- * Cookies for the web app, a bearer token for everything else.
- *
- * The Electron overlay is the reason the second path exists: it holds a
- * Supabase session but no browser cookie jar, and it is the main caller this
- * endpoint is being built for.
- */
-async function signedInUser(request: NextRequest): Promise<boolean> {
-  const header = request.headers.get('authorization');
-  if (header?.startsWith('Bearer ')) {
-    const { url, publishableKey } = publicSupabaseEnv();
-    const client = createTokenClient(url, publishableKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-    const { data } = await client.auth.getUser(header.slice('Bearer '.length));
-    return data.user !== null;
-  }
-
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  return data.user !== null;
-}
-
 export async function POST(request: NextRequest) {
-  if (!(await signedInUser(request))) {
+  // Detection needs no tenant data — the window comes from the caller — so
+  // this only needs to know that somebody signed in is asking.
+  if (!(await caller(request))) {
     return NextResponse.json({ error: 'not signed in' }, { status: 401 });
   }
 

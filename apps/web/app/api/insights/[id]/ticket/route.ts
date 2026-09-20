@@ -1,7 +1,8 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse, type NextRequest } from 'next/server';
 import { ticketBody, ticketTitle, type TicketCitation } from '@/lib/ticket';
 import { siteUrl } from '@/lib/site-url';
-import { createClient } from '@/lib/supabase/server';
+import { caller } from '@/lib/supabase/caller';
 
 /**
  * Create a ticket from an approved insight.
@@ -25,14 +26,12 @@ interface SignalRow {
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  const who = await caller(request);
+  if (!who) {
     return NextResponse.json({ error: 'not signed in' }, { status: 401 });
   }
+  const supabase = who.db;
 
   const token = process.env['GITHUB_TOKEN'];
   const repo = process.env['GITHUB_TICKET_REPO'];
@@ -120,7 +119,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 }
 
 async function loadCitations(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: SupabaseClient,
   insightId: string,
 ): Promise<TicketCitation[]> {
   const { data: cited } = await supabase

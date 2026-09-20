@@ -76,6 +76,50 @@ app.whenReady().then(() => {
     chrome: process.versions.chrome,
   }));
 
+  // Where to reach the product, and as whom. The token lives in the main
+  // process rather than in the page: a renderer is a browser, and a browser is
+  // where a token gets read by something you did not write. Sign-in inside the
+  // overlay is P7 work proper; an operator-supplied token is enough to prove
+  // the loop.
+  ipcMain.handle('overlay:config', () => ({
+    baseUrl: process.env['TESSERAFY_URL'] ?? 'http://localhost:3000',
+    token: process.env['TESSERAFY_TOKEN'] ?? null,
+    engagementType: process.env['TESSERAFY_ENGAGEMENT'] ?? 'discovery',
+  }));
+
+  // The renderer never sees the token: it asks the main process to make the
+  // call, and gets back only what the endpoint returned.
+  ipcMain.handle('overlay:detect', async (_event, body: unknown) => {
+    const baseUrl = process.env['TESSERAFY_URL'] ?? 'http://localhost:3000';
+    const token = process.env['TESSERAFY_TOKEN'];
+    if (!token) return { error: 'TESSERAFY_TOKEN is not set' };
+
+    const response = await fetch(new URL('/api/detect', baseUrl), {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      return { error: `detect failed: ${response.status} ${await response.text()}` };
+    }
+    return response.json();
+  });
+
+  ipcMain.handle('overlay:criteria', async () => {
+    const baseUrl = process.env['TESSERAFY_URL'] ?? 'http://localhost:3000';
+    const token = process.env['TESSERAFY_TOKEN'];
+    const engagement = process.env['TESSERAFY_ENGAGEMENT'] ?? 'discovery';
+    if (!token) return { error: 'TESSERAFY_TOKEN is not set' };
+
+    const url = new URL('/api/criteria', baseUrl);
+    url.searchParams.set('engagement_type', engagement);
+    const response = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
+    if (!response.ok) {
+      return { error: `criteria failed: ${response.status} ${await response.text()}` };
+    }
+    return response.json();
+  });
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) overlay = createOverlay();
   });

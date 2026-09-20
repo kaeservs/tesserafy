@@ -2,8 +2,11 @@
  * The only bridge between the overlay UI and Electron.
  *
  * Context isolation is on and node integration is off, so the renderer gets
- * exactly these three calls and nothing else — an overlay that renders
- * customer conversation is not a place to hand out a Node runtime.
+ * exactly these calls and nothing else — an overlay that renders customer
+ * conversation is not a place to hand out a Node runtime.
+ *
+ * Note what is missing: the session token. Detection and criteria are fetched
+ * by the main process, so the page never holds a credential it could leak.
  */
 import { contextBridge, ipcRenderer } from 'electron';
 
@@ -14,4 +17,10 @@ contextBridge.exposeInMainWorld('overlay', {
     ipcRenderer.invoke('overlay:set-click-through', enabled),
   platform: (): Promise<{ platform: string; electron: string; chrome: string }> =>
     ipcRenderer.invoke('overlay:platform'),
+  config: (): Promise<{ baseUrl: string; token: string | null; engagementType: string }> =>
+    ipcRenderer.invoke('overlay:config'),
+  criteria: (): Promise<{ criteria?: unknown[]; error?: string }> =>
+    ipcRenderer.invoke('overlay:criteria'),
+  detect: (body: unknown): Promise<{ events?: unknown[]; error?: string }> =>
+    ipcRenderer.invoke('overlay:detect', body),
 });

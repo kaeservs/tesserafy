@@ -12,10 +12,25 @@ The scorecard is computed by `@tesserafy/scoring`, the same package the web app
 uses. That is why that package is allowed no runtime dependencies: the overlay
 imports it, so the overlay cannot invent a score any more than the browser can.
 
-Detection is not wired to audio here. Spike S2 has not chosen a streaming
-transcriber, and building one before it does means building the part most
-likely to be thrown away. `window.pushEvent(detectorEvent)` from the devtools
-console folds evidence in, which is enough to see the scorecard behave.
+It listens, detects and scores. Speech recognition is the browser engine
+inside Electron — a stand-in until spike S2 chooses a streaming transcriber
+that can run under our own terms, because this one sends audio off the
+machine.
+
+The session token never reaches the page. Detection and criteria are fetched
+by the main process, so the renderer holds no credential: a renderer is a
+browser, and a browser is where a credential gets read by something nobody
+wrote.
+
+## Connecting it
+
+    # PowerShell
+    $env:TESSERAFY_URL   = 'https://web-beta-khaki-cxdkp6udxk.vercel.app'
+    $env:TESSERAFY_TOKEN = '<a Supabase access token for a member>'
+    pnpm --filter @tesserafy/desktop dev
+
+Without a token the overlay still opens and says so — which is also all S1
+needs, since that spike is about the window and not about what it displays.
 
 ## Running it
 

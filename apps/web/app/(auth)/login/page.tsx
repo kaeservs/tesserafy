@@ -15,7 +15,10 @@ const REASONS: Record<string, string> = {
     'That link arrived without a sign-in token. Request a new one; if it keeps happening, the redirect URL needs fixing.',
   validation_failed: 'That link was malformed. Request a new one.',
   flow_state_not_found:
-    'That link was opened in a different browser from the one that requested it. Request a new link and open it in this browser.',
+    'That link could not be completed. Request a new one.',
+  pkce_code_verifier_not_found:
+    'That link could not be completed in this browser. Request a new one — links now work in any browser.',
+  session_failed: 'Signing in failed after the link was accepted. Request a new one.',
   flow_state_expired: 'That link has expired. Request a new one.',
 };
 

@@ -15,7 +15,7 @@ https://claude.ai/code/artifact/a7cdd883-3bc5-48f5-84da-a0fe6b21f329
 | P1 | Batch intelligence slice | Every displayed signal links to a timestamped quote; clicking scrolls to that segment. | Built; gate not yet witnessed in a browser |
 | P2 | Scoring engine | ~40 unit tests over synthetic detector sequences, no LLM in the test path. Score monotonic except on explicit contradiction. | Done — 56 tests |
 | P3 | Evaluation harness | A committed precision/recall number for problem detection, feature-request detection and criterion correctness, with the date measured. | Done — numbers in `services/eval/benchmarks/results.md` |
-| P4 | Bulk transcript import | 50 transcripts ingest in one run; cost per transcript recorded; failures are per-file. | Built; run at 10 transcripts, not 50 |
+| P4 | Bulk transcript import | 50 transcripts ingest in one run; cost per transcript recorded; failures are per-file. | **Done** — 50 in 78 s, 48 imported, 2 malformed failed alone, $0.015 per transcript |
 | P5 | Retrieval and insights | One insight with >= 3 evidence items from >= 2 conversations, each citing customer and timestamp. Cross-tenant test still green. | Built; one insight in production across 4 conversations |
 | P6 | Live path, browser first | Measured p50/p95 for utterance -> visible score against the latency budget. | In progress — live scorecard page measures against ADR 0010 |
 | P7 | Electron HUD | Overlay over a live Zoom call; scorecard updates; meeting stays visible and clickable; screen-share behaviour matches S1. | Blocked on S1 results |

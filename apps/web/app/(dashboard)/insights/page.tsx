@@ -71,7 +71,7 @@ export default async function InsightsPage() {
                 <div>
                   <Link href={`/insights/${insight.id}`}>{insight.title}</Link>
                 </div>
-                <p className="muted" style={{ margin: '0.3rem 0 0' }}>
+                <p className="muted">
                   {counts?.signals ?? 0} signals across {counts?.conversations ?? 0} conversations
                 </p>
               </li>

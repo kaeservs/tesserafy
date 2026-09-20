@@ -214,7 +214,7 @@ export function LiveMicrophone({
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="toolbar">
         <button type="button" onClick={listening ? stop : start}>
           {listening ? 'Stop listening' : 'Start listening'}
         </button>
@@ -223,30 +223,31 @@ export function LiveMicrophone({
         </button>
         <span className="muted">{utterances.length} utterances</span>
       </div>
-      <p className="muted" style={{ marginTop: '0.4rem' }}>
+      <p className="muted">
         Who is speaking is a toggle because diarisation is not solved here. It matters: the detector
         is told to report the customer’s words, not the seller’s.
       </p>
 
       {error && <p role="alert">{error}</p>}
 
-      <p style={{ minHeight: '1.5rem' }}>
-        <em className="muted">{interim || (listening ? 'listening…' : '')}</em>
+      {/* What it is hearing, before it commits. aria-live off: interim text
+          changes constantly and would flood a screen reader. */}
+      <p className="interim" aria-hidden="true">
+        {interim || (listening ? 'listening…' : '')}
       </p>
 
       <section aria-labelledby="mic-score">
-        <h2 id="mic-score" style={{ marginBottom: '0.25rem' }}>
-          {Math.round(card.score)}
-          <span className="muted" style={{ fontSize: '1rem', fontWeight: 400 }}> / 100</span>
-        </h2>
+        <h2 id="mic-score">Scorecard</h2>
+        <p aria-live="polite">
+          <span className="score">{Math.round(card.score)}</span>
+          <span className="score-unit"> / 100</span>
+        </p>
         <ul className="signals">
           {card.criteria.map((criterion) => (
             <li key={criterion.key} className="signal">
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+              <div className="criterion">
                 <span>{criterion.label}</span>
-                <span className={criterion.status === 'confirmed' ? undefined : 'muted'}>
-                  {criterion.status}
-                </span>
+                <span className={`state state-${criterion.status}`}>{criterion.status}</span>
               </div>
             </li>
           ))}

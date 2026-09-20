@@ -43,7 +43,7 @@ function render() {
   el('criteria').innerHTML = card.criteria
     .map(
       (criterion) =>
-        `<li><span>${criterion.label}</span><span class="state ${criterion.status}">${criterion.status}</span></li>`,
+        `<li><span class="label">${criterion.label}</span><span class="state ${criterion.status}">${criterion.status}</span></li>`,
     )
     .join('');
 

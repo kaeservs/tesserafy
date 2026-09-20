@@ -15,23 +15,14 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   return (
     <>
-      <header
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '1rem',
-          padding: '0.75rem 1rem',
-          borderBottom: '1px solid var(--border)',
-        }}
-      >
-        <nav style={{ display: 'flex', gap: '1rem', alignItems: 'baseline' }}>
+      <header className="app-header">
+        <nav className="toolbar">
           <strong>Tesserafy</strong>
           <Link href="/conversations">Conversations</Link>
           <Link href="/insights">Insights</Link>
           <Link href="/live/mic">Live</Link>
         </nav>
-        <form action="/auth/sign-out" method="post" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+        <form action="/auth/sign-out" method="post" className="toolbar">
           <span className="muted">{user.email}</span>
           <button type="submit">Sign out</button>
         </form>

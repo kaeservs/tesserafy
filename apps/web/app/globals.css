@@ -1,19 +1,45 @@
+/*
+ * One stylesheet, tokens first.
+ *
+ * The rule this follows: design effort goes where the product's claim is felt
+ * — evidence, and the scorecard — and nowhere else. Lists and chrome stay
+ * plain on purpose; nobody's opinion of this tool will hinge on them, and
+ * every style added is one more thing that can drift.
+ */
+
 :root {
   color-scheme: light dark;
+
   --bg: #fafaf9;
+  --surface: #ffffff;
   --fg: #1c1917;
   --muted: #78716c;
   --border: #e7e5e4;
   --accent: #4338ca;
+  --accent-soft: #eef2ff;
+
+  /* Criterion states. Never the only signal — see .state below. */
+  --confirmed: #15803d;
+  --candidate: #b45309;
+  --contradicted: #b91c1c;
+
+  --radius: 8px;
+  --gap: 0.75rem;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #0c0a09;
+    --surface: #161312;
     --fg: #f5f5f4;
     --muted: #a8a29e;
     --border: #292524;
-    --accent: #818cf8;
+    --accent: #a5b4fc;
+    --accent-soft: #1e1b3a;
+
+    --confirmed: #4ade80;
+    --candidate: #fbbf24;
+    --contradicted: #f87171;
   }
 }
 
@@ -25,24 +51,36 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
-  font: 15px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font: 15px/1.6 system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
 main {
   max-width: 44rem;
   margin: 0 auto;
-  padding: 2rem 1rem;
+  padding: 2rem 1rem 4rem;
+}
+
+h1 {
+  font-size: 1.5rem;
+  line-height: 1.3;
+  margin: 0 0 0.5rem;
+}
+
+h2 {
+  font-size: 1.05rem;
+  margin: 2rem 0 0.5rem;
 }
 
 a {
   color: var(--accent);
+  text-underline-offset: 0.15em;
 }
 
 input,
 button {
   font: inherit;
   padding: 0.5rem 0.75rem;
-  border-radius: 6px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   background: transparent;
   color: inherit;
@@ -52,13 +90,38 @@ button {
   cursor: pointer;
 }
 
+button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Visible focus is not decoration: this app is read more than it is clicked,
+   and reading is done with the keyboard. */
+:where(a, button, input):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .muted {
   color: var(--muted);
 }
 
-/* Conversation detail. Following a signal's quote jumps to its segment, and
-   :target holds the highlight there so the reader can see where they landed —
-   no client JavaScript involved. */
+table {
+  border-collapse: collapse;
+}
+
+td {
+  padding: 0.2rem 0.75rem 0.2rem 0;
+}
+
+/* --------------------------------------------------------------------------
+   Signals, insights and their evidence
+   -------------------------------------------------------------------------- */
+
 .signals,
 .evidence,
 .transcript {
@@ -72,30 +135,48 @@ button {
 }
 
 .signal-kind {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
 }
 
+/* A citation is the product's claim in miniature: the words, who said them,
+   and when. The rule down its left edge makes it read as testimony rather
+   than as one more bullet point. */
 .evidence {
-  margin: 0.4rem 0 0;
+  margin: 0.5rem 0 0;
   font-size: 0.95rem;
 }
 
+.evidence li {
+  border-left: 2px solid var(--border);
+  padding: 0.15rem 0 0.15rem 0.7rem;
+  margin-bottom: 0.35rem;
+}
+
+.evidence li:hover {
+  border-left-color: var(--accent);
+}
+
+/* --------------------------------------------------------------------------
+   Transcript
+   -------------------------------------------------------------------------- */
+
 .segment {
-  /* Without this the anchored segment lands under the header. */
   scroll-margin-top: 4rem;
   padding: 0.5rem 0.75rem;
   border-left: 3px solid transparent;
+  border-radius: 0 var(--radius) var(--radius) 0;
 }
 
 .segment:target {
   border-left-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  background: var(--accent-soft);
 }
 
 .segment-meta {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
 }
 
 .segment p {
@@ -107,4 +188,123 @@ mark {
   color: inherit;
   padding: 0 0.1em;
   border-radius: 3px;
+}
+
+/* --------------------------------------------------------------------------
+   Scorecard
+   -------------------------------------------------------------------------- */
+
+.score {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+  /* The score changes while someone is watching it. A short transition reads
+     as "kept up to date"; an instant jump reads as a glitch. */
+  transition: color 160ms ease;
+}
+
+.score-unit {
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.criterion {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+/*
+ * State is never colour alone.
+ *
+ * Judging whether a confirmed criterion ever reverts — invariant 2 — is the
+ * hardest thing to watch for here, and hue is the weakest way to encode it:
+ * unreliable in peripheral vision, invisible to a colour-blind reader, and
+ * lost in a screenshot. Each state carries a mark and a weight as well.
+ */
+.state {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.state::before {
+  margin-right: 0.35rem;
+  font-weight: 700;
+}
+
+.state-confirmed {
+  color: var(--confirmed);
+  font-weight: 600;
+}
+
+.state-confirmed::before {
+  content: '●';
+}
+
+.state-candidate {
+  color: var(--candidate);
+}
+
+.state-candidate::before {
+  content: '◐';
+}
+
+.state-contradicted {
+  color: var(--contradicted);
+  font-weight: 600;
+}
+
+.state-contradicted::before {
+  content: '✕';
+}
+
+.state-unobserved::before {
+  content: '○';
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .score {
+    transition: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Layout odds and ends
+   -------------------------------------------------------------------------- */
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.grow {
+  flex: 1 1 16rem;
+}
+
+.toolbar {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.interim {
+  min-height: 1.6rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+[role='alert'] {
+  color: var(--contradicted);
 }

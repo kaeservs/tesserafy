@@ -26,11 +26,20 @@ values ('00000000-0000-4000-8000-00000000000a',
         '00000000-0000-4000-8000-0000000000f1',
         '00000000-0000-4000-8000-000000000a21');
 
+-- Still the owner here: the fixture above was just inserted.
 select is(
   (select status from public.insights where id = '00000000-0000-4000-8000-0000000000f1'),
   'proposed',
   'an insight is written as proposed'
 );
+
+-- From here on everything runs as a signed-in user. The membership check in
+-- these functions comes first and reads auth.uid(), so asserting the approval
+-- rule from an unauthenticated session would only ever prove the membership
+-- rule — which is what this test did until CI caught it.
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub":"33333333-3333-4333-8333-333333333333","role":"authenticated"}', true);
 
 -- A ticket for an insight nobody approved is the failure this phase is about.
 select throws_ok(
@@ -38,11 +47,10 @@ select throws_ok(
        '00000000-0000-4000-8000-0000000000f1', 'github', '1', 'https://github.com/x/y/issues/1') $$,
   '23514',
   null,
-  'a ticket cannot be recorded for an insight nobody approved'
+  'a member cannot record a ticket for an insight nobody approved'
 );
 
 -- Decide as the outsider.
-set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"44444444-4444-4444-8444-444444444444","role":"authenticated"}', true);
 

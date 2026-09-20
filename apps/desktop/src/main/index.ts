@@ -51,7 +51,7 @@ function createOverlay(): BrowserWindow {
   // leaking a real overlay into a real call while someone is fiddling.
   window.setContentProtection(true);
 
-  void window.loadFile(join(__dirname, '../../src/renderer/index.html'));
+  void window.loadFile(join(__dirname, '../renderer/index.html'));
   return window;
 }
 

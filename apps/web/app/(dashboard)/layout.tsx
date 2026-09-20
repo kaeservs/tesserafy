@@ -29,6 +29,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <strong>Tesserafy</strong>
           <Link href="/conversations">Conversations</Link>
           <Link href="/insights">Insights</Link>
+          <Link href="/live/mic">Live</Link>
         </nav>
         <form action="/auth/sign-out" method="post" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           <span className="muted">{user.email}</span>

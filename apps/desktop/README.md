@@ -4,9 +4,18 @@ Electron desktop HUD. Built in Phase 7 — deliberately after the live path is
 proven in the browser (Phase 6), so the realtime problem and the
 desktop-window problem are debugged separately.
 
-Right now it is spike **S1**'s apparatus and nothing more: a transparent,
-always-on-top overlay whose only job is to answer whether
-`setContentProtection(true)` keeps it out of a shared screen.
+It is two things at once: spike **S1**'s apparatus — a transparent,
+always-on-top overlay whose job is to be looked for in a screen share — and
+the beginning of the HUD itself, which renders a real scorecard.
+
+The scorecard is computed by `@tesserafy/scoring`, the same package the web app
+uses. That is why that package is allowed no runtime dependencies: the overlay
+imports it, so the overlay cannot invent a score any more than the browser can.
+
+Detection is not wired to audio here. Spike S2 has not chosen a streaming
+transcriber, and building one before it does means building the part most
+likely to be thrown away. `window.pushEvent(detectorEvent)` from the devtools
+console folds evidence in, which is enough to see the scorecard behave.
 
 ## Running it
 

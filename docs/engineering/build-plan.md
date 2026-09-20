@@ -12,14 +12,14 @@ https://claude.ai/code/artifact/a7cdd883-3bc5-48f5-84da-a0fe6b21f329
 | # | Phase | Gate | Status |
 |---|---|---|---|
 | P0 | Foundation | Two seeded companies. User A cannot reach company B's data via API, direct query, or `retrieve()`. Test green in CI. | Done |
-| P1 | Batch intelligence slice | Every displayed signal links to a timestamped quote; clicking scrolls to that segment. | Built; gate not yet witnessed in a browser |
+| P1 | Batch intelligence slice | Every displayed signal links to a timestamped quote; clicking scrolls to that segment. | Built on 10 conversations; gate not yet witnessed in a browser |
 | P2 | Scoring engine | ~40 unit tests over synthetic detector sequences, no LLM in the test path. Score monotonic except on explicit contradiction. | Done — 56 tests |
 | P3 | Evaluation harness | A committed precision/recall number for problem detection, feature-request detection and criterion correctness, with the date measured. | Done — numbers in `services/eval/benchmarks/results.md` |
 | P4 | Bulk transcript import | 50 transcripts ingest in one run; cost per transcript recorded; failures are per-file. | **Done** — 50 in 78 s, 48 imported, 2 malformed failed alone, $0.015 per transcript |
-| P5 | Retrieval and insights | One insight with >= 3 evidence items from >= 2 conversations, each citing customer and timestamp. Cross-tenant test still green. | Built; one insight in production across 4 conversations |
-| P6 | Live path, browser first | Measured p50/p95 for utterance -> visible score against the latency budget. | In progress — live scorecard page measures against ADR 0010 |
-| P7 | Electron HUD | Overlay over a live Zoom call; scorecard updates; meeting stays visible and clickable; screen-share behaviour matches S1. | Blocked on S1 results |
-| P8 | Prepare and Act | An insight moves from approval to a created ticket carrying its evidence citations. No auto-creation anywhere. | Not started |
+| P5 | Retrieval and insights | One insight with >= 3 evidence items from >= 2 conversations, each citing customer and timestamp. Cross-tenant test still green. | **Done** — one insight in production, 4 signals across 4 conversations; page shows every citation |
+| P6 | Live path, browser first | Measured p50/p95 for utterance -> visible score against the latency budget. | Built — replay and microphone paths both measure against ADR 0010; real STT awaits S2 |
+| P7 | Electron HUD | Overlay over a live Zoom call; scorecard updates; meeting stays visible and clickable; screen-share behaviour matches S1. | Built — overlay listens, detects and scores; screen-share behaviour awaits S1 |
+| P8 | Prepare and Act | An insight moves from approval to a created ticket carrying its evidence citations. No auto-creation anywhere. | Built and applied; needs GITHUB_TOKEN and GITHUB_TICKET_REPO to raise a real ticket |
 
 ## MVP
 
@@ -55,7 +55,7 @@ arrives — each answers a question whose answer could change the plan.
 | # | Box | Question | Status |
 |---|---|---|---|
 | S1 | 1 day | Does `setContentProtection(true)` exclude the overlay from a shared screen — Zoom desktop, Meet in Chrome, Teams; window vs full-screen share? | Apparatus built (`apps/desktop`), results pending a human in a meeting. Windows only; macOS untested. |
-| S2 | 1 day | Which streaming STT hits the 300 ms partial budget, at what real $/min? | Not started |
+| S2 | 1 day | Which streaming STT hits the 300 ms partial budget, at what real $/min? | Not started — needs vendor accounts. Browser speech recognition stands in meanwhile, and sends audio to the browser vendor, which no customer call may do. |
 | S3 | 2 days | Can `claude-haiku-4-5` detect criteria accurately from a 600-token window? How does a local model compare? | **Done** — 84% F1, but 1450 ms against a 700 ms budget, and a local 4B model is 25x slower at 25% F1. Budget revised by ADR 0010. |
 
 ## Explicitly not building yet
@@ -63,6 +63,26 @@ arrives — each answers a question whose answer could change the plan.
 Billing, the full 25-table schema, LangChain / LlamaIndex / LangGraph,
 fine-tuning, Teams, mobile, SSO, multi-language, FastAPI in the request path,
 agent frameworks.
+
+## What is left
+
+Everything buildable is built. What remains cannot be done from a keyboard
+alone:
+
+- **S1** — run the overlay against Zoom, Meet and Teams, including the
+  protection-off control step. P7's gate depends on the answer.
+- **S2** — choose a streaming transcriber that can run under our own terms.
+  Until then the live path uses the browser's, which sends audio to the
+  browser vendor.
+- **ADR 0010** — accept, amend or reject the revised ~2 s budget. It changes a
+  product promise, so it is not a technical call.
+- **P8** — `GITHUB_TOKEN` and `GITHUB_TICKET_REPO` in Vercel, then approve an
+  insight and raise a ticket.
+- **QA** — `pnpm qa` covers what a machine can judge; the rest is in
+  `qa-checklist.md`.
+- **Sign-in** — works in any browser now, via the implicit flow. Custom SMTP
+  plus a token_hash link is still the better endpoint: it would keep tokens
+  out of browser history.
 
 ## Open decisions
 

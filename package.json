@@ -18,6 +18,7 @@
     "guard:retrieval": "node scripts/check-retrieval-guard.mjs",
     "ingest": "tsx scripts/ingest.ts",
     "ingest:batch": "tsx scripts/ingest-batch.ts",
+    "make:transcripts": "tsx scripts/make-load-transcripts.ts",
     "insights": "tsx scripts/insights.ts",
     "extract": "tsx scripts/extract.ts",
     "detect": "tsx scripts/detect.ts",

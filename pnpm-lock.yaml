@@ -192,6 +192,10 @@ importers:
         version: 7.0.2
 
   apps/desktop:
+    dependencies:
+      '@tesserafy/scoring':
+        specifier: workspace:*
+        version: link:../../packages/scoring
     devDependencies:
       '@types/node':
         specifier: 26.5.1
@@ -199,6 +203,9 @@ importers:
       electron:
         specifier: 39.2.6
         version: 39.2.6
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
       typescript:
         specifier: 7.0.2
         version: 7.0.2

@@ -2,65 +2,51 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Tesserafy overlay — spike S1</title>
+    <title>Tesserafy</title>
     <style>
-      :root { color-scheme: dark; font: 14px/1.45 system-ui, sans-serif; }
+      :root { color-scheme: dark; font: 13px/1.45 system-ui, sans-serif; }
       body {
-        margin: 0;
-        padding: 16px;
-        color: #f5f5f4;
-        /* Deliberately opaque enough to be unmistakable in a screenshot of a
-           share. A subtle overlay would make a failed test look like a pass. */
-        background: rgba(12, 10, 9, 0.92);
-        border: 2px solid #f97316;
-        border-radius: 12px;
-        -webkit-app-region: drag;
-        user-select: none;
+        margin: 0; padding: 14px; color: #f5f5f4;
+        background: rgba(12, 10, 9, 0.9);
+        border: 1px solid #292524; border-radius: 12px;
+        -webkit-app-region: drag; user-select: none;
       }
-      h1 { font-size: 15px; margin: 0 0 4px; }
-      .banner {
-        background: #f97316;
-        color: #0c0a09;
-        font-weight: 700;
-        padding: 6px 8px;
-        border-radius: 6px;
-        margin-bottom: 12px;
-      }
-      button, label { -webkit-app-region: no-drag; }
-      button {
-        font: inherit;
-        color: inherit;
-        background: transparent;
-        border: 1px solid #57534e;
-        border-radius: 6px;
-        padding: 6px 10px;
-        cursor: pointer;
-      }
-      .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
-      .state { color: #a8a29e; }
-      ol { margin: 8px 0 0; padding-left: 18px; color: #d6d3d1; }
-      li { margin-bottom: 6px; }
-      code { color: #fdba74; }
+      header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+      h1 { font-size: 13px; margin: 0; font-weight: 600; letter-spacing: 0.02em; }
+      .score { font-size: 26px; font-weight: 700; line-height: 1; }
+      .score span { font-size: 12px; font-weight: 400; color: #a8a29e; }
+      ul { list-style: none; margin: 0; padding: 0; }
+      li { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-bottom: 1px solid #1c1917; }
+      li:last-child { border-bottom: 0; }
+      .state { color: #78716c; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+      .state.confirmed { color: #4ade80; }
+      .state.candidate { color: #fbbf24; }
+      .state.contradicted { color: #f87171; }
+      footer { margin-top: 10px; display: flex; gap: 8px; align-items: center; }
+      button { -webkit-app-region: no-drag; font: inherit; color: inherit; background: transparent;
+               border: 1px solid #44403c; border-radius: 6px; padding: 4px 8px; cursor: pointer; }
+      .muted { color: #78716c; font-size: 11px; }
+      .banner { background: #f97316; color: #0c0a09; font-weight: 700; padding: 5px 7px;
+                border-radius: 6px; margin-bottom: 10px; font-size: 11px; }
+      .banner[hidden] { display: none; }
     </style>
   </head>
   <body>
-    <div class="banner">IF YOU SEE THIS IN THE SHARE, PROTECTION FAILED</div>
-    <h1>Tesserafy overlay — spike S1</h1>
-    <p class="state" id="platform">…</p>
+    <div class="banner" id="unprotected" hidden>PROTECTION OFF — VISIBLE IN A SHARE</div>
 
-    <div class="row">
+    <header>
+      <h1>Discovery</h1>
+      <div class="score"><span id="scoreValue">0</span><span> / 100</span></div>
+    </header>
+
+    <ul id="criteria"></ul>
+
+    <footer>
       <button id="protection">Protection: on</button>
       <button id="clickthrough">Click-through: off</button>
-    </div>
+      <span class="muted" id="status">idle</span>
+    </footer>
 
-    <p class="state">Test, for each of Zoom, Meet in Chrome, and Teams:</p>
-    <ol>
-      <li>Share <strong>entire screen</strong> — is this box in the share?</li>
-      <li>Share <strong>a single window</strong> (the meeting) — is it?</li>
-      <li>Turn protection <strong>off</strong> and repeat: it <em>should</em> appear, which proves the test itself works.</li>
-      <li>With click-through on, can you click the meeting underneath?</li>
-    </ol>
-
-    <script src="./renderer.js"></script>
+    <script type="module" src="./renderer.js"></script>
   </body>
 </html>

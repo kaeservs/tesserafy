@@ -89,10 +89,13 @@ async function main(): Promise<void> {
   }
 
   for (const path of ['/api/detect', '/api/criteria']) {
+    const post = path === '/api/detect';
     const response = await fetch(new URL(path, baseUrl), {
-      method: path === '/api/detect' ? 'POST' : 'GET',
+      method: post ? 'POST' : 'GET',
       headers: { 'content-type': 'application/json' },
-      body: path === '/api/detect' ? '{}' : undefined,
+      // Spread rather than `body: undefined`: exactOptionalPropertyTypes
+      // treats a present-but-undefined property as a type error.
+      ...(post ? { body: '{}' } : {}),
       redirect: 'manual',
     });
     // 401 JSON, never a redirect: an API route that redirects hands a

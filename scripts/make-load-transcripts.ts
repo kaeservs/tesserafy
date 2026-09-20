@@ -21,7 +21,9 @@ const COMPANIES = [
   'Sable Manufacturing', 'Thornbury Retail', 'Kestrel Media', 'Aldridge Legal', 'Brimwater Utilities',
 ];
 
-const PROBLEMS = [
+// Tuples, not string[][]: with noUncheckedIndexedAccess, destructuring a
+// plain array hands back `string | undefined` and every use needs a guard.
+const PROBLEMS: readonly (readonly [task: string, cost: string, who: string])[] = [
   ['reconciling the daily takings', 'three hours every morning', 'two people'],
   ['chasing missing timesheets', 'most of Monday', 'a supervisor'],
   ['rebuilding the delivery schedule', 'ninety minutes a day', 'the dispatcher'],

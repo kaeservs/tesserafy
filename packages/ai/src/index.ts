@@ -86,3 +86,12 @@ export {
 } from './insights/synthesise';
 export { writeInsight, type WriteInsightOptions } from './insights/write-insight';
 export { both, databaseSink, type UsageContext } from './telemetry/sink';
+export {
+  suggestNext,
+  T2_MODEL,
+  T2_SUGGESTER,
+  type NoSuggestion,
+  type SuggestableSegment,
+  type Suggestion,
+  type SuggestOptions,
+} from './tiers/t2-suggest';

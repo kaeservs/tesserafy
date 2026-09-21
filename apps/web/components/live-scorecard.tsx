@@ -38,6 +38,12 @@ interface Measurement {
   modelMs: number;
 }
 
+interface Suggestion {
+  criterionKey: string;
+  ask: string;
+  because: string;
+}
+
 function percentile(samples: readonly number[], p: number): number | null {
   if (samples.length === 0) return null;
   const sorted = [...samples].sort((a, b) => a - b);
@@ -55,10 +61,14 @@ export function LiveScorecard({
 }) {
   const [played, setPlayed] = useState(0);
   const [state, setState] = useState(() => initialState(scorecard));
+  // The latest state, readable from inside an async callback without making
+  // it a dependency of the step that fired it.
+  const stateRef = useRef(state);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [playing, setPlaying] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
   const inFlight = useRef(false);
 
   const step = useCallback(async () => {
@@ -95,7 +105,25 @@ export function LiveScorecard({
 
       // Latching state means replaying the same evidence is harmless, so a
       // window overlapping its predecessor cannot double-count anything.
-      setState((current) => body.events.reduce(apply, current));
+      const nextState = body.events.reduce(apply, stateRef.current);
+      stateRef.current = nextState;
+      setState(nextState);
+
+      // Fired after the score is on screen, never before it: T2 is off the
+      // critical path, and a suggestion must not delay a scorecard.
+      void fetch('/api/suggest', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ scorecard: score(nextState), window }),
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((payload: { suggestion: Suggestion | null } | null) => {
+          setSuggestion(payload?.suggestion ?? null);
+        })
+        .catch(() => {
+          // A missing suggestion is silence, which is the intended default.
+        });
+
       setMeasurements((current) => [
         ...current,
         {
@@ -112,6 +140,10 @@ export function LiveScorecard({
       setBusy(false);
     }
   }, [played, segments, prompts]);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   useEffect(() => {
     if (!playing) return;
@@ -142,6 +174,8 @@ export function LiveScorecard({
             setPlaying(false);
             setPlayed(0);
             setState(initialState(scorecard));
+            stateRef.current = initialState(scorecard);
+            setSuggestion(null);
             setMeasurements([]);
             setError(null);
           }}
@@ -153,8 +187,15 @@ export function LiveScorecard({
         </span>
       </div>
 
-      {error && (
-        <p role="alert">{error}</p>
+      {error && <p role="alert">{error}</p>}
+
+      {suggestion && (
+        <aside className="suggestion" aria-live="polite">
+          <p className="suggestion-ask">{suggestion.ask}</p>
+          <p className="muted">
+            because they said “{suggestion.because}” · {suggestion.criterionKey}
+          </p>
+        </aside>
       )}
 
       <section aria-labelledby="score-heading">

@@ -105,6 +105,25 @@ app.whenReady().then(() => {
     return response.json();
   });
 
+  // T2, kept separate from detection in the main process as well as on the
+  // server: a suggestion must never be able to delay a score, and the easiest
+  // way to guarantee that is for them never to share a call.
+  ipcMain.handle('overlay:suggest', async (_event, body: unknown) => {
+    const baseUrl = process.env['TESSERAFY_URL'] ?? 'http://localhost:3000';
+    const token = process.env['TESSERAFY_TOKEN'];
+    if (!token) return { error: 'TESSERAFY_TOKEN is not set' };
+
+    const response = await fetch(new URL('/api/suggest', baseUrl), {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      return { error: `suggest failed: ${response.status}` };
+    }
+    return response.json();
+  });
+
   ipcMain.handle('overlay:criteria', async () => {
     const baseUrl = process.env['TESSERAFY_URL'] ?? 'http://localhost:3000';
     const token = process.env['TESSERAFY_TOKEN'];

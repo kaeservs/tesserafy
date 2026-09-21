@@ -308,3 +308,31 @@ mark {
 [role='alert'] {
   color: var(--contradicted);
 }
+
+/* --------------------------------------------------------------------------
+   Live suggestion
+   -------------------------------------------------------------------------- */
+
+/*
+ * One suggestion, never a list. It is read by someone who is listening to
+ * another person, so it gets the weight of a single sentence and the
+ * justification underneath in the customer's own words — the reader should be
+ * able to tell in a glance whether it is worth acting on.
+ */
+.suggestion {
+  margin: 1rem 0 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+}
+
+.suggestion-ask {
+  margin: 0 0 0.25rem;
+  font-weight: 600;
+}
+
+.suggestion p.muted {
+  margin: 0;
+  font-size: 0.9rem;
+}

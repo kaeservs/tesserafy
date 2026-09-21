@@ -15,8 +15,11 @@ import { readFileSync } from 'node:fs';
 import { extname } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import {
+  both,
   createOllamaEmbedder,
+  databaseSink,
   extractSignals,
+  logUsage,
   toCompanyId,
   writeSignals,
   writeTranscript,
@@ -198,7 +201,20 @@ async function main(): Promise<void> {
     text: row.text,
   }));
 
-  const extraction = await extractSignals(extractable, { client: new Anthropic() });
+  const extraction = await extractSignals(extractable, {
+    client: new Anthropic(),
+    // Kept, not just printed: this row is how anyone answers what importing
+    // this customer cost.
+    onUsage: both(
+      logUsage,
+      databaseSink({
+        db,
+        companyId: companyId,
+        conversationId: written.conversationId,
+        detector: 't3-extract',
+      }),
+    ),
+  });
   const ids = await writeSignals(
     companyId,
     {

@@ -24,8 +24,10 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { extname, join, relative, resolve } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import {
+  both,
   conversationForSource,
   createOllamaEmbedder,
+  databaseSink,
   DuplicateSource,
   extractSignals,
   toCompanyId,
@@ -220,10 +222,18 @@ async function importOne(
 
     const extraction = await extractSignals(extractable, {
       client: new Anthropic(),
-      onUsage: (usage) => {
-        outcome.inputTokens = usage.inputTokens;
-        outcome.outputTokens = usage.outputTokens;
-      },
+      onUsage: both(
+        (usage) => {
+          outcome.inputTokens = usage.inputTokens;
+          outcome.outputTokens = usage.outputTokens;
+        },
+        databaseSink({
+          db,
+          companyId,
+          conversationId: written.conversationId,
+          detector: 't3-extract',
+        }),
+      ),
     });
 
     const ids = await writeSignals(

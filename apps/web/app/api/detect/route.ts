@@ -1,5 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { detectCriteria, type CriterionPrompt, type DetectableSegment } from '@tesserafy/ai';
+import {
+  databaseSink,
+  detectCriteria,
+  type CriterionPrompt,
+  type DetectableSegment,
+} from '@tesserafy/ai';
 import { NextResponse, type NextRequest } from 'next/server';
 import { caller } from '@/lib/supabase/caller';
 
@@ -32,8 +37,10 @@ interface DetectBody {
 
 export async function POST(request: NextRequest) {
   // Detection needs no tenant data — the window comes from the caller — so
-  // this only needs to know that somebody signed in is asking.
-  if (!(await caller(request))) {
+  // this only needs to know that somebody signed in is asking. The client is
+  // kept to record what the call cost.
+  const who = await caller(request);
+  if (!who) {
     return NextResponse.json({ error: 'not signed in' }, { status: 401 });
   }
 
@@ -62,9 +69,12 @@ export async function POST(request: NextRequest) {
       client: new Anthropic(),
       criteria,
       ...(variant ? { variant } : {}),
-      // The response carries usage, so the default console sink would only
-      // duplicate it into the platform's logs.
-      onUsage: () => {},
+      // Recorded as the caller, so a T1 call lands in the same table as the
+      // batch ones. No company: a detection knows a window, not a tenant.
+      // Recording never blocks the response — the sink swallows its own
+      // failures, because a scorecard that stalls on telemetry is worse than
+      // a missing row.
+      onUsage: databaseSink({ db: who.db }),
     });
 
     return NextResponse.json({

@@ -12,9 +12,12 @@
  */
 import Anthropic from '@anthropic-ai/sdk';
 import {
+  both,
   clusterSignals,
   createOllamaEmbedder,
+  databaseSink,
   loadSignals,
+  logUsage,
   synthesiseInsight,
   toCompanyId,
   writeInsight,
@@ -135,6 +138,10 @@ async function main(): Promise<void> {
       client,
       minSignals: args.minSignals,
       minConversations: args.minConversations,
+      onUsage: both(
+        logUsage,
+        databaseSink({ db, companyId, detector: 't3-synthesise' }),
+      ),
     });
 
     if ('reason' in result) {

@@ -88,7 +88,8 @@ async function loadCriteria() {
 }
 
 async function detect(endedAt) {
-  const result = await api.detect({ criteria: prompts, window: utterances.slice(-WINDOW_SIZE) });
+  const window_ = utterances.slice(-WINDOW_SIZE);
+  const result = await api.detect({ criteria: prompts, window: window_ });
   if (result.error) {
     setStatus(result.error);
     return;
@@ -101,6 +102,29 @@ async function detect(endedAt) {
   }
   latencies.push(Math.round(performance.now() - endedAt));
   render();
+
+  // Only after the score is on screen. A suggestion is allowed to be late;
+  // a score is not.
+  void suggest(window_);
+}
+
+async function suggest(window_) {
+  const result = await api.suggest({ scorecard: score(state), window: window_ });
+  if (result.error) return;
+  showSuggestion(result.suggestion ?? null);
+}
+
+function showSuggestion(suggestion) {
+  const box = el('suggestion');
+  if (!suggestion) {
+    // Silence is the default. Leaving a stale suggestion up would have the
+    // seller asking about something two minutes out of date.
+    box.hidden = true;
+    return;
+  }
+  el('suggestionAsk').textContent = suggestion.ask;
+  el('suggestionWhy').textContent = `because they said “${suggestion.because}”`;
+  box.hidden = false;
 }
 
 function startListening() {

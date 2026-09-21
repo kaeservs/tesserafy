@@ -12,6 +12,12 @@ The scorecard is computed by `@tesserafy/scoring`, the same package the web app
 uses. That is why that package is allowed no runtime dependencies: the overlay
 imports it, so the overlay cannot invent a score any more than the browser can.
 
+It listens, detects, scores, and — when something just said makes it the
+moment — shows one thing worth asking next (T2), with the customer's own words
+underneath it. Suggestions are fetched only after the score is on screen, and
+a stale one is cleared rather than left up: a seller asking about something
+from two minutes ago is worse than a seller with no prompt at all.
+
 It listens, detects and scores. Speech recognition is the browser engine
 inside Electron — a stand-in until spike S2 chooses a streaming transcriber
 that can run under our own terms, because this one sends audio off the

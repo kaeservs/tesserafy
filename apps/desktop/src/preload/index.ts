@@ -23,4 +23,8 @@ contextBridge.exposeInMainWorld('overlay', {
     ipcRenderer.invoke('overlay:criteria'),
   detect: (body: unknown): Promise<{ events?: unknown[]; error?: string }> =>
     ipcRenderer.invoke('overlay:detect', body),
+  suggest: (
+    body: unknown,
+  ): Promise<{ suggestion?: { ask: string; because: string } | null; error?: string }> =>
+    ipcRenderer.invoke('overlay:suggest', body),
 });

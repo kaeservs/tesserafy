@@ -178,6 +178,9 @@ importers:
       '@tesserafy/ingest':
         specifier: workspace:*
         version: link:packages/ingest
+      '@tesserafy/scoring':
+        specifier: workspace:*
+        version: link:packages/scoring
       '@types/node':
         specifier: 26.5.1
         version: 26.5.1

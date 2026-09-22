@@ -33,6 +33,7 @@
     "@tesserafy/ai": "workspace:*",
     "@tesserafy/db": "workspace:*",
     "@tesserafy/ingest": "workspace:*",
+    "@tesserafy/scoring": "workspace:*",
     "@types/node": "26.5.1",
     "supabase": "2.117.0",
     "tsx": "^4.23.13",

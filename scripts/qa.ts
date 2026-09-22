@@ -16,7 +16,8 @@
  * Read-only apart from one thing: it mints a session for the probe account
  * through the admin API, the same way scripts/measure-t1.ts does.
  */
-import { createServiceClient } from '@tesserafy/db';
+import { createServiceClient, fetchCriteria, fetchCriterionEvents } from '@tesserafy/db';
+import { defineCriteriaSet, replay, score, type DetectorEvent } from '@tesserafy/scoring';
 
 interface Check {
   name: string;
@@ -227,7 +228,7 @@ async function main(): Promise<void> {
   const db = createServiceClient({ url: supabaseUrl, key: serviceKey });
 
   const counts = await Promise.all(
-    ['conversations', 'segments', 'signals', 'signal_evidence', 'insights'].map(async (table) => {
+    ['conversations', 'segments', 'signals', 'signal_evidence', 'insights', 'criterion_events'].map(async (table) => {
       const { count } = await db.from(table).select('*', { count: 'exact', head: true });
       return [table, count ?? 0] as const;
     }),
@@ -264,6 +265,124 @@ async function main(): Promise<void> {
     );
   });
   record('every quote still matches its segment', drifted.length === 0, `${drifted.length} drifted`);
+
+  // The same audit for the criteria side. A scorecard is only worth the
+  // quotes under it, and these rows are what the score is derived from.
+  const { data: criterionEvidence } = await db
+    .from('criterion_events')
+    .select('quote, quote_start, quote_end, segment_id');
+  const criterionDrifted = (criterionEvidence ?? []).filter((row) => {
+    const text = textOf.get(row.segment_id as string);
+    return (
+      text === undefined ||
+      text.slice(row.quote_start as number, row.quote_end as number) !== (row.quote as string)
+    );
+  });
+  record(
+    'every criterion event still quotes its segment',
+    criterionDrifted.length === 0,
+    `${criterionDrifted.length} drifted of ${(criterionEvidence ?? []).length}`,
+  );
+
+  // Nothing stored is a score (invariant 1). If a column ever appears here
+  // that looks like a verdict, the whole read path has been bypassed.
+  const { data: sampleEvent } = await db.from('criterion_events').select('*').limit(1).maybeSingle();
+  const verdictColumns = Object.keys(sampleEvent ?? {}).filter((column) =>
+    ['score', 'status', 'state'].includes(column),
+  );
+  record(
+    'criterion_events stores no score and no status',
+    verdictColumns.length === 0,
+    verdictColumns.length === 0 ? 'evidence only' : `found ${verdictColumns.join(', ')}`,
+  );
+
+  // The read path itself, over real production rows rather than fixtures:
+  // criteria + stored events must replay into a scorecard the same way the
+  // page does it. A conversation that cannot be scored is one the dashboard
+  // would render as an error.
+  const { data: scorable } = await db
+    .from('conversations')
+    .select('id, title, engagement_type, criteria_version')
+    .limit(50);
+  const conversations = (scorable ?? []) as {
+    id: string;
+    title: string;
+    engagement_type: string;
+    criteria_version: number;
+  }[];
+  const withEvents = await fetchCriterionEvents(db, conversations.map((row) => row.id));
+  const scoredIds = new Set(withEvents.map((row) => row.conversation_id));
+
+  let scoredCount = 0;
+  let best = { title: '', score: -1 };
+  let scoringFailure: string | null = null;
+
+  for (const conversation of conversations.filter((row) => scoredIds.has(row.id))) {
+    try {
+      const rows = await fetchCriteria(db, conversation.engagement_type, conversation.criteria_version);
+      const set = defineCriteriaSet({
+        engagementType: rows[0]!.engagement_type,
+        version: rows[0]!.version,
+        criteria: rows.map((row) => ({
+          key: row.key,
+          label: row.label,
+          weight: row.weight,
+          thresholds: {
+            candidate: row.candidate_threshold,
+            confirm: row.confirm_threshold,
+            corroboratingSegments: row.corroborating_segments,
+          },
+        })),
+      });
+      const events: DetectorEvent[] = withEvents
+        .filter((row) => row.conversation_id === conversation.id)
+        .map((row) => ({
+          kind: row.kind,
+          criterionKey: row.criterion_key,
+          confidence: row.confidence,
+          span: {
+            segmentId: row.segment_id,
+            startMs: row.start_ms,
+            endMs: row.end_ms,
+            quote: row.quote,
+          },
+        }));
+      const card = score(replay(set, events));
+      scoredCount += 1;
+      if (card.score > best.score) best = { title: conversation.title, score: card.score };
+    } catch (cause) {
+      scoringFailure = cause instanceof Error ? cause.message : String(cause);
+      break;
+    }
+  }
+
+  record(
+    'stored evidence replays into a scorecard',
+    scoringFailure === null && scoredCount > 0,
+    scoringFailure ??
+      (scoredCount === 0
+        ? 'nothing scored yet — run pnpm score'
+        : `${scoredCount} scored, best ${Math.round(best.score)} (${best.title})`),
+  );
+
+  // A conversation pinned to a criteria set that does not exist would render
+  // as an empty scorecard with nothing to say about why. A trigger refuses it
+  // on write; this is the audit that it held.
+  const pinned = [...new Set(conversations.map((row) => `${row.engagement_type}/${row.criteria_version}`))];
+  const missingSets: string[] = [];
+  for (const pin of pinned) {
+    const [engagementType, version] = pin.split('/');
+    try {
+      await fetchCriteria(db, engagementType!, Number(version));
+    } catch {
+      missingSets.push(pin);
+    }
+  }
+  record(
+    'every conversation pins a criteria set that exists',
+    missingSets.length === 0,
+    missingSets.length === 0 ? pinned.join(', ') : `missing ${missingSets.join(', ')}`,
+  );
 
   // Tenancy: a segment that disagrees with its conversation about which
   // company it belongs to would defeat every correct tenant filter.

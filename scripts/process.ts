@@ -5,6 +5,7 @@
  *   pnpm process --company <uuid>               every conversation missing either
  *   pnpm process --conversation <uuid> --dry-run  say what it would do, spend nothing
  *   pnpm process --conversation <uuid> --embed-only
+ *   pnpm process --company <uuid> --force        re-extract even where it has run
  *
  * `pnpm ingest` does this as part of importing a file. A live call never went
  * through it: its segments arrived one at a time while somebody was talking,
@@ -54,21 +55,39 @@ interface ConversationRow {
   title: string;
 }
 
-/** Conversations with no signals yet — the ones extraction has never seen. */
+/**
+ * Conversations extraction has not yet answered for.
+ *
+ * "No signals" is not the question. A check-in where the customer says
+ * everything is fine has none and never will, and re-running Opus over it on
+ * every pass to reconfirm a zero is pure waste — which is exactly what this
+ * script did until it learned to ask whether the pass had *run*.
+ *
+ * The usage telemetry already knows: one row per model call, carrying the
+ * conversation it ran against. Tier rather than detector, so bumping a
+ * detector version does not make every conversation look unextracted again.
+ */
 async function unextracted(
   db: SupabaseClient,
   conversations: readonly ConversationRow[],
+  force: boolean,
 ): Promise<Set<string>> {
   if (conversations.length === 0) return new Set();
+  const ids = conversations.map((row) => row.id);
+  if (force) return new Set(ids);
 
-  const { data, error } = await db
-    .from('signals')
-    .select('conversation_id')
-    .in('conversation_id', conversations.map((row) => row.id));
-  if (error) throw new Error(`Reading signals failed: ${error.message}`);
+  const [signalsResult, usageResult] = await Promise.all([
+    db.from('signals').select('conversation_id').in('conversation_id', ids),
+    db.from('model_usage').select('conversation_id').eq('tier', 't3').in('conversation_id', ids),
+  ]);
+  const failure = signalsResult.error ?? usageResult.error;
+  if (failure) throw new Error(`Reading extraction history failed: ${failure.message}`);
 
-  const has = new Set(((data ?? []) as { conversation_id: string }[]).map((r) => r.conversation_id));
-  return new Set(conversations.filter((row) => !has.has(row.id)).map((row) => row.id));
+  const answered = new Set([
+    ...((signalsResult.data ?? []) as { conversation_id: string }[]).map((r) => r.conversation_id),
+    ...((usageResult.data ?? []) as { conversation_id: string }[]).map((r) => r.conversation_id),
+  ]);
+  return new Set(ids.filter((id) => !answered.has(id)));
 }
 
 async function main(): Promise<void> {
@@ -76,10 +95,14 @@ async function main(): Promise<void> {
   const companyFlag = flag('--company');
   const dryRun = process.argv.includes('--dry-run');
   const embedOnly = process.argv.includes('--embed-only');
+  // Extraction is skipped once it has an answer, including an empty one.
+  // --force is how a prompt change gets applied to a corpus.
+  const force = process.argv.includes('--force');
 
   if (!conversationId && !companyFlag) {
     console.error(
-      'usage: pnpm process --conversation <uuid> | --company <uuid> [--dry-run] [--embed-only]',
+      'usage: pnpm process --conversation <uuid> | --company <uuid> ' +
+        '[--dry-run] [--embed-only] [--force]',
     );
     process.exit(2);
   }
@@ -102,7 +125,9 @@ async function main(): Promise<void> {
     return;
   }
 
-  const needsExtraction = embedOnly ? new Set<string>() : await unextracted(db, conversations);
+  const needsExtraction = embedOnly
+    ? new Set<string>()
+    : await unextracted(db, conversations, force);
 
   // The whole plan before any of it is paid for: how many vectors, how many
   // extractions. Embedding is local and free; extraction is Opus and is not.

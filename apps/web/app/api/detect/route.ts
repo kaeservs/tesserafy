@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import {
   databaseSink,
   detectCriteria,
+  T1_DETECTOR,
   type CriterionPrompt,
   type DetectableSegment,
 } from '@tesserafy/ai';
@@ -74,7 +75,12 @@ export async function POST(request: NextRequest) {
       // Recording never blocks the response — the sink swallows its own
       // failures, because a scorecard that stalls on telemetry is worse than
       // a missing row.
-      onUsage: databaseSink({ db: who.db }),
+      onUsage: databaseSink({
+        db: who.db,
+        // The prompt version, variant included. Without it a change in cost
+        // cannot be attributed to the change that caused it.
+        detector: variant === 'compact' ? `${T1_DETECTOR}-compact` : T1_DETECTOR,
+      }),
     });
 
     return NextResponse.json({

@@ -19,6 +19,7 @@ import {
   loadSignals,
   logUsage,
   synthesiseInsight,
+  T3_SYNTHESISER,
   toCompanyId,
   writeInsight,
 } from '@tesserafy/ai';
@@ -140,7 +141,7 @@ async function main(): Promise<void> {
       minConversations: args.minConversations,
       onUsage: both(
         logUsage,
-        databaseSink({ db, companyId, detector: 't3-synthesise' }),
+        databaseSink({ db, companyId, detector: T3_SYNTHESISER }),
       ),
     });
 

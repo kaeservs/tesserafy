@@ -30,6 +30,12 @@ interface Utterance {
   text: string;
 }
 
+interface Suggestion {
+  criterionKey: string;
+  ask: string;
+  because: string;
+}
+
 interface Measurement {
   /** Speech started → first interim text on screen. ADR 0002 budgets 300 ms. */
   firstPartialMs: number | null;
@@ -82,9 +88,11 @@ export function LiveMicrophone({
   const [utterances, setUtterances] = useState<Utterance[]>([]);
   const [state, setState] = useState(() => initialState(scorecard));
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
+  const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const recognition = useRef<SpeechRecognitionLike | null>(null);
+  const stateRef = useRef(state);
   const sessionStart = useRef<number>(0);
   const speechStart = useRef<number | null>(null);
   const firstPartial = useRef<number | null>(null);
@@ -94,6 +102,10 @@ export function LiveMicrophone({
   useEffect(() => {
     speakerRef.current = speaker;
   }, [speaker]);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   useEffect(() => {
     setSupported(recogniser() !== null);
@@ -111,7 +123,24 @@ export function LiveMicrophone({
         if (!response.ok) throw new Error(`detect failed: ${response.status}`);
         const body = (await response.json()) as { events: DetectorEvent[] };
 
-        setState((current) => body.events.reduce(apply, current));
+        const nextState = body.events.reduce(apply, stateRef.current);
+        stateRef.current = nextState;
+        setState(nextState);
+
+        // After the score, never before it: T2 is off the critical path.
+        void fetch('/api/suggest', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ scorecard: score(nextState), window: recent }),
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((payload: { suggestion: Suggestion | null } | null) => {
+            // Cleared when there is nothing to say. A stale suggestion has
+            // someone asking about two minutes ago.
+            setSuggestion(payload?.suggestion ?? null);
+          })
+          .catch(() => setSuggestion(null));
+
         setMeasurements((current) => [
           ...current,
           {
@@ -229,6 +258,15 @@ export function LiveMicrophone({
       </p>
 
       {error && <p role="alert">{error}</p>}
+
+      {suggestion && (
+        <aside className="suggestion" aria-live="polite">
+          <p className="suggestion-ask">{suggestion.ask}</p>
+          <p className="muted">
+            because they said “{suggestion.because}” · {suggestion.criterionKey}
+          </p>
+        </aside>
+      )}
 
       {/* What it is hearing, before it commits. aria-live off: interim text
           changes constantly and would flood a screen reader. */}

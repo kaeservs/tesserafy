@@ -20,6 +20,7 @@ import {
   databaseSink,
   extractSignals,
   logUsage,
+  T3_DETECTOR,
   toCompanyId,
   writeSignals,
   writeTranscript,
@@ -211,7 +212,7 @@ async function main(): Promise<void> {
         db,
         companyId: companyId,
         conversationId: written.conversationId,
-        detector: 't3-extract',
+        detector: T3_DETECTOR,
       }),
     ),
   });

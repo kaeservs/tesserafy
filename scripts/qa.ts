@@ -164,6 +164,63 @@ async function main(): Promise<void> {
         quoted.length > 0,
       quoted ? `“${quoted}”` : 'no quote',
     );
+
+    // T2. A refusal is a valid answer — what is checked is that the endpoint
+    // runs, and that any suggestion it makes quotes the window it was given.
+    const suggest = await fetch(new URL('/api/suggest', baseUrl), {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        scorecard: {
+          engagementType: 'discovery',
+          criteriaVersion: 1,
+          score: 0,
+          earnedWeight: 0,
+          totalWeight: 1,
+          criteria: [
+            {
+              key: 'pain_quantified',
+              label: 'Pain quantified',
+              weight: 1,
+              status: 'unobserved',
+              earned: 0,
+              evidence: [],
+              contradictions: [],
+            },
+          ],
+        },
+        window: [
+          {
+            id: 'qa1',
+            speaker: 'customer',
+            text: 'We export the report by hand every Friday and it is painful.',
+          },
+        ],
+      }),
+    });
+    const suggestBody = (await suggest.json()) as {
+      suggestion?: { ask: string; because: string } | null;
+      reason?: string;
+      error?: string;
+    };
+    record(
+      'POST /api/suggest answers',
+      suggest.ok,
+      suggest.ok
+        ? suggestBody.suggestion
+          ? `“${suggestBody.suggestion.ask}”`
+          : `no suggestion (${suggestBody.reason})`
+        : (suggestBody.error ?? ''),
+    );
+    record(
+      'a suggestion quotes the window it was given',
+      !suggestBody.suggestion ||
+        'We export the report by hand every Friday and it is painful.'.includes(
+          suggestBody.suggestion.because,
+        ),
+      suggestBody.suggestion ? `“${suggestBody.suggestion.because}”` : 'nothing suggested',
+    );
+
   }
 
   console.info('\nData invariants');

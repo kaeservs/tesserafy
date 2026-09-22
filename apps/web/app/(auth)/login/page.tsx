@@ -32,7 +32,10 @@ export default async function LoginPage({
   return (
     <main>
       <h1>Sign in to Tesserafy</h1>
-      <p className="muted">Access is by invitation. We will email you a one-time link.</p>
+      <p className="muted">
+        Access is by invitation. Sign in with your password, or have a one-time link emailed to
+        you.
+      </p>
       {error && (
         <p role="alert">
           {REASONS[error] ?? 'That link did not work. Request a new one.'}{' '}

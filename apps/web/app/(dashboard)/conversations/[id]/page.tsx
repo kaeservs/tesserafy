@@ -61,8 +61,13 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
   // disagree about what the evidence adds up to.
   const scored = await scoreConversation(supabase, conversation as ScorableConversation);
   const card = scored.scorecard;
-  const stage = stageOf((await conversationPipeline(supabase)).get(id));
+  const pipeline = (await conversationPipeline(supabase)).get(id);
+  const stage = stageOf(pipeline);
   const command = nextCommand(stage, id);
+  // Extraction ran and stored nothing. Worth saying plainly rather than
+  // leaving a reader to wonder whether the pass is still owed.
+  const foundNothing =
+    stage === 'processed' && (pipeline?.signals ?? 0) === 0 && (pipeline?.extractionRuns ?? 0) > 0;
   const observed = card.criteria.some((criterion) => criterion.status !== 'unobserved');
 
   const [segmentsResult, signalsResult, evidenceResult] = await Promise.all([
@@ -196,8 +201,11 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
         <h2 id="signals-heading">Signals</h2>
         {signals.length === 0 ? (
           <p className="muted">
-            Nothing extracted yet. Run <code>pnpm ingest</code> against this transcript, or the
-            extractor found nothing it could evidence.
+            {foundNothing
+              ? 'Extraction has run over this call and found nothing it could evidence. ' +
+                'That is an answer, not an omission — a conversation with no stated problem ' +
+                'and no request produces no signals.'
+              : 'Nothing extracted yet. Run pnpm process against this conversation.'}
           </p>
         ) : (
           <ul className="signals">

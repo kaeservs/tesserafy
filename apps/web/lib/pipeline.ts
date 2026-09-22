@@ -20,6 +20,8 @@ export interface PipelineState {
   readonly embedded: number;
   readonly signals: number;
   readonly criterionRows: number;
+  /** How many times extraction has run, from the usage telemetry. */
+  readonly extractionRuns: number;
 }
 
 export type PipelineStage = 'empty' | 'captured' | 'scored' | 'processed';
@@ -30,6 +32,7 @@ interface PipelineRow {
   embedded: number;
   signals: number;
   criterion_rows: number;
+  extraction_runs: number;
 }
 
 export async function conversationPipeline(
@@ -48,6 +51,7 @@ export async function conversationPipeline(
         embedded: row.embedded,
         signals: row.signals,
         criterionRows: row.criterion_rows,
+        extractionRuns: row.extraction_runs,
       },
     ]),
   );
@@ -62,10 +66,17 @@ export async function conversationPipeline(
  */
 export function stageOf(state: PipelineState | undefined): PipelineStage {
   if (!state || state.segments === 0) return 'empty';
+
   // Extraction and embedding happen in the same pass, so signals without
   // embeddings would mean an interrupted run — worth showing as unfinished
   // rather than done.
-  if (state.signals > 0 && state.embedded >= state.segments) return 'processed';
+  const searchable = state.embedded >= state.segments;
+  // Finding nothing is a finished state, not a pending one. A check-in where
+  // the customer says everything is fine has no signals and never will, and
+  // flagging it forever would also re-extract it on Opus forever.
+  const extracted = state.signals > 0 || state.extractionRuns > 0;
+  if (extracted && searchable) return 'processed';
+
   if (state.criterionRows > 0) return 'scored';
   return 'captured';
 }

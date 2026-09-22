@@ -50,5 +50,13 @@ customer, so spending that without a person asking is what "no auto-creation
 anywhere" rules out.
 
 `--company <uuid>` does every conversation missing either. `--embed-only`
-skips extraction. `--dry-run` prints the plan and pays none of it. Re-running
-is safe: it only ever looks at what is still missing.
+skips extraction. `--dry-run` prints the plan and pays none of it.
+
+Extraction is skipped once it has an answer, **including an empty one**. A
+check-in where the customer says everything is fine has no signals and never
+will; treating that as pending would re-run Opus over it on every pass to
+reconfirm a zero. Whether the pass has run comes from the usage telemetry,
+which records the conversation each model call was made against.
+
+`--force` re-extracts regardless, which is how a prompt change gets applied to
+a corpus that has already been processed.

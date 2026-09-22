@@ -65,6 +65,8 @@ backfilled.
     pnpm guard:retrieval             # ADR 0004 grep guard
     pnpm ingest <file.vtt> --company <uuid>   # transcript -> segments -> signals
     pnpm ingest <file.vtt> --dry-run         # parse and chunk only, writes nothing
+    pnpm score --company <uuid>              # T1 over stored segments -> criterion_events
+    pnpm score --company <uuid> --dry-run    # print the detector call count, send nothing
     pnpm exec supabase start         # local stack (needs Docker)
     pnpm exec supabase test db       # pgTAP tenant isolation
     pnpm test:integration            # RLS + retrieve() cross-tenant, local stack only

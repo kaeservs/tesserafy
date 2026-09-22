@@ -92,6 +92,13 @@ select is(
   'an insight resting entirely on the erased conversation goes with it'
 );
 
+-- Everything below runs unprivileged no longer. Two reasons: segment_embeddings
+-- has no select policy for a signed-in user (ADR 0008), so the check would
+-- fail on permissions rather than on the thing being tested; and "gone" ought
+-- to mean physically gone rather than merely invisible, which only a caller
+-- that RLS does not filter can assert.
+reset role;
+
 select is_empty(
   $$ select 1 from public.conversations where id = '00000000-0000-4000-8000-0000000000a1' $$,
   'the conversation is gone'
@@ -150,8 +157,6 @@ select isnt_empty(
       where id = '00000000-0000-4000-8000-000000000b11' $$,
   'the other company''s identical segment is untouched'
 );
-
-reset role;
 
 select * from finish();
 rollback;

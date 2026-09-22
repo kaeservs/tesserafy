@@ -106,3 +106,26 @@ batch script should make on its own.
 `--resynthesise` includes cited signals, which is what you want after changing
 the synthesis prompt and nothing else. `--dry-run` clusters and prints without
 calling a model or writing anything.
+
+### `pnpm criteria --try <file.json> --conversation <uuid>`
+
+Runs a candidate criteria set over a real conversation and writes nothing.
+
+A criterion definition is a prompt. Publishing one without ever running it is
+shipping a prompt blind: the set validates, the thresholds are sane, and it
+can still detect nothing at all because the wording does not describe anything
+a customer says out loud.
+
+The first thing this found was a fault in the `renewal` set shipped beside it.
+`renewal_risk_named` listed its examples — budget review, competitor, sponsor
+leaving, complaint — and detected nothing in a call where the customer said
+only the data desk was using it and the team was heads-down until Q3. Both are
+renewal risks; neither was on the list. Broadening the wording to name the
+shape of the thing rather than four instances of it took the same conversation
+from 27 to 55.
+
+Against a conversation already in the database, so what comes back is what the
+live path would see rather than what an invented example invites. The calls
+are recorded in `model_usage` like any other: a trial costs money, and
+telemetry that skipped the experiments would understate what getting a
+criteria set right actually took.

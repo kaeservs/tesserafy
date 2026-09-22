@@ -1,0 +1,37 @@
+{
+  "engagementType": "renewal",
+  "version": 2,
+  "criteria": [
+    {
+      "key": "value_realised",
+      "label": "Value realised",
+      "definition": "The customer describes a change in how their work goes since they started using it — time no longer spent, a step that no longer happens, a number that moved, a problem that stopped recurring. It does not have to be quantified. Praise for the product with no change described is not enough.",
+      "weight": 1.5
+    },
+    {
+      "key": "adoption_known",
+      "label": "Adoption known",
+      "definition": "The customer says who is using it and how much, including when the answer is that hardly anyone is. A number, a named team, or a plain statement that usage is narrow or has fallen all count.",
+      "weight": 1
+    },
+    {
+      "key": "renewal_risk_named",
+      "label": "Renewal risk named",
+      "definition": "The customer says anything that makes renewing less certain. This is deliberately broad: narrow or falling usage, a competing priority that will take their attention, a budget or procurement review, a champion or sponsor moving on, an alternative they are considering, an unresolved complaint, or doubt about whether it is worth the price. A risk stated calmly is still a risk.",
+      "weight": 1.5,
+      "thresholds": { "candidate": 0.5, "confirm": 0.75, "corroboratingSegments": 2 }
+    },
+    {
+      "key": "decision_process_known",
+      "label": "Decision process known",
+      "definition": "The customer describes how the renewal actually gets decided — who signs it off, what review or procurement step it goes through, or when the decision happens. Any one of those counts.",
+      "weight": 1
+    },
+    {
+      "key": "expansion_interest",
+      "label": "Expansion interest",
+      "definition": "The customer raises a team, a use case, an integration or a capability beyond what they have today, including as a condition rather than a request. Asked about and declined counts as observed, not confirmed.",
+      "weight": 0.5
+    }
+  ]
+}

@@ -2,7 +2,9 @@
 
 import type { CriterionPrompt } from '@tesserafy/ai';
 import { apply, initialState, score, type CriteriaSet, type DetectorEvent } from '@tesserafy/scoring';
+import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { LiveSession, type LiveSessionState } from '@/lib/live-session';
 
 /**
  * The live path on real speech.
@@ -98,6 +100,10 @@ export function LiveMicrophone({
   const firstPartial = useRef<number | null>(null);
   const window_ = useRef<Utterance[]>([]);
   const speakerRef = useRef(speaker);
+  // One per mounted page. A call is a session; reloading the page starts a
+  // new one rather than appending to a conversation nobody is in any more.
+  const session = useRef(new LiveSession());
+  const [saved, setSaved] = useState<LiveSessionState>(session.current.current());
 
   useEffect(() => {
     speakerRef.current = speaker;
@@ -111,6 +117,8 @@ export function LiveMicrophone({
     setSupported(recogniser() !== null);
   }, []);
 
+  useEffect(() => session.current.onChange(setSaved), []);
+
   const detect = useCallback(
     async (utterance: Utterance, endedAt: number, partialMs: number | null) => {
       const recent = [...window_.current.slice(-WINDOW_SIZE)];
@@ -121,7 +129,11 @@ export function LiveMicrophone({
           body: JSON.stringify({ criteria: prompts, window: recent }),
         });
         if (!response.ok) throw new Error(`detect failed: ${response.status}`);
-        const body = (await response.json()) as { events: DetectorEvent[] };
+        const body = (await response.json()) as {
+          events: DetectorEvent[];
+          detector?: string;
+          model?: string;
+        };
 
         const nextState = body.events.reduce(apply, stateRef.current);
         stateRef.current = nextState;
@@ -148,6 +160,22 @@ export function LiveMicrophone({
             utteranceToScoreMs: Math.round(performance.now() - endedAt),
           },
         ]);
+
+        // Also after the score, and for the same reason. Keeping the call is
+        // worth doing and not worth a millisecond of the number this page is
+        // judged on. The session resolves each local segment id to the one
+        // the database assigned, which by now has usually already arrived.
+        void session.current.saveEvents(
+          body.events.map((event) => ({
+            criterionKey: event.criterionKey,
+            kind: event.kind,
+            confidence: event.confidence,
+            segmentId: event.span.segmentId,
+            quote: event.span.quote,
+            detector: body.detector ?? 'unknown',
+            model: body.model ?? 'unknown',
+          })),
+        );
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : 'detection failed');
       }
@@ -158,6 +186,15 @@ export function LiveMicrophone({
   const start = useCallback(() => {
     const engine = recogniser();
     if (!engine) return;
+
+    // The conversation exists from the moment recording starts, so a call
+    // that ends in a crashed tab is still a call that happened. A meeting
+    // cannot be re-run.
+    void session.current.start(
+      `Live call — ${new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}`,
+      scorecard.engagementType,
+      scorecard.version,
+    );
 
     engine.continuous = true;
     engine.interimResults = true;
@@ -198,6 +235,15 @@ export function LiveMicrophone({
         speechStart.current = null;
         firstPartial.current = null;
 
+        // Alongside detection, not before it. Both start now; only detection
+        // is awaited, so saving the utterance never sits between somebody
+        // finishing a sentence and the score moving.
+        session.current.appendSegment(utterance.id, {
+          speaker: utterance.speaker,
+          startMs: utterance.startMs,
+          endMs: utterance.endMs,
+          text: utterance.text,
+        });
         void detect(utterance, endedAt, partialMs);
       }
     };
@@ -216,7 +262,7 @@ export function LiveMicrophone({
     setError(null);
     engine.start();
     setListening(true);
-  }, [detect]);
+  }, [detect, scorecard.engagementType, scorecard.version]);
 
   const stop = useCallback(() => {
     recognition.current?.stop();
@@ -252,6 +298,26 @@ export function LiveMicrophone({
         </button>
         <span className="muted">{utterances.length} utterances</span>
       </div>
+
+      {/*
+        Whether the call is being kept, said plainly while it is happening.
+        A page that silently failed to save would be discovered afterwards,
+        by someone looking for a meeting that is not there.
+      */}
+      <p className="muted" aria-live="polite">
+        {saved.conversationId ? (
+          <>
+            Saving to{' '}
+            <Link href={`/conversations/${saved.conversationId}`}>this conversation</Link> ·{' '}
+            {saved.saved} utterance{saved.saved === 1 ? '' : 's'}, {saved.recorded} evidence
+            {saved.lost > 0 && ` · ${saved.lost} write${saved.lost === 1 ? '' : 's'} failed`}
+          </>
+        ) : listening ? (
+          'Not being saved — this session will be lost when the page closes.'
+        ) : (
+          'Recording starts a conversation you can open afterwards.'
+        )}
+      </p>
       <p className="muted">
         Who is speaking is a toggle because diarisation is not solved here. It matters: the detector
         is told to report the customer’s words, not the seller’s.

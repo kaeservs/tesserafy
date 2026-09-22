@@ -764,3 +764,8 @@ mark {
   font-size: 0.82rem;
   user-select: all;
 }
+
+/* A search box wants the room; the button does not. */
+input[type='search'] {
+  min-width: 14rem;
+}

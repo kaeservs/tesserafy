@@ -63,3 +63,46 @@ export async function fetchCriteria(
   const chosen = version ?? rows[0]!.version;
   return rows.filter((row) => row.version === chosen).sort((a, b) => a.position - b.position);
 }
+
+/** One engagement type at one version, with how many criteria it holds. */
+export interface CriteriaSetSummary {
+  readonly engagementType: string;
+  readonly version: number;
+  readonly criteria: number;
+}
+
+/**
+ * Every criteria set, newest version of each type first.
+ *
+ * For choosing one — a live call has to be told what it is being scored
+ * against, and until there was more than one set that choice could be a
+ * hardcoded string. Returns summaries rather than definitions: a picker needs
+ * names and nothing else, and sending every prompt to render a dropdown would
+ * be sending the detector's instructions to a browser that has no use for
+ * them.
+ */
+export async function fetchCriteriaSets(db: SupabaseClient): Promise<CriteriaSetSummary[]> {
+  const { data, error } = await db
+    .from('criteria_definitions')
+    .select('engagement_type, version')
+    .order('engagement_type')
+    .order('version', { ascending: false });
+
+  if (error) {
+    throw new Error(`Listing criteria sets failed: ${error.message}`, { cause: error });
+  }
+
+  const counts = new Map<string, CriteriaSetSummary>();
+  for (const row of (data ?? []) as { engagement_type: string; version: number }[]) {
+    const key = `${row.engagement_type}/${row.version}`;
+    const seen = counts.get(key);
+    counts.set(
+      key,
+      seen
+        ? { ...seen, criteria: seen.criteria + 1 }
+        : { engagementType: row.engagement_type, version: row.version, criteria: 1 },
+    );
+  }
+
+  return [...counts.values()];
+}

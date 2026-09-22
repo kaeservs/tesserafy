@@ -28,6 +28,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <NavLink href="/dashboard">Dashboard</NavLink>
           <NavLink href="/conversations">Meetings</NavLink>
           <NavLink href="/insights">Insights</NavLink>
+          <NavLink href="/search">Search</NavLink>
           <NavLink href="/live/mic">Live</NavLink>
         </nav>
         <form action="/auth/sign-out" method="post" className="toolbar">

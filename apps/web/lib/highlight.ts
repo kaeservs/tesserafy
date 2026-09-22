@@ -67,3 +67,46 @@ export function clock(ms: number): string {
   const seconds = totalSeconds % 60;
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
+
+/** The markers `search_segments()` wraps matched words in. */
+const HIGHLIGHT_START = '[[hl]]';
+const HIGHLIGHT_STOP = '[[/hl]]';
+
+/**
+ * Splits a `ts_headline` result into plain and highlighted pieces.
+ *
+ * The database marks matches with delimiters rather than HTML so that nothing
+ * a customer said ever has to be injected into the page as markup. Postgres
+ * does the stemming — "exporting" matches a search for "export" and naive
+ * substring matching here would miss it — and this only has to find the
+ * marks it put in.
+ *
+ * Unbalanced markers are treated as plain text. They cannot occur from
+ * ts_headline, but they can occur if somebody genuinely said "[[hl]]", and
+ * the right answer to that is to show what they said.
+ */
+export function splitHeadline(headline: string): TextPiece[] {
+  const pieces: TextPiece[] = [];
+  let cursor = 0;
+
+  for (;;) {
+    const start = headline.indexOf(HIGHLIGHT_START, cursor);
+    if (start === -1) break;
+    const stop = headline.indexOf(HIGHLIGHT_STOP, start + HIGHLIGHT_START.length);
+    if (stop === -1) break;
+
+    if (start > cursor) {
+      pieces.push({ text: headline.slice(cursor, start), highlighted: false });
+    }
+    pieces.push({
+      text: headline.slice(start + HIGHLIGHT_START.length, stop),
+      highlighted: true,
+    });
+    cursor = stop + HIGHLIGHT_STOP.length;
+  }
+
+  if (cursor < headline.length) {
+    pieces.push({ text: headline.slice(cursor), highlighted: false });
+  }
+  return pieces.length > 0 ? pieces : [{ text: headline, highlighted: false }];
+}

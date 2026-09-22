@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clock, splitByHighlights } from '../lib/highlight';
+import { clock, splitByHighlights, splitHeadline } from '../lib/highlight';
 
 const TEXT = 'Exporting the weekly report takes us most of Friday afternoon.';
 
@@ -94,5 +94,40 @@ describe('clock', () => {
 
   it('never renders a negative time', () => {
     expect(clock(-5)).toBe('00:00');
+  });
+});
+
+describe('splitHeadline', () => {
+  it('turns the database markers into highlighted pieces', () => {
+    expect(splitHeadline('It takes [[hl]]most[[/hl]] of Friday')).toEqual([
+      { text: 'It takes ', highlighted: false },
+      { text: 'most', highlighted: true },
+      { text: ' of Friday', highlighted: false },
+    ]);
+  });
+
+  it('handles a match at either end', () => {
+    expect(splitHeadline('[[hl]]Exporting[[/hl]] the report')).toEqual([
+      { text: 'Exporting', highlighted: true },
+      { text: ' the report', highlighted: false },
+    ]);
+    expect(splitHeadline('the weekly [[hl]]report[[/hl]]')).toEqual([
+      { text: 'the weekly ', highlighted: false },
+      { text: 'report', highlighted: true },
+    ]);
+  });
+
+  it('leaves text with no markers alone', () => {
+    expect(splitHeadline('nothing matched here')).toEqual([
+      { text: 'nothing matched here', highlighted: false },
+    ]);
+  });
+
+  it('shows an unbalanced marker as the words somebody said', () => {
+    // ts_headline cannot produce this. A customer saying "[[hl]]" can, and
+    // the right answer is to show what they said rather than swallow it.
+    expect(splitHeadline('he typed [[hl]] into the box')).toEqual([
+      { text: 'he typed [[hl]] into the box', highlighted: false },
+    ]);
   });
 });

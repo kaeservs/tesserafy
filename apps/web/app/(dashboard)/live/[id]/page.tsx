@@ -20,7 +20,7 @@ export default async function LivePage({ params }: { params: Promise<{ id: strin
 
   const { data: conversation } = await supabase
     .from('conversations')
-    .select('id, title')
+    .select('id, title, engagement_type, criteria_version')
     .eq('id', id)
     .maybeSingle();
   if (!conversation) notFound();
@@ -42,11 +42,22 @@ export default async function LivePage({ params }: { params: Promise<{ id: strin
     text: row.text,
   }));
 
-  // Read as the signed-in user like everything else on this page; criteria are
-  // reference data, so RLS lets any member read them.
-  const criteria = await fetchCriteria(supabase, 'discovery');
+  const {
+    title,
+    engagement_type: engagementType,
+    criteria_version: criteriaVersion,
+  } = conversation as { title: string; engagement_type: string; criteria_version: number };
 
-  const { title } = conversation as { title: string };
+  // The set this conversation pins, not the default one.
+  //
+  // This said 'discovery' while only one set existed, which was invisible
+  // until a second one did. A call pinned to renewal would be replayed here
+  // against discovery criteria while its own page scored it against renewal —
+  // the same conversation, two scorecards, no way to tell which was right.
+  //
+  // Read as the signed-in user like everything else on this page; criteria
+  // are reference data, so RLS lets any member read them.
+  const criteria = await fetchCriteria(supabase, engagementType, criteriaVersion);
 
   return (
     <main>
@@ -56,7 +67,7 @@ export default async function LivePage({ params }: { params: Promise<{ id: strin
       <h1>Live scorecard</h1>
       <p className="muted">
         Replaying {segments.length} utterances through the real detector, against{' '}
-        {criteria.length} criteria (discovery v{criteria[0]?.version}). The score comes from the
+        {criteria.length} criteria ({engagementType} v{criteriaVersion}). The score comes from the
         scoring engine, never from the model.
       </p>
       <LiveScorecard

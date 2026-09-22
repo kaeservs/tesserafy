@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ScorecardStrip } from '@/components/scorecard-strip';
+import { coverageBySet as coverageForSets } from '@/lib/coverage';
 import { scoreConversations, type ScorableConversation } from '@/lib/scorecard';
 import { createClient } from '@/lib/supabase/server';
 
@@ -80,24 +81,7 @@ export default async function DashboardPage() {
             scored.length,
         );
 
-  /*
-   * Coverage: for each criterion, in how many scored meetings it reached each
-   * state. Keyed off the first scorecard's criteria so the order is the set's
-   * display order — the same order as the pips, so the two read together.
-   */
-  const template = scored.length > 0 ? scores.get(scored[0]!.id)?.scorecard.criteria ?? [] : [];
-  const coverage = template.map((criterion) => {
-    let confirmed = 0;
-    let candidate = 0;
-    for (const conversation of scored) {
-      const match = scores
-        .get(conversation.id)
-        ?.scorecard.criteria.find((c) => c.key === criterion.key);
-      if (match?.status === 'confirmed') confirmed += 1;
-      else if (match?.status === 'candidate') candidate += 1;
-    }
-    return { key: criterion.key, label: criterion.label, confirmed, candidate };
-  });
+  const coverageBySet = coverageForSets(scored, scores);
 
   const recent = conversations.slice(0, RECENT);
   const approved = insights.filter((insight) => insight.status === 'approved').length;
@@ -189,48 +173,60 @@ export default async function DashboardPage() {
           </div>
 
           <div className="card">
-            {coverage.length === 0 ? (
+            {coverageBySet.length === 0 ? (
               <p className="muted">
                 Nothing scored yet. Run <code>pnpm score --company &lt;uuid&gt;</code> to score
                 imported conversations against their criteria.
               </p>
             ) : (
-              <>
-                <ul className="coverage">
-                  {coverage.map((criterion) => {
-                    const confirmedPct = (criterion.confirmed / scored.length) * 100;
-                    const candidatePct = (criterion.candidate / scored.length) * 100;
+              coverageBySet.map((set) => (
+                <div key={set.label} style={{ marginBottom: '1rem' }}>
+                  {/* The heading appears only when there is more than one set.
+                      With one it is noise; with two it is the difference
+                      between comparable numbers and nonsense. */}
+                  {coverageBySet.length > 1 && (
+                    <p className="coverage-count" style={{ margin: '0 0 0.35rem' }}>
+                      {set.label} · {set.total} meeting{set.total === 1 ? '' : 's'}
+                    </p>
+                  )}
+                  <ul className="coverage">
+                    {set.criteria.map((criterion) => {
+                      const confirmedPct = (criterion.confirmed / set.total) * 100;
+                      const candidatePct = (criterion.candidate / set.total) * 100;
 
-                    return (
-                      <li key={criterion.key}>
-                        <div className="coverage-head">
-                          <span>{criterion.label}</span>
-                          <span className="coverage-count">
-                            {criterion.confirmed} of {scored.length}
-                          </span>
-                        </div>
-                        <div
-                          className="bar"
-                          role="img"
-                          aria-label={`${criterion.label}: confirmed in ${criterion.confirmed} of ${scored.length} scored meetings${criterion.candidate > 0 ? `, partial in ${criterion.candidate}` : ''}`}
-                        >
-                          <div style={{ display: 'flex', height: '100%' }}>
-                            <div className="bar-fill" style={{ width: `${confirmedPct}%` }} />
-                            <div
-                              className="bar-fill bar-fill-candidate"
-                              style={{ width: `${candidatePct}%` }}
-                            />
+                      return (
+                        <li key={criterion.key}>
+                          <div className="coverage-head">
+                            <span>{criterion.label}</span>
+                            <span className="coverage-count">
+                              {criterion.confirmed} of {set.total}
+                            </span>
                           </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-                <p className="muted" style={{ fontSize: '0.82rem', marginBottom: 0 }}>
-                  Across {scored.length} scored meeting{scored.length === 1 ? '' : 's'}. A criterion
-                  rarely confirmed is usually a question nobody is asking, not a scoring fault.
-                </p>
-              </>
+                          <div
+                            className="bar"
+                            role="img"
+                            aria-label={`${criterion.label}: confirmed in ${criterion.confirmed} of ${set.total} meetings scored against ${set.label}${criterion.candidate > 0 ? `, partial in ${criterion.candidate}` : ''}`}
+                          >
+                            <div style={{ display: 'flex', height: '100%' }}>
+                              <div className="bar-fill" style={{ width: `${confirmedPct}%` }} />
+                              <div
+                                className="bar-fill bar-fill-candidate"
+                                style={{ width: `${candidatePct}%` }}
+                              />
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))
+            )}
+            {coverageBySet.length > 0 && (
+              <p className="muted" style={{ fontSize: '0.82rem', margin: 0 }}>
+                A criterion rarely confirmed is usually a question nobody is asking, not a
+                scoring fault.
+              </p>
             )}
           </div>
         </section>

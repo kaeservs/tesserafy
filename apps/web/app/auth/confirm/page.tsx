@@ -22,17 +22,17 @@ import { createClient } from '@/lib/supabase/browser';
  */
 export default function ConfirmPage() {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
 
   useEffect(() => {
     const result = parseAuthFragment(window.location.hash);
 
     if (result.kind === 'error') {
-      setError(result.error.code);
+      setFailure(result.error.code);
       return;
     }
     if (result.kind === 'empty') {
-      setError('no_credentials');
+      setFailure('no_credentials');
       return;
     }
 
@@ -44,7 +44,7 @@ export default function ConfirmPage() {
       })
       .then(({ error: sessionError }) => {
         if (sessionError) {
-          setError(sessionError.code ?? 'session_failed');
+          setFailure(sessionError.code ?? 'session_failed');
           return;
         }
         // Drop the fragment before navigating, so the tokens do not sit in the
@@ -54,14 +54,17 @@ export default function ConfirmPage() {
       });
   }, [router]);
 
-  if (error) {
-    router.replace(`/login?error=${encodeURIComponent(error)}`);
-  }
+  // In an effect, not in the render body. Navigating while rendering updates
+  // the router mid-render, which React warns about and, under Strict Mode,
+  // re-runs — the failure path was the one place this page could loop.
+  useEffect(() => {
+    if (failure) router.replace(`/login?error=${encodeURIComponent(failure)}`);
+  }, [failure, router]);
 
   return (
     <main>
-      <h1>Signing you in…</h1>
-      <p className="muted">One moment.</p>
+      <h1>{failure ? 'That link did not work' : 'Signing you in…'}</h1>
+      <p className="muted">{failure ? 'Taking you back to sign in…' : 'One moment.'}</p>
     </main>
   );
 }

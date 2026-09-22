@@ -78,6 +78,7 @@ export { locate } from './tiers/evidence';
 export {
   clusterSignals,
   loadSignals,
+  type LoadSignalsOptions,
   type ClusterableSignal,
   type ClusterOptions,
   type SignalCluster,

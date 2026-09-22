@@ -16,6 +16,14 @@ import { caller } from '@/lib/supabase/caller';
  * The citations are read back from the insight's own chain rather than taken
  * from the request. A caller cannot put words in a ticket that no detector
  * verified.
+ *
+ * It is also idempotent, and that ordering is the point. `insight_tickets` has
+ * a unique (insight_id, provider) so a second ticket cannot be *recorded* —
+ * but checking only there means the duplicate issue has already been opened in
+ * someone else's tracker by the time the constraint fires, and all the
+ * constraint buys is a 500 for something that already happened. Two tabs, a
+ * refresh, or a retry after a timeout are enough. So the existing ticket is
+ * looked up before GitHub is called, and returned as the answer.
  */
 export const runtime = 'nodejs';
 
@@ -58,6 +66,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     summary: string;
     status: string;
   };
+
+  // Before GitHub, not after. The already-raised answer is a success: whoever
+  // clicked wanted a ticket for this insight, and there is one.
+  const { data: existing } = await supabase
+    .from('insight_tickets')
+    .select('url, external_id')
+    .eq('insight_id', id)
+    .eq('provider', 'github')
+    .maybeSingle();
+
+  if (existing) {
+    const ticket = existing as { url: string; external_id: string };
+    return NextResponse.json({
+      url: ticket.url,
+      number: Number(ticket.external_id),
+      alreadyRaised: true,
+    });
+  }
 
   if (status !== 'approved') {
     return NextResponse.json(
@@ -104,6 +130,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   });
 
   if (recordError) {
+    // A unique violation here means two requests raced past the check above.
+    // The duplicate issue is already open — nothing can undo that from here —
+    // but the answer should still be the ticket this insight actually has,
+    // not an error that invites a third click.
+    if (recordError.code === '23505') {
+      const { data: winner } = await supabase
+        .from('insight_tickets')
+        .select('url, external_id')
+        .eq('insight_id', id)
+        .eq('provider', 'github')
+        .maybeSingle();
+
+      if (winner) {
+        const ticket = winner as { url: string; external_id: string };
+        return NextResponse.json({
+          url: ticket.url,
+          number: Number(ticket.external_id),
+          alreadyRaised: true,
+          duplicate: issue.html_url,
+        });
+      }
+    }
+
     // The issue exists and we failed to remember it. Say so plainly: a silent
     // failure here means the next click opens a second issue.
     return NextResponse.json(

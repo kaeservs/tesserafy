@@ -30,6 +30,7 @@ import {
   databaseSink,
   DuplicateSource,
   extractSignals,
+  T3_DETECTOR,
   toCompanyId,
   writeSignals,
   writeTranscript,
@@ -231,7 +232,7 @@ async function importOne(
           db,
           companyId,
           conversationId: written.conversationId,
-          detector: 't3-extract',
+          detector: T3_DETECTOR,
         }),
       ),
     });

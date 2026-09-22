@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { databaseSink, suggestNext, type SuggestableSegment } from '@tesserafy/ai';
+import { databaseSink, suggestNext, T2_SUGGESTER, type SuggestableSegment } from '@tesserafy/ai';
 import type { Scorecard } from '@tesserafy/scoring';
 import { NextResponse, type NextRequest } from 'next/server';
 import { caller } from '@/lib/supabase/caller';
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
   try {
     const result = await suggestNext(scorecard, window, {
       client: new Anthropic(),
-      onUsage: databaseSink({ db: who.db }),
+      onUsage: databaseSink({ db: who.db, detector: T2_SUGGESTER }),
     });
 
     // A refusal is a normal answer, not an error: "nothing worth asking" is

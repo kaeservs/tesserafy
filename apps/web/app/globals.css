@@ -717,3 +717,49 @@ mark {
 .link-button:hover {
   border-color: transparent;
 }
+
+/* --------------------------------------------------------------------------
+   Pipeline stage
+   -------------------------------------------------------------------------- */
+
+/*
+ * Shown only when a conversation is *not* finished. A badge on every row is
+ * noise; a badge on the three that still need something is a worklist.
+ */
+.stage {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid var(--border);
+}
+
+.stage-captured {
+  color: var(--candidate);
+  border-color: color-mix(in srgb, var(--candidate) 45%, transparent);
+}
+
+.stage-scored {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.stage-empty {
+  color: var(--muted);
+}
+
+/* The command to run, where a conversation is waiting on one. Monospace and
+   selectable: it exists to be copied. */
+.command {
+  display: block;
+  margin-top: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82rem;
+  user-select: all;
+}

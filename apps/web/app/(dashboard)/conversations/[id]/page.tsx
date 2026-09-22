@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { clock, splitByHighlights } from '@/lib/highlight';
+import { conversationPipeline, nextCommand, stageOf } from '@/lib/pipeline';
 import { scoreConversation, type ScorableConversation } from '@/lib/scorecard';
 import { createClient } from '@/lib/supabase/server';
 
@@ -60,6 +61,8 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
   // disagree about what the evidence adds up to.
   const scored = await scoreConversation(supabase, conversation as ScorableConversation);
   const card = scored.scorecard;
+  const stage = stageOf((await conversationPipeline(supabase)).get(id));
+  const command = nextCommand(stage, id);
   const observed = card.criteria.some((criterion) => criterion.status !== 'unobserved');
 
   const [segmentsResult, signalsResult, evidenceResult] = await Promise.all([
@@ -111,6 +114,34 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
         {segments.length} segments · {signals.length} signals · {scored.engagementType} v
         {scored.criteriaVersion}
       </p>
+
+      {/*
+        Where this call has got to, and what would move it on.
+        An imported transcript arrives finished, so this says nothing for
+        most conversations. A live-captured one does not, and without this it
+        is indistinguishable from a finished call that simply scored badly —
+        which is the opposite fact.
+      */}
+      {command && (
+        <section aria-labelledby="pipeline-heading" className="card">
+          <h2 id="pipeline-heading" style={{ marginTop: 0 }}>
+            {stage === 'captured' ? 'Not scored yet' : 'No signals yet'}
+          </h2>
+          {/* "No signals" rather than "not extracted": nothing here can tell
+              a pass that never ran from one that ran and found nothing it
+              could evidence, and claiming the first would be asserting more
+              than is known. */}
+          <p className="muted" style={{ margin: 0 }}>
+            {stage === 'captured'
+              ? 'This call was captured but no criteria have been detected over it.'
+              : 'Nothing has been extracted from this call, so it cannot contribute to an ' +
+                'insight. Running the pass will either extract something or confirm there ' +
+                'is nothing to extract. Extraction is Opus and embedding is a local model, ' +
+                'so it is an operator pass rather than a button here.'}
+          </p>
+          <code className="command">{command}</code>
+        </section>
+      )}
 
       <section aria-labelledby="scorecard-heading">
         <h2 id="scorecard-heading">Scorecard</h2>

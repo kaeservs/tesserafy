@@ -23,6 +23,7 @@
     "extract": "tsx scripts/extract.ts",
     "detect": "tsx scripts/detect.ts",
     "score": "tsx scripts/score.ts",
+    "erase": "tsx scripts/erase.ts",
     "measure:t1": "tsx scripts/measure-t1.ts",
     "qa": "tsx scripts/qa.ts",
     "costs": "tsx scripts/costs.ts",

@@ -16,7 +16,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(10);
+select plan(11);
 
 insert into auth.users (id, email, aud, role)
 values ('88888888-8888-4888-8888-888888888888', 'erase-owner@test.tesserafy.local',

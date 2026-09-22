@@ -67,6 +67,8 @@ backfilled.
     pnpm ingest <file.vtt> --dry-run         # parse and chunk only, writes nothing
     pnpm score --company <uuid>              # T1 over stored segments -> criterion_events
     pnpm score --company <uuid> --dry-run    # print the detector call count, send nothing
+    pnpm process --conversation <uuid>       # embed stored segments -> T3 signals
+    pnpm process --conversation <uuid> --dry-run  # say what it would cost, spend nothing
     pnpm erase --conversation <uuid>         # erase a meeting and everything derived from it
     pnpm erase --company <uuid> --retention 90   # set a retention period
     pnpm erase --purge                       # erase everything past its retention

@@ -32,3 +32,23 @@ observed twice is stored once.
 `--conversation <uuid>` does one. `--rescore` includes conversations that
 already have events. `--dry-run` prints the detector call count and sends
 nothing, which is the only way to see the bill before paying it.
+
+## `pnpm process --conversation <uuid>`
+
+What happens to a call after it ends: embed its stored segments, then run T3
+extraction over them and store the signals.
+
+`pnpm ingest` does both as part of importing a file. A live call never went
+through it — its segments arrived one at a time while somebody was talking, so
+nothing embedded them and nothing extracted from them. The effect was quiet
+and total: a live call scored and appeared on the dashboard, and could never
+become an insight, because insights are clustered from signals through a
+vector search and it had neither.
+
+Deliberately not automatic. T3 is Opus and an insight is a claim about a
+customer, so spending that without a person asking is what "no auto-creation
+anywhere" rules out.
+
+`--company <uuid>` does every conversation missing either. `--embed-only`
+skips extraction. `--dry-run` prints the plan and pays none of it. Re-running
+is safe: it only ever looks at what is still missing.

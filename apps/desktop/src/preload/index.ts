@@ -27,4 +27,16 @@ contextBridge.exposeInMainWorld('overlay', {
     body: unknown,
   ): Promise<{ suggestion?: { ask: string; because: string } | null; error?: string }> =>
     ipcRenderer.invoke('overlay:suggest', body),
+  liveStart: (body: unknown): Promise<{ conversationId?: string; error?: string }> =>
+    ipcRenderer.invoke('overlay:live-start', body),
+  liveSegment: (
+    conversationId: string,
+    body: unknown,
+  ): Promise<{ segmentId?: string; error?: string }> =>
+    ipcRenderer.invoke('overlay:live-segment', conversationId, body),
+  liveEvents: (
+    conversationId: string,
+    body: unknown,
+  ): Promise<{ recorded?: number; rejected?: number; error?: string }> =>
+    ipcRenderer.invoke('overlay:live-events', conversationId, body),
 });

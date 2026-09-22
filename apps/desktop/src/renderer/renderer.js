@@ -34,6 +34,33 @@ const latencies = [];
 // ago replaces one about the sentence just spoken.
 let suggestSeq = 0;
 
+/*
+ * Keeping the call.
+ *
+ * The conversation exists from the moment Listen is pressed, so a call that
+ * ends in a crashed overlay is still a call that happened. A meeting cannot
+ * be re-run.
+ *
+ * `serverIds` is the whole subtlety. A detector event names its segment by
+ * the local id the window used — the utterance was still in flight when
+ * detection began — and the database knows it by the id it assigned. So each
+ * local id holds a promise of a server id, and the evidence post waits on the
+ * ones its events mention. Waiting costs nothing there: the score is drawn.
+ *
+ * Every failure here is quiet. A saved call is worth having and no part of it
+ * is worth interrupting a meeting for.
+ *
+ * This mirrors apps/web/lib/live-session.ts, which writes through fetch rather
+ * than IPC. The transports differ and the rule must not: a change to one is a
+ * change to the other, and apps/web/test/live-session.test.ts is where the
+ * behaviour is pinned.
+ */
+let conversationId = null;
+const serverIds = new Map();
+let savedSegments = 0;
+let savedEvents = 0;
+let lostWrites = 0;
+
 const el = (id) => document.getElementById(id);
 const setStatus = (text) => {
   el('status').textContent = text;
@@ -55,6 +82,20 @@ function render() {
   const sorted = [...latencies].sort((a, b) => a - b);
   const p50 = sorted.length ? sorted[Math.floor(sorted.length / 2)] : null;
   setStatus(`${confirmed}/${card.criteria.length} confirmed${p50 ? ` · ${p50} ms p50` : ''}`);
+
+  // Whether the call is being kept, said while it is happening. An overlay
+  // that silently failed to save would be discovered afterwards, by somebody
+  // looking for a meeting that is not there.
+  const keeping = el('keeping');
+  if (keeping) {
+    if (conversationId) {
+      keeping.textContent =
+        `saving · ${savedSegments} utterance${savedSegments === 1 ? '' : 's'}, ` +
+        `${savedEvents} evidence${lostWrites > 0 ? ` · ${lostWrites} failed` : ''}`;
+    } else {
+      keeping.textContent = listening ? 'not being saved' : '';
+    }
+  }
 }
 
 async function loadCriteria() {
@@ -92,6 +133,89 @@ async function loadCriteria() {
   return true;
 }
 
+async function startSession() {
+  const when = new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+  const result = await api.liveStart({
+    title: `Live call — ${when}`,
+    engagementType: state?.criteriaSet?.engagementType ?? 'discovery',
+    criteriaVersion: state?.criteriaSet?.version ?? 1,
+  });
+
+  if (result.error || !result.conversationId) {
+    // Not being able to keep the call must not stop it being run.
+    conversationId = null;
+    lostWrites += 1;
+    return;
+  }
+  conversationId = result.conversationId;
+  render();
+}
+
+/** Fired alongside detection, never before it. */
+function appendSegment(utterance) {
+  if (!conversationId) return;
+
+  serverIds.set(
+    utterance.id,
+    api
+      .liveSegment(conversationId, {
+        speaker: utterance.speaker,
+        startMs: utterance.startMs,
+        endMs: utterance.endMs,
+        text: utterance.text,
+      })
+      .then((result) => {
+        if (result.error || !result.segmentId) {
+          lostWrites += 1;
+          render();
+          return null;
+        }
+        savedSegments += 1;
+        render();
+        return result.segmentId;
+      })
+      .catch(() => {
+        lostWrites += 1;
+        return null;
+      }),
+  );
+}
+
+async function saveEvents(events, detector, model) {
+  if (!conversationId || events.length === 0) return;
+
+  const resolved = await Promise.all(
+    events.map(async (event) => {
+      const segmentId = await (serverIds.get(event.span.segmentId) ?? Promise.resolve(null));
+      // An event whose segment never reached the server is dropped rather
+      // than sent with a guessed id. Evidence pointing at nothing is worse
+      // than evidence that is missing: only one of them is visibly absent.
+      if (!segmentId) return null;
+      return {
+        criterionKey: event.criterionKey,
+        kind: event.kind,
+        confidence: event.confidence,
+        segmentId,
+        quote: event.span.quote,
+        detector,
+        model,
+      };
+    }),
+  );
+
+  const sendable = resolved.filter(Boolean);
+  if (sendable.length === 0) return;
+
+  const result = await api.liveEvents(conversationId, { events: sendable });
+  if (result.error) {
+    lostWrites += 1;
+  } else {
+    // A rejected claim is the quote rule working, not a dropped write.
+    savedEvents += result.recorded ?? 0;
+  }
+  render();
+}
+
 async function detect(endedAt) {
   const window_ = utterances.slice(-WINDOW_SIZE);
   const result = await api.detect({ criteria: prompts, window: window_ });
@@ -108,9 +232,10 @@ async function detect(endedAt) {
   latencies.push(Math.round(performance.now() - endedAt));
   render();
 
-  // Only after the score is on screen. A suggestion is allowed to be late;
-  // a score is not.
+  // Both of these only after the score is on screen. A suggestion is allowed
+  // to be late and so is a write; a score is not.
   void suggest(window_);
+  void saveEvents(result.events ?? [], result.detector ?? 'unknown', result.model ?? 'unknown');
 }
 
 async function suggest(window_) {
@@ -157,13 +282,18 @@ function startListening() {
       if (!result.isFinal || text.length === 0) continue;
 
       const endedAt = performance.now();
-      utterances.push({
+      const utterance = {
         id: `u${utterances.length}`,
         speaker: 'customer',
         startMs: Math.round(endedAt - sessionStart),
         endMs: Math.round(endedAt - sessionStart),
         text,
-      });
+      };
+      utterances.push(utterance);
+
+      // Alongside detection, not before it: saving an utterance must never
+      // sit between somebody finishing a sentence and the score moving.
+      appendSegment(utterance);
       void detect(endedAt);
     }
   };
@@ -182,6 +312,10 @@ function startListening() {
   listening = true;
   el('listen').textContent = 'Stop';
   setStatus('listening');
+
+  // Not awaited. The first utterance can be detected before the conversation
+  // exists; its write simply finds no session and is skipped.
+  void startSession();
 }
 
 el('listen').addEventListener('click', () => {

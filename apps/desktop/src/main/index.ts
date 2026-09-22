@@ -127,6 +127,45 @@ app.whenReady().then(() => {
     return response.json();
   });
 
+  /*
+   * Keeping the call.
+   *
+   * Three thin proxies, for the same reason detection is one: the token lives
+   * here and never in the page. They add nothing of their own — every rule
+   * about what may be written lives in the database, where a caller that
+   * skipped this process would still meet it.
+   *
+   * None of them is awaited by anything on the critical path. A call worth
+   * keeping is still not worth a millisecond of the score.
+   */
+  const post = async (path: string, body: unknown) => {
+    const baseUrl = process.env['TESSERAFY_URL'] ?? 'http://localhost:3000';
+    const token = process.env['TESSERAFY_TOKEN'];
+    if (!token) return { error: 'TESSERAFY_TOKEN is not set' };
+
+    const response = await fetch(new URL(path, baseUrl), {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      return { error: `${path} failed: ${response.status}` };
+    }
+    return response.json();
+  };
+
+  ipcMain.handle('overlay:live-start', async (_event, body: unknown) =>
+    post('/api/live/sessions', body),
+  );
+
+  ipcMain.handle('overlay:live-segment', async (_event, conversationId: string, body: unknown) =>
+    post(`/api/live/sessions/${conversationId}/segments`, body),
+  );
+
+  ipcMain.handle('overlay:live-events', async (_event, conversationId: string, body: unknown) =>
+    post(`/api/live/sessions/${conversationId}/events`, body),
+  );
+
   ipcMain.handle('overlay:criteria', async () => {
     const baseUrl = process.env['TESSERAFY_URL'] ?? 'http://localhost:3000';
     const token = process.env['TESSERAFY_TOKEN'];

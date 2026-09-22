@@ -4,6 +4,7 @@ import type { CriterionPrompt } from '@tesserafy/ai';
 import { apply, initialState, score, type CriteriaSet, type DetectorEvent } from '@tesserafy/scoring';
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Shortfall } from '@/components/criterion-shortfall';
 import { LiveSession, type LiveSessionState } from '@/lib/live-session';
 
 /**
@@ -350,7 +351,10 @@ export function LiveMicrophone({
           {card.criteria.map((criterion) => (
             <li key={criterion.key} className="signal">
               <div className="criterion">
-                <span>{criterion.label}</span>
+                <span>
+                  {criterion.label}
+                  <Shortfall shortfall={criterion.shortfall} />
+                </span>
                 <span className={`state state-${criterion.status}`}>{criterion.status}</span>
               </div>
             </li>

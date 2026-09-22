@@ -17,4 +17,9 @@ export {
   type CriterionInput,
 } from './criteria/define';
 export { apply, initialState, replay } from './state/apply';
-export { score, type CriterionScore, type Scorecard } from './score/score';
+export {
+  score,
+  type CriterionScore,
+  type CriterionShortfall,
+  type Scorecard,
+} from './score/score';

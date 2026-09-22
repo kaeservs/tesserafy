@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { clock, splitByHighlights } from '@/lib/highlight';
+import { Shortfall } from '@/components/criterion-shortfall';
 import { conversationPipeline, nextCommand, stageOf } from '@/lib/pipeline';
 import { scoreConversation, type ScorableConversation } from '@/lib/scorecard';
 import { createClient } from '@/lib/supabase/server';
@@ -168,7 +169,10 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
               {card.criteria.map((criterion) => (
                 <li key={criterion.key} className="signal">
                   <div className="criterion">
-                    <span>{criterion.label}</span>
+                    <span>
+                      {criterion.label}
+                      <Shortfall shortfall={criterion.shortfall} />
+                    </span>
                     <span className={`state state-${criterion.status}`}>{criterion.status}</span>
                   </div>
                   {/* Every state above rests on something somebody said, and

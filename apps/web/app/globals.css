@@ -769,3 +769,15 @@ mark {
 input[type='search'] {
   min-width: 14rem;
 }
+
+/*
+ * What a criterion is waiting on. Quiet and on its own line: it is a hint for
+ * whoever is deciding what to ask next, not a second label competing with the
+ * state beside it.
+ */
+.shortfall {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}

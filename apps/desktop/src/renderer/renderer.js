@@ -28,6 +28,11 @@ let listening = false;
 let recognition = null;
 let sessionStart = 0;
 const latencies = [];
+// Which suggestion request is the current one. Speech does not wait for the
+// network, so two are often in flight, and without this the slower of them
+// wins the screen — which is how a suggestion about something said a minute
+// ago replaces one about the sentence just spoken.
+let suggestSeq = 0;
 
 const el = (id) => document.getElementById(id);
 const setStatus = (text) => {
@@ -109,7 +114,12 @@ async function detect(endedAt) {
 }
 
 async function suggest(window_) {
+  const seq = ++suggestSeq;
   const result = await api.suggest({ scorecard: score(state), window: window_ });
+  // A later request has already been made: this answer is about a window that
+  // is no longer what is being talked about, so it is dropped rather than
+  // shown. Silence beats a stale question.
+  if (seq !== suggestSeq) return;
   if (result.error) return;
   showSuggestion(result.suggestion ?? null);
 }
@@ -198,7 +208,9 @@ el('clickthrough').addEventListener('click', async () => {
 });
 
 api.config().then((config) => {
-  if (!config.token) {
+  // Presence, not the value. The renderer has never needed the token itself
+  // and must not be given it — see overlay:config in the main process.
+  if (!config.hasToken) {
     setStatus('set TESSERAFY_TOKEN to connect');
     return;
   }

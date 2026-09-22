@@ -73,10 +73,21 @@ function render() {
 
   el('scoreValue').textContent = String(Math.round(card.score));
   el('criteria').innerHTML = card.criteria
-    .map(
-      (criterion) =>
-        `<li><span class="label">${criterion.label}</span><span class="state ${criterion.status}">${criterion.status}</span></li>`,
-    )
+    .map((criterion) => {
+      // Numbers only, not the sentence the web app writes. Phrasing it here
+      // too would be a second copy of the wording to keep in step, and there
+      // is no room for a sentence in a 380px overlay anyway — what a seller
+      // needs mid-call is "one more mention", which `1/2` says.
+      const short = criterion.shortfall;
+      const hint =
+        short && short.segmentsNeeded > 1
+          ? `<span class="hint">${short.segments}/${short.segmentsNeeded}</span>`
+          : '';
+      return (
+        `<li><span class="label">${criterion.label}</span>` +
+        `${hint}<span class="state ${criterion.status}">${criterion.status}</span></li>`
+      );
+    })
     .join('');
 
   const sorted = [...latencies].sort((a, b) => a - b);

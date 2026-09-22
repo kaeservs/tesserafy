@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defineCriteriaSet, initialState, replay, score } from '../src/index';
+import { apply, defineCriteriaSet, initialState, replay, score } from '../src/index';
 import { contradiction, discovery, evidence, span } from './helpers';
 
 describe('score', () => {
@@ -62,5 +62,88 @@ describe('score', () => {
       ['current_solution', 'unobserved', 0],
     ]);
     expect(card.criteria[0]!.evidence[0]!.span).toMatchObject({ quote, startMs: 61000 });
+  });
+});
+
+describe('what a criterion is still waiting on', () => {
+  const set = defineCriteriaSet({
+    engagementType: 'discovery',
+    version: 1,
+    criteria: [
+      {
+        key: 'pain',
+        label: 'Pain',
+        weight: 1,
+        thresholds: { candidate: 0.5, confirm: 0.9, corroboratingSegments: 2 },
+      },
+    ],
+  });
+
+  function evidence(segmentId: string, confidence: number) {
+    return {
+      kind: 'evidence' as const,
+      criterionKey: 'pain',
+      confidence,
+      span: { segmentId, startMs: 0, endMs: 1, quote: 'q' },
+    };
+  }
+
+  it('says nothing has been observed when nothing has', () => {
+    const card = score(initialState(set));
+
+    expect(card.criteria[0]!.shortfall).toEqual({
+      segments: 0,
+      segmentsNeeded: 2,
+      bestConfidence: null,
+      confirmingConfidence: 0.9,
+    });
+  });
+
+  it('counts distinct segments, not quotes', () => {
+    // Two quotes from one utterance are one observation; corroboration means
+    // it was said in more than one place, which is the whole point of the
+    // threshold.
+    const state = [evidence('s1', 0.6), evidence('s1', 0.7)].reduce(apply, initialState(set));
+
+    expect(score(state).criteria[0]!.shortfall).toMatchObject({
+      segments: 1,
+      segmentsNeeded: 2,
+      bestConfidence: 0.7,
+    });
+  });
+
+  it('disappears once the criterion is confirmed', () => {
+    // A confirmed criterion is waiting on nothing, and saying otherwise would
+    // invite somebody to chase evidence they already have.
+    const state = [evidence('s1', 0.6), evidence('s2', 0.6)].reduce(apply, initialState(set));
+
+    expect(score(state).criteria[0]!.status).toBe('confirmed');
+    expect(score(state).criteria[0]!.shortfall).toBeNull();
+  });
+
+  it('survives a contradiction, because a contradiction is not final', () => {
+    const state = [
+      evidence('s1', 0.95),
+      {
+        kind: 'contradiction' as const,
+        criterionKey: 'pain',
+        confidence: 0.95,
+        span: { segmentId: 's3', startMs: 0, endMs: 1, quote: 'q' },
+      },
+    ].reduce(apply, initialState(set));
+
+    expect(state.criteria['pain']!.status).toBe('contradicted');
+    expect(score(state).criteria[0]!.shortfall).not.toBeNull();
+  });
+
+  it('reports only evidence the engine kept', () => {
+    // Anything under the candidate threshold is discarded rather than
+    // recorded, so a shortfall never counts evidence the score ignored.
+    const state = [evidence('s1', 0.2)].reduce(apply, initialState(set));
+
+    expect(score(state).criteria[0]!.shortfall).toMatchObject({
+      segments: 0,
+      bestConfidence: null,
+    });
   });
 });

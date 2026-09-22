@@ -3,6 +3,7 @@
 import type { CriterionPrompt } from '@tesserafy/ai';
 import { apply, initialState, score, type CriteriaSet, type DetectorEvent } from '@tesserafy/scoring';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Shortfall } from '@/components/criterion-shortfall';
 
 /**
  * The live path, browser first.
@@ -212,7 +213,10 @@ export function LiveScorecard({
           {card.criteria.map((criterion) => (
             <li key={criterion.key} className="signal">
               <div className="criterion">
-                <span>{criterion.label}</span>
+                <span>
+                  {criterion.label}
+                  <Shortfall shortfall={criterion.shortfall} />
+                </span>
                 <span className={`state state-${criterion.status}`}>{criterion.status}</span>
               </div>
               {criterion.evidence.length > 0 && (

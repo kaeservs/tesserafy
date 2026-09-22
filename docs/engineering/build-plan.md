@@ -95,12 +95,13 @@ The rest cannot be done from a keyboard alone:
   password form exists for testing. Custom SMTP plus a token_hash link is
   still the better endpoint for invited customers: it would keep tokens out
   of browser history.
-- **Live criterion events are not persisted.** The overlay and the live pages
-  still hold their scorecard in memory only; a call's evidence reaches
-  `criterion_events` when `pnpm score` runs over the stored transcript, not
-  while it is happening. Writing them live needs an RPC that re-derives each
-  quote from the segment rather than trusting the caller — a browser that
-  could insert these rows could fabricate its own scorecard.
+- **Live capture is done, on both surfaces.** The web microphone and the
+  Electron overlay each create a conversation when recording starts, append
+  each utterance, and save the evidence behind every score — through
+  SECURITY DEFINER functions that derive quote offsets from the stored
+  segment, so a caller may assert what was said and nothing else. The
+  overlay's path is the same one through a bearer token rather than cookies,
+  verified against production.
 
 ## Open decisions
 

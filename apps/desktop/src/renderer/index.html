@@ -59,6 +59,9 @@
                border-radius: 6px; padding: 3px 7px; cursor: pointer; }
       button:hover { border-color: #a8a29e; }
       .muted { color: #78716c; font-size: 10px; }
+      /* Pushed to its own end of the footer so it reads as a separate fact
+         from the score, which is what it is. */
+      .keeping { margin-left: auto; }
 
       /* Loud on purpose, and only when protection is off: this is the one
          state where the overlay is a liability rather than a tool. */
@@ -97,6 +100,10 @@
       <button id="protection">Protection: on</button>
       <button id="clickthrough">Click-through: off</button>
       <span class="muted" id="status">idle</span>
+      <!-- Whether the call is being kept. Deliberately its own line rather
+           than folded into the status: the score and the saving fail
+           independently, and one reading fine says nothing about the other. -->
+      <span class="muted keeping" id="keeping"></span>
     </footer>
 
     <script type="module" src="./renderer.js"></script>

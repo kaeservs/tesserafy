@@ -17,6 +17,13 @@
  * Failure is quiet on purpose. A saved call is worth having and no part of it
  * is worth interrupting a meeting for, so a dropped write leaves the live
  * scorecard exactly as it was and the session reports how many it lost.
+ *
+ * The same rule is implemented again in apps/desktop/src/renderer/renderer.js,
+ * because the overlay writes through IPC rather than fetch and shares no
+ * module with this one. It is sixty lines and the transports differ, so the
+ * duplication is deliberate rather than extracted — but the *rule* must not
+ * drift, so a change here is a change there. The tests in
+ * apps/web/test/live-session.test.ts pin the behaviour for both.
  */
 
 export interface LiveEvent {

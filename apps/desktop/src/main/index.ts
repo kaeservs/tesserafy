@@ -76,14 +76,17 @@ app.whenReady().then(() => {
     chrome: process.versions.chrome,
   }));
 
-  // Where to reach the product, and as whom. The token lives in the main
-  // process rather than in the page: a renderer is a browser, and a browser is
-  // where a token gets read by something you did not write. Sign-in inside the
+  // Where to reach the product, and whether we can reach it — not as whom.
+  //
+  // This used to hand the token itself to the renderer, while three comments
+  // in this file and the preload's own docstring all claimed the page never
+  // holds a credential. The page only ever wanted to know whether one was
+  // configured, so that is the only thing it is told. Sign-in inside the
   // overlay is P7 work proper; an operator-supplied token is enough to prove
   // the loop.
   ipcMain.handle('overlay:config', () => ({
     baseUrl: process.env['TESSERAFY_URL'] ?? 'http://localhost:3000',
-    token: process.env['TESSERAFY_TOKEN'] ?? null,
+    hasToken: Boolean(process.env['TESSERAFY_TOKEN']),
     engagementType: process.env['TESSERAFY_ENGAGEMENT'] ?? 'discovery',
   }));
 

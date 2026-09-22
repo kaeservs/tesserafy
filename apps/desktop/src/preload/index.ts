@@ -17,7 +17,7 @@ contextBridge.exposeInMainWorld('overlay', {
     ipcRenderer.invoke('overlay:set-click-through', enabled),
   platform: (): Promise<{ platform: string; electron: string; chrome: string }> =>
     ipcRenderer.invoke('overlay:platform'),
-  config: (): Promise<{ baseUrl: string; token: string | null; engagementType: string }> =>
+  config: (): Promise<{ baseUrl: string; hasToken: boolean; engagementType: string }> =>
     ipcRenderer.invoke('overlay:config'),
   criteria: (): Promise<{ criteria?: unknown[]; error?: string }> =>
     ipcRenderer.invoke('overlay:criteria'),

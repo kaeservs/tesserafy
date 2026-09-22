@@ -1,0 +1,37 @@
+{
+  "engagementType": "renewal",
+  "version": 1,
+  "criteria": [
+    {
+      "key": "value_realised",
+      "label": "Value realised",
+      "definition": "The customer names something the product has actually done for them — time saved, a number moved, work that no longer happens. Enthusiasm without an outcome is not enough.",
+      "weight": 1.5
+    },
+    {
+      "key": "adoption_known",
+      "label": "Adoption known",
+      "definition": "The customer says who is using it and how often, or says plainly that usage has fallen. A guess at a headcount is not adoption.",
+      "weight": 1
+    },
+    {
+      "key": "renewal_risk_named",
+      "label": "Renewal risk named",
+      "definition": "The customer states something that could stop them renewing — a budget review, a competitor, a sponsor leaving, an unresolved complaint.",
+      "weight": 1.5,
+      "thresholds": { "candidate": 0.5, "confirm": 0.75, "corroboratingSegments": 2 }
+    },
+    {
+      "key": "decision_process_known",
+      "label": "Decision process known",
+      "definition": "The customer describes how the renewal gets approved — who signs, what review it goes through, and roughly when.",
+      "weight": 1
+    },
+    {
+      "key": "expansion_interest",
+      "label": "Expansion interest",
+      "definition": "The customer raises a team, a use case or a capability beyond what they have today. Asked and declined counts as observed, not confirmed.",
+      "weight": 0.5
+    }
+  ]
+}

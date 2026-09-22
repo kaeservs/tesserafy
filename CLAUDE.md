@@ -69,6 +69,8 @@ backfilled.
     pnpm score --company <uuid> --dry-run    # print the detector call count, send nothing
     pnpm process --conversation <uuid>       # embed stored segments -> T3 signals
     pnpm process --conversation <uuid> --dry-run  # say what it would cost, spend nothing
+    pnpm criteria --list                     # criteria sets that exist
+    pnpm criteria --add <file.json>          # publish a new engagement type or version
     pnpm erase --conversation <uuid>         # erase a meeting and everything derived from it
     pnpm erase --company <uuid> --retention 90   # set a retention period
     pnpm erase --purge                       # erase everything past its retention
@@ -84,7 +86,10 @@ backfilled.
   the remote project.
 - Schema-qualify the vector type as `extensions.vector(768)` in migrations.
   pgvector lives in the `extensions` schema, not `public`.
-- Criteria definitions are seed data, not code. A new engagement type is a row.
+- Criteria definitions are seed data, not code. A new engagement type is a row,
+  written with `pnpm criteria --add` — an operator with the service role, never
+  a browser. A published version is immutable, because conversations pin the
+  version they were scored against; a change is a new version.
 
 ## MCP routing
 

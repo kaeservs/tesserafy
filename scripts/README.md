@@ -60,3 +60,28 @@ which records the conversation each model call was made against.
 
 `--force` re-extracts regardless, which is how a prompt change gets applied to
 a corpus that has already been processed.
+
+## `pnpm criteria --add <file.json>`
+
+Publishes a criteria set. "A new engagement type is a row" has been the stated
+convention since the table was written, and until now there was no way to
+write the row: the only set that existed was the one shipped in its migration,
+and every live surface hardcoded its name.
+
+An operator script rather than a migration, which the criteria migration
+itself anticipated — schema goes through migrations, a renewal criteria set
+does not. Not a browser feature either: `criteria_definitions` has no write
+policy on purpose, because a criteria set decides what every scorecard in the
+product means and a customer editing one mid-quarter silently re-scores their
+own history.
+
+Every set is validated by `defineCriteriaSet()` — the same function the loader
+uses — before anything is written, so a file with impossible thresholds fails
+at the terminal rather than at load time in front of somebody on a call.
+
+A published version is immutable. Conversations pin the version they were
+scored against, so editing one in place would re-score history nobody asked to
+have re-scored. Publish the next version instead.
+
+`--list` shows what exists, `--show <type>` prints a set in full, `--dry-run`
+validates without writing.

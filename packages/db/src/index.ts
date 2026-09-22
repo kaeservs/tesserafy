@@ -32,5 +32,10 @@ export function createUserClient({ url, key }: SupabaseConnection): SupabaseClie
   });
 }
 
-export { fetchCriteria, type CriterionRow } from './queries/criteria';
+export {
+  fetchCriteria,
+  fetchCriteriaSets,
+  type CriteriaSetSummary,
+  type CriterionRow,
+} from './queries/criteria';
 export { fetchCriterionEvents, type CriterionEventRow } from './queries/criterion-events';

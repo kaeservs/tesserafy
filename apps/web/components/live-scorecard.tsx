@@ -249,8 +249,13 @@ export function LiveScorecard({
                 </td>
               </tr>
               <tr>
-                <td className="muted">budget (ADR 0002)</td>
-                <td className="muted">1300 ms</td>
+                {/* Both, because only one of them is decided. ADR 0010 revises
+                    this to ~2 s on the strength of spike S3 and is still
+                    proposed; showing its number alone would report a budget
+                    nobody has agreed to, and showing only ADR 0002's would
+                    hide that we already know it is unreachable. */}
+                <td className="muted">budget</td>
+                <td className="muted">1300 ms (ADR 0002) · ~2000 ms proposed (ADR 0010)</td>
               </tr>
             </tbody>
           </table>

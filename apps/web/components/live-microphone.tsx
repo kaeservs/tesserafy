@@ -312,8 +312,11 @@ export function LiveMicrophone({
                 </td>
               </tr>
               <tr>
-                <td className="muted">budget (ADR 0010)</td>
-                <td className="muted">~2000 ms</td>
+                {/* The same pair the replay page shows. ADR 0010 is proposed,
+                    not accepted, and a page that quotes it as the budget makes
+                    an undecided number look settled. */}
+                <td className="muted">budget</td>
+                <td className="muted">1300 ms (ADR 0002) · ~2000 ms proposed (ADR 0010)</td>
               </tr>
             </tbody>
           </table>

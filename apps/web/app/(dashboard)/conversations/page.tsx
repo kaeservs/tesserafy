@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ScorecardStrip } from '@/components/scorecard-strip';
+import { conversationPipeline, stageOf } from '@/lib/pipeline';
 import { scoreConversations, type ScorableConversation } from '@/lib/scorecard';
 import { createClient } from '@/lib/supabase/server';
 
@@ -53,7 +54,10 @@ export default async function ConversationsPage() {
   }
 
   const conversations = (data ?? []) as ConversationRow[];
-  const scores = await scoreConversations(supabase, conversations as ScorableConversation[]);
+  const [scores, pipeline] = await Promise.all([
+    scoreConversations(supabase, conversations as ScorableConversation[]),
+    conversationPipeline(supabase),
+  ]);
 
   return (
     <main className="wide">
@@ -75,6 +79,7 @@ export default async function ConversationsPage() {
           {conversations.map((conversation) => {
             const card = scores.get(conversation.id);
             const observed = card?.scorecard.criteria.some((c) => c.status !== 'unobserved');
+            const stage = stageOf(pipeline.get(conversation.id));
 
             return (
               <li key={conversation.id} className="meeting">
@@ -86,6 +91,10 @@ export default async function ConversationsPage() {
                   {companyName(conversation.companies) &&
                     ` · ${companyName(conversation.companies)}`}{' '}
                   · {conversation.engagement_type} v{conversation.criteria_version}
+                  {/* One word for how far this call has got. An imported
+                      transcript arrives finished; a live one does not, and
+                      looked identical to a finished call that scored badly. */}
+                  {stage !== 'processed' && <span className={`stage stage-${stage}`}>{stage}</span>}
                 </span>
                 <span className="meeting-score">
                   {card && observed ? (

@@ -21,6 +21,13 @@ export {
   type StoreTranscriptInput,
 } from './retrieval/store';
 export {
+  embedStoredSegments,
+  pendingEmbeddings,
+  type EmbedStoredOptions,
+  type EmbedStoredResult,
+  type PendingSegment,
+} from './retrieval/embed-stored';
+export {
   writeTranscript,
   type TranscriptInput,
   type WriteTranscriptOptions,

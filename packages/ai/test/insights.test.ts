@@ -40,6 +40,8 @@ interface FakeOptions {
   citations?: Record<string, string[]>;
   signalRows?: { id: string; conversation_id: string; kind: string; summary: string }[];
   evidenceRows?: { signal_id: string; quote: string }[];
+  /** Signals that already back an insight. */
+  citedRows?: { signal_id: string }[];
 }
 
 function fakeDb(options: FakeOptions = {}) {
@@ -86,6 +88,12 @@ function fakeDb(options: FakeOptions = {}) {
 
   function rowsFor(table: string, segmentIds: string[] | null) {
     if (table === 'signals') return { data: options.signalRows ?? [], error: null };
+    // Named explicitly rather than falling through: insight_evidence and
+    // signal_evidence both have a signal_id, so a fake that guessed would
+    // return quotes as citations and make every signal look cited.
+    if (table === 'insight_evidence' && !segmentIds) {
+      return { data: options.citedRows ?? [], error: null };
+    }
     if (segmentIds) {
       const ids = segmentIds.flatMap((id) => options.citations?.[id] ?? []);
       return { data: ids.map((signal_id) => ({ signal_id })), error: null };
@@ -335,5 +343,60 @@ describe('writeInsight', () => {
     const { db } = fakeDb();
 
     await expect(writeInsight('nope' as never, insight, { db })).rejects.toThrow(TypeError);
+  });
+});
+
+describe('loadSignals and what an insight may rest on', () => {
+  const rows = [
+    { id: 's1', conversation_id: CONVERSATION_1, kind: 'problem', summary: 'one' },
+    { id: 's2', conversation_id: CONVERSATION_2, kind: 'problem', summary: 'two' },
+    { id: 's3', conversation_id: CONVERSATION_2, kind: 'problem', summary: 'three' },
+  ];
+  const evidenceRows = [
+    { signal_id: 's1', quote: 'quote one' },
+    { signal_id: 's2', quote: 'quote two' },
+    { signal_id: 's3', quote: 'quote three' },
+  ];
+
+  it('leaves out signals that already back an insight', async () => {
+    // The duplicate this prevents: clustering is deterministic over unchanged
+    // data, so a second run over every signal re-derives a finding that
+    // already exists, pays for the same Opus call, and leaves a person two
+    // near-identical insights to approve.
+    const { db } = fakeDb({ signalRows: rows, evidenceRows, citedRows: [{ signal_id: 's1' }] });
+
+    const signals = await loadSignals(A, db);
+
+    expect(signals.map((s) => s.id)).toEqual(['s2', 's3']);
+  });
+
+  it('includes them when a re-synthesis is asked for', async () => {
+    // After a prompt change, producing the finding again is the point.
+    const { db } = fakeDb({ signalRows: rows, evidenceRows, citedRows: [{ signal_id: 's1' }] });
+
+    const signals = await loadSignals(A, db, { includeCited: true });
+
+    expect(signals.map((s) => s.id)).toEqual(['s1', 's2', 's3']);
+  });
+
+  it('returns nothing, and asks for no quotes, when every signal is cited', async () => {
+    const { db } = fakeDb({
+      signalRows: rows,
+      evidenceRows,
+      citedRows: rows.map((row) => ({ signal_id: row.id })),
+    });
+
+    await expect(loadSignals(A, db)).resolves.toEqual([]);
+  });
+
+  it('carries a quote for every signal it returns', async () => {
+    // Every seed query is built from a quote, and a signal without evidence
+    // cannot exist — so a missing quote here would mean a silently degraded
+    // search rather than an error.
+    const { db } = fakeDb({ signalRows: rows, evidenceRows });
+
+    const signals = await loadSignals(A, db);
+
+    expect(signals.every((s) => s.quote.length > 0)).toBe(true);
   });
 });

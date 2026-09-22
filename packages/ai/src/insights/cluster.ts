@@ -50,15 +50,39 @@ export interface ClusterOptions {
   readonly limit?: number;
 }
 
+export interface LoadSignalsOptions {
+  /**
+   * Include signals that already back an insight. Default false.
+   *
+   * The default is what stops a second run writing the same finding twice.
+   * Clustering is deterministic over unchanged data, so loading every signal
+   * again produces the same cluster, pays for the same Opus call, and leaves
+   * a person two near-identical insights to approve — the duplicate-ticket
+   * failure, with a model call attached.
+   *
+   * True is for a deliberate re-synthesis after the prompt changes, where
+   * producing the finding again is the point.
+   */
+  readonly includeCited?: boolean;
+}
+
 /**
  * Loads a company's signals with one quote each.
  *
  * Signals with no evidence cannot exist (the database refuses them), so every
  * row here has a quote to seed a query with.
+ *
+ * Signals already cited by an insight are left out by default. The tradeoff,
+ * stated plainly: a new signal that belongs to an existing insight does not
+ * join it — it waits until enough new signals accumulate to cluster on their
+ * own. Growing an existing insight means re-opening a claim somebody may
+ * already have approved and raised a ticket from, which is a larger decision
+ * than this function should make on its own.
  */
 export async function loadSignals(
   companyId: CompanyId,
   db: SupabaseClient,
+  opts: LoadSignalsOptions = {},
 ): Promise<ClusterableSignal[]> {
   if (!isCompanyId(companyId)) {
     throw new TypeError('loadSignals() requires a valid companyId');
@@ -78,6 +102,23 @@ export async function loadSignals(
   }[];
   if (rows.length === 0) return [];
 
+  let cited = new Set<string>();
+  if (!opts.includeCited) {
+    const { data: citations, error: citedError } = await db
+      .from('insight_evidence')
+      .select('signal_id')
+      .eq('company_id', companyId);
+    if (citedError) {
+      throw new Error(`Loading insight citations failed: ${citedError.message}`, {
+        cause: citedError,
+      });
+    }
+    cited = new Set(((citations ?? []) as { signal_id: string }[]).map((row) => row.signal_id));
+  }
+
+  const usable = rows.filter((row) => !cited.has(row.id));
+  if (usable.length === 0) return [];
+
   const { data: evidence, error: evidenceError } = await db
     .from('signal_evidence')
     .select('signal_id, quote')
@@ -91,7 +132,7 @@ export async function loadSignals(
     if (!quoteFor.has(row.signal_id)) quoteFor.set(row.signal_id, row.quote);
   }
 
-  return rows.map((row) => ({
+  return usable.map((row) => ({
     id: row.id,
     conversationId: row.conversation_id,
     kind: row.kind,

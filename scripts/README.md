@@ -85,3 +85,24 @@ have re-scored. Publish the next version instead.
 
 `--list` shows what exists, `--show <type>` prints a set in full, `--dry-run`
 validates without writing.
+
+## `pnpm insights --company <uuid>`
+
+Clusters a company's signals through the guarded retrieval path, asks T3
+whether each cluster is one finding, and writes those that are.
+
+Signals that already back an insight are left out, so running this twice does
+not write the same finding twice. Clustering is deterministic over unchanged
+data: without the exclusion a second run re-derives a finding that exists,
+pays for the same Opus call, and leaves a person two near-identical insights
+to approve.
+
+The tradeoff, stated plainly: a new signal that belongs to an existing insight
+does not join it — it waits until enough new signals accumulate to cluster on
+their own. Growing an insight means re-opening a claim somebody may already
+have approved and raised a ticket from, which is a larger decision than a
+batch script should make on its own.
+
+`--resynthesise` includes cited signals, which is what you want after changing
+the synthesis prompt and nothing else. `--dry-run` clusters and prints without
+calling a model or writing anything.

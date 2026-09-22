@@ -9,6 +9,10 @@
  * --dry-run clusters and prints without calling a model or writing anything,
  * which is how you check whether a corpus has enough overlap to be worth
  * spending on.
+ *
+ * Signals that already back an insight are skipped, so running this twice
+ * does not write the same finding twice. --resynthesise includes them, which
+ * is what you want after changing the synthesis prompt and nothing else.
  */
 import Anthropic from '@anthropic-ai/sdk';
 import {
@@ -28,13 +32,21 @@ import { createServiceClient } from '@tesserafy/db';
 interface Args {
   company: string;
   dryRun: boolean;
+  resynthesise: boolean;
   write: boolean;
   minSignals: number;
   minConversations: number;
 }
 
 function parseArgs(argv: readonly string[]): Args {
-  const args: Args = { company: '', dryRun: false, write: true, minSignals: 3, minConversations: 2 };
+  const args: Args = {
+    company: '',
+    dryRun: false,
+    resynthesise: false,
+    write: true,
+    minSignals: 3,
+    minConversations: 2,
+  };
 
   for (let i = 0; i < argv.length; i++) {
     switch (argv[i]) {
@@ -46,6 +58,10 @@ function parseArgs(argv: readonly string[]): Args {
         break;
       case '--min-conversations':
         args.minConversations = Number(argv[++i] ?? usage('--min-conversations needs a number'));
+        break;
+      case '--resynthesise':
+      case '--resynthesize':
+        args.resynthesise = true;
         break;
       case '--dry-run':
         args.dryRun = true;
@@ -107,7 +123,12 @@ async function main(): Promise<void> {
     model: process.env['EMBED_MODEL'] ?? 'nomic-embed-text',
   });
 
-  const signals = await loadSignals(companyId, db);
+  // Signals already cited by an insight are left out unless this is a
+  // deliberate re-synthesis. Clustering is deterministic over unchanged data,
+  // so including them means re-deriving a finding that exists, paying for the
+  // Opus call again, and leaving somebody two near-identical insights to
+  // approve.
+  const signals = await loadSignals(companyId, db, { includeCited: args.resynthesise });
   console.info(`${signals.length} signal(s) across ${new Set(signals.map((s) => s.conversationId)).size} conversation(s)`);
   if (signals.length === 0) return;
 

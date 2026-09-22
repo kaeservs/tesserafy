@@ -1,8 +1,15 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { NavLink } from '@/components/nav-link';
 import { createClient } from '@/lib/supabase/server';
 
+/**
+ * The shell every signed-in page sits in.
+ *
+ * The header is sticky because the nav is how you get from a meeting to the
+ * insight it fed, and scrolling back up a long transcript to reach it is
+ * friction on the one journey this product is about.
+ */
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient();
   const {
@@ -16,11 +23,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   return (
     <>
       <header className="app-header">
-        <nav className="toolbar">
-          <strong>Tesserafy</strong>
-          <Link href="/conversations">Conversations</Link>
-          <Link href="/insights">Insights</Link>
-          <Link href="/live/mic">Live</Link>
+        <nav className="nav" aria-label="Sections">
+          <span className="brand">Tesserafy</span>
+          <NavLink href="/dashboard">Dashboard</NavLink>
+          <NavLink href="/conversations">Meetings</NavLink>
+          <NavLink href="/insights">Insights</NavLink>
+          <NavLink href="/live/mic">Live</NavLink>
         </nav>
         <form action="/auth/sign-out" method="post" className="toolbar">
           <span className="muted">{user.email}</span>

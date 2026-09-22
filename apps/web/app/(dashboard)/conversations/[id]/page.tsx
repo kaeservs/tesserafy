@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { clock, splitByHighlights } from '@/lib/highlight';
+import { scoreConversation, type ScorableConversation } from '@/lib/scorecard';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -47,11 +48,19 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
 
   const { data: conversation } = await supabase
     .from('conversations')
-    .select('id, title, occurred_at')
+    .select('id, title, occurred_at, engagement_type, criteria_version')
     .eq('id', id)
     .maybeSingle();
 
   if (!conversation) notFound();
+
+  // Computed on read from the quoted spans in criterion_events, by the same
+  // two pure functions the live overlay runs. Nothing stored is a score
+  // (invariant 1), so this page and a call happening right now cannot
+  // disagree about what the evidence adds up to.
+  const scored = await scoreConversation(supabase, conversation as ScorableConversation);
+  const card = scored.scorecard;
+  const observed = card.criteria.some((criterion) => criterion.status !== 'unobserved');
 
   const [segmentsResult, signalsResult, evidenceResult] = await Promise.all([
     supabase.from('segments').select('id, speaker, start_ms, text').eq('conversation_id', id).order('start_ms'),
@@ -99,8 +108,58 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
       </p>
       <p className="muted">
         {occurredAt ? new Date(occurredAt).toLocaleDateString('en-GB') : 'Date unknown'} ·{' '}
-        {segments.length} segments · {signals.length} signals
+        {segments.length} segments · {signals.length} signals · {scored.engagementType} v
+        {scored.criteriaVersion}
       </p>
+
+      <section aria-labelledby="scorecard-heading">
+        <h2 id="scorecard-heading">Scorecard</h2>
+        {!observed ? (
+          <p className="muted">
+            Not scored yet — which is not the same as scoring zero. Run{' '}
+            <code>pnpm score --conversation {id}</code> to detect criteria over this transcript.
+          </p>
+        ) : (
+          <>
+            <p>
+              <span className="score">{Math.round(card.score)}</span>
+              <span className="score-unit">
+                {' '}
+                / 100 · {card.earnedWeight} of {card.totalWeight} confirmed
+              </span>
+            </p>
+            <ul className="signals">
+              {card.criteria.map((criterion) => (
+                <li key={criterion.key} className="signal">
+                  <div className="criterion">
+                    <span>{criterion.label}</span>
+                    <span className={`state state-${criterion.status}`}>{criterion.status}</span>
+                  </div>
+                  {/* Every state above rests on something somebody said, and
+                      the quote is a link to where they said it — invariant 4
+                      is not a claim this page makes, it is one it shows. */}
+                  {criterion.evidence.length > 0 && (
+                    <ul className="evidence">
+                      {criterion.evidence.map((recorded) => (
+                        <li key={`${recorded.span.segmentId}-${recorded.seq}`}>
+                          <a href={`#segment-${recorded.span.segmentId}`}>
+                            “{recorded.span.quote}”{' '}
+                            <span className="muted">at {clock(recorded.span.startMs)}</span>
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <p className="muted" style={{ fontSize: '0.82rem' }}>
+              Computed from {scored.detectors.join(', ') || 'no detector'} · the score is not
+              stored, it is derived from the quotes above each time this page loads.
+            </p>
+          </>
+        )}
+      </section>
 
       <section aria-labelledby="signals-heading">
         <h2 id="signals-heading">Signals</h2>

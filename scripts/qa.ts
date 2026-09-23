@@ -13,8 +13,13 @@
  * docs/engineering/qa-checklist.md, and the point of this script is to leave a
  * human session for exactly those.
  *
- * Read-only apart from one thing: it mints a session for the probe account
- * through the admin API, the same way scripts/measure-t1.ts does.
+ * It writes, in one place and on purpose. The live-capture routes cannot be
+ * checked by reading: there is nothing there until something creates it, and
+ * a break in them means a customer's call is silently not recorded, which is
+ * the failure least likely to be noticed and worst to discover late. So the
+ * check creates a conversation, writes an utterance and an observation to it,
+ * and erases the whole thing again in a finally. Everything else is reads,
+ * plus a session minted for the probe account through the admin API.
  */
 import { createServiceClient, fetchCriteria, fetchCriterionEvents } from '@tesserafy/db';
 import { defineCriteriaSet, replay, score, type DetectorEvent } from '@tesserafy/scoring';
@@ -222,7 +227,11 @@ async function main(): Promise<void> {
       suggestBody.suggestion ? `“${suggestBody.suggestion.because}”` : 'nothing suggested',
     );
 
+    await checkLiveCapture(baseUrl, token);
   }
+
+  console.info('\nSearch');
+  await checkSearch(supabaseUrl, serviceKey, token);
 
   console.info('\nData invariants');
   const db = createServiceClient({ url: supabaseUrl, key: serviceKey });
@@ -400,6 +409,181 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 }
+
+
+/**
+ * The one write path, end to end, then erased.
+ *
+ * Exactly what the overlay does: start a session, append an utterance, record
+ * an observation about it. Through a bearer token rather than cookies,
+ * because that is the overlay's route through caller() and the one the web
+ * app never exercises.
+ *
+ * The refusals matter more than the acceptances. A paraphrase that got stored
+ * would be a quote nobody said, which is the single thing this product may
+ * never do, and it is enforced in the database rather than here — so checking
+ * it against the deployed system is the only check that means anything.
+ */
+async function checkLiveCapture(baseUrl: string, token: string): Promise<void> {
+  const headers = {
+    authorization: `Bearer ${token}`,
+    'content-type': 'application/json',
+  };
+  const post = (path: string, body: unknown) =>
+    fetch(new URL(path, baseUrl), { method: 'POST', headers, body: JSON.stringify(body) });
+
+  let conversationId: string | null = null;
+
+  try {
+    const started = await post('/api/live/sessions', { title: 'QA PROBE — erased immediately' });
+    const startedBody = (await started.json()) as { conversationId?: string; error?: string };
+    conversationId = startedBody.conversationId ?? null;
+    record(
+      'POST /api/live/sessions starts a call',
+      started.ok && Boolean(conversationId),
+      startedBody.error ?? (conversationId ? 'created' : 'no id returned'),
+    );
+    if (!conversationId) return;
+
+    const text = 'We reconcile the ledger by hand every month and it takes two days.';
+    const appended = await post(`/api/live/sessions/${conversationId}/segments`, {
+      speaker: 'customer',
+      startMs: 1000,
+      endMs: 9000,
+      text,
+    });
+    const appendedBody = (await appended.json()) as { segmentId?: string; error?: string };
+    record(
+      'POST .../segments keeps an utterance',
+      appended.ok && Boolean(appendedBody.segmentId),
+      appendedBody.error ?? 'stored',
+    );
+    if (!appendedBody.segmentId) return;
+
+    const evidence = (quote: string) => ({
+      events: [
+        {
+          criterionKey: 'pain_quantified',
+          kind: 'evidence',
+          confidence: 0.9,
+          segmentId: appendedBody.segmentId,
+          quote,
+          detector: 'qa-probe',
+          model: 'qa-probe',
+        },
+      ],
+    });
+
+    const verbatim = await post(
+      `/api/live/sessions/${conversationId}/events`,
+      evidence('takes two days'),
+    );
+    const verbatimBody = (await verbatim.json()) as { recorded?: number; rejected?: number };
+    record(
+      'a verbatim quote is recorded',
+      verbatim.ok && verbatimBody.recorded === 1,
+      `recorded ${verbatimBody.recorded}, rejected ${verbatimBody.rejected}`,
+    );
+
+    const paraphrase = await post(
+      `/api/live/sessions/${conversationId}/events`,
+      evidence('wastes two whole days'),
+    );
+    const paraphraseBody = (await paraphrase.json()) as { recorded?: number; rejected?: number };
+    record(
+      'a paraphrase is refused',
+      paraphrase.ok && paraphraseBody.recorded === 0 && paraphraseBody.rejected === 1,
+      `recorded ${paraphraseBody.recorded}, rejected ${paraphraseBody.rejected}`,
+    );
+
+    const unauthenticated = await fetch(
+      new URL(`/api/live/sessions/${conversationId}/events`, baseUrl),
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ events: [] }),
+      },
+    );
+    record(
+      'writing without credentials is refused',
+      unauthenticated.status === 401,
+      `${unauthenticated.status}`,
+    );
+  } finally {
+    // In a finally because a probe conversation left behind is worse than a
+    // failed check: it would appear on somebody's dashboard as a meeting.
+    if (conversationId) {
+      const { error } = await createServiceClient({
+        url: requireEnv('SUPABASE_URL'),
+        key: requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
+      }).rpc('erase_conversation', { p_conversation_id: conversationId, p_reason: 'operator' });
+      record('the probe conversation is erased', !error, error ? error.message : 'gone');
+    }
+  }
+}
+
+/**
+ * Search, and the thing about it that could go wrong quietly.
+ *
+ * search_segments() is SECURITY INVOKER so that RLS does the tenant scoping.
+ * That is a one-word difference from a function that would return every
+ * company's transcripts to anybody who asked, and nothing about the page
+ * would look different if it were wrong. So the check is not that search
+ * works; it is that the same query returns fewer rows to a member than to the
+ * service role.
+ */
+async function checkSearch(
+  supabaseUrl: string,
+  serviceKey: string,
+  token: string | null,
+): Promise<void> {
+  const publishableKey = process.env['SUPABASE_PUBLISHABLE_KEY'] ?? null;
+
+  const search = async (key: string, bearer: string) => {
+    const response = await fetch(new URL('/rest/v1/rpc/search_segments', supabaseUrl), {
+      method: 'POST',
+      headers: {
+        apikey: key,
+        authorization: `Bearer ${bearer}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ p_query: 'report', p_limit: 200 }),
+    });
+    if (!response.ok) return null;
+    return (await response.json()) as { segment_id: string; headline: string }[];
+  };
+
+  const operator = await search(serviceKey, serviceKey);
+  record(
+    'search finds segments',
+    (operator?.length ?? 0) > 0,
+    `${operator?.length ?? 0} across every tenant`,
+  );
+
+  const highlighted = operator?.some((hit) => hit.headline.includes('[[hl]]')) ?? false;
+  record(
+    'search marks the words it matched',
+    highlighted,
+    highlighted ? 'delimiters present' : 'no highlight markers',
+  );
+
+  if (!token || !publishableKey) {
+    record(
+      'search is scoped to the caller',
+      true,
+      'skipped — set SUPABASE_PUBLISHABLE_KEY to compare a member against the operator',
+    );
+    return;
+  }
+
+  const member = await search(publishableKey, token);
+  record(
+    'search is scoped to the caller',
+    member !== null && operator !== null && member.length < operator.length,
+    `member sees ${member?.length ?? 0} of ${operator?.length ?? 0}`,
+  );
+}
+
 
 main().catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : error);

@@ -53,17 +53,21 @@ T1 runs server-side, not from the client: measurement put the network cost of
 calling from a laptop at ~840 ms of a budget the model alone already exceeds
 (ADR 0010).
 
-Every tier runs at `temperature: 0`. Nothing set one until it was measured:
+T1 runs at `temperature: 0`; T2 and T3 send no temperature at all, because
+`claude-sonnet-5` and `claude-opus-5` deprecate the parameter and reject a
+request carrying it. Pinning it everywhere on the strength of a T1 measurement
+took `/api/suggest`, extraction and synthesis down at once, and only a smoke
+check found it. Nothing set one until it was measured:
 eight runs over a single identical window produced five distinct results and
 three different sets of criteria, one of them empty, and the same three
 conversations scored 45 and 18 on consecutive trials. Extraction against a
 fixed schema has nothing to gain from sampling. Overridable per call so a
 spike can vary it deliberately.
 
-It reduces variance rather than removing it. Four repeats of the criterion
-eval scored 81/81/81/79, with the movement landing entirely on the one
-criterion nearest a judgement call. Quote a range, not a figure, and treat two
-or three points between single runs as nothing.
+It reduces variance rather than removing it, and that was measured on T1
+only. Four repeats of the criterion eval scored 81/81/81/79, with the movement
+landing entirely on the one criterion nearest a judgement call. Quote a range,
+not a figure, and treat two or three points between single runs as nothing.
 
 Log `response.usage` on every API call. Cost telemetry added later cannot be
 backfilled.

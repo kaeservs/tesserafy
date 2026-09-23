@@ -26,7 +26,13 @@ export interface SynthesiseOptions {
   readonly minSignals?: number;
   /** Distinct conversations it must still span. Default 2. */
   readonly minConversations?: number;
-  /** Sampling temperature. Zero by default — see DetectOptions. */
+  /**
+   * Sampling temperature. Sent only when set.
+   *
+   * Not defaulted to zero the way T1 is. This tier runs on a model that
+   * deprecates the parameter and rejects the whole request for carrying
+   * it, which is how pinning it everywhere took three tiers down at once.
+   */
   readonly temperature?: number;
 }
 
@@ -81,7 +87,7 @@ export async function synthesiseInsight(
   const response = await opts.client.messages.parse({
     model,
     max_tokens: opts.maxTokens ?? 16_000,
-    temperature: opts.temperature ?? 0,
+    ...(opts.temperature === undefined ? {} : { temperature: opts.temperature }),
     system: SYSTEM,
     messages: [{ role: 'user', content: renderCluster(cluster) }],
     output_config: { format: zodOutputFormat(InsightSchema) },

@@ -170,3 +170,26 @@ describe('suggestNext', () => {
     );
   });
 });
+
+describe('sampling', () => {
+  const fresh = score(initialState(CRITERIA));
+
+  it('sends no temperature by default', async () => {
+    // claude-sonnet-5 deprecates the parameter and rejects the whole request
+    // for carrying it. Pinning it here on the strength of a T1 measurement
+    // took /api/suggest down in production until a smoke check found it.
+    const { client, parse } = fakeClient(suggestion());
+
+    await suggestNext(fresh, WINDOW, { client, onUsage: () => {} });
+
+    expect(parse.mock.calls[0]![0]!).not.toHaveProperty('temperature');
+  });
+
+  it('sends one when a caller asks', async () => {
+    const { client, parse } = fakeClient(suggestion());
+
+    await suggestNext(fresh, WINDOW, { client, temperature: 0.4, onUsage: () => {} });
+
+    expect(parse.mock.calls[0]![0]!['temperature']).toBe(0.4);
+  });
+});

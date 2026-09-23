@@ -3,8 +3,10 @@
 ## What this is
 
 An AI conversation intelligence platform: conversations become evidence-backed
-product insights. Two surfaces — a Next.js web app and an Electron desktop HUD
-that overlays live meetings with a real-time engagement scorecard.
+product insights. Two customer surfaces — a Next.js web app and an Electron
+desktop HUD that overlays live meetings with a real-time engagement scorecard —
+plus `apps/admin`, an internal operator console deployed separately because it
+holds the service-role key and the customer app must never.
 
 This project is also a deliberate AI-engineering apprenticeship. For decisions
 that are architecturally meaningful, explain the problem, the options, the
@@ -22,14 +24,20 @@ Do not break these without an ADR that supersedes the existing one.
    Absence of evidence never demotes a confirmed criterion; only an explicit
    contradiction detector can, and that is recorded as an event. This is what
    stops the live score flickering.
-3. **Every retrieval is tenant-scoped.** Exactly one `retrieve()` in
+3. **Only `apps/admin` may hold the service-role key.** The guard lists the
+   apps allowed to name `SUPABASE_SERVICE_ROLE_KEY` or `createServiceClient`,
+   and every other app under `apps/` fails CI for doing so. The console is a
+   separate deployment for exactly this reason, and it uses the key for one
+   thing: minting a session for a user whose account an operator has recorded a
+   reason for opening. Everything an operator reads goes through RLS as them.
+4. **Every retrieval is tenant-scoped.** Exactly one `retrieve()` in
    `packages/ai` may construct a vector query, and `companyId` is its required
    first argument. The AI pipeline runs with a service-role key that bypasses
    RLS, so this function — not RLS — is the real control. Its cross-tenant test
    must stay green.
-4. **No insight without evidence.** Every signal, criterion state and insight
+5. **No insight without evidence.** Every signal, criterion state and insight
    links to a quoted span with a timestamp.
-5. **`packages/scoring` has zero runtime dependencies.** It is imported by both
+6. **`packages/scoring` has zero runtime dependencies.** It is imported by both
    the web app and the Electron overlay and must test without a network.
 
 ## Model routing
@@ -101,6 +109,7 @@ meeting content.
 
     pnpm install
     pnpm dev          # web app
+    pnpm --filter @tesserafy/admin dev   # operator console, port 3001
     pnpm test         # all workspaces, unit only, no network
     pnpm typecheck
     pnpm lint       # eslint, type-aware rules; see tools/lint

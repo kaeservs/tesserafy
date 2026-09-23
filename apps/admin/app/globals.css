@@ -1,0 +1,225 @@
+/*
+ * The console does not look like the product, on purpose.
+ *
+ * Somebody who can open anyone's account should never be one glance away from
+ * thinking they are in the customer app. So this is dark where the product is
+ * light, and the header band is the colour of a warning rather than a brand.
+ * That is the whole design brief: legible, dense, and obviously not the thing
+ * customers see.
+ */
+
+:root {
+  --bg: #12141a;
+  --panel: #191c24;
+  --line: #2a2f3a;
+  --text: #e7e9ee;
+  --muted: #9aa3b2;
+  --warn: #d9534f;
+  --warn-dim: #3a1f1f;
+  --ok: #4c9a6a;
+  --radius: 6px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* The band that says where you are. Present on every page, unmissable. */
+.band {
+  background: var(--warn-dim);
+  border-bottom: 1px solid var(--warn);
+  padding: 0.5rem 1.25rem;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.band strong {
+  color: var(--warn);
+}
+
+nav {
+  display: flex;
+  gap: 1.25rem;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+  align-items: center;
+}
+
+nav a {
+  color: var(--muted);
+  text-decoration: none;
+  padding-bottom: 2px;
+}
+
+nav a:hover {
+  color: var(--text);
+}
+
+nav .spacer {
+  margin-left: auto;
+}
+
+main {
+  padding: 1.5rem 1.25rem 4rem;
+  max-width: 1100px;
+}
+
+h1 {
+  font-size: 1.15rem;
+  margin: 0 0 0.35rem;
+}
+
+h2 {
+  font-size: 0.95rem;
+  margin: 2rem 0 0.5rem;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.lede {
+  color: var(--muted);
+  margin: 0 0 1.5rem;
+  max-width: 62ch;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+}
+
+td {
+  padding: 0.6rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+tbody tr:hover {
+  background: var(--panel);
+}
+
+.num {
+  text-align: right;
+}
+
+.tag {
+  display: inline-block;
+  font-size: 0.72rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.tag.admin {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.tag.open {
+  border-color: var(--warn);
+  color: var(--warn);
+  background: var(--warn-dim);
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem 1.15rem;
+  margin: 1rem 0;
+}
+
+label {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+
+input,
+select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.45rem 0.55rem;
+  font: inherit;
+  width: 100%;
+}
+
+button {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.45rem 0.8rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--muted);
+}
+
+button.danger {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.row {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.row > * {
+  flex: 1 1 12rem;
+}
+
+.row > .narrow {
+  flex: 0 0 7rem;
+}
+
+.row > .go {
+  flex: 0 0 auto;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+  word-break: break-all;
+}
+
+a.link {
+  color: #7aa2f7;
+}

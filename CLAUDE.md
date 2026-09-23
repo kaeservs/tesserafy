@@ -71,7 +71,7 @@ backfilled.
     pnpm process --conversation <uuid> --dry-run  # say what it would cost, spend nothing
     pnpm criteria --list                     # criteria sets that exist
     pnpm criteria --add <file.json>          # publish a new engagement type or version
-    pnpm criteria --try <file.json> --conversation <uuid>   # run a candidate set, write nothing
+    pnpm criteria --try <file.json> --company <uuid> [--sample 5]  # try a set, write nothing
     pnpm erase --conversation <uuid>         # erase a meeting and everything derived from it
     pnpm erase --company <uuid> --retention 90   # set a retention period
     pnpm erase --purge                       # erase everything past its retention

@@ -129,3 +129,25 @@ live path would see rather than what an invented example invites. The calls
 are recorded in `model_usage` like any other: a trial costs money, and
 telemetry that skipped the experiments would understate what getting a
 criteria set right actually took.
+
+Several conversations by default, because one is the wrong number. A
+definition tuned until one transcript lights up has learned that transcript.
+`--company <uuid> [--sample 5]` runs the set across recent calls and reports,
+per criterion, in how many it confirmed — which is the question that matters.
+`--conversation <uuid>` still does one.
+
+It says what it was tried against. A renewal set run over discovery calls
+tells you how the wording behaves on the wrong material: a criterion that
+never fires may be perfectly right, and one that fires everywhere is probably
+matching something it was not meant to. Neither reading is safe without
+knowing what the sample was, so the engagement type of each conversation is
+printed and a mismatch is called out.
+
+Two things to keep in mind when reading a run. The detector is not
+deterministic — the same set over the same three conversations produced scores
+of 45 and 18 for one of them across two runs — so treat a single number as an
+indication and a pattern across conversations as the finding. And a criterion
+confirming everywhere is as much a signal as one confirming nowhere: on
+discovery calls, a renewal set's "value realised" confirmed against a
+description of current manual work, which is a false positive the single
+conversation view could not have shown.

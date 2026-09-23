@@ -229,7 +229,11 @@ describe('storeTranscript', () => {
     await expect(storeTranscript('nope' as never, input, { db })).rejects.toThrow(TypeError);
   });
 
-  it('passes the source key through, and null when there is none', async () => {
+  it('passes the source key through, and imports without one', async () => {
+    // A transcript that came from a file has a source key, which is what makes
+    // a re-import detectable. One typed in by hand has none, and must still
+    // import: the argument is left out, the function's own default stands, and
+    // the row is identical to the one an explicit null produced.
     const { db, rpc } = fakeDb();
 
     await storeTranscript(A, { ...input, sourceKey: 'calls/acme.vtt' }, { db });
@@ -237,7 +241,7 @@ describe('storeTranscript', () => {
 
     const args = rpc.mock.calls.map((call) => (call as unknown as [string, IngestArgs])[1]);
     expect(args[0]?.p_source_key).toBe('calls/acme.vtt');
-    expect(args[1]?.p_source_key).toBeNull();
+    expect(args[1] && 'p_source_key' in args[1]).toBe(false);
   });
 
   it('reports a re-import as a duplicate, not a failure', async () => {

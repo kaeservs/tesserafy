@@ -66,7 +66,10 @@ async function eraseOne(db: SupabaseClient, id: string, reason: string): Promise
     p_reason: reason,
   });
   if (error) throw new Error(`erasing ${id} failed: ${error.message}`);
-  report(data as ErasureSummary);
+  // The function returns jsonb, so the generated type is Json and the shape
+  // is this script's own reading of it. Through unknown, because a cast that
+  // tsc cannot follow should look like the assertion it is.
+  report(data as unknown as ErasureSummary);
 }
 
 async function setRetention(db: SupabaseClient, companyId: string, days: number): Promise<void> {
@@ -83,7 +86,9 @@ async function setRetention(db: SupabaseClient, companyId: string, days: number)
 
 async function purge(db: SupabaseClient, companyId: string | undefined): Promise<void> {
   const { data, error } = await db.rpc('purge_expired_conversations', {
-    p_company_id: companyId ?? null,
+    // Omitted rather than null: the function reads it as "every company I am
+    // allowed to purge", which is what an operator running --purge means.
+    ...(companyId ? { p_company_id: companyId } : {}),
     p_limit: 500,
   });
   if (error) throw new Error(`purge failed: ${error.message}`);

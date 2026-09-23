@@ -94,12 +94,7 @@ export async function loadSignals(
     .eq('company_id', companyId);
   if (error) throw new Error(`Loading signals failed: ${error.message}`, { cause: error });
 
-  const rows = (signals ?? []) as {
-    id: string;
-    conversation_id: string;
-    kind: string;
-    summary: string;
-  }[];
+  const rows = (signals ?? []);
   if (rows.length === 0) return [];
 
   let cited = new Set<string>();
@@ -113,7 +108,7 @@ export async function loadSignals(
         cause: citedError,
       });
     }
-    cited = new Set(((citations ?? []) as { signal_id: string }[]).map((row) => row.signal_id));
+    cited = new Set(((citations ?? [])).map((row) => row.signal_id));
   }
 
   const usable = rows.filter((row) => !cited.has(row.id));
@@ -128,7 +123,7 @@ export async function loadSignals(
   }
 
   const quoteFor = new Map<string, string>();
-  for (const row of (evidence ?? []) as { signal_id: string; quote: string }[]) {
+  for (const row of (evidence ?? [])) {
     if (!quoteFor.has(row.signal_id)) quoteFor.set(row.signal_id, row.quote);
   }
 
@@ -218,5 +213,5 @@ async function signalsCiting(
     .in('segment_id', [...segmentIds]);
   if (error) throw new Error(`Loading citing signals failed: ${error.message}`, { cause: error });
 
-  return [...new Set(((data ?? []) as { signal_id: string }[]).map((row) => row.signal_id))];
+  return [...new Set(((data ?? [])).map((row) => row.signal_id))];
 }

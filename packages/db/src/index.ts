@@ -1,6 +1,11 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from './client';
+import type { Database } from './generated';
 
-export type { SupabaseClient };
+export type { SupabaseClient } from './client';
+export { vectorArg } from './vector';
+export type { Database };
+export type { Json, Tables, TablesInsert, TablesUpdate } from './generated';
 
 export interface SupabaseConnection {
   url: string;
@@ -17,7 +22,7 @@ export function createServiceClient({ url, key }: SupabaseConnection): SupabaseC
   if (typeof (globalThis as { window?: unknown }).window !== 'undefined') {
     throw new Error('createServiceClient() must never run in a browser.');
   }
-  return createClient(url, key, {
+  return createClient<Database>(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
@@ -27,7 +32,7 @@ export function createServiceClient({ url, key }: SupabaseConnection): SupabaseC
  * decided by RLS and whichever user signs in on it.
  */
 export function createUserClient({ url, key }: SupabaseConnection): SupabaseClient {
-  return createClient(url, key, {
+  return createClient<Database>(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }

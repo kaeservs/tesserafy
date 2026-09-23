@@ -39,7 +39,7 @@ export default async function InsightsPage() {
   const insights = (insightsResult.data ?? []) as InsightRow[];
   const evidence = (evidenceResult.data ?? []) as EvidenceRow[];
   const conversationOf = new Map(
-    ((signalsResult.data ?? []) as { id: string; conversation_id: string }[]).map((row) => [
+    ((signalsResult.data ?? [])).map((row) => [
       row.id,
       row.conversation_id,
     ]),

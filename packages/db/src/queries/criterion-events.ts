@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '../client';
 
 /**
  * Reading the detector events a past conversation's scorecard is replayed

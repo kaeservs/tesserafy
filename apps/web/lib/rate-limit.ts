@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@tesserafy/db';
 import { NextResponse } from 'next/server';
 
 /**
@@ -88,7 +88,10 @@ export async function allowance(
 
   const { data, error } = await db.rpc('take_rate_limit_tokens', {
     p_bucket: bucket,
-    p_windows: windows,
+    // Copied into plain objects rather than cast: what crosses the wire is
+    // JSON, and `readonly Window[]` is a promise about this file, not about
+    // the request body.
+    p_windows: windows.map((window) => ({ seconds: window.seconds, limit: window.limit })),
   });
 
   if (error) {

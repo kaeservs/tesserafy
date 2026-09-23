@@ -32,7 +32,7 @@
     "e2e": "playwright test",
     "smoke:tiers": "tsx scripts/smoke-tiers.ts",
     "costs": "tsx scripts/costs.ts",
-    "db:types": "supabase gen types typescript --local > packages/db/src/generated.ts"
+    "db:types": "tsx scripts/db-types.ts"
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.126.0",

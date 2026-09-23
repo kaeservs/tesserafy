@@ -6,7 +6,7 @@
  * customer's prompts. It is the only code permitted to run a similarity or
  * evidence search — scripts/check-retrieval-guard.mjs fails CI otherwise.
  */
-import type { SupabaseClient } from '@tesserafy/db';
+import { vectorArg, type SupabaseClient } from '@tesserafy/db';
 import { assertEmbedding, type Embedder } from '../providers/embedder';
 import { isCompanyId, type CompanyId } from './company-id';
 
@@ -76,7 +76,7 @@ export async function retrieve(
 
   const { data, error } = await opts.db.rpc('match_segments', {
     p_company_id: companyId,
-    p_query_embedding: embedding,
+    p_query_embedding: vectorArg(embedding),
     p_match_count: limit,
     p_min_similarity: minSimilarity,
   });

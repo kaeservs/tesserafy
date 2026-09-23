@@ -64,7 +64,7 @@ export default async function SearchPage({
       .from('conversations')
       .select('id, title')
       .in('id', conversationIds);
-    for (const row of (data ?? []) as { id: string; title: string }[]) {
+    for (const row of (data ?? [])) {
       titles.set(row.id, row.title);
     }
   }

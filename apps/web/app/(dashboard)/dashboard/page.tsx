@@ -60,8 +60,8 @@ export default async function DashboardPage() {
   if (failure) throw new Error(`Could not load the dashboard: ${failure.message}`);
 
   const conversations = (conversationsResult.data ?? []) as ConversationRow[];
-  const signals = (signalsResult.data ?? []) as { id: string }[];
-  const insights = (insightsResult.data ?? []) as { id: string; status: string }[];
+  const signals = (signalsResult.data ?? []);
+  const insights = (insightsResult.data ?? []);
 
   const scores = await scoreConversations(supabase, conversations as ScorableConversation[]);
 

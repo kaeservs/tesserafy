@@ -110,10 +110,11 @@ export async function POST(request: NextRequest) {
       endMs: segment.endMs,
       text: segment.text,
     })),
-    p_occurred_at: occurredAt ? new Date(occurredAt).toISOString() : null,
+    ...(occurredAt ? { p_occurred_at: new Date(occurredAt).toISOString() } : {}),
     p_engagement_type: engagementType,
     p_criteria_version: Number.isInteger(criteriaVersion) ? criteriaVersion : 1,
-    p_company_id: null,
+    // No company named: the function resolves the caller's own. A browser has
+    // no business choosing which tenant a transcript lands in.
   });
 
   if (error) {

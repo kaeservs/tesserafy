@@ -6,7 +6,7 @@
  * companies the same quote with the same embedding: without the tenant filter,
  * company B's copy would tie for first place.
  */
-import { createServiceClient } from '@tesserafy/db';
+import { createServiceClient, vectorArg } from '@tesserafy/db';
 import { requireIntegrationEnv, SEED, sharedQuoteEmbedding } from '@tesserafy/db/testing';
 import { describe, expect, it } from 'vitest';
 import { retrieve, toCompanyId } from '../src/index';
@@ -78,8 +78,12 @@ describe('retrieve() across tenants', () => {
 
   it('match_segments rejects a null company id at the database, too', async () => {
     const { error } = await db.rpc('match_segments', {
-      p_company_id: null,
-      p_query_embedding: sharedQuoteEmbedding(),
+      // Deliberately the thing the type forbids. The point of this test is
+      // that the database refuses it too: a type is a promise about the code
+      // we wrote, and the tenancy boundary cannot rest on a promise that a
+      // cast, a plain JavaScript caller or a hand-made request can break.
+      p_company_id: null as unknown as string,
+      p_query_embedding: vectorArg(sharedQuoteEmbedding()),
       p_match_count: 10,
       p_min_similarity: 0,
     });

@@ -6,7 +6,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createServiceClient, createUserClient, type SupabaseClient } from '../src/index';
+import { createServiceClient, createUserClient, vectorArg, type SupabaseClient } from '../src/index';
 import { requireIntegrationEnv, SEED, sharedQuoteEmbedding } from '../src/testing';
 
 const env = requireIntegrationEnv();
@@ -96,7 +96,7 @@ describe('RLS: member of company A', () => {
   it('cannot call match_segments, even for its own company', async () => {
     const { data, error } = await userA.rpc('match_segments', {
       p_company_id: SEED.companyA.id,
-      p_query_embedding: sharedQuoteEmbedding(),
+      p_query_embedding: vectorArg(sharedQuoteEmbedding()),
       p_match_count: 10,
       p_min_similarity: 0,
     });

@@ -58,7 +58,7 @@ export default async function InsightPage({ params }: { params: Promise<{ id: st
     .eq('insight_id', id);
   if (citationsError) throw new Error(`Could not load citations: ${citationsError.message}`);
 
-  const signalIds = ((citations ?? []) as { signal_id: string }[]).map((row) => row.signal_id);
+  const signalIds = ((citations ?? [])).map((row) => row.signal_id);
 
   const [signalsResult, evidenceResult] = await Promise.all([
     supabase.from('signals').select('id, conversation_id, kind, summary').in('id', signalIds),
@@ -80,12 +80,12 @@ export default async function InsightPage({ params }: { params: Promise<{ id: st
   ]);
 
   const conversations = new Map(
-    ((conversationsResult.data ?? []) as { id: string; title: string; occurred_at: string | null }[]).map(
+    ((conversationsResult.data ?? [])).map(
       (row) => [row.id, row],
     ),
   );
   const segments = new Map(
-    ((segmentsResult.data ?? []) as { id: string; start_ms: number; speaker: string | null }[]).map(
+    ((segmentsResult.data ?? [])).map(
       (row) => [row.id, row],
     ),
   );

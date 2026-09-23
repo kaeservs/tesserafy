@@ -29,7 +29,13 @@ export interface ExtractOptions {
   readonly maxTokens?: number;
   /** Defaults to the structured console logger. */
   readonly onUsage?: UsageSink;
-  /** Sampling temperature. Zero by default — see DetectOptions. */
+  /**
+   * Sampling temperature. Sent only when set.
+   *
+   * Not defaulted to zero the way T1 is. This tier runs on a model that
+   * deprecates the parameter and rejects the whole request for carrying
+   * it, which is how pinning it everywhere took three tiers down at once.
+   */
   readonly temperature?: number;
 }
 
@@ -91,7 +97,7 @@ export async function extractSignals(
   const response = await opts.client.messages.parse({
     model,
     max_tokens: opts.maxTokens ?? 16_000,
-    temperature: opts.temperature ?? 0,
+    ...(opts.temperature === undefined ? {} : { temperature: opts.temperature }),
     system: SYSTEM,
     messages: [{ role: 'user', content: renderTranscript(segments) }],
     output_config: { format: zodOutputFormat(ExtractionSchema) },

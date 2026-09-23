@@ -62,6 +62,11 @@ export interface DetectOptions {
    * of them empty. A live scorecard that changes because the model rolled
    * differently is not measuring the conversation.
    *
+   * That was measured on this tier and is true of this tier. T2 and T3 run on
+   * models that deprecate the parameter and reject a request carrying it, so
+   * they send it only when a caller asks. Pinning it everywhere on the
+   * strength of a T1 measurement broke all three of them.
+   *
    * Overridable so a spike can vary it deliberately, never so a caller can
    * drift into it by accident.
    */

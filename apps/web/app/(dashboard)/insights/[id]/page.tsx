@@ -113,7 +113,7 @@ export default async function InsightPage({ params }: { params: Promise<{ id: st
       <Decide
         insightId={id}
         status={status}
-        ticketUrl={(ticket as { url: string } | null)?.url ?? null}
+        ticketUrl={(ticket)?.url ?? null}
       />
 
       <section aria-labelledby="evidence-heading">

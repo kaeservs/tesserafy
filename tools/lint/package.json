@@ -1,0 +1,13 @@
+{
+  "name": "@tesserafy/lint",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Holds the linter and the TypeScript 6 compiler it needs. See eslint.config.js.",
+  "dependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.11.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "^8.70.1"
+  }
+}

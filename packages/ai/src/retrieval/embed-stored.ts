@@ -133,7 +133,7 @@ export async function embedStoredSegments(
     if (error) {
       throw new Error(`Writing embeddings failed: ${error.message}`, { cause: error });
     }
-    embedded += (data as number) ?? 0;
+    embedded += (data) ?? 0;
   }
 
   // A row the database declined is one whose segment does not belong to this

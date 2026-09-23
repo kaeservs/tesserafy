@@ -75,7 +75,7 @@ export async function writeSignals(
     throw new Error(`store_signals failed: ${error.message}`, { cause: error });
   }
 
-  const ids = Array.isArray(data) ? (data as string[]) : [];
+  const ids = Array.isArray(data) ? (data) : [];
   if (ids.length !== input.signals.length) {
     throw new Error(`Expected ${input.signals.length} signals to be written, got ${ids.length}`);
   }

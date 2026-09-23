@@ -71,5 +71,5 @@ const banner = `/**
  */
 `;
 
-writeFileSync(OUT, banner + generated.replace(/^﻿/, ''), 'utf8');
+writeFileSync(OUT, banner + generated.replace(/^\uFEFF/, ''), 'utf8');
 console.log(`db:types: wrote ${OUT} (${generated.split('\n').length} lines) from project ${projectId}`);

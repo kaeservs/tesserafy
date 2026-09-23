@@ -11,8 +11,21 @@ export interface LoginState {
   message?: string;
 }
 
+/**
+ * A text field, or nothing.
+ *
+ * `formData.get` returns `File | string | null`, and `String(aFile)` is the
+ * literal text "[object File]" — which is not an email address, not a
+ * username, and not a password, but is long enough to pass every check that
+ * only asks whether something was filled in.
+ */
+function text(formData: FormData, key: string): string {
+  const value = formData.get(key);
+  return typeof value === 'string' ? value : '';
+}
+
 export async function sendMagicLink(_prev: LoginState, formData: FormData): Promise<LoginState> {
-  const email = String(formData.get('email') ?? '').trim();
+  const email = text(formData, 'email').trim();
   if (!email.includes('@')) {
     return { status: 'error', message: 'Enter a valid email address.' };
   }
@@ -62,8 +75,8 @@ export async function signInWithPassword(
   _prev: LoginState,
   formData: FormData,
 ): Promise<LoginState> {
-  const identifier = String(formData.get('identifier') ?? '').trim();
-  const password = String(formData.get('password') ?? '');
+  const identifier = text(formData, 'identifier').trim();
+  const password = text(formData, 'password');
 
   if (identifier.length === 0 || password.length === 0) {
     return { status: 'error', message: 'Enter a username and a password.' };

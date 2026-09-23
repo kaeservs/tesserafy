@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
   const json = file.name.toLowerCase().endsWith('.json');
 
   let segments;
-  let parsedTitle: string | null = null;
+  let parsedTitle: string | null;
   try {
     const parsed = json ? parseTurns(JSON.parse(source)) : parseVtt(source);
     parsedTitle = parsed.title;
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({
-    conversationId: data as string,
+    conversationId: data,
     segments: clean.length,
     // Reported rather than silent: somebody uploading a transcript should
     // learn that it carried a phone number, not discover it later.

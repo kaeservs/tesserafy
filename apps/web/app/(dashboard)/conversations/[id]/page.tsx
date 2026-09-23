@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { clock, splitByHighlights } from '@/lib/highlight';
 import { Shortfall } from '@/components/criterion-shortfall';
 import { conversationPipeline, nextCommand, stageOf } from '@/lib/pipeline';
-import { scoreConversation, type ScorableConversation } from '@/lib/scorecard';
+import { scoreConversation } from '@/lib/scorecard';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -60,7 +60,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
   // two pure functions the live overlay runs. Nothing stored is a score
   // (invariant 1), so this page and a call happening right now cannot
   // disagree about what the evidence adds up to.
-  const scored = await scoreConversation(supabase, conversation as ScorableConversation);
+  const scored = await scoreConversation(supabase, conversation);
   const card = scored.scorecard;
   const pipeline = (await conversationPipeline(supabase)).get(id);
   const stage = stageOf(pipeline);

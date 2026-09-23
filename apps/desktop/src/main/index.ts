@@ -55,7 +55,9 @@ function createOverlay(): BrowserWindow {
   return window;
 }
 
-app.whenReady().then(() => {
+// `void`: nothing can await this, it is the top of the process. Marked so
+// that the next promise added here has to say what it does about failure.
+void app.whenReady().then(() => {
   overlay = createOverlay();
 
   ipcMain.handle('overlay:set-protection', (_event, enabled: boolean) => {

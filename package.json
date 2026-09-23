@@ -14,7 +14,7 @@
     "test": "pnpm -r test",
     "test:integration": "pnpm -r test:integration",
     "typecheck": "pnpm -r typecheck && tsc -p scripts/tsconfig.json && tsc -p tsconfig.e2e.json",
-    "lint": "pnpm -r lint",
+    "lint": "node tools/lint/node_modules/eslint/bin/eslint.js --config tools/lint/eslint.config.js .",
     "guard:retrieval": "node scripts/check-retrieval-guard.mjs",
     "ingest": "tsx scripts/ingest.ts",
     "ingest:batch": "tsx scripts/ingest-batch.ts",

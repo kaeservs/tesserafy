@@ -81,7 +81,7 @@ interface TokenResult {
  */
 export async function allowance(
   db: SupabaseClient,
-  bucket: keyof typeof LIMITS | string,
+  bucket: keyof typeof LIMITS  ,
 ): Promise<Allowance> {
   const windows = LIMITS[bucket];
   if (!windows) return { allowed: true, retryAfterSeconds: 0 };

@@ -109,6 +109,7 @@ meeting content.
     pnpm erase --purge                       # erase everything past its retention
     pnpm smoke:tiers                 # one real call per tier: does the API still accept it
     pnpm health [--hours 24]         # what has failed in production, and does it need a person
+    pnpm e2e                         # P1 in a browser: every quote verbatim in its segment
     pnpm exec supabase start         # local stack (needs Docker)
     pnpm exec supabase test db       # pgTAP tenant isolation
     pnpm test:integration            # RLS + retrieve() cross-tenant, local stack only

@@ -1,0 +1,14 @@
+{
+  // The browser suite is not covered by the packages' own typechecks and is
+  // run on a schedule rather than on every PR, so without this a spec that no
+  // longer compiles would stay broken until the next nightly run told us.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    // evaluateAll runs its callback inside the page, so the spec names DOM
+    // types even though the suite itself runs in Node.
+    "lib": ["es2024", "DOM"],
+    "noEmit": true
+  },
+  "include": ["e2e/**/*.ts", "playwright.config.ts"]
+}

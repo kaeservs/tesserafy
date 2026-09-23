@@ -13,7 +13,7 @@
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "test:integration": "pnpm -r test:integration",
-    "typecheck": "pnpm -r typecheck && tsc -p scripts/tsconfig.json",
+    "typecheck": "pnpm -r typecheck && tsc -p scripts/tsconfig.json && tsc -p tsconfig.e2e.json",
     "lint": "pnpm -r lint",
     "guard:retrieval": "node scripts/check-retrieval-guard.mjs",
     "ingest": "tsx scripts/ingest.ts",
@@ -29,12 +29,14 @@
     "measure:t1": "tsx scripts/measure-t1.ts",
     "qa": "tsx scripts/qa.ts",
     "health": "tsx scripts/health.ts",
+    "e2e": "playwright test",
     "smoke:tiers": "tsx scripts/smoke-tiers.ts",
     "costs": "tsx scripts/costs.ts",
     "db:types": "supabase gen types typescript --local > packages/db/src/generated.ts"
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.126.0",
+    "@playwright/test": "^1.63.0",
     "@tesserafy/ai": "workspace:*",
     "@tesserafy/db": "workspace:*",
     "@tesserafy/ingest": "workspace:*",

@@ -23,6 +23,12 @@ re-report.
 
 ## P1 — every signal links to the words behind it
 
+**Steps 1 to 4 are now automated.** `pnpm e2e` drives a browser through every
+signal on the first six conversations and asserts each quote is verbatim in
+the segment it points at, carries a timestamp, scrolls into view when clicked
+and is marked inside that segment. Run it rather than clicking through, and
+keep the steps below for when it fails or when you want to see it yourself.
+
 Open **Conversations → Acme Robotics — discovery call**.
 
 | # | Do | Pass looks like |

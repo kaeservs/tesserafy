@@ -9,6 +9,7 @@ import {
 } from '@tesserafy/ai';
 import { NextResponse, type NextRequest } from 'next/server';
 import { caller } from '@/lib/supabase/caller';
+import { allowance, tooMany } from '@/lib/rate-limit';
 
 /**
  * T1 criterion detection, run server-side.
@@ -66,6 +67,17 @@ export async function POST(request: NextRequest) {
   }
 
   const receivedAt = Date.now();
+
+  // After validation and before the model: a malformed request costs us
+  // nothing at Anthropic, so it is not worth a database round trip to refuse.
+  //
+  // Inside the serverMs measurement on purpose. This endpoint's whole reason
+  // for existing is to report what it costs beyond the model, and a limiter
+  // measured outside that number would be a limiter whose cost this product
+  // could not see.
+  const limit = await allowance(who.db, 'api/detect');
+  if (!limit.allowed) return tooMany('api/detect', limit.retryAfterSeconds);
+
   try {
     const result = await detectCriteria(window, {
       client: new Anthropic(),

@@ -63,6 +63,34 @@ The Supabase project is in `ap-southeast-1`. For a customer in the EU or the
 UK that is a transfer question before it is a technical one, and it is not
 currently configurable per tenant.
 
+## Looking at somebody's account
+
+Support access is impersonation, and it is worth being plain about that: the
+session is that user's session, with their RLS view, and every action it takes
+is attributed to them. `erasure_events.requested_by` will say they erased the
+conversation.
+
+The capability was never the new part. Anyone holding the service-role key
+could already mint a session for any address through the Auth admin API — the
+QA script does it for the probe account in ten lines. What was missing was
+accountability, so that is what was added:
+
+- `platform_admins` names who may do it. There is no RPC that adds a row, so
+  the only way in is the service role. A self-service path to cross-tenant
+  access is the whole vulnerability.
+- `open_support_access` decides and records, as the admin, before anything is
+  minted. The tooling holds the service-role key only to mint; every
+  authorisation decision is made by the database as a named person, because a
+  tool that authorises itself writes whatever audit trail it likes.
+- Sessions carry a reason in free text and expire, at most four hours.
+- `support_access` is never erased. A conversation can be; the fact that a
+  member of staff opened this customer's account cannot, because that is the
+  record someone may one day need against us.
+
+What is not built yet: a banner telling the user it is happening while it
+happens, and a consent step. Until those exist, telling the customer is a
+thing a person does, not a thing the product does.
+
 ## Where failures go, and why not to a vendor
 
 The obvious way to see production errors is an error-tracking vendor, and it
@@ -182,9 +210,16 @@ to CI is the obvious next step and deliberately not done silently.
 - **Production failures now have a destination.** See above. Previously an
   error reached only the browser of whoever hit it, which is how three broken
   tiers survived four merges unreported.
-- **No access log.** RLS decides who *can* read a conversation; nothing
-  records who *did*. "Which of our staff opened this customer's call" is
-  currently unanswerable.
+- **Staff access is recorded; ordinary access still is not.** Opening a
+  support session against a user writes a `support_access` row first — who,
+  whom, why, for how long — and only then is a session minted, so a failure to
+  record is a failure to access. The user can read those rows about their own
+  account, because an audit trail the audited cannot see is a private diary.
+
+  What is still missing is the ordinary case: RLS decides who *can* read a
+  conversation and nothing records who *did*. "Which of our colleagues opened
+  this call" is answerable for support sessions and unanswerable for everything
+  else.
 - **No consent record.** `conversations` has no field for who agreed to being
   recorded, when, or under which jurisdiction. This is load-bearing in
   two-party-consent regions.

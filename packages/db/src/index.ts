@@ -37,6 +37,26 @@ export function createUserClient({ url, key }: SupabaseConnection): SupabaseClie
   });
 }
 
+/**
+ * A client that is a particular signed-in person.
+ *
+ * Operator tooling needs this where a service-role client would be wrong:
+ * with the service key `auth.uid()` is null, so every function that asks who
+ * is calling gets no answer and every membership check fails open or closed
+ * for the wrong reason. A tool that authorises itself writes an audit trail
+ * that records whatever it felt like recording.
+ */
+export function createTokenClient({
+  url,
+  key,
+  token,
+}: SupabaseConnection & { token: string }): SupabaseClient {
+  return createClient<Database>(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+}
+
 export {
   fetchCriteria,
   fetchCriteriaSets,

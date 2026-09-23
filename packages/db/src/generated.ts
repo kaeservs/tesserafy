@@ -53,18 +53,21 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          plan: string
           retention_days: number | null
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
+          plan?: string
           retention_days?: number | null
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
+          plan?: string
           retention_days?: number | null
         }
         Relationships: []
@@ -474,6 +477,24 @@ export type Database = {
           },
         ]
       }
+      platform_admins: {
+        Row: {
+          created_at: string
+          note: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          note: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          note?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       rate_limit_counters: {
         Row: {
           bucket: string
@@ -666,6 +687,36 @@ export type Database = {
           },
         ]
       }
+      support_access: {
+        Row: {
+          admin_user_id: string
+          created_at: string
+          ended_at: string | null
+          expires_at: string
+          id: string
+          reason: string
+          subject_user_id: string
+        }
+        Insert: {
+          admin_user_id: string
+          created_at?: string
+          ended_at?: string | null
+          expires_at: string
+          id?: string
+          reason: string
+          subject_user_id: string
+        }
+        Update: {
+          admin_user_id?: string
+          created_at?: string
+          ended_at?: string | null
+          expires_at?: string
+          id?: string
+          reason?: string
+          subject_user_id?: string
+        }
+        Relationships: []
+      }
       system_failures: {
         Row: {
           company_id: string | null
@@ -725,6 +776,35 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_companies: {
+        Args: never
+        Returns: {
+          company_id: string
+          conversations: number
+          failures_24h: number
+          last_activity: string
+          members: number
+          name: string
+          plan: string
+          retention_days: number
+          segments: number
+          spend_30d_usd: number
+        }[]
+      }
+      admin_users: {
+        Args: never
+        Returns: {
+          company_id: string
+          company_name: string
+          created_at: string
+          email: string
+          is_admin: boolean
+          last_sign_in: string
+          open_support: boolean
+          role: string
+          user_id: string
+        }[]
+      }
       append_live_segment: {
         Args: {
           p_conversation_id: string
@@ -775,6 +855,24 @@ export type Database = {
         Args: { p_company_id: string; p_model: string; p_rows: Json }
         Returns: number
       }
+      end_support_access: {
+        Args: { p_id: string }
+        Returns: {
+          admin_user_id: string
+          created_at: string
+          ended_at: string | null
+          expires_at: string
+          id: string
+          reason: string
+          subject_user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "support_access"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       erase_conversation: {
         Args: { p_conversation_id: string; p_reason?: string }
         Returns: Json
@@ -818,6 +916,28 @@ export type Database = {
           start_ms: number
           text: string
         }[]
+      }
+      open_support_access: {
+        Args: {
+          p_minutes?: number
+          p_reason: string
+          p_subject_user_id: string
+        }
+        Returns: {
+          admin_user_id: string
+          created_at: string
+          ended_at: string | null
+          expires_at: string
+          id: string
+          reason: string
+          subject_user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "support_access"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       purge_expired_conversations: {
         Args: { p_company_id?: string; p_limit?: number }

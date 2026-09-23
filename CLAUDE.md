@@ -117,6 +117,9 @@ meeting content.
     pnpm erase --conversation <uuid>         # erase a meeting and everything derived from it
     pnpm erase --company <uuid> --retention 90   # set a retention period
     pnpm erase --purge                       # erase everything past its retention
+    pnpm support --users                     # who exists, across every tenant
+    pnpm support --as <email> --reason "..." # open a recorded session as a user
+    pnpm support --history                   # every time staff opened an account
     pnpm smoke:tiers                 # one real call per tier: does the API still accept it
     pnpm health [--hours 24]         # what has failed in production, and does it need a person
     pnpm e2e                         # P1 in a browser: every quote verbatim in its segment

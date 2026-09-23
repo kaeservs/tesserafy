@@ -61,7 +61,10 @@ export default async function ConversationsPage() {
 
   return (
     <main className="wide">
-      <h1>Meetings</h1>
+      <div className="section-head" style={{ marginTop: 0 }}>
+        <h1>Meetings</h1>
+        <Link href="/conversations/new">Import a transcript</Link>
+      </div>
       <p className="muted">
         {conversations.length} conversation{conversations.length === 1 ? '' : 's'}, newest first.
         Each score is computed from the quoted evidence behind it.

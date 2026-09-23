@@ -129,7 +129,8 @@ export default async function DashboardPage() {
           {recent.length === 0 ? (
             <div className="meetings">
               <p className="empty">
-                No conversations yet. Import one with <code>pnpm ingest &lt;file.vtt&gt;</code>.
+                No conversations yet. <Link href="/conversations/new">Import a transcript</Link> to
+                start.
               </p>
             </div>
           ) : (

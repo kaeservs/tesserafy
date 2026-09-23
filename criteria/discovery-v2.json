@@ -1,0 +1,36 @@
+{
+  "engagementType": "discovery",
+  "version": 2,
+  "criteria": [
+    {
+      "key": "pain_quantified",
+      "label": "Pain quantified",
+      "definition": "The customer gives the size of a problem they have now: how long it takes, what it costs, how many people it occupies, how often it happens, or how often it goes wrong. A frequency counts as a size — 'twice this term', 'every Monday', 'about one in twenty'. It must be a cost they are already paying: a saving or improvement that would follow a change is a desired outcome, not a quantified pain, however specific the number.",
+      "weight": 1
+    },
+    {
+      "key": "current_process_known",
+      "label": "Current process known",
+      "definition": "The customer says how the work is done today — the tools, the steps, who does it, or how often. A short answer counts: 'we count weekly', 'usually me', 'it's four spreadsheets'. It must describe what happens now. A process they wish they had, or one described as a condition ('if it could show the lineage'), is a desired outcome rather than the current process.",
+      "weight": 1
+    },
+    {
+      "key": "desired_outcome_stated",
+      "label": "Desired outcome stated",
+      "definition": "The customer says what they want instead — as a request, as a condition they would need met, or by describing how they would like the work to go. A benefit they expect from a change belongs here, including when it is quantified.",
+      "weight": 1
+    },
+    {
+      "key": "timeline_stated",
+      "label": "Timeline stated",
+      "definition": "The customer names a date, deadline, period or event that constrains something still to happen — when a decision must be made, when a change has to be in place, or when a window closes. It need not be about the purchase: an audit, a renewal, a contract ending or a person leaving all count when they set that timing, as in 'he retires in November'. Three things do not count: arranging a meeting or naming somebody's availability, an event already in the past, and a date the seller names rather than the customer.",
+      "weight": 1
+    },
+    {
+      "key": "budget_indicated",
+      "label": "Budget indicated",
+      "definition": "The customer says something about money being available or not — an amount, a range, a budget cycle, who controls the spend, or that there is none.",
+      "weight": 1
+    }
+  ]
+}

@@ -38,7 +38,9 @@ interface PipelineRow {
 export async function conversationPipeline(
   db: SupabaseClient,
 ): Promise<Map<string, PipelineState>> {
-  const { data, error } = await db.rpc('conversation_pipeline', { p_company_id: null });
+  // No argument: the function scopes itself to the caller. Passing null said
+  // the same thing and read like "every company", which it never was.
+  const { data, error } = await db.rpc('conversation_pipeline', {});
   if (error) {
     throw new Error(`Could not read pipeline state: ${error.message}`);
   }

@@ -131,11 +131,14 @@ async function send(classified: Classified, context: FailureContext): Promise<vo
       p_source: context.source,
       p_kind: classified.kind,
       p_message: classified.message,
-      p_tier: context.tier ?? null,
-      p_model: context.model ?? null,
-      p_status: classified.status ?? null,
-      p_company_id: context.companyId ?? null,
-      p_conversation_id: context.conversationId ?? null,
+      // See the usage sink: an argument with `default null` is omitted rather
+      // than sent as null, and under exactOptionalPropertyTypes omitting means
+      // a spread rather than an explicit undefined.
+      ...(context.tier ? { p_tier: context.tier } : {}),
+      ...(context.model ? { p_model: context.model } : {}),
+      ...(classified.status === undefined ? {} : { p_status: classified.status }),
+      ...(context.companyId ? { p_company_id: context.companyId } : {}),
+      ...(context.conversationId ? { p_conversation_id: context.conversationId } : {}),
     });
     if (error) throw new Error(error.message);
   } catch (cause) {

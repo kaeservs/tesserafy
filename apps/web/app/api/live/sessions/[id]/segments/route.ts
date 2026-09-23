@@ -44,7 +44,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const { data, error } = await who.db.rpc('append_live_segment', {
     p_conversation_id: id,
-    p_speaker: body.speaker ?? null,
+    // Nobody attributed is a real case — a shared room microphone hears a
+    // voice without a name — and this argument has no default, so it cannot be
+    // left out. Generated types do not express a nullable argument, so the
+    // null is asserted rather than the function changed to suit a generator.
+    p_speaker: (body.speaker ?? null) as string,
     p_start_ms: Math.max(0, Math.round(body.startMs ?? 0)),
     p_end_ms: Math.max(0, Math.round(body.endMs ?? body.startMs ?? 0)),
     p_text: text,

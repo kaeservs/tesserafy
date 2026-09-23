@@ -245,7 +245,10 @@ async function main(): Promise<void> {
   const db = createServiceClient({ url: supabaseUrl, key: serviceKey });
 
   const counts = await Promise.all(
-    ['conversations', 'segments', 'signals', 'signal_evidence', 'insights', 'criterion_events'].map(async (table) => {
+    // `as const` so these stay table names the client knows rather than bare
+    // strings. A typo used to be a runtime 404 counted as zero rows, which
+    // this check would then report as production having no data.
+    (['conversations', 'segments', 'signals', 'signal_evidence', 'insights', 'criterion_events'] as const).map(async (table) => {
       const { count } = await db.from(table).select('*', { count: 'exact', head: true });
       return [table, count ?? 0] as const;
     }),
@@ -706,11 +709,8 @@ async function checkFailureRecording(supabaseUrl: string, serviceKey: string): P
       p_source: source,
       p_kind: 'unknown',
       p_message: said,
-      p_tier: null,
-      p_model: null,
-      p_status: null,
-      p_company_id: null,
-      p_conversation_id: null,
+      // The optional arguments are left out rather than sent as null, which is
+      // what the routes do and therefore what this should exercise.
     });
     id = (data as string | null) ?? null;
     record('a failure can be recorded', !error && Boolean(id), error ? error.message : 'row written');

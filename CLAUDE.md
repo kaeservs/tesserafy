@@ -128,7 +128,16 @@ meeting content.
 - TypeScript everywhere in `apps/` and `packages/`. Python only in
   `services/eval`.
 - Database changes go through `supabase/migrations/` — never ad-hoc SQL against
-  the remote project.
+  the remote project. Run `pnpm db:types` after one: `packages/db/src/generated.ts`
+  is generated from the deployed schema and is what every client is typed
+  against, so a migration that is not followed by it leaves the code describing
+  a schema that no longer exists. It needs `SUPABASE_ACCESS_TOKEN` and
+  `SUPABASE_PROJECT_ID`, not Docker.
+- An argument with `default null` in SQL is omitted, not sent as null.
+  `exactOptionalPropertyTypes` is on, so omitting means a conditional spread
+  rather than `?? undefined`. Generated types describe an absent argument and
+  cannot express a nullable one; where an argument genuinely has no default and
+  genuinely takes null, the cast stays and says why.
 - Schema-qualify the vector type as `extensions.vector(768)` in migrations.
   pgvector lives in the `extensions` schema, not `public`.
 - Criteria definitions are seed data, not code. A new engagement type is a row,

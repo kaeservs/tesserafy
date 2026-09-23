@@ -93,10 +93,17 @@ export async function storeTranscript(
   const { data, error } = await opts.db.rpc('ingest_transcript', {
     p_company_id: companyId,
     p_title: input.title.trim(),
-    p_occurred_at: input.occurredAt,
+    // `ingest_transcript` declares p_occurred_at without a default, so it
+    // cannot be omitted, and a transcript that carries no date genuinely
+    // passes null — the column is nullable and a conversation with no known
+    // date is a real case. Generated types do not express a nullable argument,
+    // so this is asserted rather than avoided, which is the honest way round:
+    // the alternative is giving the function a default purely to satisfy a
+    // generator.
+    p_occurred_at: input.occurredAt as string,
     p_model: input.model,
     p_segments: segments,
-    p_source_key: input.sourceKey ?? null,
+    ...(input.sourceKey ? { p_source_key: input.sourceKey } : {}),
   });
 
   if (error) {

@@ -58,17 +58,35 @@ describe('databaseSink', () => {
     expect(args['p_detector']).toBe('t3-extract@2026-09-19');
   });
 
-  it('sends nulls rather than omitting what it does not know', async () => {
+  it('records a call it cannot attribute to anyone', async () => {
     // A T1 detection has no company: the window comes from the caller and the
-    // endpoint holds no database credentials. That row is still worth keeping.
+    // endpoint holds no database credentials. That row is still worth keeping,
+    // and it is most of the live cost.
+    //
+    // What goes on the wire is absence, not null. The arguments have
+    // `default null` in SQL, so an omitted one stores exactly the same row,
+    // and absence is what the generated types describe. The row is the
+    // contract here; the spelling is not.
     const { db, rpc } = fakeDb();
 
     databaseSink({ db })(EVENT);
     await flush();
 
     const args = (rpc.mock.calls[0] as unknown as [string, Record<string, unknown>])[1];
-    expect(args['p_company_id']).toBeNull();
-    expect(args['p_detector']).toBeNull();
+    expect(args['p_tier']).toBe(EVENT.tier);
+    expect('p_company_id' in args).toBe(false);
+    expect('p_detector' in args).toBe(false);
+  });
+
+  it('attributes a call when it can', async () => {
+    const { db, rpc } = fakeDb();
+
+    databaseSink({ db, companyId: 'c-1', detector: 't1-detect@2026-09-19' })(EVENT);
+    await flush();
+
+    const args = (rpc.mock.calls[0] as unknown as [string, Record<string, unknown>])[1];
+    expect(args['p_company_id']).toBe('c-1');
+    expect(args['p_detector']).toBe('t1-detect@2026-09-19');
   });
 
   it('never throws when recording fails', async () => {

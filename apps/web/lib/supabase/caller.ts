@@ -1,4 +1,5 @@
-import { createClient as createTokenClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient as createTokenClient } from '@supabase/supabase-js';
+import type { Database, SupabaseClient } from '@tesserafy/db';
 import type { NextRequest } from 'next/server';
 import { publicSupabaseEnv } from '../env';
 import { createClient } from './server';
@@ -26,7 +27,7 @@ export async function caller(request: NextRequest): Promise<Caller | null> {
 
   if (header?.startsWith('Bearer ')) {
     const { url, publishableKey } = publicSupabaseEnv();
-    const db = createTokenClient(url, publishableKey, {
+    const db = createTokenClient<Database>(url, publishableKey, {
       auth: { persistSession: false, autoRefreshToken: false },
       global: { headers: { Authorization: header } },
     });

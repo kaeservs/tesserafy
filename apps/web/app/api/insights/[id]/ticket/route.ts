@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@tesserafy/db';
 import { NextResponse, type NextRequest } from 'next/server';
 import { ticketBody, ticketTitle, type TicketCitation } from '@/lib/ticket';
 import { siteUrl } from '@/lib/site-url';
@@ -176,7 +176,7 @@ async function loadCitations(
     .select('signal_id')
     .eq('insight_id', insightId);
 
-  const signalIds = ((cited ?? []) as { signal_id: string }[]).map((row) => row.signal_id);
+  const signalIds = ((cited ?? [])).map((row) => row.signal_id);
   if (signalIds.length === 0) return [];
 
   const [signalsResult, evidenceResult] = await Promise.all([
@@ -187,11 +187,7 @@ async function loadCitations(
   const signals = new Map(
     ((signalsResult.data ?? []) as SignalRow[]).map((row) => [row.id, row.conversation_id]),
   );
-  const evidence = (evidenceResult.data ?? []) as {
-    signal_id: string;
-    segment_id: string;
-    quote: string;
-  }[];
+  const evidence = (evidenceResult.data ?? []);
 
   // Neither the conversation title nor the speaker is read, because neither is
   // sent: see the header of lib/ticket.ts. Not selecting them is the cheaper
@@ -203,7 +199,7 @@ async function loadCitations(
     .in('id', [...new Set(evidence.map((row) => row.segment_id))]);
 
   const segments = new Map(
-    ((segmentRows ?? []) as { id: string; start_ms: number }[]).map((row) => [row.id, row]),
+    ((segmentRows ?? [])).map((row) => [row.id, row]),
   );
 
   return evidence.flatMap((row) => {

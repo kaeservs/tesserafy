@@ -37,9 +37,14 @@ async function record(event: UsageEvent, context: UsageContext): Promise<void> {
       p_output_tokens: event.outputTokens,
       p_cache_creation_tokens: event.cacheCreationInputTokens,
       p_cache_read_tokens: event.cacheReadInputTokens,
-      p_detector: context.detector ?? null,
-      p_company_id: context.companyId ?? null,
-      p_conversation_id: context.conversationId ?? null,
+      // Omitted rather than sent as null. The argument has `default null` in
+      // SQL, so leaving it out produces the same row, and the generated types
+      // describe an absent argument rather than a nullable one. Under
+      // exactOptionalPropertyTypes an explicit undefined is not absence, which
+      // is why this is a spread and not `?? undefined`.
+      ...(context.detector ? { p_detector: context.detector } : {}),
+      ...(context.companyId ? { p_company_id: context.companyId } : {}),
+      ...(context.conversationId ? { p_conversation_id: context.conversationId } : {}),
     });
     if (error) throw new Error(error.message);
   } catch (cause) {

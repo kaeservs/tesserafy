@@ -33,7 +33,7 @@ export default async function LivePage({ params }: { params: Promise<{ id: strin
   if (error) throw new Error(`Could not load the transcript: ${error.message}`);
 
   const segments: PlayableSegment[] = (
-    (data ?? []) as { id: string; speaker: string | null; start_ms: number; end_ms: number; text: string }[]
+    (data ?? [])
   ).map((row) => ({
     id: row.id,
     speaker: row.speaker,

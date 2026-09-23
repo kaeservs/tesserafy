@@ -46,7 +46,11 @@ export async function POST(request: NextRequest) {
     p_title: title,
     p_engagement_type: body.engagementType ?? 'discovery',
     p_criteria_version: body.criteriaVersion ?? 1,
-    p_company_id: body.companyId ?? null,
+    // Omitted when the caller did not name a company: the function then
+    // resolves the one company they belong to, and raises 22023 if there is
+    // more than one. Sending null says the same thing; leaving it out is what
+    // the generated types describe.
+    ...(body.companyId ? { p_company_id: body.companyId } : {}),
   });
 
   if (error) {

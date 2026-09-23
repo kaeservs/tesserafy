@@ -67,7 +67,9 @@ export async function pendingEmbeddings(
 
   const { data, error } = await opts.db.rpc('segments_without_embeddings', {
     p_company_id: companyId,
-    p_conversation_id: opts.conversationId ?? null,
+    // Absent rather than null: the argument has `default null`, and the
+    // generated types describe absence.
+    ...(opts.conversationId ? { p_conversation_id: opts.conversationId } : {}),
   });
   if (error) {
     throw new Error(`Listing unembedded segments failed: ${error.message}`, { cause: error });

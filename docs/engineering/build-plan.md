@@ -20,6 +20,7 @@ https://claude.ai/code/artifact/a7cdd883-3bc5-48f5-84da-a0fe6b21f329
 | P6 | Live path, browser first | Measured p50/p95 for utterance -> visible score against the latency budget. | Built — replay and microphone paths both measure against ADR 0010; real STT awaits S2 |
 | P7 | Electron HUD | Overlay over a live Zoom call; scorecard updates; meeting stays visible and clickable; screen-share behaviour matches S1. | Built — overlay listens, detects and scores; screen-share behaviour awaits S1 |
 | P8 | Prepare and Act | An insight moves from approval to a created ticket carrying its evidence citations. No auto-creation anywhere. | Built and applied; needs GITHUB_TOKEN and GITHUB_TICKET_REPO to raise a real ticket |
+| P10 | Transcript import | A signed-in member can add a transcript without a terminal; it parses through the same chunker as `pnpm ingest`. | **Done** — `/conversations/new` |
 | P9 | Dashboard and history | A past meeting shows a scorecard derived from stored evidence; criteria coverage across every meeting. No score stored anywhere. | Built — `criterion_events` + `/dashboard`; needs the migration applied and `pnpm score` run |
 
 ## MVP
@@ -67,18 +68,16 @@ agent frameworks.
 
 ## What is left
 
-Two things are buildable and blocked on an operator action rather than on
-code:
+The MVP is P0 through P5, and five of its six gates pass. P1 is the
+outstanding one and it needs a browser rather than code: click a quote on an
+insight and confirm it scrolls to the segment and highlights the phrase.
 
-- **The P9 migration is not applied.** `criterion_events` and the two pinned
-  columns on `conversations` exist only in `supabase/migrations/`. Until
-  `supabase db push` runs, `/dashboard` and `/conversations` query columns the
-  database does not have and fail. This is the first thing to do.
-- **Nothing has been scored.** After the migration, `pnpm score --company
-  <uuid> --dry-run` prints the detector call count and `pnpm score` fills it
-  in. Before that every meeting honestly reads "not scored".
+A transcript can now be imported from the web app, which was the gap between
+"the MVP works" and "somebody other than an operator can use it". It lands
+with segments and no embeddings; `pnpm score` and `pnpm process` finish it,
+and the conversation says which of them it is waiting for.
 
-The rest cannot be done from a keyboard alone:
+What is left cannot be done from a keyboard alone:
 
 - **S1** — run the overlay against Zoom, Meet and Teams, including the
   protection-off control step. P7's gate depends on the answer.

@@ -53,6 +53,12 @@ T1 runs server-side, not from the client: measurement put the network cost of
 calling from a laptop at ~840 ms of a budget the model alone already exceeds
 (ADR 0010).
 
+Redaction is T0 and runs before anything is stored: email addresses, phone
+numbers and account-length digit runs are masked in `packages/ingest`, so they
+never reach segments, embeddings, prompts, ticket bodies or the search index.
+It does not remove names and is not anonymisation. Money and durations are
+protected explicitly — masking a quantified pain deletes the finding.
+
 T1 runs at `temperature: 0`; T2 and T3 send no temperature at all, because
 `claude-sonnet-5` and `claude-opus-5` deprecate the parameter and reject a
 request carrying it. Pinning it everywhere on the strength of a T1 measurement

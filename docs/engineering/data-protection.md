@@ -126,10 +126,22 @@ to CI is the obvious next step and deliberately not done silently.
 
 - **Tickets carry quotes.** Flow 1 above. The largest uncontrolled egress and
   the cheapest to close.
-- **No redaction.** ADR 0002 lists redaction as a T0 job — pure TypeScript,
-  before any model sees anything. Nothing implements it. Card numbers, email
-  addresses and phone numbers spoken aloud go into segments, into embeddings,
-  into prompts and into ticket bodies.
+- **Redaction is done, with a stated limit.** Email addresses, phone numbers
+  and account-length digit runs are masked at T0, before anything is stored,
+  so they never reach segments, embeddings, prompts, ticket bodies, the search
+  index or a backup. It is irreversible by design, and the stored transcript
+  is no longer literally what was said.
+
+  It does **not** remove names, including speaker labels, and must not be
+  described as anonymisation. A pattern cannot tell a person from a company
+  from a product, and one that tried would delete the evidence — "Northwind's
+  export is slow" is the finding. Money and durations are protected
+  explicitly: masking "90 minutes every morning" would remove a quantified
+  pain and nobody would ever know it had been there.
+
+  It has no second line of defence by design, which is why `pnpm qa` uploads
+  a transcript carrying an address and asserts the stored segment does not.
+
 - **No access log.** RLS decides who *can* read a conversation; nothing
   records who *did*. "Which of our staff opened this customer's call" is
   currently unanswerable.

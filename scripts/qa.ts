@@ -32,6 +32,9 @@ interface Check {
 
 const checks: Check[] = [];
 
+/** WebVTT needs real line breaks; a constant keeps the template readable. */
+const NEWLINE = '\n';
+
 function record(name: string, ok: boolean, detail: string): void {
   checks.push({ name, ok, detail });
   console.info(`${ok ? '  ok  ' : ' FAIL '} ${name}${detail ? ` — ${detail}` : ''}`);
@@ -228,6 +231,7 @@ async function main(): Promise<void> {
     );
 
     await checkLiveCapture(baseUrl, token);
+    await checkImport(baseUrl, token);
   }
 
   console.info('\nSearch');
@@ -582,6 +586,92 @@ async function checkSearch(
     member !== null && operator !== null && member.length < operator.length,
     `member sees ${member?.length ?? 0} of ${operator?.length ?? 0}`,
   );
+}
+
+
+
+/**
+ * Importing a transcript, and the identifier that must not survive it.
+ *
+ * Redaction happens once, at T0, before anything is stored — which is what
+ * makes it cover the embeddings, the prompts, the ticket bodies and the
+ * backups at the same time. The flip side is that there is no second place to
+ * catch a mistake: if it stops working, a real email address is written to
+ * the database and every system downstream of it, silently.
+ *
+ * So this uploads a transcript carrying an address and a phone number, reads
+ * the stored segment back, and asserts both that the identifiers are gone and
+ * that the quantified figure beside them is not. The second half matters as
+ * much as the first: a redactor that ate "90 minutes every morning" would
+ * delete the finding this product exists to surface, and nobody would know.
+ */
+async function checkImport(baseUrl: string, token: string): Promise<void> {
+  const email = 'priya.shah@northwind.co.uk';
+  const said =
+    `Reconciliation takes about 90 minutes every morning. ` +
+    `Send it to ${email} or ring 020 7946 0958.`;
+
+  const vtt = `WEBVTT${NEWLINE}${NEWLINE}00:00:01.000 --> 00:00:12.000${NEWLINE}<v Customer>${said}${NEWLINE}`;
+
+  const form = new FormData();
+  form.set('transcript', new File([vtt], 'qa-probe.vtt', { type: 'text/vtt' }));
+  form.set('title', 'QA PROBE — erased immediately');
+
+  let conversationId: string | null = null;
+
+  try {
+    const response = await fetch(new URL('/api/transcripts', baseUrl), {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}` },
+      body: form,
+    });
+    const body = (await response.json()) as {
+      conversationId?: string;
+      segments?: number;
+      error?: string;
+    };
+    conversationId = body.conversationId ?? null;
+    record(
+      'POST /api/transcripts imports a file',
+      response.ok && Boolean(conversationId),
+      body.error ?? `${body.segments} segment(s)`,
+    );
+    if (!conversationId) return;
+
+    const db = createServiceClient({
+      url: requireEnv('SUPABASE_URL'),
+      key: requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
+    });
+    const { data } = await db
+      .from('segments')
+      .select('text')
+      .eq('conversation_id', conversationId);
+    const stored = ((data ?? []) as { text: string }[]).map((row) => row.text).join(' ');
+
+    record(
+      'an imported transcript stores no email address',
+      stored.length > 0 && !stored.includes(email) && stored.includes('[email]'),
+      stored.includes(email) ? 'the address was stored' : 'masked',
+    );
+    record(
+      'and no phone number',
+      !stored.includes('7946') && stored.includes('[phone]'),
+      stored.includes('7946') ? 'the number was stored' : 'masked',
+    );
+    record(
+      'while the quantified figure survives',
+      stored.includes('90 minutes'),
+      stored.includes('90 minutes') ? 'kept' : 'redaction ate the finding',
+    );
+  } finally {
+    if (conversationId) {
+      const { error } = await createServiceClient({
+        url: requireEnv('SUPABASE_URL'),
+        key: requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
+      }).rpc('erase_conversation', { p_conversation_id: conversationId, p_reason: 'operator' });
+      record('the imported probe is erased', !error, error ? error.message : 'gone');
+    }
+  }
 }
 
 

@@ -68,33 +68,74 @@ discovery criteria, graded by the same span-overlap rule.
 | Date | Windows | Labels | Detector | Model | Overall P / R / F1 |
 |---|---|---|---|---|---|
 | 2026-09-19 | 10 | 28 | `t1-detect@2026-09-19` | `claude-haiku-4-5` | 83% / 86% / 84% |
-| 2026-09-23 | 10 | 28 | `t1-detect@2026-09-19` | `claude-haiku-4-5` | 77% / 86% / 81% |
+| 2026-09-23 | 10 | 28 | `discovery` v1 | `claude-haiku-4-5` | 77% / 84% / 79–81% |
+| 2026-09-23 | 10 | 28 | `discovery` v2 | `claude-haiku-4-5` | 76–79% / 93% / 84–85% |
 
-### Why there are two rows
+### Why the later rows are ranges
 
-The first was measured before any tier set a temperature, so every call
-sampled freely against a fixed output schema. That makes 84% one draw from a
-distribution rather than a measurement — eight runs of a single window later
-produced five distinct results and three different sets of criteria, one of
-them empty.
+The 2026-09-19 row was measured before any tier set a temperature, so every
+call sampled freely against a fixed output schema. That makes 84% one draw
+from a distribution rather than a measurement — eight runs of a single window
+later produced five distinct results and three different sets of criteria, one
+of them empty.
 
-The second was measured after `temperature: 0` was pinned across every tier,
-and reproduced exactly: two consecutive runs agreed to the percentage point on
-every criterion. **81% is what the detector scores. 84% is what it scored
-once.**
+The later rows were measured with `temperature: 0` pinned across every tier,
+and are given as ranges because that is what repetition showed. **Temperature
+zero removed most of the variance and did not remove all of it.**
 
-Read the drop as the error bar becoming visible, not as quality lost. Nothing
-about the detector changed between the rows except that it stopped rolling
-dice, and per-criterion the figures moved in both directions, which is exactly
-what a single sample looks like when it is replaced by a stable one:
+    discovery v1, four runs   81%  81%  81%  79%
+    discovery v2, two runs    85%  84%
 
-| Criterion | 2026-09-19 (one draw) | 2026-09-23 (deterministic) |
-|---|---|---|
-| `budget_indicated` | 100% | 100% |
-| `desired_outcome_stated` | 93% | 93% |
-| `pain_quantified` | 88% | **75%** |
-| `current_process_known` | 82% | 78% |
-| `timeline_stated` | **57%** | **75%** |
+An earlier note in this file claimed the pinned detector reproduced exactly,
+on the strength of the first two v1 runs agreeing. A third and fourth run
+disagreed. The residual variance is not spread evenly: it lands almost
+entirely on `timeline_stated`, which scored 75% three times and 57% once and
+is the criterion closest to a judgement call. A borderline logit can still
+flip at temperature zero; the rest of the set does not move.
+
+The practical rule that follows: quote a range, not a figure, and treat a
+difference of two or three points between two single runs as nothing at all.
+
+Read the 2026-09-19 to 2026-09-23 drop as the error bar becoming visible
+rather than quality lost. Nothing about the detector changed except that it
+stopped rolling dice, and per-criterion the figures moved in both directions,
+which is what a single sample looks like when repetition replaces it:
+
+| Criterion | v1, one draw | v1, repeated | v2, repeated |
+|---|---|---|---|
+| `budget_indicated` | 100% | 100% | 100% |
+| `desired_outcome_stated` | 93% | 93% | 93% |
+| `pain_quantified` | 88% | 75% | **88%** |
+| `current_process_known` | 82% | 78% | **84%** |
+| `timeline_stated` | 57% | 75% / 57% | **67% / 60%** |
+
+### What v2 changed, and what it did not
+
+v2 was written against the error modes the repeated v1 runs exposed, not
+against a hunch. Three sharpenings:
+
+* `pain_quantified` was firing on savings a change *would* produce — "would
+  save me a fortnight of arguing every term" — and missing costs stated as a
+  frequency. It now says the cost must be one already being paid, and that a
+  frequency is a size. 75% to 88%.
+* `current_process_known` was firing on processes described as a condition —
+  "if the dashboard could show the lineage" — and missing terse answers like
+  "we count weekly". It now distinguishes what happens now from what is
+  wished for. 78% to 84%.
+* `timeline_stated` was missing dates set by an event rather than a purchase
+  — "he retires in November". Widening it fixed the misses and bought false
+  positives instead: scheduling ("she's at a conference until Thursday"),
+  past events ("the migration fixed that in March") and the seller's own
+  dates. A second pass excluded those three explicitly, which restored
+  precision and lost recall again.
+
+**`timeline_stated` is unresolved.** It is the only criterion v2 leaves worse
+than v1, and two attempts moved the error from one side to the other without
+improving it. It is also where the residual run-to-run variance lives. With 28
+labels across 10 windows, one span is worth roughly eight points of that
+criterion's F1, so further tuning against this corpus would be fitting it
+rather than fixing anything. It needs more labelled windows before it needs
+more wording.
 
 `timeline_stated` was the headline weakness and is no longer the worst
 criterion; `pain_quantified` fell further than anything else rose. Both

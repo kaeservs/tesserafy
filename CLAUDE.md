@@ -60,6 +60,11 @@ conversations scored 45 and 18 on consecutive trials. Extraction against a
 fixed schema has nothing to gain from sampling. Overridable per call so a
 spike can vary it deliberately.
 
+It reduces variance rather than removing it. Four repeats of the criterion
+eval scored 81/81/81/79, with the movement landing entirely on the one
+criterion nearest a judgement call. Quote a range, not a figure, and treat two
+or three points between single runs as nothing.
+
 Log `response.usage` on every API call. Cost telemetry added later cannot be
 backfilled.
 

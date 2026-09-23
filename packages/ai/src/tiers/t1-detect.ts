@@ -53,6 +53,19 @@ export interface DetectOptions {
    * output length is most of the wall clock.
    */
   readonly variant?: 'full' | 'compact';
+  /**
+   * Sampling temperature. Zero by default, which is what this is for.
+   *
+   * Nothing here ever set one, so every call ran at the API default and the
+   * detector disagreed with itself: eight runs over one identical window
+   * produced five distinct results and three different sets of criteria, one
+   * of them empty. A live scorecard that changes because the model rolled
+   * differently is not measuring the conversation.
+   *
+   * Overridable so a spike can vary it deliberately, never so a caller can
+   * drift into it by accident.
+   */
+  readonly temperature?: number;
 }
 
 export interface DetectionResult {
@@ -129,6 +142,7 @@ export async function detectCriteria(
   const response = await opts.client.messages.parse({
     model,
     max_tokens: opts.maxTokens ?? 1024,
+    temperature: opts.temperature ?? 0,
     // The cache breakpoint. Everything before it is frozen; the window below
     // is what changes every call.
     system: [

@@ -53,6 +53,13 @@ T1 runs server-side, not from the client: measurement put the network cost of
 calling from a laptop at ~840 ms of a budget the model alone already exceeds
 (ADR 0010).
 
+Every tier runs at `temperature: 0`. Nothing set one until it was measured:
+eight runs over a single identical window produced five distinct results and
+three different sets of criteria, one of them empty, and the same three
+conversations scored 45 and 18 on consecutive trials. Extraction against a
+fixed schema has nothing to gain from sampling. Overridable per call so a
+spike can vary it deliberately.
+
 Log `response.usage` on every API call. Cost telemetry added later cannot be
 backfilled.
 

@@ -29,6 +29,8 @@ export interface ExtractOptions {
   readonly maxTokens?: number;
   /** Defaults to the structured console logger. */
   readonly onUsage?: UsageSink;
+  /** Sampling temperature. Zero by default — see DetectOptions. */
+  readonly temperature?: number;
 }
 
 export interface ExtractionResult extends ResolutionResult {
@@ -89,6 +91,7 @@ export async function extractSignals(
   const response = await opts.client.messages.parse({
     model,
     max_tokens: opts.maxTokens ?? 16_000,
+    temperature: opts.temperature ?? 0,
     system: SYSTEM,
     messages: [{ role: 'user', content: renderTranscript(segments) }],
     output_config: { format: zodOutputFormat(ExtractionSchema) },

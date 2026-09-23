@@ -1,0 +1,49 @@
+# P1, in a browser, on a schedule.
+#
+# Deliberately not on pull requests. It drives a real deployment holding real
+# customer transcripts, and a check that signs into production on every PR is
+# a check that will eventually run from a fork. It runs daily and on demand,
+# which matches what it is actually watching: not "did this diff break the
+# page" — unit tests and typecheck cover that — but "is the evidence chain
+# still intact in the thing people are using".
+#
+# Needs E2E_BASE_URL, E2E_USERNAME and E2E_PASSWORD in Actions secrets. Until
+# they are set every run fails, which is the right behaviour for a check that
+# cannot see what it is meant to be checking.
+
+name: P1 evidence chain
+
+on:
+  schedule:
+    - cron: '30 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  evidence:
+    name: Every quote verbatim in its segment
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+
+      - name: pnpm e2e
+        env:
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+          E2E_USERNAME: ${{ secrets.E2E_USERNAME }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        run: pnpm e2e
+
+      # Only on failure, and short-lived: a trace of a signed-in session holds
+      # meeting content, which is not something to leave in artifact storage.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-trace
+          path: test-results/
+          retention-days: 3

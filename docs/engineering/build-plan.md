@@ -12,7 +12,7 @@ https://claude.ai/code/artifact/a7cdd883-3bc5-48f5-84da-a0fe6b21f329
 | # | Phase | Gate | Status |
 |---|---|---|---|
 | P0 | Foundation | Two seeded companies. User A cannot reach company B's data via API, direct query, or `retrieve()`. Test green in CI. | Done |
-| P1 | Batch intelligence slice | Every displayed signal links to a timestamped quote; clicking scrolls to that segment. | Built on 10 conversations; gate not yet witnessed in a browser |
+| P1 | Batch intelligence slice | Every displayed signal links to a timestamped quote; clicking scrolls to that segment. | **Done** — witnessed by `pnpm e2e` in Chromium: 15 quotes across 5 conversations, each verbatim in the segment it points at |
 | P2 | Scoring engine | ~40 unit tests over synthetic detector sequences, no LLM in the test path. Score monotonic except on explicit contradiction. | Done — 56 tests |
 | P3 | Evaluation harness | A committed precision/recall number for problem detection, feature-request detection and criterion correctness, with the date measured. | Done — numbers in `services/eval/benchmarks/results.md` |
 | P4 | Bulk transcript import | 50 transcripts ingest in one run; cost per transcript recorded; failures are per-file. | **Done** — 50 in 78 s, 48 imported, 2 malformed failed alone, $0.015 per transcript |
@@ -68,9 +68,18 @@ agent frameworks.
 
 ## What is left
 
-The MVP is P0 through P5, and five of its six gates pass. P1 is the
-outstanding one and it needs a browser rather than code: click a quote on an
-insight and confirm it scrolls to the segment and highlights the phrase.
+The MVP is P0 through P5, and all six gates pass. P1 was the last, and it was
+the one gate no unit test could close: every word of it — a link that
+resolves, a scroll that happens, a highlight on the right phrase — is about a
+rendered page.
+
+It is closed by `pnpm e2e`, which drives Chromium against a real deployment
+holding real data. The assertion that earns its keep is not the scrolling but
+the string comparison: every quote shown under a signal must appear, character
+for character, inside the segment it links to. A detector that paraphrases
+leaves every link working and every highlight landing while the product
+quietly improves on what a customer said, and that is invisible to any test
+that does not compare the two strings.
 
 A transcript can now be imported from the web app, which was the gap between
 "the MVP works" and "somebody other than an operator can use it". It lands

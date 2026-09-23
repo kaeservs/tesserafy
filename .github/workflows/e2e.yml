@@ -37,6 +37,13 @@ jobs:
           E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
           E2E_USERNAME: ${{ secrets.E2E_USERNAME }}
           E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+          # Optional. Set it and the operator console's door is checked too:
+          # that an anonymous visitor is turned away, that a real customer with
+          # a correct password is refused and keeps no session, and that the
+          # login page says nothing about what is behind it. Unset, those tests
+          # skip rather than fail, because a suite that goes red when an
+          # optional app is not deployed teaches people to ignore it.
+          ADMIN_BASE_URL: ${{ secrets.ADMIN_BASE_URL }}
         run: pnpm e2e
 
       # Only on failure, and short-lived: a trace of a signed-in session holds

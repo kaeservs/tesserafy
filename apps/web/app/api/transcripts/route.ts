@@ -1,4 +1,11 @@
-import { parseTurns, parseVtt, toSegments, TranscriptParseError } from '@tesserafy/ingest';
+import {
+  anyRedactions,
+  parseTurns,
+  parseVtt,
+  redactSegments,
+  toSegments,
+  TranscriptParseError,
+} from '@tesserafy/ingest';
 import { NextResponse, type NextRequest } from 'next/server';
 import { caller } from '@/lib/supabase/caller';
 
@@ -89,9 +96,14 @@ export async function POST(request: NextRequest) {
   const engagementType = (form.get('engagementType') as string | null)?.trim() || 'discovery';
   const criteriaVersion = Number(form.get('criteriaVersion') ?? 1);
 
+  // Before anything is written. An identifier that reaches the database has
+  // reached the embeddings, the prompts, the ticket bodies and the backups
+  // with it; this is the one place where removing it removes it everywhere.
+  const { segments: clean, counts } = redactSegments(segments);
+
   const { data, error } = await who.db.rpc('import_conversation', {
     p_title: title,
-    p_segments: segments.map((segment) => ({
+    p_segments: clean.map((segment) => ({
       speaker: segment.speaker,
       startMs: segment.startMs,
       endMs: segment.endMs,
@@ -108,5 +120,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status });
   }
 
-  return NextResponse.json({ conversationId: data as string, segments: segments.length });
+  return NextResponse.json({
+    conversationId: data as string,
+    segments: clean.length,
+    // Reported rather than silent: somebody uploading a transcript should
+    // learn that it carried a phone number, not discover it later.
+    ...(anyRedactions(counts) ? { redacted: counts } : {}),
+  });
 }

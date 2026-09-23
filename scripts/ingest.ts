@@ -27,7 +27,14 @@ import {
   type ExtractableSegment,
 } from '@tesserafy/ai';
 import { createServiceClient } from '@tesserafy/db';
-import { parseTurns, parseVtt, toSegments, type ParsedTranscript } from '@tesserafy/ingest';
+import {
+  anyRedactions,
+  parseTurns,
+  parseVtt,
+  redactSegments,
+  toSegments,
+  type ParsedTranscript,
+} from '@tesserafy/ingest';
 
 interface Args {
   file: string;
@@ -125,7 +132,15 @@ async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
 
   const transcript = parseFile(args.file);
-  const segments = toSegments(transcript.turns);
+  // Identifiers go before anything is stored or embedded, which is the one
+  // place removing them removes them everywhere downstream.
+  const { segments, counts: redacted } = redactSegments(toSegments(transcript.turns));
+  if (anyRedactions(redacted)) {
+    console.info(
+      `Redacted ${redacted.emails} email(s), ${redacted.phones} phone number(s) and ` +
+        `${redacted.numbers} long number(s) before storing.`,
+    );
+  }
   const title = args.title ?? transcript.title ?? args.file;
 
   if (args.dryRun && args.json) {

@@ -193,24 +193,17 @@ async function loadCitations(
     quote: string;
   }[];
 
-  const [conversationsResult, segmentsResult] = await Promise.all([
-    supabase.from('conversations').select('id, title').in('id', [...new Set(signals.values())]),
-    supabase
-      .from('segments')
-      .select('id, start_ms, speaker')
-      .in('id', [...new Set(evidence.map((row) => row.segment_id))]),
-  ]);
+  // Neither the conversation title nor the speaker is read, because neither is
+  // sent: see the header of lib/ticket.ts. Not selecting them is the cheaper
+  // guarantee — a column that was never loaded cannot be appended to a body by
+  // a later change that forgets why.
+  const { data: segmentRows } = await supabase
+    .from('segments')
+    .select('id, start_ms')
+    .in('id', [...new Set(evidence.map((row) => row.segment_id))]);
 
-  const conversations = new Map(
-    ((conversationsResult.data ?? []) as { id: string; title: string }[]).map((row) => [
-      row.id,
-      row.title,
-    ]),
-  );
   const segments = new Map(
-    ((segmentsResult.data ?? []) as { id: string; start_ms: number; speaker: string | null }[]).map(
-      (row) => [row.id, row],
-    ),
+    ((segmentRows ?? []) as { id: string; start_ms: number }[]).map((row) => [row.id, row]),
   );
 
   return evidence.flatMap((row) => {
@@ -221,11 +214,9 @@ async function loadCitations(
     return [
       {
         quote: row.quote,
-        conversationTitle: conversations.get(conversationId) ?? 'Unknown conversation',
         conversationId,
         segmentId: row.segment_id,
         startMs: segment.start_ms,
-        speaker: segment.speaker,
       },
     ];
   });

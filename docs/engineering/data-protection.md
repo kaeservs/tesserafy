@@ -14,19 +14,33 @@ listed worst first, where "worst" means hardest to undo.
 
 ### 1. Tickets, into an external tracker
 
-`apps/web/lib/ticket.ts` builds an issue body containing verbatim customer
-quotes, the speaker's name and the conversation title, and posts it to
-`api.github.com`. A tracker repository is usually readable by an entire
-engineering organisation and is sometimes public.
+`apps/web/lib/ticket.ts` builds an issue body and posts it to `api.github.com`.
+A tracker repository is usually readable by an entire engineering organisation
+and is sometimes public.
 
 This is the only egress the product itself initiates, and the only one that
-cannot be recalled: once a quote is an issue body it is in that system's
+cannot be recalled: once something is an issue body it is in that system's
 history, its notifications and its search index. A human approves each one,
 which is a real control and not a sufficient one.
 
-**Open.** The ticket needs a *link* to the evidence far more than it needs the
-evidence. Replacing the quotes with a link would close this at the cost of a
-click for the reader.
+**Narrowed.** The body carries redacted quotes, a timestamp and a deep link.
+It no longer carries the speaker's name or the conversation title, which were
+the two fields that named a person and a customer; calls are numbered instead,
+so "three calls said this" survives without saying whose. `TicketCitation` has
+no field for either, and the route does not select the columns, so a later
+change cannot append them by forgetting why.
+
+Quotes still leave, deliberately. They are what lets an engineer judge the
+claim without an account in this product, and redaction has already removed
+the addresses and numbers a pattern can find. What it cannot find is a name
+said out loud mid-sentence — "I'll check with Priya" — so the residue here is
+a name inside a quote, and the control for it is the human approving the
+issue.
+
+**Open.** Dropping quotes entirely, leaving the summary and the links, would
+close the residue at the cost of making every ticket unreadable without a
+login. Not taken: a ticket nobody can evaluate gets ignored, and an ignored
+insight is the failure mode this product exists to prevent.
 
 ### 2. Audio, to a browser vendor
 
@@ -124,8 +138,10 @@ to CI is the obvious next step and deliberately not done silently.
 
 ## Still open
 
-- **Tickets carry quotes.** Flow 1 above. The largest uncontrolled egress and
-  the cheapest to close.
+- **Tickets carry quotes, and nothing else identifying.** Flow 1 above. Names
+  and conversation titles are gone from the body and from the query that built
+  it; a name spoken inside a quote is the remaining residue, and a person
+  approves every issue.
 - **Redaction is done, with a stated limit.** Email addresses, phone numbers
   and account-length digit runs are masked at T0, before anything is stored,
   so they never reach segments, embeddings, prompts, ticket bodies, the search

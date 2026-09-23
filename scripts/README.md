@@ -151,3 +151,25 @@ confirming everywhere is as much a signal as one confirming nowhere: on
 discovery calls, a renewal set's "value realised" confirmed against a
 description of current manual work, which is a false positive the single
 conversation view could not have shown.
+
+## `pnpm smoke:tiers`
+
+Four of the smallest real calls the product makes, one per tier, through the
+tier functions themselves rather than a hand-written request. Only pass or
+fail matters; what the model says is not graded.
+
+It exists because of a specific failure. Pinning `temperature: 0` across every
+tier was measured on T1, where the model accepts it, and shipped to T2 and T3,
+where `claude-sonnet-5` and `claude-opus-5` deprecate the parameter and reject
+the whole request. `/api/suggest`, extraction and synthesis were down for four
+merges.
+
+Nothing in the unit suite could have caught it. Every one of those tests fakes
+the client, which is right — they are about what the product does with an
+answer, and a test that spends money to assert a schema is a test nobody runs.
+But it leaves the request shape asserted by nothing, and the request shape is
+shared between tiers: a change to it is not a change to the tier that prompted
+it.
+
+Run it after changing anything that every tier sends. Seconds, and a few
+cents.

@@ -28,6 +28,7 @@
     "erase": "tsx scripts/erase.ts",
     "measure:t1": "tsx scripts/measure-t1.ts",
     "qa": "tsx scripts/qa.ts",
+    "smoke:tiers": "tsx scripts/smoke-tiers.ts",
     "costs": "tsx scripts/costs.ts",
     "db:types": "supabase gen types typescript --local > packages/db/src/generated.ts"
   },

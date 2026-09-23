@@ -91,6 +91,7 @@ backfilled.
     pnpm erase --conversation <uuid>         # erase a meeting and everything derived from it
     pnpm erase --company <uuid> --retention 90   # set a retention period
     pnpm erase --purge                       # erase everything past its retention
+    pnpm smoke:tiers                 # one real call per tier: does the API still accept it
     pnpm exec supabase start         # local stack (needs Docker)
     pnpm exec supabase test db       # pgTAP tenant isolation
     pnpm test:integration            # RLS + retrieve() cross-tenant, local stack only

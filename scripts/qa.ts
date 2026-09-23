@@ -21,6 +21,7 @@
  * and erases the whole thing again in a finally. Everything else is reads,
  * plus a session minted for the probe account through the admin API.
  */
+import { scrub } from '@tesserafy/ai';
 import { createServiceClient, fetchCriteria, fetchCriterionEvents } from '@tesserafy/db';
 import { defineCriteriaSet, replay, score, type DetectorEvent } from '@tesserafy/scoring';
 
@@ -236,6 +237,9 @@ async function main(): Promise<void> {
 
   console.info('\nSearch');
   await checkSearch(supabaseUrl, serviceKey, token);
+
+  console.info('\nFailures have somewhere to go');
+  await checkFailureRecording(supabaseUrl, serviceKey);
 
   console.info('\nData invariants');
   const db = createServiceClient({ url: supabaseUrl, key: serviceKey });
@@ -670,6 +674,73 @@ async function checkImport(baseUrl: string, token: string): Promise<void> {
         key: requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
       }).rpc('erase_conversation', { p_conversation_id: conversationId, p_reason: 'operator' });
       record('the imported probe is erased', !error, error ? error.message : 'gone');
+    }
+  }
+}
+
+
+
+/**
+ * Can a failure be recorded, and does the recording lose the identifiers?
+ *
+ * The routes call record_failure inside a catch block and deliberately swallow
+ * anything that goes wrong there — a sink that throws would replace a real
+ * failure with a failure about failing. That is correct, and it means a broken
+ * sink is silent, which is precisely the condition this table exists to end.
+ * So it gets exercised directly rather than trusted.
+ *
+ * The probe writes a message carrying both an API key and a customer address,
+ * because those are the two things an upstream error quotes back at you and
+ * the two things a stored row must never keep.
+ */
+async function checkFailureRecording(supabaseUrl: string, serviceKey: string): Promise<void> {
+  const db = createServiceClient({ url: supabaseUrl, key: serviceKey });
+  const source = `qa/probe-${Date.now()}`;
+  const said = scrub(
+    'invalid_request: key sk-ant-api03-NOTAREALKEY_xx rejected for priya.shah@northwind.co.uk',
+  );
+
+  let id: string | null = null;
+  try {
+    const { data, error } = await db.rpc('record_failure', {
+      p_source: source,
+      p_kind: 'unknown',
+      p_message: said,
+      p_tier: null,
+      p_model: null,
+      p_status: null,
+      p_company_id: null,
+      p_conversation_id: null,
+    });
+    id = (data as string | null) ?? null;
+    record('a failure can be recorded', !error && Boolean(id), error ? error.message : 'row written');
+    if (!id) return;
+
+    const { data: rows } = await db
+      .from('system_failures')
+      .select('message')
+      .eq('source', source);
+    const stored = ((rows ?? []) as { message: string }[])[0]?.message ?? '';
+
+    record(
+      'the recorded message keeps no credential',
+      stored.length > 0 && !stored.includes('sk-ant') && stored.includes('[credential]'),
+      stored.includes('sk-ant') ? 'a key was stored' : 'masked',
+    );
+    record(
+      'and no customer identifier',
+      !stored.includes('northwind.co.uk') && stored.includes('[email]'),
+      stored.includes('northwind.co.uk') ? 'an address was stored' : 'masked',
+    );
+    record(
+      'while the reason it failed survives',
+      stored.includes('invalid_request'),
+      stored.includes('invalid_request') ? 'kept' : 'scrubbing ate the message',
+    );
+  } finally {
+    if (id) {
+      const { error } = await db.from('system_failures').delete().eq('source', source);
+      record('the probe failure is removed', !error, error ? error.message : 'gone');
     }
   }
 }

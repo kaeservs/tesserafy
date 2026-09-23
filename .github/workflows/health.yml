@@ -1,0 +1,44 @@
+# Is production broken, and does anybody know?
+#
+# The alarm, and the reason it lives here rather than at a monitoring vendor.
+# A scheduled workflow that exits non-zero emails the repository owner by
+# default, so this is a pager we already own — no new account, no new data
+# processor, and nothing about a customer's meeting leaves the database to make
+# it ring. What it costs is subtlety: no grouping across days, no escalation,
+# no silencing a known issue except by fixing it.
+#
+# It reads production. Both secrets must be set in the repository's Actions
+# secrets or every run fails loudly, which is the correct behaviour for an
+# alarm that cannot see.
+
+name: Health
+
+on:
+  schedule:
+    # Every four hours. Chosen against the failure this exists to catch: the
+    # tier outage survived four merges, which was days. Four hours turns that
+    # into an afternoon, and is far below the rate at which anyone would start
+    # ignoring the mail.
+    - cron: '0 */4 * * *'
+  workflow_dispatch:
+
+jobs:
+  failures:
+    name: Recent failures in production
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # --hours 5 against a four-hourly schedule, so a failure cannot fall
+      # through the gap between two runs by arriving during one.
+      - name: pnpm health
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: pnpm health --hours 5

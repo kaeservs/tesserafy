@@ -78,6 +78,16 @@ not a figure, and treat two or three points between single runs as nothing.
 Log `response.usage` on every API call. Cost telemetry added later cannot be
 backfilled.
 
+A failure that only reaches the caller has not been reported. Every catch that
+answers a request records through `recordFailure` in `packages/ai`, which
+classifies it — a request we built wrong is not the same event as an
+overloaded model — scrubs credentials and customer identifiers out of the
+message, and writes a row. `pnpm health` reads those rows and exits non-zero
+when something needs a person; a scheduled GitHub Action runs it every four
+hours, which is the alarm. Errors are deliberately not sent to a tracking
+vendor: an upstream error quotes the request back, and here the request is
+meeting content.
+
 ## Commands
 
     pnpm install
@@ -98,6 +108,7 @@ backfilled.
     pnpm erase --company <uuid> --retention 90   # set a retention period
     pnpm erase --purge                       # erase everything past its retention
     pnpm smoke:tiers                 # one real call per tier: does the API still accept it
+    pnpm health [--hours 24]         # what has failed in production, and does it need a person
     pnpm exec supabase start         # local stack (needs Docker)
     pnpm exec supabase test db       # pgTAP tenant isolation
     pnpm test:integration            # RLS + retrieve() cross-tenant, local stack only

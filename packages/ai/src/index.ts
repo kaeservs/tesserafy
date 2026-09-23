@@ -95,6 +95,14 @@ export {
 export { writeInsight, type WriteInsightOptions } from './insights/write-insight';
 export { both, databaseSink, type UsageContext } from './telemetry/sink';
 export {
+  classify,
+  recordFailure,
+  scrub,
+  type Classified,
+  type FailureContext,
+  type FailureKind,
+} from './telemetry/failures';
+export {
   suggestNext,
   T2_MODEL,
   T2_SUGGESTER,

@@ -63,6 +63,27 @@ The Supabase project is in `ap-southeast-1`. For a customer in the EU or the
 UK that is a transfer question before it is a technical one, and it is not
 currently configurable per tenant.
 
+## Where failures go, and why not to a vendor
+
+The obvious way to see production errors is an error-tracking vendor, and it
+was not taken. An error message is useful precisely because the upstream
+quotes the request back at you, and here the request is a customer's words: a
+model rejection can carry a sentence from a call, an auth failure can carry a
+live key. Sending those to a third party would have re-opened, in a worse
+form, the egress that flow 1 spent a change narrowing.
+
+Failures go to `public.system_failures` in our own database instead, scrubbed
+of credentials and of the identifiers T0 masks, capped in length, and
+classified so that a bug of ours can be told from an overloaded model. They
+are read by `pnpm health`, which a scheduled GitHub Action runs every four
+hours and which exits non-zero when something needs a person.
+
+The rows cascade: erasing a conversation erases the failures recorded against
+it, and erasing a company erases all of them. This is the one place the
+failure log differs from the cost log, which keeps its rows and merely unlinks
+them — a cost row is numbers, and a failure row is a message that may quote
+the call it failed on.
+
 ## What the product does well
 
 Worth stating, so the gaps are read against the right baseline.
@@ -158,6 +179,9 @@ to CI is the obvious next step and deliberately not done silently.
   It has no second line of defence by design, which is why `pnpm qa` uploads
   a transcript carrying an address and asserts the stored segment does not.
 
+- **Production failures now have a destination.** See above. Previously an
+  error reached only the browser of whoever hit it, which is how three broken
+  tiers survived four merges unreported.
 - **No access log.** RLS decides who *can* read a conversation; nothing
   records who *did*. "Which of our staff opened this customer's call" is
   currently unanswerable.

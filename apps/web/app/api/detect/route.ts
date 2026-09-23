@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import {
   databaseSink,
   detectCriteria,
+  recordFailure,
   T1_DETECTOR,
   type CriterionPrompt,
   type DetectableSegment,
@@ -95,9 +96,14 @@ export async function POST(request: NextRequest) {
       serverMs: Date.now() - receivedAt,
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'detection failed' },
-      { status: 502 },
-    );
+    // Recorded before it is answered. The browser still gets the message, but
+    // it is no longer the only thing that does: a request this endpoint built
+    // wrong used to be visible only to whoever happened to have the console
+    // open, which is how three tiers stayed broken for four merges.
+    //
+    // The scrubbed message goes back to the caller too. An upstream error
+    // quotes the request, and the request is a customer's words.
+    const failure = recordFailure(error, { db: who.db, source: 'api/detect', tier: 't1' });
+    return NextResponse.json({ error: failure.message }, { status: 502 });
   }
 }

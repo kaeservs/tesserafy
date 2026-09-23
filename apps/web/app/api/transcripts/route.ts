@@ -6,6 +6,7 @@ import {
   toSegments,
   TranscriptParseError,
 } from '@tesserafy/ingest';
+import { recordFailure } from '@tesserafy/ai';
 import { NextResponse, type NextRequest } from 'next/server';
 import { caller } from '@/lib/supabase/caller';
 
@@ -117,6 +118,11 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     const status = error.code === '42501' ? 403 : error.code === '22023' ? 400 : 502;
+    // A refusal we designed — not a member, or a malformed argument — is an
+    // answer, and answers are not failures. A constraint or a missing function
+    // is a failure, and classify() already tells them apart by SQLSTATE, so
+    // only the ones we did not plan for are recorded.
+    if (status === 502) recordFailure(error, { db: who.db, source: 'api/transcripts' });
     return NextResponse.json({ error: error.message }, { status });
   }
 

@@ -1,5 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { databaseSink, suggestNext, T2_SUGGESTER, type SuggestableSegment } from '@tesserafy/ai';
+import {
+  databaseSink,
+  recordFailure,
+  suggestNext,
+  T2_SUGGESTER,
+  type SuggestableSegment,
+} from '@tesserafy/ai';
 import type { Scorecard } from '@tesserafy/scoring';
 import { NextResponse, type NextRequest } from 'next/server';
 import { caller } from '@/lib/supabase/caller';
@@ -56,9 +62,8 @@ export async function POST(request: NextRequest) {
     // free of special cases.
     return NextResponse.json('reason' in result ? { suggestion: null, reason: result.reason } : { suggestion: result });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'suggestion failed' },
-      { status: 502 },
-    );
+    // See api/detect: the failure gets a destination that is not the browser.
+    const failure = recordFailure(error, { db: who.db, source: 'api/suggest', tier: 't2' });
+    return NextResponse.json({ error: failure.message }, { status: 502 });
   }
 }

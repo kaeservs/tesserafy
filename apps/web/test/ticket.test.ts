@@ -4,19 +4,15 @@ import { ticketBody, ticketTitle, type TicketCitation } from '../lib/ticket';
 const CITATIONS: TicketCitation[] = [
   {
     quote: 'takes us most of Friday afternoon',
-    conversationTitle: 'Acme Robotics — discovery call',
     conversationId: 'c1',
     segmentId: 's1',
     startMs: 61_000,
-    speaker: 'Priya Raman',
   },
   {
     quote: 're-keys about four hundred invoices a month',
-    conversationTitle: 'Quarry Materials — annual review',
     conversationId: 'c2',
     segmentId: 's9',
     startMs: 8000,
-    speaker: null,
   },
 ];
 
@@ -36,13 +32,21 @@ describe('ticketBody', () => {
     }
   });
 
-  it('names the customer and the time for every quote', () => {
-    // The gate's requirement, and the thing that makes a ticket checkable by
-    // someone who has never opened this product.
+  it('places every quote in a numbered call at a time', () => {
+    // What replaced the speaker and the title: enough to tell two calls apart
+    // and to find the moment, and no more than that.
     const body = ticketBody(INPUT);
 
-    expect(body).toContain('Priya Raman, Acme Robotics — discovery call at 01:01');
-    expect(body).toContain('Quarry Materials — annual review at 00:08');
+    expect(body).toContain('call 1 at 01:01');
+    expect(body).toContain('call 2 at 00:08');
+  });
+
+  it('gives the same call the same number wherever it appears', () => {
+    const interleaved = [CITATIONS[0]!, CITATIONS[1]!, { ...CITATIONS[0]!, segmentId: 's4' }];
+    const body = ticketBody({ ...INPUT, citations: interleaved });
+
+    expect(body.match(/call 1 at/g)).toHaveLength(2);
+    expect(body).not.toContain('call 3');
   });
 
   it('links each quote back to its place in the transcript', () => {
@@ -74,12 +78,27 @@ describe('ticketBody', () => {
     expect(body).toContain('after a person approved it');
     expect(body).toContain('https://app.example.com/insights/i1');
   });
+});
 
-  it('omits the speaker when nobody was attributed', () => {
-    const body = ticketBody({ ...INPUT, citations: [CITATIONS[1]!] });
+describe('what a ticket must never carry', () => {
+  // A tracker is outside this product: it cannot be erased from, it is usually
+  // readable by a whole engineering organisation, and sometimes by anyone. The
+  // type is the real guarantee — there is no field here to leak — so these
+  // assert the property the type is there to protect, in the terms a reader
+  // cares about.
+  it('has no field for a speaker or a conversation title', () => {
+    const citation: TicketCitation = CITATIONS[0]!;
 
-    expect(body).toContain('— Quarry Materials');
-    expect(body).not.toContain('— null');
+    expect(Object.keys(citation).sort()).toEqual([
+      'conversationId',
+      'quote',
+      'segmentId',
+      'startMs',
+    ]);
+  });
+
+  it('says where the identifying detail went, so nobody adds it back', () => {
+    expect(ticketBody(INPUT)).toContain('deliberately not in this ticket');
   });
 });
 

@@ -78,6 +78,15 @@ not a figure, and treat two or three points between single runs as nothing.
 Log `response.usage` on every API call. Cost telemetry added later cannot be
 backfilled.
 
+The two endpoints that call a model are rate limited per account, in Postgres
+rather than in memory — the web app runs as many instances as the platform
+starts, so a per-instance counter is the limit times however many are warm.
+Limits live in `apps/web/lib/rate-limit.ts` because they are a product
+decision; the counting is in the database because that is the only place that
+can count across instances. Both windows a route wants are taken in one call,
+and the check fails closed: a limiter that fails open is not a limiter during
+exactly the incident it exists for.
+
 A failure that only reaches the caller has not been reported. Every catch that
 answers a request records through `recordFailure` in `packages/ai`, which
 classifies it — a request we built wrong is not the same event as an

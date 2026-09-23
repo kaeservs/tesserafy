@@ -9,6 +9,7 @@ import {
 import type { Scorecard } from '@tesserafy/scoring';
 import { NextResponse, type NextRequest } from 'next/server';
 import { caller } from '@/lib/supabase/caller';
+import { allowance, tooMany } from '@/lib/rate-limit';
 
 /**
  * T2: what to ask next.
@@ -50,6 +51,11 @@ export async function POST(request: NextRequest) {
   if (!Array.isArray(window) || window.length === 0) {
     return NextResponse.json({ error: 'window must be a non-empty array' }, { status: 400 });
   }
+
+  // Before the model, after the body. Suggestions cost more per call than
+  // detections and are asked for far less often, so the ceiling is tighter.
+  const limit = await allowance(who.db, 'api/suggest');
+  if (!limit.allowed) return tooMany('api/suggest', limit.retryAfterSeconds);
 
   try {
     const result = await suggestNext(scorecard, window, {

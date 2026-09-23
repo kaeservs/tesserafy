@@ -68,12 +68,57 @@ discovery criteria, graded by the same span-overlap rule.
 | Date | Windows | Labels | Detector | Model | Overall P / R / F1 |
 |---|---|---|---|---|---|
 | 2026-09-19 | 10 | 28 | `t1-detect@2026-09-19` | `claude-haiku-4-5` | 83% / 86% / 84% |
+| 2026-09-23 | 10 | 28 | `t1-detect@2026-09-19` | `claude-haiku-4-5` | 77% / 86% / 81% |
 
-Per criterion, the weakness is concentrated rather than spread:
-`budget_indicated` 100% F1, `desired_outcome_stated` 93%, `pain_quantified`
-88%, `current_process_known` 82%, **`timeline_stated` 57%** — it missed "we're
-on a July renewal" and counted the seller's "renewal is in six weeks" as the
-customer stating one. That is a definition to sharpen, not a model to replace.
+### Why there are two rows
+
+The first was measured before any tier set a temperature, so every call
+sampled freely against a fixed output schema. That makes 84% one draw from a
+distribution rather than a measurement — eight runs of a single window later
+produced five distinct results and three different sets of criteria, one of
+them empty.
+
+The second was measured after `temperature: 0` was pinned across every tier,
+and reproduced exactly: two consecutive runs agreed to the percentage point on
+every criterion. **81% is what the detector scores. 84% is what it scored
+once.**
+
+Read the drop as the error bar becoming visible, not as quality lost. Nothing
+about the detector changed between the rows except that it stopped rolling
+dice, and per-criterion the figures moved in both directions, which is exactly
+what a single sample looks like when it is replaced by a stable one:
+
+| Criterion | 2026-09-19 (one draw) | 2026-09-23 (deterministic) |
+|---|---|---|
+| `budget_indicated` | 100% | 100% |
+| `desired_outcome_stated` | 93% | 93% |
+| `pain_quantified` | 88% | **75%** |
+| `current_process_known` | 82% | 78% |
+| `timeline_stated` | **57%** | **75%** |
+
+`timeline_stated` was the headline weakness and is no longer the worst
+criterion; `pain_quantified` fell further than anything else rose. Both
+readings were true of the run that produced them and neither was true of the
+detector.
+
+### What the re-run does not settle
+
+Latency came back at p50 3313 ms, p95 4161 ms, against 2153 ms from a laptop
+and 1432 ms server-side in the original spike. That is not a regression claim:
+it is a different day, a different network and a laptop rather than `iad1`,
+and ADR 0010 already rests on the co-located figure. It is recorded because a
+number measured in passing is still a number somebody will find later.
+
+Cache read 0 of 10 calls, which agrees with the spike: with a system prompt
+and five criteria the frozen prefix is below Haiku's minimum cacheable size,
+so the breakpoint buys nothing at this corpus size. Unchanged by pinning the
+temperature, as expected.
+
+What survives from the first pass is the shape of the errors rather than their
+size. `timeline_stated` still counts a seller's "renewal is in six weeks" as
+the customer stating a timeline, and still misses "he retires in November".
+That is a definition to sharpen, not a model to replace — and
+`pnpm criteria --try` now exists to sharpen it against more than one call.
 
 Full method, the local-model comparison and the latency findings:
 `docs/experiments/s3-criterion-detection.md`.

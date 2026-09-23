@@ -39,6 +39,8 @@ export interface SuggestOptions {
   readonly model?: string;
   readonly maxTokens?: number;
   readonly onUsage?: UsageSink;
+  /** Sampling temperature. Zero by default — see DetectOptions. */
+  readonly temperature?: number;
 }
 
 export interface Suggestion {
@@ -109,6 +111,7 @@ export async function suggestNext(
   const response = await opts.client.messages.parse({
     model,
     max_tokens: opts.maxTokens ?? 1024,
+    temperature: opts.temperature ?? 0,
     system: SYSTEM,
     messages: [
       {

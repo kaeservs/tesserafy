@@ -202,3 +202,31 @@ describe('systemPrompt', () => {
     }
   });
 });
+
+describe('sampling', () => {
+  it('pins temperature to zero', async () => {
+    // Measured before this was set: eight runs over one identical window gave
+    // five distinct results and three different sets of criteria, one of them
+    // empty. A live scorecard that changes because the model rolled
+    // differently is not measuring the conversation.
+    const { client, parse } = fakeClient();
+
+    await detectCriteria(WINDOW, { client, criteria: CRITERIA, onUsage: () => {} });
+
+    expect(parse.mock.calls[0]![0]!['temperature']).toBe(0);
+  });
+
+  it('lets a spike vary it deliberately', async () => {
+    // Overridable so an experiment can, never so a caller drifts into it.
+    const { client, parse } = fakeClient();
+
+    await detectCriteria(WINDOW, {
+      client,
+      criteria: CRITERIA,
+      temperature: 1,
+      onUsage: () => {},
+    });
+
+    expect(parse.mock.calls[0]![0]!['temperature']).toBe(1);
+  });
+});

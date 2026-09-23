@@ -18,7 +18,7 @@ const SPEAKER_PREFIX = /^([^:.!?]{1,40}):\s+([\s\S]+)$/;
 const MAX_SPEAKER_WORDS = 4;
 
 export function parseVtt(source: string): ParsedTranscript {
-  const lines = source.replace(/^﻿/, '').split(/\r\n|\r|\n/);
+  const lines = source.replace(/^\uFEFF/, '').split(/\r\n|\r|\n/);
 
   if (!lines[0]?.startsWith('WEBVTT')) {
     throw new TranscriptParseError('Not a WebVTT file: it must start with WEBVTT', 1);

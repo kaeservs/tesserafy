@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { ScorecardStrip } from '@/components/scorecard-strip';
 import { coverageBySet as coverageForSets } from '@/lib/coverage';
-import { scoreConversations, type ScorableConversation } from '@/lib/scorecard';
+import { scoreConversations } from '@/lib/scorecard';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -63,7 +63,7 @@ export default async function DashboardPage() {
   const signals = (signalsResult.data ?? []);
   const insights = (insightsResult.data ?? []);
 
-  const scores = await scoreConversations(supabase, conversations as ScorableConversation[]);
+  const scores = await scoreConversations(supabase, conversations);
 
   // A meeting nobody has run `pnpm score` over has no events, which is a
   // different thing from a meeting that scored zero. Saying so is the whole

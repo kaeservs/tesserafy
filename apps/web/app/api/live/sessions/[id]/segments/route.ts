@@ -59,5 +59,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: error.message }, { status });
   }
 
-  return NextResponse.json({ segmentId: data as string });
+  return NextResponse.json({ segmentId: data });
 }

@@ -110,7 +110,7 @@ async function segmentsOf(db: SupabaseClient, conversationId: string): Promise<S
     .eq('conversation_id', conversationId)
     .order('start_ms', { ascending: true });
   if (error) throw new Error(`Reading segments failed: ${error.message}`);
-  return (data ?? []) as SegmentRow[];
+  return (data ?? []);
 }
 
 function windowsOf(segments: readonly SegmentRow[]): DetectableSegment[][] {

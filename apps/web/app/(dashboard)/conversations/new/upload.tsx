@@ -47,7 +47,10 @@ export function Upload({ sets }: { sets: { engagementType: string; version: numb
   }
 
   return (
-    <form onSubmit={submit}>
+    // `void`, not because the rejection does not matter but because there is
+    // none: submit catches its own and puts the message on the page. Handing
+    // React a promise would mean nothing was listening if that ever changed.
+    <form onSubmit={(event) => void submit(event)}>
       <div className="field">
         <label htmlFor="transcript">Transcript</label>
         <input

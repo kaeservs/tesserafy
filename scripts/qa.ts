@@ -276,12 +276,12 @@ async function main(): Promise<void> {
     .from('signal_evidence')
     .select('quote, quote_start, quote_end, segment_id');
   const { data: segments } = await db.from('segments').select('id, text');
-  const textOf = new Map((segments ?? []).map((row) => [row.id, row.text as string]));
+  const textOf = new Map((segments ?? []).map((row) => [row.id, row.text]));
   const drifted = (evidence ?? []).filter((row) => {
-    const text = textOf.get(row.segment_id as string);
+    const text = textOf.get(row.segment_id);
     return (
       text === undefined ||
-      text.slice(row.quote_start as number, row.quote_end as number) !== (row.quote as string)
+      text.slice(row.quote_start, row.quote_end) !== (row.quote)
     );
   });
   record('every quote still matches its segment', drifted.length === 0, `${drifted.length} drifted`);
@@ -292,10 +292,10 @@ async function main(): Promise<void> {
     .from('criterion_events')
     .select('quote, quote_start, quote_end, segment_id');
   const criterionDrifted = (criterionEvidence ?? []).filter((row) => {
-    const text = textOf.get(row.segment_id as string);
+    const text = textOf.get(row.segment_id);
     return (
       text === undefined ||
-      text.slice(row.quote_start as number, row.quote_end as number) !== (row.quote as string)
+      text.slice(row.quote_start, row.quote_end) !== (row.quote)
     );
   });
   record(
@@ -712,7 +712,7 @@ async function checkFailureRecording(supabaseUrl: string, serviceKey: string): P
       // The optional arguments are left out rather than sent as null, which is
       // what the routes do and therefore what this should exercise.
     });
-    id = (data as string | null) ?? null;
+    id = (data) ?? null;
     record('a failure can be recorded', !error && Boolean(id), error ? error.message : 'row written');
     if (!id) return;
 

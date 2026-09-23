@@ -103,6 +103,7 @@ meeting content.
     pnpm dev          # web app
     pnpm test         # all workspaces, unit only, no network
     pnpm typecheck
+    pnpm lint       # eslint, type-aware rules; see tools/lint
     pnpm guard:retrieval             # ADR 0004 grep guard
     pnpm ingest <file.vtt> --company <uuid>   # transcript -> segments -> signals
     pnpm ingest <file.vtt> --dry-run         # parse and chunk only, writes nothing
@@ -127,6 +128,12 @@ meeting content.
 
 - TypeScript everywhere in `apps/` and `packages/`. Python only in
   `services/eval`.
+- The linter lives in `tools/lint` as its own package, because
+  typescript-eslint cannot run on TypeScript 7 and needs a 6.0 compiler beside
+  the 7.0.2 one everything else builds with. Its rules are type-aware and
+  chosen against mistakes this codebase has made, not from a style guide.
+  There is no formatter, on purpose: adding one would rewrite every file and
+  the style is already consistent.
 - Database changes go through `supabase/migrations/` — never ad-hoc SQL against
   the remote project. Run `pnpm db:types` after one: `packages/db/src/generated.ts`
   is generated from the deployed schema and is what every client is typed

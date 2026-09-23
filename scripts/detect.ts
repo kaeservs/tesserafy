@@ -108,7 +108,7 @@ async function detectWithOllama(
   };
   const durationMs = Date.now() - startedAt;
 
-  let observations: RawObservation[] = [];
+  let observations: RawObservation[];
   try {
     observations = (JSON.parse(payload.message?.content ?? '{}') as { observations?: RawObservation[] })
       .observations ?? [];

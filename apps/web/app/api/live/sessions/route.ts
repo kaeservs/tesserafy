@@ -60,5 +60,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status });
   }
 
-  return NextResponse.json({ conversationId: data as string });
+  return NextResponse.json({ conversationId: data });
 }

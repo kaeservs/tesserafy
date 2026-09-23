@@ -283,7 +283,7 @@ async function runPool(
         };
       }
 
-      const done = outcomes[index]!;
+      const done = outcomes[index];
       const label =
         done.status === 'imported'
           ? `${done.segments} segments, ${done.signals} signals`

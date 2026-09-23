@@ -77,7 +77,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     .maybeSingle();
 
   if (existing) {
-    const ticket = existing as { url: string; external_id: string };
+    const ticket = existing;
     return NextResponse.json({
       url: ticket.url,
       number: Number(ticket.external_id),
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         .maybeSingle();
 
       if (winner) {
-        const ticket = winner as { url: string; external_id: string };
+        const ticket = winner;
         return NextResponse.json({
           url: ticket.url,
           number: Number(ticket.external_id),

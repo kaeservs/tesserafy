@@ -78,6 +78,7 @@ export {
   type DetectionResult,
   type DetectOptions,
 } from './tiers/t1-detect';
+export { embedConversation } from './retrieval/embed-conversation';
 export { locate } from './tiers/evidence';
 export {
   scanWindows,

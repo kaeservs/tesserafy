@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { FindInsightsButton } from '@/components/find-insights-button';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -57,10 +58,11 @@ export default async function InsightsPage() {
   return (
     <main>
       <h1>Insights</h1>
+      <FindInsightsButton />
       {insights.length === 0 ? (
         <p className="muted">
           Nothing yet. Insights appear when the same finding shows up in more than one
-          conversation — run <code>pnpm insights</code> once a few calls are imported.
+          conversation.
         </p>
       ) : (
         <ul className="signals">

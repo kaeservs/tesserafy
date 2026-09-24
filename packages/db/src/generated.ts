@@ -969,6 +969,17 @@ export type Database = {
         }
         Returns: string
       }
+      record_insight: {
+        Args: {
+          p_company_id: string
+          p_model: string
+          p_signal_ids: string[]
+          p_summary: string
+          p_synthesiser: string
+          p_title: string
+        }
+        Returns: string
+      }
       record_insight_ticket: {
         Args: {
           p_external_id: string

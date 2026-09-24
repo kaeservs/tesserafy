@@ -68,6 +68,13 @@ export const LIMITS: Record<string, readonly Window[]> = {
     { seconds: 3_600, limit: 10 },
     { seconds: 86_400, limit: 20 },
   ],
+  // Up to five Opus write-ups per press (lib/find-insights.ts). Three presses
+  // an hour and ten a day bound one account at fifty write-ups a day, and
+  // cited signals are skipped, so repeated presses find less, not the same.
+  'api/insights/find': [
+    { seconds: 3_600, limit: 3 },
+    { seconds: 86_400, limit: 10 },
+  ],
   'api/transcripts': [
     { seconds: 3_600, limit: 6 },
     { seconds: 86_400, limit: 10 },

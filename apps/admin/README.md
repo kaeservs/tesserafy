@@ -30,11 +30,16 @@ Copy `.env.example` to `apps/admin/.env.local`:
 `{NEXT_PUBLIC_APP_URL}/auth/confirm` must also be listed under **Supabase →
 Authentication → URL Configuration → Redirect URLs**.
 
-It does not refuse if you forget. It substitutes the project's site URL and
-says nothing, so the link still works, still carries a session, and lands
-somewhere that does not read it. The console detects the substitution and tells
-you on the spot, and the product forwards a session that arrives at the wrong
-door — but neither is the fix. The allow-list entry is.
+If it is missing, Supabase does not refuse — it falls back to the Site URL.
+The link still works and still carries a session, but lands somewhere that does
+not read it. The console checks where each link will actually land and says so
+when it is wrong, and the product forwards a session that arrives at the wrong
+door. Neither replaces the allow-list entry.
+
+A note on how that was learned. The first version of the console put
+`redirect_to` inside `options`, which is how the JavaScript SDK spells it but
+not how the REST endpoint reads it. Every link fell back to the Site URL, and
+the fallback was blamed on the allow-list, which was correct the whole time.
 
 ## Becoming an operator
 

@@ -1,15 +1,14 @@
 /**
  * A session that lands at the wrong door.
  *
- * Supabase does not refuse a `redirect_to` it has not been told to allow — it
- * silently substitutes the project's site URL. Measured against this project:
- * asking for `…/auth/confirm` came back with a link pointing at the bare
- * origin. The origin is `/`, which redirects to a page that requires the
- * session those tokens would have created, so the person lands on the login
- * form holding credentials nothing ever read.
+ * Supabase sends a link to the Site URL when the request names no redirect, or
+ * one missing from the allow-list. The Site URL is `/`, which redirects to a
+ * page requiring the session those tokens would have created, so the person
+ * lands on the login form holding credentials nothing ever read.
  *
- * The real fix is an allow-list entry in the project's settings. This test
- * covers the part that survives somebody forgetting it.
+ * This happened for real, from a request that nested `redirect_to` where the
+ * REST endpoint does not read it. This test covers the part that survives the
+ * next mistake of that kind, whatever its cause.
  *
  * The tokens here are deliberately nonsense. What is being tested is that the
  * fragment reaches the page that knows what to do with it, not that Supabase
@@ -34,8 +33,8 @@ test.describe('a session link that lands anywhere', () => {
   });
 
   test('is carried from a page that would otherwise bounce to sign-in', async ({ page }) => {
-    // The downgrade sends a link to the site URL, which may be any path
-    // somebody has configured. Whichever it is, the fragment must not be lost.
+    // The Site URL may be any path somebody has configured. Whichever it is,
+    // the fragment must not be lost.
     await page.goto('/conversations#access_token=not-a-real-token&refresh_token=also-not-real');
 
     await page.waitForURL((url) => url.pathname === '/login' && url.search.includes('error='), {

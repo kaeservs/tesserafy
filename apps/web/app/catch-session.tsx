@@ -5,18 +5,16 @@ import { useEffect } from 'react';
 /**
  * A session that arrived at the wrong door.
  *
- * Supabase does not reject a `redirect_to` it has not been told to allow — it
- * silently substitutes the project's site URL. So a link generated for
- * `/auth/confirm` lands on `/` instead, with the tokens still in the fragment,
- * and `/` is a server component that redirects to a page requiring the session
- * those tokens would have created. The person ends up on the login form
- * holding a valid session they cannot use, and nothing anywhere says why.
+ * Supabase sends a sign-in link to the project's Site URL whenever the
+ * request names no redirect, or names one missing from the allow-list. The
+ * Site URL is `/`, a server component that redirects to a page requiring the
+ * session those tokens would have created — so the person ends up on the login
+ * form holding a valid session they cannot use, and nothing says why.
  *
- * That was measured, not imagined: asking for `…/auth/confirm` came back with
- * `redirect_to=…` pointing at the bare origin.
- *
- * Adding the URL to the allow-list is the actual fix and belongs in the
- * project's settings. This is the part that survives somebody forgetting: the
+ * It happened. The operator console once nested `redirect_to` where the REST
+ * endpoint does not read it, every link fell back to `/`, and the cause was
+ * first mistaken for the allow-list. Neither a correct request nor a correct
+ * allow-list is something this component can check, so it covers both: the
  * fragment is carried to the page that knows what to do with it, from wherever
  * it landed. It costs one effect that almost always finds nothing.
  *

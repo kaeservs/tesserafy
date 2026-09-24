@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@tesserafy/db';
 import { describe, expect, it, vi } from 'vitest';
-import { both, databaseSink, logUsage, type UsageEvent } from '../src/index';
+import { awaitableDatabaseSink, both, databaseSink, logUsage, type UsageEvent } from '../src/index';
 
 const EVENT: UsageEvent = {
   tier: 't3',
@@ -137,5 +137,41 @@ describe('both', () => {
     expect(info).toHaveBeenCalled();
     expect(rpc).toHaveBeenCalled();
     info.mockRestore();
+  });
+});
+
+describe('awaitableDatabaseSink', () => {
+  it('lets a serverless caller wait until the row is written', async () => {
+    // The row a T3 run writes is also what marks the call as read. Returning
+    // before it lands, in a function that freezes after responding, is how a
+    // run that found nothing would forget it ever ran.
+    let written = false;
+    const db = {
+      rpc: () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            written = true;
+            resolve({ error: null });
+          }, 20);
+        }),
+    } as never;
+
+    const usage = awaitableDatabaseSink({ db });
+    usage.sink(EVENT);
+    expect(written).toBe(false);
+
+    await usage.settled();
+    expect(written).toBe(true);
+  });
+
+  it('still never throws when the write fails', async () => {
+    const errors: Error[] = [];
+    const { db } = fakeDb({ message: 'permission denied' });
+
+    const usage = awaitableDatabaseSink({ db, onError: (e) => errors.push(e) });
+    usage.sink(EVENT);
+
+    await expect(usage.settled()).resolves.toBeUndefined();
+    expect(errors[0]?.message).toContain('permission denied');
   });
 });

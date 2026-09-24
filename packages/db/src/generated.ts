@@ -947,6 +947,15 @@ export type Database = {
         Args: { p_conversation_id: string; p_events: Json }
         Returns: Json
       }
+      record_extracted_signals: {
+        Args: {
+          p_conversation_id: string
+          p_detector: string
+          p_model: string
+          p_signals: Json
+        }
+        Returns: Json
+      }
       record_failure: {
         Args: {
           p_company_id?: string

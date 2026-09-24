@@ -61,6 +61,13 @@ export const LIMITS: Record<string, readonly Window[]> = {
   // An upload now scores itself, up to ~500 detector calls (~$0.95) for the
   // longest call taken on. Ten a day bounds one account at about $9.50 a day,
   // which is a busy week of real meetings, not a runaway.
+  // Opus, pressed by a person. Short test calls measured at ~$0.008; a real
+  // hour-long call is likely $0.10-0.25. Each call can only be read once, so
+  // this bounds how many different calls one account reads in a day.
+  'api/extract': [
+    { seconds: 3_600, limit: 10 },
+    { seconds: 86_400, limit: 20 },
+  ],
   'api/transcripts': [
     { seconds: 3_600, limit: 6 },
     { seconds: 86_400, limit: 10 },

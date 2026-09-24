@@ -25,6 +25,8 @@ export interface SessionState {
   link?: string;
   accessId?: string;
   email?: string;
+  /** Where the link will actually land, when that is not where we asked. */
+  landsElsewhere?: string;
 }
 
 /**
@@ -55,8 +57,8 @@ export async function openSession(_prev: SessionState, formData: FormData): Prom
   });
   if (error) return { status: 'error', message: error.message };
 
-  const link = await mintSessionFor(email);
-  if (!link) {
+  const minted = await mintSessionFor(email);
+  if (!minted) {
     return {
       status: 'error',
       message: `Recorded as ${access.id}, but no session could be minted. Check SUPABASE_SERVICE_ROLE_KEY and NEXT_PUBLIC_APP_URL.`,
@@ -64,7 +66,13 @@ export async function openSession(_prev: SessionState, formData: FormData): Prom
   }
 
   revalidatePath('/');
-  return { status: 'ready', link, accessId: access.id, email };
+  return {
+    status: 'ready',
+    link: minted.link,
+    accessId: access.id,
+    email,
+    ...(minted.landsElsewhere ? { landsElsewhere: minted.landsElsewhere } : {}),
+  };
 }
 
 export async function endSession(formData: FormData): Promise<void> {

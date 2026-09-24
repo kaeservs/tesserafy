@@ -63,7 +63,16 @@ export async function requireAdmin(): Promise<Admin> {
  * session genuinely is theirs, with their view and their attribution, and the
  * `support_access` row is the only thing that records otherwise.
  */
-export async function mintSessionFor(email: string): Promise<string | null> {
+export interface MintedSession {
+  readonly link: string;
+  /**
+   * Set when Supabase substituted its own site URL for the one we asked for,
+   * which it does silently for any redirect it has not been told to allow.
+   */
+  readonly landsElsewhere?: string;
+}
+
+export async function mintSessionFor(email: string): Promise<MintedSession | null> {
   const url = process.env['NEXT_PUBLIC_SUPABASE_URL'];
   const serviceKey = process.env['SUPABASE_SERVICE_ROLE_KEY'];
   const appUrl = process.env['NEXT_PUBLIC_APP_URL'];
@@ -88,7 +97,18 @@ export async function mintSessionFor(email: string): Promise<string | null> {
     action_link?: string;
     properties?: { action_link?: string };
   };
-  return body.action_link ?? body.properties?.action_link ?? null;
+  const link = body.action_link ?? body.properties?.action_link;
+  if (!link) return null;
+
+  // Supabase does not refuse a redirect it has not been told to allow; it
+  // quietly swaps in the project's site URL. The resulting link still works,
+  // still carries a session, and lands on a page that does not know what to do
+  // with it — so the operator sees a login form and concludes the button is
+  // broken. Asking the link where it is actually going turns that into
+  // something the console can say out loud.
+  const asked = new URL('/auth/confirm', appUrl).toString();
+  const going = new URL(link).searchParams.get('redirect_to');
+  return going && going !== asked ? { link, landsElsewhere: going } : { link };
 }
 
 /**

@@ -28,8 +28,13 @@ Copy `.env.example` to `apps/admin/.env.local`:
 | `NEXT_PUBLIC_APP_URL` | the customer app's origin, where a session lands |
 
 `{NEXT_PUBLIC_APP_URL}/auth/confirm` must also be listed under **Supabase →
-Authentication → URL Configuration → Redirect URLs**, or the generated link
-will refuse to land.
+Authentication → URL Configuration → Redirect URLs**.
+
+It does not refuse if you forget. It substitutes the project's site URL and
+says nothing, so the link still works, still carries a session, and lands
+somewhere that does not read it. The console detects the substitution and tells
+you on the spot, and the product forwards a session that arrives at the wrong
+door — but neither is the fix. The allow-list entry is.
 
 ## Becoming an operator
 

@@ -93,6 +93,12 @@ never. The key is used for one thing there — minting the session — and
 everything an operator reads goes through RLS as them, against functions that
 check `is_platform_admin()` for themselves.
 
+The session it hands over is an ordinary magic link, and Supabase silently
+substitutes its own site URL for any `redirect_to` it has not been told to
+allow — measured, not assumed. The console reports the substitution rather than
+handing over a link that appears broken, and the product forwards a session
+that lands at the wrong door to the page that can read it.
+
 Its sign-out is scoped local, which sounds like a detail and is not: Supabase
 signs out globally by default, so a customer who reached the console by mistake
 would have been signed out of the actual product on every device they own, for

@@ -51,7 +51,7 @@ export default async function SearchPage({
       p_limit: LIMIT,
     });
     if (error) failed = error.message;
-    else hits = (data ?? []) as Hit[];
+    else hits = (data ?? []);
   }
 
   // Titles in a second query: segments reach conversations through a

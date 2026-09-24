@@ -781,3 +781,16 @@ input[type='search'] {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+
+/*
+ * Shown to everyone signed in to an account while a support session is open —
+ * the customer and the operator alike. Loud on purpose: it is the one place
+ * the product admits somebody else may be looking.
+ */
+.support-banner {
+  background: #fff4e5;
+  border-bottom: 1px solid #f0a64b;
+  color: #6b3d00;
+  padding: 0.55rem 1.25rem;
+  font-size: 0.9rem;
+}

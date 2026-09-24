@@ -106,9 +106,22 @@ signs out globally by default, so a customer who reached the console by mistake
 would have been signed out of the actual product on every device they own, for
 failing a check they were never meant to pass.
 
-What is not built yet: a banner telling the user it is happening while it
-happens, and a consent step. Until those exist, telling the customer is a
-thing a person does, not a thing the product does.
+While a support session is open, every page of the account shows a banner
+naming the reason and the time left — to the customer and to the operator
+alike, because the product cannot tell their sessions apart and should not
+try. It reads the account's own `support_access` rows, which RLS already let
+the user see.
+
+Two limits, stated plainly:
+
+- **Ending or expiring a session closes the record, not the login.** The
+  operator's session is an ordinary Supabase session and lives until Supabase
+  expires it. Revoking only that session needs its token, which the database
+  never holds; revoking globally would sign the customer out as well —
+  measured, not assumed. So the duration is enforced on the record and the
+  banner, and an operator who keeps working after it has run out is visible in
+  the record but not stopped by it.
+- **There is no consent step.** The customer is told, not asked.
 
 ## Where failures go, and why not to a vendor
 

@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
+import type { Database } from '@tesserafy/db';
 import { cookies } from 'next/headers';
 import { publicSupabaseEnv } from '../env';
 
@@ -12,7 +13,7 @@ export async function createClient() {
   const cookieStore = await cookies();
   const { url, publishableKey } = publicSupabaseEnv();
 
-  return createServerClient(url, publishableKey, {
+  return createServerClient<Database>(url, publishableKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll();

@@ -103,6 +103,13 @@ describe('an endpoint with no configured limit', () => {
 });
 
 describe('what the caller is told', () => {
+  it('describes an hourly window in words', async () => {
+    const body = (await tooMany('api/transcripts', 60).json()) as { error: string };
+
+    expect(body.error).toContain('6 an hour');
+    expect(body.error).toContain('10 a day');
+  });
+
   it('answers 429 with a Retry-After header', () => {
     const response = tooMany('api/detect', 17);
 
@@ -129,8 +136,10 @@ describe('the limits themselves', () => {
       const day = windows.find((window) => window.seconds === 86_400);
       expect(day, `${bucket} has no daily ceiling`).toBeDefined();
 
-      const minute = windows.find((window) => window.seconds === 60);
-      expect(day!.limit).toBeLessThan(minute!.limit * 1440);
+      // The daily ceiling must actually bind: tighter than the shortest window
+      // sustained all day, or it is a number that never matters.
+      const shortest = [...windows].sort((a, b) => a.seconds - b.seconds)[0]!;
+      expect(day!.limit).toBeLessThan(shortest.limit * (86_400 / shortest.seconds));
     }
   });
 });

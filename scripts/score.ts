@@ -26,18 +26,18 @@
 import Anthropic from '@anthropic-ai/sdk';
 import {
   databaseSink,
-  detectCriteria,
   locate,
+  scanWindows,
+  SCORE_WINDOW_SIZE,
   T1_DETECTOR,
+  windowsOf,
   type CriterionPrompt,
   type DetectableSegment,
 } from '@tesserafy/ai';
 import { createServiceClient, fetchCriteria, type SupabaseClient } from '@tesserafy/db';
 
-/** Utterances per window, matching the live path. */
-const WINDOW_SIZE = 3;
-/** How far the window advances. Two of three utterances are re-shown. */
-const STRIDE = 1;
+// Windowing lives in @tesserafy/ai now, shared with the upload path, so the
+// same meeting cannot score differently depending on how it arrived.
 
 interface ConversationRow {
   id: string;
@@ -113,26 +113,6 @@ async function segmentsOf(db: SupabaseClient, conversationId: string): Promise<S
   return (data ?? []);
 }
 
-function windowsOf(segments: readonly SegmentRow[]): DetectableSegment[][] {
-  const windows: DetectableSegment[][] = [];
-  for (let start = 0; start < segments.length; start += STRIDE) {
-    const slice = segments.slice(start, start + WINDOW_SIZE);
-    if (slice.length === 0) break;
-    windows.push(
-      slice.map((segment) => ({
-        id: segment.id,
-        speaker: segment.speaker,
-        startMs: segment.start_ms,
-        endMs: segment.end_ms,
-        text: segment.text,
-      })),
-    );
-    // The last window is whatever is left; advancing past it would repeat it.
-    if (start + WINDOW_SIZE >= segments.length) break;
-  }
-  return windows;
-}
-
 interface PendingEvent {
   company_id: string;
   conversation_id: string;
@@ -188,7 +168,7 @@ async function main(): Promise<void> {
 
   const calls = plan.reduce((sum, entry) => sum + entry.windows.length, 0);
   console.info(
-    `${plan.length} conversation(s), ${calls} detector call(s) at ${WINDOW_SIZE} utterances per window.`,
+    `${plan.length} conversation(s), ${calls} detector call(s) at ${SCORE_WINDOW_SIZE} utterances per window.`,
   );
   if (dryRun) {
     for (const { conversation, windows } of plan) {
@@ -210,55 +190,47 @@ async function main(): Promise<void> {
       promptsFor.set(setKey, criteria);
     }
 
+    // The shared pass: every window through T1, the strongest observation of
+    // each span kept. Offsets are resolved here rather than there, because
+    // this path writes with the service role and the table stores them; the
+    // upload path writes through an RPC that derives them itself.
+    const scan = await scanWindows(windows, {
+      client,
+      criteria,
+      onUsage: databaseSink({
+        db,
+        detector: T1_DETECTOR,
+        companyId: conversation.company_id,
+        conversationId: conversation.id,
+      }),
+    });
+
     const pending = new Map<string, PendingEvent>();
-    let rejected = 0;
+    let rejected = scan.rejected;
+    const byId = new Map(windows.flat().map((segment) => [segment.id, segment]));
 
-    for (const window of windows) {
-      const result = await detectCriteria(window, {
-        client,
-        criteria,
-        onUsage: databaseSink({
-          db,
-          detector: T1_DETECTOR,
-          companyId: conversation.company_id,
-          conversationId: conversation.id,
-        }),
-      });
-      rejected += result.rejected.length;
-
-      for (const event of result.events) {
-        const segment = window.find((candidate) => candidate.id === event.span.segmentId);
-        // The detector already checked the quote is in the window verbatim;
-        // this resolves where, because the row stores offsets and the database
-        // re-checks them against the segment on insert.
-        const span = segment ? locate(segment.text, event.span.quote) : null;
-        if (!segment || !span) {
-          rejected += 1;
-          continue;
-        }
-
-        // Deduplicated here as well as by the unique constraint: overlapping
-        // windows re-observe the same span two or three times, and sending
-        // each one to be rejected by the database would make the write a
-        // conflict storm rather than an insert.
-        const key = `${event.criterionKey}|${event.kind}|${segment.id}|${span.start}|${span.end}`;
-        const existing = pending.get(key);
-        if (existing && existing.confidence >= event.confidence) continue;
-
-        pending.set(key, {
-          company_id: conversation.company_id,
-          conversation_id: conversation.id,
-          criterion_key: event.criterionKey,
-          kind: event.kind,
-          confidence: event.confidence,
-          segment_id: segment.id,
-          quote: segment.text.slice(span.start, span.end),
-          quote_start: span.start,
-          quote_end: span.end,
-          detector: result.detector,
-          model: result.model,
-        });
+    for (const event of scan.events) {
+      const segment = byId.get(event.segmentId);
+      const span = segment ? locate(segment.text, event.quote) : null;
+      if (!segment || !span) {
+        rejected += 1;
+        continue;
       }
+      const key = `${event.criterionKey}|${event.kind}|${segment.id}|${span.start}|${span.end}`;
+      if (pending.has(key)) continue;
+      pending.set(key, {
+        company_id: conversation.company_id,
+        conversation_id: conversation.id,
+        criterion_key: event.criterionKey,
+        kind: event.kind,
+        confidence: event.confidence,
+        segment_id: segment.id,
+        quote: segment.text.slice(span.start, span.end),
+        quote_start: span.start,
+        quote_end: span.end,
+        detector: event.detector,
+        model: event.model,
+      });
     }
 
     const rows = [...pending.values()];

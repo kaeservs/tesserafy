@@ -42,7 +42,13 @@ function companyName(embed: ConversationRow['companies']): string {
   return row?.name ?? '';
 }
 
-export default async function ConversationsPage() {
+export default async function ConversationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ erased?: string; tickets?: string }>;
+}) {
+  const { erased, tickets } = await searchParams;
+  const exported = Number(tickets ?? 0);
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('conversations')
@@ -65,6 +71,16 @@ export default async function ConversationsPage() {
         <h1>Meetings</h1>
         <Link href="/conversations/new">Import a transcript</Link>
       </div>
+      {erased ? (
+        <p className="card" role="status">
+          The call was deleted, with everything derived from it.
+          {exported > 0
+            ? ` ${exported} ticket${exported === 1 ? ' was' : 's were'} exported from it to your ` +
+              'tracker earlier; those live in the tracker and were not deleted — remove them there ' +
+              'if they should go too.'
+            : ''}
+        </p>
+      ) : null}
       <p className="muted">
         {conversations.length} conversation{conversations.length === 1 ? '' : 's'}, newest first.
         Each score is computed from the quoted evidence behind it.

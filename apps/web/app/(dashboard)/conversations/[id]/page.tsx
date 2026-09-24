@@ -5,6 +5,7 @@ import { Shortfall } from '@/components/criterion-shortfall';
 import { conversationPipeline, nextCommand, stageOf } from '@/lib/pipeline';
 import { scoreConversation } from '@/lib/scorecard';
 import { ExtractButton } from '@/components/extract-button';
+import { DeleteCall } from '@/components/delete-call';
 import { RefreshWhile } from '@/components/refresh-while';
 import { capturedState, type CapturedState } from '@/lib/scoring-status';
 import { createClient } from '@/lib/supabase/server';
@@ -124,6 +125,19 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
   // two pure functions the live overlay runs. Nothing stored is a score
   // (invariant 1), so this page and a call happening right now cannot
   // disagree about what the evidence adds up to.
+  // Only an owner may delete a call; erase_conversation refuses anyone else.
+  // Read here so the section is not offered to someone it would refuse.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: ownership } = await supabase
+    .from('company_members')
+    .select('role')
+    .eq('user_id', user?.id ?? '')
+    .eq('role', 'owner')
+    .limit(1);
+  const isOwner = (ownership ?? []).length > 0;
+
   const scored = await scoreConversation(supabase, conversation);
   const card = scored.scorecard;
   const pipeline = (await conversationPipeline(supabase)).get(id);
@@ -328,6 +342,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
           </ol>
         )}
       </section>
+      {isOwner ? <DeleteCall conversationId={id} /> : null}
     </main>
   );
 }

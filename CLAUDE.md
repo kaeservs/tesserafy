@@ -108,6 +108,8 @@ meeting content.
 ## Commands
 
     pnpm install
+    cp .env.example .env   # operator scripts read it; pnpm env:check says what is missing
+    pnpm env:check          # what is set, what is missing, which Supabase host — no secrets
     pnpm dev          # web app
     pnpm --filter @tesserafy/admin dev   # operator console, port 3001
     pnpm test         # all workspaces, unit only, no network

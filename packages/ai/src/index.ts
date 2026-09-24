@@ -108,6 +108,12 @@ export {
   type SynthesiseOptions,
 } from './insights/synthesise';
 export { writeInsight, type WriteInsightOptions } from './insights/write-insight';
+export {
+  groupSignature,
+  loadDeclined,
+  rememberDecline,
+  type RememberedDecline,
+} from './insights/declines';
 export { awaitableDatabaseSink, both, databaseSink, type UsageContext } from './telemetry/sink';
 export {
   classify,

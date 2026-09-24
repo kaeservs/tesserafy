@@ -18,6 +18,9 @@ import Anthropic from '@anthropic-ai/sdk';
 import {
   both,
   clusterSignals,
+  groupSignature,
+  loadDeclined,
+  rememberDecline,
   createSupabaseEmbedder,
   databaseSink,
   loadSignals,
@@ -133,12 +136,23 @@ async function main(): Promise<void> {
   console.info(`${signals.length} signal(s) across ${new Set(signals.map((s) => s.conversationId)).size} conversation(s)`);
   if (signals.length === 0) return;
 
-  const clusters = await clusterSignals(companyId, signals, {
+  const clustered = await clusterSignals(companyId, signals, {
     db,
     embedder,
     minSignals: args.minSignals,
     minConversations: args.minConversations,
   });
+
+  // The same memory the customer's button uses: a group already judged not to
+  // be one finding is not sent to Opus again, unless this is a deliberate
+  // re-synthesis.
+  const declinedBefore = args.resynthesise ? new Set<string>() : await loadDeclined(companyId, db);
+  const clusters = clustered.filter(
+    (cluster) => !declinedBefore.has(groupSignature(cluster.signals.map((signal) => signal.id))),
+  );
+  if (clusters.length < clustered.length) {
+    console.info(`${clustered.length - clusters.length} group(s) skipped: already judged not to be one finding`);
+  }
   console.info(`${clusters.length} candidate cluster(s)\n`);
 
   for (const cluster of clusters) {
@@ -169,8 +183,17 @@ async function main(): Promise<void> {
 
     if ('reason' in result) {
       // Declining is a result, not a failure: the cluster was similar words,
-      // not one finding.
+      // not one finding. Remembered when it is a verdict and this run writes.
       console.info(`skipped (${result.reason}): ${result.note}`);
+      if (args.write && (result.reason === 'declined' || result.reason === 'too-narrow')) {
+        await rememberDecline(
+          companyId,
+          cluster.signals.map((signal) => signal.id),
+          result.reason,
+          T3_SYNTHESISER,
+          db,
+        );
+      }
       continue;
     }
 

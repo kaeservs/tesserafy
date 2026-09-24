@@ -26,6 +26,7 @@ export function FindInsightsButton() {
         proposed?: number;
         declined?: number;
         remaining?: number;
+        alreadyDeclined?: number;
         error?: string;
       };
       if (!response.ok) {
@@ -40,6 +41,9 @@ export function FindInsightsButton() {
       ];
       if ((body.declined ?? 0) > 0) {
         parts.push(`${body.declined} group${body.declined === 1 ? ' was' : 's were'} set aside as similar wording rather than one finding.`);
+      }
+      if ((body.alreadyDeclined ?? 0) > 0) {
+        parts.push(`${body.alreadyDeclined} group${body.alreadyDeclined === 1 ? '' : 's'} set aside before ${body.alreadyDeclined === 1 ? 'was' : 'were'} not looked at again.`);
       }
       if ((body.remaining ?? 0) > 0) {
         parts.push(`${body.remaining} more are waiting; press again to write them up.`);

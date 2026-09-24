@@ -10,8 +10,14 @@ import { isCompanyId, type CompanyId } from '../retrieval/company-id';
 import type { SynthesisedInsight } from './synthesise';
 
 export interface WriteInsightOptions {
-  /** A service-role client. */
+  /** A service-role client, or a member's session with `asMember`. */
   readonly db: SupabaseClient;
+  /**
+   * Write through `record_insight`, which checks the caller is a member of
+   * the company and that every cited signal belongs to it (ADR 0011). For a
+   * customer's own session; the service role uses `store_insight`.
+   */
+  readonly asMember?: boolean;
 }
 
 export async function writeInsight(
@@ -31,7 +37,8 @@ export async function writeInsight(
     throw new Error('writeInsight() was given an insight with no signals (invariant 4)');
   }
 
-  const { data, error } = await opts.db.rpc('store_insight', {
+  const fn = opts.asMember ? 'record_insight' : 'store_insight';
+  const { data, error } = await opts.db.rpc(fn, {
     p_company_id: companyId,
     p_title: insight.title,
     p_summary: insight.summary,
@@ -41,10 +48,10 @@ export async function writeInsight(
   });
 
   if (error) {
-    throw new Error(`store_insight failed: ${error.message}`, { cause: error });
+    throw new Error(`${fn} failed: ${error.message}`, { cause: error });
   }
   if (typeof data !== 'string') {
-    throw new Error(`store_insight returned no insight id (got ${JSON.stringify(data)})`);
+    throw new Error(`${fn} returned no insight id (got ${JSON.stringify(data)})`);
   }
 
   return data;

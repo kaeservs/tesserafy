@@ -18,13 +18,13 @@ select lives_ok(
            'id', '00000000-0000-4000-8000-00000000c001',
            'speaker', 'customer', 'start_ms', 0, 'end_ms', 2000,
            'text', 'We export it every Friday.',
-           'embedding', (select jsonb_agg(1) from generate_series(1, 768))
+           'embedding', (select jsonb_agg(1) from generate_series(1, 384))
          ),
          jsonb_build_object(
            'id', '00000000-0000-4000-8000-00000000c002',
            'speaker', null, 'start_ms', 2000, 'end_ms', 4000,
            'text', 'By hand, yes.',
-           'embedding', (select jsonb_agg(0) from generate_series(1, 768))
+           'embedding', (select jsonb_agg(0) from generate_series(1, 384))
          )
        )
      ) $$,
@@ -90,7 +90,7 @@ select throws_ok(
        jsonb_build_array(jsonb_build_object(
          'id', '00000000-0000-4000-8000-00000000e001',
          'speaker', null, 'start_ms', 0, 'end_ms', 1, 'text', 'x',
-         'embedding', (select jsonb_agg(1) from generate_series(1, 768))
+         'embedding', (select jsonb_agg(1) from generate_series(1, 384))
        ))
      ) $$,
   '42501',

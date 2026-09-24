@@ -7,10 +7,14 @@ export {
   type RetrievedSegment,
 } from './retrieval/retrieve';
 export {
-  createOllamaEmbedder,
+  assertEmbedding,
+  createSupabaseEmbedder,
+  EMBED_BATCH,
   EMBEDDING_DIMENSIONS,
+  EMBEDDING_MODEL,
+  RELATED_SIMILARITY,
   type Embedder,
-  type OllamaEmbedderOptions,
+  type SupabaseEmbedderOptions,
 } from './providers/embedder';
 export {
   conversationForSource,

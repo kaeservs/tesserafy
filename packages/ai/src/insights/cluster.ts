@@ -17,7 +17,7 @@
  *   not at ten thousand, and gives a different answer each run.
  */
 import type { SupabaseClient } from '@tesserafy/db';
-import type { Embedder } from '../providers/embedder';
+import { RELATED_SIMILARITY, type Embedder } from '../providers/embedder';
 import { isCompanyId, type CompanyId } from '../retrieval/company-id';
 import { retrieve } from '../retrieval/retrieve';
 
@@ -169,7 +169,7 @@ export async function clusterSignals(
         db: opts.db,
         embedder: opts.embedder,
         limit: opts.limit ?? 20,
-        minSimilarity: opts.minSimilarity ?? 0.6,
+        minSimilarity: opts.minSimilarity ?? RELATED_SIMILARITY,
       },
     );
 

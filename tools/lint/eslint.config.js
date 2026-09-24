@@ -40,6 +40,10 @@ export default tseslint.config(
       '**/.next/**',
       '**/out/**',
       'packages/db/src/generated.ts',
+      // Deno, not Node: Edge Functions run on Supabase's runtime, with its own
+      // globals (Deno, Supabase.ai) and no tsconfig here. Supabase bundles and
+      // type-checks them on deploy.
+      'supabase/functions/**',
       'services/eval/**',
     ],
   },

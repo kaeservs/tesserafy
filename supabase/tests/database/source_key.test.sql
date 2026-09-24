@@ -17,7 +17,7 @@ language sql as $fn$
       'id', gen_random_uuid(),
       'speaker', 'customer', 'start_ms', 0, 'end_ms', 1000,
       'text', 'We export the report by hand every Friday.',
-      'embedding', (select jsonb_agg(1) from generate_series(1, 768))
+      'embedding', (select jsonb_agg(1) from generate_series(1, 384))
     )),
     p_source_key
   );
@@ -59,7 +59,7 @@ select lives_ok(
          'id', gen_random_uuid(),
          'speaker', 'customer', 'start_ms', 0, 'end_ms', 1000,
          'text', 'Same filename, different company.',
-         'embedding', (select jsonb_agg(1) from generate_series(1, 768))
+         'embedding', (select jsonb_agg(1) from generate_series(1, 384))
        )),
        'calls/2026-09/acme.vtt'
      ) $$,

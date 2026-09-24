@@ -18,7 +18,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import {
   both,
   clusterSignals,
-  createOllamaEmbedder,
+  createSupabaseEmbedder,
   databaseSink,
   loadSignals,
   logUsage,
@@ -95,9 +95,7 @@ Options:
 
 Environment:
   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY   required
-  ANTHROPIC_API_KEY                         required unless --dry-run
-  OLLAMA_URL      default http://127.0.0.1:11434
-  EMBED_MODEL     default nomic-embed-text`);
+  ANTHROPIC_API_KEY                         required unless --dry-run`);
   process.exit(2);
 }
 
@@ -118,9 +116,12 @@ async function main(): Promise<void> {
     url: requireEnv('SUPABASE_URL'),
     key: requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
   });
-  const embedder = createOllamaEmbedder({
-    baseUrl: process.env['OLLAMA_URL'] ?? 'http://127.0.0.1:11434',
-    model: process.env['EMBED_MODEL'] ?? 'nomic-embed-text',
+  const embedder = // gte-small inside Supabase, as the web app uses — one model for every
+  // vector, because a query embedded by one model against rows embedded by
+  // another returns confident nonsense.
+  createSupabaseEmbedder({
+    url: requireEnv('SUPABASE_URL'),
+    token: requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
   });
 
   // Signals already cited by an insight are left out unless this is a

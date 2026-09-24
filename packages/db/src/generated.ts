@@ -1008,6 +1008,10 @@ export type Database = {
         }
         Returns: string
       }
+      record_segment_embeddings: {
+        Args: { p_conversation_id: string; p_model: string; p_rows: Json }
+        Returns: number
+      }
       search_segments: {
         Args: { p_limit?: number; p_query: string }
         Returns: {

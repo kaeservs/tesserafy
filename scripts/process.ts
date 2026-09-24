@@ -27,7 +27,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import {
   both,
-  createOllamaEmbedder,
+  createSupabaseEmbedder,
   databaseSink,
   embedStoredSegments,
   extractSignals,
@@ -168,9 +168,12 @@ async function main(): Promise<void> {
     return;
   }
 
-  const embedder = createOllamaEmbedder({
-    baseUrl: process.env['OLLAMA_URL'] ?? 'http://127.0.0.1:11434',
-    model: process.env['EMBED_MODEL'] ?? 'nomic-embed-text',
+  const embedder = // gte-small inside Supabase, as the web app uses — one model for every
+  // vector, because a query embedded by one model against rows embedded by
+  // another returns confident nonsense.
+  createSupabaseEmbedder({
+    url: requireEnv('SUPABASE_URL'),
+    token: requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
   });
   if (extractions > 0) requireEnv('ANTHROPIC_API_KEY');
 

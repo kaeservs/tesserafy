@@ -6,6 +6,7 @@
  * tests pin is the part that decides whether an insight is honest — which
  * signals it may rest on, and how few it may rest on.
  */
+import { EMBEDDING_DIMENSIONS } from '../src/providers/embedder';
 import type { SupabaseClient } from '@tesserafy/db';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -105,8 +106,8 @@ function fakeDb(options: FakeOptions = {}) {
 }
 
 const embedder: Embedder = {
-  model: 'nomic-embed-text',
-  embed: vi.fn<(text: string) => Promise<number[]>>(async () => new Array<number>(768).fill(0.5)),
+  model: 'gte-small',
+  embed: vi.fn<(text: string) => Promise<number[]>>(async () => new Array<number>(EMBEDDING_DIMENSIONS).fill(0.5)),
 };
 
 describe('loadSignals', () => {

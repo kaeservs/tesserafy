@@ -9,6 +9,7 @@ import {
 import { recordFailure } from '@tesserafy/ai';
 import { after, NextResponse, type NextRequest } from 'next/server';
 import { allowance, tooMany } from '@/lib/rate-limit';
+import { embedUploadedConversation } from '@/lib/embed-upload';
 import { scoreUploadedConversation } from '@/lib/score-upload';
 import { caller } from '@/lib/supabase/caller';
 
@@ -148,24 +149,41 @@ export async function POST(request: NextRequest) {
 
   const conversationId = data;
 
-  // After the response, as the same person. A failure here cannot reach them —
-  // they are already looking at their conversation — so it goes where failures
-  // go, and the page keeps saying the call is not scored rather than
-  // pretending it was.
-  if (process.env['ANTHROPIC_API_KEY']) {
-    after(async () => {
-      try {
-        await scoreUploadedConversation(who.db, conversationId);
-      } catch (cause) {
-        recordFailure(cause, {
-          db: who.db,
-          source: 'api/transcripts/score',
-          tier: 't1',
-          conversationId,
-        });
-      }
-    });
-  }
+  // The caller's own token, for the embedding function. Read before
+  // responding, while the request and its cookies are certainly still here.
+  const accessToken =
+    request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ??
+    (await who.db.auth.getSession()).data.session?.access_token ??
+    null;
+
+  // After the response, as the same person: scoring and embedding side by
+  // side, neither waiting on the other. A failure in either cannot reach them
+  // — they are already looking at their conversation — so it goes where
+  // failures go, and the page keeps saying what has not happened rather than
+  // pretending it did.
+  after(async () => {
+    await Promise.all([
+      process.env['ANTHROPIC_API_KEY']
+        ? scoreUploadedConversation(who.db, conversationId).catch((cause: unknown) => {
+            recordFailure(cause, {
+              db: who.db,
+              source: 'api/transcripts/score',
+              tier: 't1',
+              conversationId,
+            });
+          })
+        : Promise.resolve(),
+      accessToken
+        ? embedUploadedConversation(who.db, conversationId, accessToken).catch((cause: unknown) => {
+            recordFailure(cause, {
+              db: who.db,
+              source: 'api/transcripts/embed',
+              conversationId,
+            });
+          })
+        : Promise.resolve(),
+    ]);
+  });
 
   return NextResponse.json({
     conversationId,

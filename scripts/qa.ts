@@ -694,6 +694,28 @@ async function checkImport(baseUrl: string, token: string): Promise<void> {
       scoringCalls > 0,
       scoringCalls > 0 ? `${scoringCalls} detector call(s), as the uploader` : 'no scoring pass within 90 s',
     );
+
+    // And embeds itself, in Supabase, alongside the scoring. A missing vector
+    // is silent: the call looks fine and simply never joins an insight. Read
+    // through conversation_pipeline, which counts vectors per call, because
+    // nothing outside the retrieval module touches the vector table (ADR 0004).
+    const { data: probe } = await db.from('conversations').select('company_id').eq('id', conversationId).single();
+    let embedded = 0;
+    let total = 0;
+    const until = Date.now() + 60_000;
+    while (probe && Date.now() < until) {
+      const { data: rows } = await db.rpc('conversation_pipeline', { p_company_id: probe.company_id });
+      const row = (rows ?? []).find((r) => r.conversation_id === conversationId);
+      embedded = row?.embedded ?? 0;
+      total = row?.segments ?? 0;
+      if (total > 0 && embedded >= total) break;
+      await new Promise((resolve) => setTimeout(resolve, 3_000));
+    }
+    record(
+      'an uploaded transcript embeds itself',
+      total > 0 && embedded === total,
+      `${embedded} of ${total} segment(s) embedded, in Supabase`,
+    );
   } finally {
     if (conversationId) {
       const { error } = await createServiceClient({

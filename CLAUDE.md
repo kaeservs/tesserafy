@@ -48,7 +48,7 @@ Do not break these without an ADR that supersedes the existing one.
 | T1 | Criterion detectors (<= 700 ms) | `claude-haiku-4-5` |
 | T2 | Live suggestions (<= 3.5 s) | `claude-sonnet-5` |
 | T3 | Post-call extraction and synthesis | `claude-opus-5` |
-| — | Embeddings | `nomic-embed-text` via Ollama, 768-dim |
+| — | Embeddings | `gte-small` in a Supabase Edge Function, 384-dim |
 
 Live calls put the frozen prefix (system + criteria definitions + context pack)
 before the cache breakpoint and the rolling transcript window after it. Check
@@ -85,6 +85,17 @@ not a figure, and treat two or three points between single runs as nothing.
 
 Log `response.usage` on every API call. Cost telemetry added later cannot be
 backfilled.
+
+Embeddings run inside Supabase (`supabase/functions/embed`) so meeting text
+goes nowhere it is not already stored — the owner's choice over a hosted
+embedding API. The cost of that choice is real and measured: gte-small packs
+similarities into a narrow band, and at `RELATED_SIMILARITY` (0.82, in
+`packages/ai/src/providers/embedder.ts`) it reproduces the one real insight
+but also proposes a false cluster of unrelated requests grouped by phrasing.
+Insights are only proposed, never published unasked, so a person catches it.
+Calibrate that threshold by replaying `clusterSignals()` against real
+insights, never by pairwise agreement — which picked 0.87 and formed no
+insight at all. The edge worker takes 16 texts per call and fails at 32.
 
 The two endpoints that call a model are rate limited per account, in Postgres
 rather than in memory — the web app runs as many instances as the platform
@@ -159,8 +170,10 @@ meeting content.
   rather than `?? undefined`. Generated types describe an absent argument and
   cannot express a nullable one; where an argument genuinely has no default and
   genuinely takes null, the cast stays and says why.
-- Schema-qualify the vector type as `extensions.vector(768)` in migrations.
-  pgvector lives in the `extensions` schema, not `public`.
+- Schema-qualify the vector type as `extensions.vector(384)` in migrations.
+  pgvector lives in the `extensions` schema, not `public`. The dimension
+  belongs to the embedding model; changing one means changing both, and every
+  stored vector with them.
 - Criteria definitions are seed data, not code. A new engagement type is a row,
   written with `pnpm criteria --add` — an operator with the service role, never
   a browser. A published version is immutable, because conversations pin the

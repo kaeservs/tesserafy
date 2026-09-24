@@ -7,7 +7,7 @@
  * evidence search — scripts/check-retrieval-guard.mjs fails CI otherwise.
  */
 import { vectorArg, type SupabaseClient } from '@tesserafy/db';
-import { assertEmbedding, type Embedder } from '../providers/embedder';
+import { assertEmbedding, RELATED_SIMILARITY, type Embedder } from '../providers/embedder';
 import { isCompanyId, type CompanyId } from './company-id';
 
 export type RetrievalQuery =
@@ -67,7 +67,9 @@ export async function retrieve(
   if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
     throw new RangeError(`limit must be an integer from 1 to 100, got ${limit}`);
   }
-  const minSimilarity = opts.minSimilarity ?? 0.5;
+  // The model's own notion of "related", not a literal: 0.5 meant something
+  // for nomic and means "everything" for gte-small (see providers/embedder).
+  const minSimilarity = opts.minSimilarity ?? RELATED_SIMILARITY;
   if (!(minSimilarity >= 0 && minSimilarity <= 1)) {
     throw new RangeError(`minSimilarity must be between 0 and 1, got ${minSimilarity}`);
   }

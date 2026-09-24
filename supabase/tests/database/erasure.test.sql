@@ -109,7 +109,7 @@ select is_empty(
   'its segments are gone'
 );
 
--- The embeddings are the copy people forget: a 768-dimension vector of a
+-- The embeddings are the copy people forget: a 384-dimension vector of a
 -- sentence is still derived from that sentence.
 select is_empty(
   $$ select 1 from public.segment_embeddings

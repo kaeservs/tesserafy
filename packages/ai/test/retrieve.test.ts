@@ -2,6 +2,7 @@
  * retrieve() without a database: argument guards, and the post-query tenant
  * check that is independent of the SQL filter.
  */
+import { EMBEDDING_DIMENSIONS } from '../src/providers/embedder';
 import type { SupabaseClient } from '@tesserafy/db';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -14,7 +15,7 @@ import {
 
 const A = toCompanyId('00000000-0000-4000-8000-00000000000a');
 const B = '00000000-0000-4000-8000-00000000000b';
-const EMBEDDING = new Array<number>(768).fill(1);
+const EMBEDDING = new Array<number>(EMBEDDING_DIMENSIONS).fill(1);
 
 function row(companyId: string) {
   return {
@@ -85,7 +86,7 @@ describe('retrieve', () => {
 
   it('rejects an embedding of the wrong size', async () => {
     const { db, rpc } = fakeDb();
-    await expect(retrieve(A, { embedding: [1, 2, 3] }, { db })).rejects.toThrow(/768/);
+    await expect(retrieve(A, { embedding: [1, 2, 3] }, { db })).rejects.toThrow(String(EMBEDDING_DIMENSIONS));
     expect(rpc).not.toHaveBeenCalled();
   });
 

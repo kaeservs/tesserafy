@@ -3,6 +3,7 @@
  * single transaction — so these tests assert what would have been sent, and
  * above all that each vector travels with the words it was made from.
  */
+import { EMBEDDING_DIMENSIONS } from '../src/providers/embedder';
 import type { SupabaseClient } from '@tesserafy/db';
 import type { SegmentDraft } from '@tesserafy/ingest';
 import { describe, expect, it, vi } from 'vitest';
@@ -43,12 +44,12 @@ function fakeDb(result: { data?: unknown; error?: { message: string; code?: stri
 }
 
 function embedding(fill: number): number[] {
-  return new Array<number>(768).fill(fill);
+  return new Array<number>(EMBEDDING_DIMENSIONS).fill(fill);
 }
 
 function fakeEmbedder(overrides: Partial<Embedder> = {}): Embedder {
   return {
-    model: 'nomic-embed-text',
+    model: 'gte-small',
     embed: vi.fn<(text: string) => Promise<number[]>>(async () => embedding(0.5)),
     ...overrides,
   };
@@ -130,7 +131,7 @@ describe('writeTranscript', () => {
     });
     expect(argsOf(rpc).p_title).toBe('Acme — discovery call');
     expect(argsOf(rpc).p_occurred_at).toBe('2026-09-01T15:00:00Z');
-    expect(argsOf(rpc).p_model).toBe('nomic-embed-text');
+    expect(argsOf(rpc).p_model).toBe('gte-small');
   });
 
   it('writes nothing when embedding fails', async () => {
@@ -186,7 +187,7 @@ describe('storeTranscript', () => {
     text: 'We export it every Friday.',
     embedding: embedding(1),
   };
-  const input = { title: 'Acme', occurredAt: null, model: 'nomic-embed-text', segments: [segment] };
+  const input = { title: 'Acme', occurredAt: null, model: 'gte-small', segments: [segment] };
 
   it('returns the conversation id the function produced', async () => {
     const { db } = fakeDb();
@@ -199,7 +200,7 @@ describe('storeTranscript', () => {
 
     await expect(
       storeTranscript(A, { ...input, segments: [{ ...segment, embedding: [1, 2, 3] }] }, { db }),
-    ).rejects.toThrow(/768-dimension embedding/);
+    ).rejects.toThrow(`${EMBEDDING_DIMENSIONS}-dimension embedding`);
     expect(rpc).not.toHaveBeenCalled();
   });
 

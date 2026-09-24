@@ -18,7 +18,7 @@ export const SEED = {
   },
 } as const;
 
-export const EMBEDDING_DIMENSIONS = 768;
+export const EMBEDDING_DIMENSIONS = 384;
 
 /** The vector the seed gives both copies of the shared quote. */
 export function sharedQuoteEmbedding(): number[] {

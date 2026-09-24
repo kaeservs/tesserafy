@@ -7,6 +7,7 @@
  * never as an error — and the ordering hazard is worse here than on import,
  * because these embeddings are produced concurrently.
  */
+import { EMBEDDING_DIMENSIONS } from '../src/providers/embedder';
 import type { SupabaseClient } from '@tesserafy/db';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -27,7 +28,7 @@ function fingerprinting(): Embedder {
       // Deliberately variable: a slow one must not overtake a fast one.
       await new Promise((resolve) => setTimeout(resolve, text.length % 7));
       const code = text.charCodeAt(0) / 1000;
-      return Array.from({ length: 768 }, () => code);
+      return Array.from({ length: EMBEDDING_DIMENSIONS }, () => code);
     },
   };
 }

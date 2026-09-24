@@ -43,11 +43,11 @@ select
   s.company_id,
   case
     when s.id in ('00000000-0000-4000-8000-000000000a11', '00000000-0000-4000-8000-000000000b11')
-      then array_fill(1::real, array[768])::extensions.vector(768)
+      then array_fill(1::real, array[384])::extensions.vector(384)
     else (
       select array_agg(case when i % 2 = 0 then 1::real else -1::real end order by i)
-      from generate_series(1, 768) as i
-    )::extensions.vector(768)
+      from generate_series(1, 384) as i
+    )::extensions.vector(384)
   end,
   'fixture'
 from public.segments s;

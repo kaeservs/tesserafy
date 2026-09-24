@@ -26,7 +26,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import {
   both,
   conversationForSource,
-  createOllamaEmbedder,
+  createSupabaseEmbedder,
   databaseSink,
   DuplicateSource,
   extractSignals,
@@ -122,9 +122,7 @@ Options:
 
 Environment:
   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY   required
-  ANTHROPIC_API_KEY                         required unless --no-extract
-  OLLAMA_URL      default http://127.0.0.1:11434
-  EMBED_MODEL     default nomic-embed-text`);
+  ANTHROPIC_API_KEY                         required unless --no-extract`);
   process.exit(2);
 }
 
@@ -172,9 +170,12 @@ async function importOne(
 
   const transcript = parseFile(path);
   const segments = toSegments(transcript.turns);
-  const embedder = createOllamaEmbedder({
-    baseUrl: process.env['OLLAMA_URL'] ?? 'http://127.0.0.1:11434',
-    model: process.env['EMBED_MODEL'] ?? 'nomic-embed-text',
+  const embedder = // gte-small inside Supabase, as the web app uses — one model for every
+  // vector, because a query embedded by one model against rows embedded by
+  // another returns confident nonsense.
+  createSupabaseEmbedder({
+    url: requireEnv('SUPABASE_URL'),
+    token: requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
   });
 
   const written = await writeTranscript(

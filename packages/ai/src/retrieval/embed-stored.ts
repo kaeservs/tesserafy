@@ -117,13 +117,17 @@ export async function embedStoredSegments(
   for (let start = 0; start < segments.length; start += batchSize) {
     const batch = segments.slice(start, start + batchSize);
 
-    const rows = await Promise.all(
-      batch.map(async (segment) => {
-        const embedding = await opts.embedder.embed(segment.text);
-        assertEmbedding(embedding);
-        return { segment_id: segment.id, embedding };
-      }),
-    );
+    // One request for the batch where the embedder can take one; the edge
+    // worker is capped per call, and thirty-two single-text requests at once
+    // is thirty-two cold workers.
+    const vectors = opts.embedder.embedMany
+      ? await opts.embedder.embedMany(batch.map((segment) => segment.text))
+      : await Promise.all(batch.map((segment) => opts.embedder.embed(segment.text)));
+    const rows = batch.map((segment, index) => {
+      const embedding = vectors[index];
+      assertEmbedding(embedding);
+      return { segment_id: segment.id, embedding };
+    });
 
     const { data, error } = await opts.db.rpc('embed_stored_segments', {
       p_company_id: companyId,

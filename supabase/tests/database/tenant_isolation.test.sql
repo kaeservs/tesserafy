@@ -53,7 +53,7 @@ select throws_ok(
 select throws_ok(
   $$ select * from public.match_segments(
        '00000000-0000-4000-8000-00000000000a',
-       array_fill(1::real, array[768])::extensions.vector(768), 10, 0) $$,
+       array_fill(1::real, array[384])::extensions.vector(384), 10, 0) $$,
   '42501',
   null,
   'authenticated users cannot execute match_segments'

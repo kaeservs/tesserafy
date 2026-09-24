@@ -29,6 +29,16 @@ export function OpenSession({ subjectId, email }: { subjectId: string; email: st
             Open a session as {email} →
           </a>
         </p>
+        {state.landsElsewhere ? (
+          <p className="tag open" style={{ display: 'block', padding: '0.6rem' }}>
+            Supabase will send this link to <code>{state.landsElsewhere}</code>, not to the confirm
+            page it was asked for — it substitutes its own site URL for any redirect it has not
+            been told to allow, without saying so. Add{' '}
+            <code>{`${process.env.NEXT_PUBLIC_APP_URL ?? '<app url>'}/auth/confirm`}</code> under
+            Authentication → URL Configuration → Redirect URLs. The link still works meanwhile:
+            the product forwards a session that lands at the wrong door.
+          </p>
+        ) : null}
         <p className="muted" style={{ marginBottom: 0 }}>
           Open it in a private window. Everything you do will be attributed to them; the record
           above is the only thing that says otherwise.

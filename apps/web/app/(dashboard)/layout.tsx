@@ -21,6 +21,17 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     redirect('/login');
   }
 
+  // An account with no company yet — signed up, not yet on a plan. Every page
+  // below reads through a company, and the first one used to fail with "not a
+  // member of any company". The welcome page says what is actually true.
+  const { count: memberships } = await supabase
+    .from('company_members')
+    .select('company_id', { count: 'exact', head: true })
+    .eq('user_id', user.id);
+  if ((memberships ?? 0) === 0) {
+    redirect('/welcome');
+  }
+
   // RLS lets a user read the access records about their own account and no
   // one else's, so this is the account asking whether it is open, not the
   // product deciding who is looking. See lib/support-banner.ts for why that is

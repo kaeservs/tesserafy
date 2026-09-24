@@ -297,6 +297,44 @@ export type Database = {
           },
         ]
       }
+      insight_declines: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          reason: string
+          signal_ids: string[]
+          signature: string
+          synthesiser: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          reason: string
+          signal_ids: string[]
+          signature: string
+          synthesiser: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          reason?: string
+          signal_ids?: string[]
+          signature?: string
+          synthesiser?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "insight_declines_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       insight_evidence: {
         Row: {
           company_id: string
@@ -979,6 +1017,15 @@ export type Database = {
           p_title: string
         }
         Returns: string
+      }
+      record_insight_decline: {
+        Args: {
+          p_company_id: string
+          p_reason: string
+          p_signal_ids: string[]
+          p_synthesiser: string
+        }
+        Returns: undefined
       }
       record_insight_ticket: {
         Args: {

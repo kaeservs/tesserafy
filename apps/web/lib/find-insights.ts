@@ -3,7 +3,10 @@ import {
   awaitableDatabaseSink,
   clusterSignals,
   createSupabaseEmbedder,
+  groupSignature,
+  loadDeclined,
   loadSignals,
+  rememberDecline,
   synthesiseInsight,
   T3_SYNTHESISER,
   toCompanyId,
@@ -45,6 +48,8 @@ export interface FindOutcome {
   readonly declined: number;
   /** Groups found beyond the per-press limit, left for the next press. */
   readonly remaining: number;
+  /** Groups already judged not to be one finding, and not sent to Opus again. */
+  readonly alreadyDeclined: number;
 }
 
 export class NoSingleCompany extends Error {}
@@ -68,12 +73,20 @@ export async function findInsights(
   const companyId = toCompanyId(memberships[0]!.company_id);
 
   const signals = await loadSignals(companyId, db, { includeCited: false });
-  if (signals.length === 0) return { signals: 0, groups: 0, proposed: 0, declined: 0, remaining: 0 };
+  if (signals.length === 0) {
+    return { signals: 0, groups: 0, proposed: 0, declined: 0, remaining: 0, alreadyDeclined: 0 };
+  }
 
-  const groups = await clusterSignals(companyId, signals, {
+  const clustered = await clusterSignals(companyId, signals, {
     db,
     embedder: createSupabaseEmbedder({ url: publicSupabaseEnv().url, token: accessToken }),
   });
+
+  // A group Opus already judged is not one finding is not paid for twice.
+  const declinedBefore = await loadDeclined(companyId, db);
+  const groups = clustered.filter(
+    (group) => !declinedBefore.has(groupSignature(group.signals.map((signal) => signal.id))),
+  );
 
   const usage = awaitableDatabaseSink({ db, companyId, detector: T3_SYNTHESISER });
   let proposed = 0;
@@ -82,6 +95,17 @@ export async function findInsights(
     const result = await synthesiseInsight(group, { client, onUsage: usage.sink });
     if ('reason' in result) {
       declined += 1;
+      // Remembered only when it is a verdict. A synthesis that cited signals
+      // it was never given is a fault, and the group deserves another try.
+      if (result.reason === 'declined' || result.reason === 'too-narrow') {
+        await rememberDecline(
+          companyId,
+          group.signals.map((signal) => signal.id),
+          result.reason,
+          T3_SYNTHESISER,
+          db,
+        );
+      }
       continue;
     }
     await writeInsight(companyId, result, { db, asMember: true });
@@ -95,5 +119,6 @@ export async function findInsights(
     proposed,
     declined,
     remaining: Math.max(0, groups.length - MAX_GROUPS_PER_RUN),
+    alreadyDeclined: clustered.length - groups.length,
   };
 }

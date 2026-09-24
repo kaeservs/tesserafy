@@ -31,10 +31,10 @@ export function OpenSession({ subjectId, email }: { subjectId: string; email: st
         </p>
         {state.landsElsewhere ? (
           <p className="tag open" style={{ display: 'block', padding: '0.6rem' }}>
-            Supabase will send this link to <code>{state.landsElsewhere}</code>, not to the confirm
-            page it was asked for — it substitutes its own site URL for any redirect it has not
-            been told to allow, without saying so. Add{' '}
-            <code>{`${process.env.NEXT_PUBLIC_APP_URL ?? '<app url>'}/auth/confirm`}</code> under
+            This link will land on <code>{state.landsElsewhere}</code>, not on the confirm page
+            it asked for. Supabase falls back to the Site URL when the redirect is missing from the
+            request or absent from the allow-list, so check that{' '}
+            <code>{`${process.env.NEXT_PUBLIC_APP_URL ?? '<app url>'}/auth/confirm`}</code> is under
             Authentication → URL Configuration → Redirect URLs. The link still works meanwhile:
             the product forwards a session that lands at the wrong door.
           </p>

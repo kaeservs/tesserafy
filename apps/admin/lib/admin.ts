@@ -66,8 +66,9 @@ export async function requireAdmin(): Promise<Admin> {
 export interface MintedSession {
   readonly link: string;
   /**
-   * Set when Supabase substituted its own site URL for the one we asked for,
-   * which it does silently for any redirect it has not been told to allow.
+   * Set when the link will not land where it was asked to. Supabase falls back
+   * to the project's Site URL for a redirect it was not given, or one that is
+   * not on the allow-list.
    */
   readonly landsElsewhere?: string;
 }
@@ -85,10 +86,16 @@ export async function mintSessionFor(email: string): Promise<MintedSession | nul
       authorization: `Bearer ${serviceKey}`,
       'content-type': 'application/json',
     },
+    // `redirect_to` at the top level. The JavaScript SDK spells it
+    // `options: { redirectTo }` and translates; this calls the REST endpoint
+    // directly, which ignores a field it does not recognise and falls back to
+    // the Site URL. That nesting shipped once and was diagnosed as Supabase
+    // quietly overriding the allow-list — the allow-list was correct all
+    // along, and the request was wrong.
     body: JSON.stringify({
       type: 'magiclink',
       email,
-      options: { redirect_to: new URL('/auth/confirm', appUrl).toString() },
+      redirect_to: new URL('/auth/confirm', appUrl).toString(),
     }),
   });
   if (!response.ok) return null;
@@ -100,12 +107,11 @@ export async function mintSessionFor(email: string): Promise<MintedSession | nul
   const link = body.action_link ?? body.properties?.action_link;
   if (!link) return null;
 
-  // Supabase does not refuse a redirect it has not been told to allow; it
-  // quietly swaps in the project's site URL. The resulting link still works,
-  // still carries a session, and lands on a page that does not know what to do
-  // with it — so the operator sees a login form and concludes the button is
-  // broken. Asking the link where it is actually going turns that into
-  // something the console can say out loud.
+  // Kept after the real cause turned out to be our own request, because the
+  // failure it reports is real regardless of cause: a link that lands on the
+  // Site URL still works and still carries a session, and looks to the
+  // operator like a broken button. Asking the link where it is actually going
+  // is what found the nesting bug, and it is what will find the next one.
   const asked = new URL('/auth/confirm', appUrl).toString();
   const going = new URL(link).searchParams.get('redirect_to');
   return going && going !== asked ? { link, landsElsewhere: going } : { link };

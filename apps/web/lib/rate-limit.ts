@@ -58,6 +58,13 @@ export const LIMITS: Record<string, readonly Window[]> = {
     { seconds: 60, limit: 20 },
     { seconds: 86_400, limit: 600 },
   ],
+  // An upload now scores itself, up to ~500 detector calls (~$0.95) for the
+  // longest call taken on. Ten a day bounds one account at about $9.50 a day,
+  // which is a busy week of real meetings, not a runaway.
+  'api/transcripts': [
+    { seconds: 3_600, limit: 6 },
+    { seconds: 86_400, limit: 10 },
+  ],
 };
 
 export interface Allowance {
@@ -124,7 +131,9 @@ export function tooMany(bucket: string, retryAfterSeconds: number): NextResponse
     .map((window) =>
       window.seconds === 86_400
         ? `${window.limit} a day`
-        : `${window.limit} every ${window.seconds}s`,
+        : window.seconds === 3_600
+          ? `${window.limit} an hour`
+          : `${window.limit} every ${window.seconds}s`,
     )
     .join(', ');
 

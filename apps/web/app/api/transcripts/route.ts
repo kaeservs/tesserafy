@@ -7,7 +7,9 @@ import {
   TranscriptParseError,
 } from '@tesserafy/ingest';
 import { recordFailure } from '@tesserafy/ai';
-import { NextResponse, type NextRequest } from 'next/server';
+import { after, NextResponse, type NextRequest } from 'next/server';
+import { allowance, tooMany } from '@/lib/rate-limit';
+import { scoreUploadedConversation } from '@/lib/score-upload';
 import { caller } from '@/lib/supabase/caller';
 
 /**
@@ -30,8 +32,19 @@ import { caller } from '@/lib/supabase/caller';
  * column reads "captured" until `pnpm process` runs. The alternative, making
  * the import wait for something the browser cannot do, would be no import at
  * all.
+ *
+ * Scoring, on the other hand, now happens here. It runs after the response,
+ * so the person is taken to their conversation at once and the scorecard
+ * arrives behind them. See lib/score-upload.ts for why it is safe to run
+ * without a person asking, and why extraction still is not.
  */
 export const runtime = 'nodejs';
+
+/**
+ * The scoring pass runs inside this function after it has responded, and the
+ * largest call it will take on is sized to finish in about 190 s at p90.
+ */
+export const maxDuration = 300;
 
 /** Comfortably above a long call, well below anything that should be a file. */
 const MAX_BYTES = 2_000_000;
@@ -41,6 +54,12 @@ export async function POST(request: NextRequest) {
   if (!who) {
     return NextResponse.json({ error: 'not signed in' }, { status: 401 });
   }
+
+  // Before the file is even read. Each upload now spends model calls on its
+  // own — up to about $0.95 for the longest call scored automatically — so the
+  // number of uploads is what bounds what one account can cost.
+  const limit = await allowance(who.db, 'api/transcripts');
+  if (!limit.allowed) return tooMany('api/transcripts', limit.retryAfterSeconds);
 
   let form: FormData;
   try {
@@ -127,8 +146,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status });
   }
 
+  const conversationId = data;
+
+  // After the response, as the same person. A failure here cannot reach them —
+  // they are already looking at their conversation — so it goes where failures
+  // go, and the page keeps saying the call is not scored rather than
+  // pretending it was.
+  if (process.env['ANTHROPIC_API_KEY']) {
+    after(async () => {
+      try {
+        await scoreUploadedConversation(who.db, conversationId);
+      } catch (cause) {
+        recordFailure(cause, {
+          db: who.db,
+          source: 'api/transcripts/score',
+          tier: 't1',
+          conversationId,
+        });
+      }
+    });
+  }
+
   return NextResponse.json({
-    conversationId: data,
+    conversationId,
     segments: clean.length,
     // Reported rather than silent: somebody uploading a transcript should
     // learn that it carried a phone number, not discover it later.

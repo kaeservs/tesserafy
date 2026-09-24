@@ -20,7 +20,7 @@ https://claude.ai/code/artifact/a7cdd883-3bc5-48f5-84da-a0fe6b21f329
 | P6 | Live path, browser first | Measured p50/p95 for utterance -> visible score against the latency budget. | Built — replay and microphone paths both measure against ADR 0010; real STT awaits S2 |
 | P7 | Electron HUD | Overlay over a live Zoom call; scorecard updates; meeting stays visible and clickable; screen-share behaviour matches S1. | Built — overlay listens, detects and scores; screen-share behaviour awaits S1 |
 | P8 | Prepare and Act | An insight moves from approval to a created ticket carrying its evidence citations. No auto-creation anywhere. | Built and applied; needs GITHUB_TOKEN and GITHUB_TICKET_REPO to raise a real ticket |
-| P10 | Transcript import | A signed-in member can add a transcript without a terminal; it parses through the same chunker as `pnpm ingest`. | **Done** — `/conversations/new` |
+| P10 | Transcript import | A signed-in member can add a transcript without a terminal; it parses through the same chunker as `pnpm ingest`. | **Done** — `/conversations/new`; an upload scores itself (T1) within seconds, as the uploader |
 | P9 | Dashboard and history | A past meeting shows a scorecard derived from stored evidence; criteria coverage across every meeting. No score stored anywhere. | Built — `criterion_events` + `/dashboard`; needs the migration applied and `pnpm score` run |
 
 ## MVP

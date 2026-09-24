@@ -4,6 +4,8 @@ import { clock, splitByHighlights } from '@/lib/highlight';
 import { Shortfall } from '@/components/criterion-shortfall';
 import { conversationPipeline, nextCommand, stageOf } from '@/lib/pipeline';
 import { scoreConversation } from '@/lib/scorecard';
+import { RefreshWhile } from '@/components/refresh-while';
+import { capturedState, type CapturedState } from '@/lib/scoring-status';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -44,13 +46,74 @@ const KIND_LABEL: Record<string, string> = {
   feature_request: 'Feature request',
 };
 
+/**
+ * The terminal command, for whoever operates this deployment — folded away,
+ * because a customer looking at their meeting has no terminal and no reason
+ * to be shown one.
+ */
+function OperatorCommand({ command }: { command: string }) {
+  return (
+    <details style={{ marginTop: '0.75rem' }}>
+      <summary className="muted">For operators</summary>
+      <code className="command">{command}</code>
+    </details>
+  );
+}
+
+/** What a conversation with no criteria yet is waiting for. */
+function CapturedCard({ state, command }: { state: CapturedState; command: string }) {
+  if (state.kind === 'scoring') {
+    return (
+      <section aria-labelledby="pipeline-heading" className="card" aria-live="polite">
+        <RefreshWhile />
+        <h2 id="pipeline-heading" style={{ marginTop: 0 }}>
+          Scoring this call…
+        </h2>
+        <p className="muted" style={{ margin: 0 }}>
+          Each part of the conversation is being checked against the criteria. This usually
+          takes a minute or two, and the scorecard will appear here on its own.
+        </p>
+      </section>
+    );
+  }
+
+  if (state.kind === 'too_long') {
+    return (
+      <section aria-labelledby="pipeline-heading" className="card">
+        <h2 id="pipeline-heading" style={{ marginTop: 0 }}>
+          Too long to score automatically
+        </h2>
+        <p className="muted" style={{ margin: 0 }}>
+          This call has {state.windows} passages; automatic scoring takes on calls up to about an
+          hour. It has not been scored partially, because a scorecard over the first hour of a
+          longer meeting would look complete and be wrong. The Tesserafy team can score it in full.
+        </p>
+        <OperatorCommand command={command} />
+      </section>
+    );
+  }
+
+  return (
+    <section aria-labelledby="pipeline-heading" className="card">
+      <h2 id="pipeline-heading" style={{ marginTop: 0 }}>
+        Not scored yet
+      </h2>
+      <p className="muted" style={{ margin: 0 }}>
+        No criteria have been detected over this call. If it was uploaded recently, scoring did
+        not finish — that has been reported. A call captured live is scored as it happens.
+      </p>
+      <OperatorCommand command={command} />
+    </section>
+  );
+}
+
 export default async function ConversationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
 
   const { data: conversation } = await supabase
     .from('conversations')
-    .select('id, title, occurred_at, engagement_type, criteria_version')
+    .select('id, title, occurred_at, created_at, engagement_type, criteria_version')
     .eq('id', id)
     .maybeSingle();
 
@@ -128,24 +191,28 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
         is indistinguishable from a finished call that simply scored badly —
         which is the opposite fact.
       */}
-      {command && (
+      {command && stage === 'captured' ? (
+        <CapturedCard
+          state={capturedState(segments.length, conversation.created_at)}
+          command={command}
+        />
+      ) : null}
+
+      {command && stage !== 'captured' && (
         <section aria-labelledby="pipeline-heading" className="card">
           <h2 id="pipeline-heading" style={{ marginTop: 0 }}>
-            {stage === 'captured' ? 'Not scored yet' : 'No signals yet'}
+            No signals yet
           </h2>
           {/* "No signals" rather than "not extracted": nothing here can tell
               a pass that never ran from one that ran and found nothing it
               could evidence, and claiming the first would be asserting more
               than is known. */}
           <p className="muted" style={{ margin: 0 }}>
-            {stage === 'captured'
-              ? 'This call was captured but no criteria have been detected over it.'
-              : 'Nothing has been extracted from this call, so it cannot contribute to an ' +
-                'insight. Running the pass will either extract something or confirm there ' +
-                'is nothing to extract. Extraction is Opus and embedding is a local model, ' +
-                'so it is an operator pass rather than a button here.'}
+            Nothing has been extracted from this call yet, so it cannot contribute to an
+            insight. Extraction reads the whole call with a larger model and is run by the
+            Tesserafy team for now.
           </p>
-          <code className="command">{command}</code>
+          <OperatorCommand command={command} />
         </section>
       )}
 

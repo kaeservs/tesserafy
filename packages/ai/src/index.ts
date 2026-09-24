@@ -76,6 +76,16 @@ export {
 } from './tiers/t1-detect';
 export { locate } from './tiers/evidence';
 export {
+  scanWindows,
+  SCORE_STRIDE,
+  SCORE_WINDOW_SIZE,
+  windowsOf,
+  type DetectedEvent,
+  type ScanOptions,
+  type ScanResult,
+  type StoredSegment,
+} from './scoring/score-conversation';
+export {
   clusterSignals,
   loadSignals,
   type LoadSignalsOptions,

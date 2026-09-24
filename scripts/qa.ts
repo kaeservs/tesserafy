@@ -670,6 +670,30 @@ async function checkImport(baseUrl: string, token: string): Promise<void> {
       stored.includes('90 minutes'),
       stored.includes('90 minutes') ? 'kept' : 'redaction ate the finding',
     );
+
+    // An upload now scores itself after the response. Wait for that pass
+    // before erasing, both because erasing under it would turn every QA run
+    // into a failure-log entry, and because it is the thing to check: a T1
+    // usage row carrying this conversation's id is proof the pass ran as the
+    // uploader. Events are not asserted — a one-line probe honestly matching
+    // no criterion is a scored call, not a broken one.
+    const deadline = Date.now() + 90_000;
+    let scoringCalls = 0;
+    while (Date.now() < deadline) {
+      const { count } = await db
+        .from('model_usage')
+        .select('id', { count: 'exact', head: true })
+        .eq('conversation_id', conversationId)
+        .eq('tier', 't1');
+      scoringCalls = count ?? 0;
+      if (scoringCalls > 0) break;
+      await new Promise((resolve) => setTimeout(resolve, 3_000));
+    }
+    record(
+      'an uploaded transcript scores itself',
+      scoringCalls > 0,
+      scoringCalls > 0 ? `${scoringCalls} detector call(s), as the uploader` : 'no scoring pass within 90 s',
+    );
   } finally {
     if (conversationId) {
       const { error } = await createServiceClient({

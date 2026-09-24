@@ -151,6 +151,14 @@ test.describe('P1 — every signal links to the words behind it', () => {
   });
 
   test('a conversation with no signals says so rather than inventing one', async ({ page }) => {
+    // The same allowance as the verbatim walk above, for the same reason: this
+    // opens conversations one after another until it finds an empty one. The
+    // first run against a freshly deployed production took 1.7 minutes for the
+    // whole suite because every function was cold, and this test failed on the
+    // default 30 seconds while passing in 17 once warm. The nightly run hits
+    // production at 06:30, when it is always cold.
+    test.setTimeout(180_000);
+
     // The checklist's step 5, and the cheaper half of the same honesty: some
     // transcripts contain nothing worth surfacing, and an empty list is the
     // correct answer. A product that always finds something is broken in a way

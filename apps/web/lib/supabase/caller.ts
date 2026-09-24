@@ -38,6 +38,6 @@ export async function caller(request: NextRequest): Promise<Caller | null> {
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
   return data.user
-    ? { db: supabase as unknown as SupabaseClient, userId: data.user.id }
+    ? { db: supabase, userId: data.user.id }
     : null;
 }

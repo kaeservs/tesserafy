@@ -74,10 +74,16 @@ Everything you then do is attributed to them. Erase a conversation and
 only thing that says otherwise, and the person whose account you opened can
 read it.
 
+## What the customer sees
+
+While the session is open, every page of their account carries a banner with
+your reason and the time left. You will see it too, in the private window —
+that is intended.
+
 ## What is not built
 
-- No banner in the product telling the user it is happening.
-- No consent step.
-
-Until those exist, telling the customer is something a person does, not
-something the product does.
+- **The time limit is not enforced on the login.** Ending the session, or
+  letting it expire, closes the record and removes the banner. The session in
+  your private window keeps working until Supabase expires it. Close the
+  window when you are done.
+- **No consent step.** The customer is told, not asked.

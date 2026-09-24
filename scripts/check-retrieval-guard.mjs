@@ -39,11 +39,24 @@ for (const file of files) {
   });
 }
 
-// The web app runs as the signed-in user so RLS applies. It never holds the
-// service-role key, nor a client built from it.
+// Who may hold the key that bypasses RLS.
+//
+// The web app runs as the signed-in user, so RLS applies and the key would be
+// one bad import away from a browser bundle. The Electron overlay ships to a
+// customer's laptop, where the key would simply be handed over.
+//
+// apps/admin is the exception, and the reason this is a list rather than a
+// single prefix: the operator console holds the key deliberately, which is the
+// whole reason it is a separate deployment. Naming the exception means the
+// next app added under apps/ is refused by default rather than by whether
+// anyone remembered to think about it.
 const SERVICE_ROLE = /\b(SUPABASE_SERVICE_ROLE_KEY|createServiceClient)\b/;
 const serviceRoleViolations = [];
-for (const file of files.filter((f) => f.startsWith('apps/web/'))) {
+const KEY_HOLDERS = [/^apps\/admin\//];
+const appFiles = files.filter(
+  (f) => f.startsWith('apps/') && !KEY_HOLDERS.some((pattern) => pattern.test(f)),
+);
+for (const file of appFiles) {
   let text;
   try {
     text = readFileSync(file, 'utf8');
@@ -61,7 +74,8 @@ if (violations.length > 0) {
   for (const v of violations) console.error(`  ${v}`);
 }
 if (serviceRoleViolations.length > 0) {
-  console.error('Retrieval guard: service-role access inside apps/web.\n');
+  console.error('Retrieval guard: service-role access in an app that must not hold it.');
+  console.error('Only apps/admin may, and only because it is deployed separately.\n');
   for (const v of serviceRoleViolations) console.error(`  ${v}`);
 }
 if (violations.length > 0 || serviceRoleViolations.length > 0) {

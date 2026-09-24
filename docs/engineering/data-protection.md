@@ -87,6 +87,17 @@ accountability, so that is what was added:
   member of staff opened this customer's account cannot, because that is the
   record someone may one day need against us.
 
+The console that does this is `apps/admin`, deployed separately from the
+customer app because it holds the service-role key and the customer app must
+never. The key is used for one thing there — minting the session — and
+everything an operator reads goes through RLS as them, against functions that
+check `is_platform_admin()` for themselves.
+
+Its sign-out is scoped local, which sounds like a detail and is not: Supabase
+signs out globally by default, so a customer who reached the console by mistake
+would have been signed out of the actual product on every device they own, for
+failing a check they were never meant to pass.
+
 What is not built yet: a banner telling the user it is happening while it
 happens, and a consent step. Until those exist, telling the customer is a
 thing a person does, not a thing the product does.

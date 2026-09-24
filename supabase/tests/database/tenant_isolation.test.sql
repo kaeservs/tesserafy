@@ -5,7 +5,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(8);
+select plan(10);
 
 -- A user who belongs to company A only.
 insert into auth.users (id, email, aud, role)
@@ -50,13 +50,32 @@ select throws_ok(
   'embeddings are not readable by authenticated users'
 );
 
-select throws_ok(
+-- ADR 0011: a member may search their own company through match_segments,
+-- and the database refuses every other company. Before 0011 the function was
+-- service-role-only and this asserted that members could not call it at all.
+select isnt_empty(
   $$ select * from public.match_segments(
        '00000000-0000-4000-8000-00000000000a',
        array_fill(1::real, array[384])::extensions.vector(384), 10, 0) $$,
+  'a member can search their own company'
+);
+
+select throws_ok(
+  $$ select * from public.match_segments(
+       '00000000-0000-4000-8000-00000000000b',
+       array_fill(1::real, array[384])::extensions.vector(384), 10, 0) $$,
   '42501',
   null,
-  'authenticated users cannot execute match_segments'
+  'a member cannot search another company'
+);
+
+select throws_ok(
+  $$ select public.record_insight(
+       '00000000-0000-4000-8000-00000000000b', 'planted', 'planted', 'probe', 'probe',
+       array[gen_random_uuid()]) $$,
+  '42501',
+  null,
+  'a member cannot record an insight in another company'
 );
 
 select throws_ok(

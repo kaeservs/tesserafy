@@ -6,7 +6,12 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
-const FORBIDDEN = /\b(match_segments|segment_embeddings)\b/;
+// The table and every function that reads or writes it, by name. The write
+// functions are listed on their own because a word match on segment_embeddings
+// does not fire inside record_segment_embeddings -- which is how a vector write
+// outside the retrieval module once got past this guard (ADR 0011).
+const FORBIDDEN =
+  /\b(match_segments|segment_embeddings|record_segment_embeddings|embed_stored_segments|segments_without_embeddings)\b/;
 
 const ALLOWED = [
   /^packages\/ai\/src\/retrieval\//,

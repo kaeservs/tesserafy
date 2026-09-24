@@ -93,15 +93,29 @@ describe('RLS: member of company A', () => {
     expect(error).not.toBeNull();
   });
 
-  it('cannot call match_segments, even for its own company', async () => {
+  // ADR 0011: members search their own company through match_segments, and
+  // the database refuses any other. The table itself stays unreadable (above).
+  it('can search its own company through match_segments', async () => {
     const { data, error } = await userA.rpc('match_segments', {
       p_company_id: SEED.companyA.id,
       p_query_embedding: vectorArg(sharedQuoteEmbedding()),
       p_match_count: 10,
       p_min_similarity: 0,
     });
+    expect(error).toBeNull();
+    expect((data ?? []).length).toBeGreaterThan(0);
+    expect((data ?? []).every((row) => row.company_id === SEED.companyA.id)).toBe(true);
+  });
+
+  it('cannot search company B through match_segments', async () => {
+    const { data, error } = await userA.rpc('match_segments', {
+      p_company_id: SEED.companyB.id,
+      p_query_embedding: vectorArg(sharedQuoteEmbedding()),
+      p_match_count: 10,
+      p_min_similarity: 0,
+    });
     expect(data ?? []).toEqual([]);
-    expect(error).not.toBeNull();
+    expect(error?.code).toBe('42501');
   });
 
   it('cannot write into company B', async () => {

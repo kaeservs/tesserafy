@@ -54,6 +54,33 @@ async function record(event: UsageEvent, context: UsageContext): Promise<void> {
   }
 }
 
+/**
+ * A database sink whose writes can be waited for.
+ *
+ * `databaseSink` fires and forgets, which is right in a long-lived process and
+ * wrong in a serverless function: a promise nobody awaits can be cut off when
+ * the function freezes after responding. That matters more than a lost cost
+ * row here, because a T3 usage row is also how the product knows extraction
+ * has run — lose it after a run that found nothing and the button comes back,
+ * and a second press pays Opus again for the same answer.
+ *
+ * Recording still never throws into the caller; `settled()` only waits.
+ */
+export function awaitableDatabaseSink(context: UsageContext): {
+  readonly sink: UsageSink;
+  readonly settled: () => Promise<void>;
+} {
+  const pending: Promise<void>[] = [];
+  return {
+    sink: (event: UsageEvent) => {
+      pending.push(record(event, context));
+    },
+    settled: async () => {
+      await Promise.all(pending);
+    },
+  };
+}
+
 /** Writes to both: the line is useful while watching, the row while asking. */
 export function both(...sinks: readonly UsageSink[]): UsageSink {
   return (event: UsageEvent) => {

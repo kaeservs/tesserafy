@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import {
-  databaseSink,
+  awaitableDatabaseSink,
   scanWindows,
   T1_DETECTOR,
   windowsOf,
@@ -72,17 +72,22 @@ export async function scoreUploadedConversation(
   const rows = await fetchCriteria(db, conversation.engagement_type, conversation.criteria_version);
   const criteria = rows.map((row) => ({ key: row.key, label: row.label, definition: row.definition }));
 
+  // Awaited rather than fire-and-forget: this runs inside after(), and a
+  // write nobody waits for can be cut off when the function freezes. It
+  // recorded correctly in production before this change, but by timing.
+  const usage = awaitableDatabaseSink({
+    db,
+    detector: T1_DETECTOR,
+    companyId: conversation.company_id,
+    conversationId,
+  });
   const scan = await scanWindows(windows, {
     client,
     criteria,
     concurrency: CONCURRENCY,
-    onUsage: databaseSink({
-      db,
-      detector: T1_DETECTOR,
-      companyId: conversation.company_id,
-      conversationId,
-    }),
+    onUsage: usage.sink,
   });
+  await usage.settled();
 
   let recorded = 0;
   let rejected = scan.rejected;

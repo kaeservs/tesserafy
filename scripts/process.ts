@@ -18,6 +18,11 @@
  * customer; spending that, and making that, without a person asking is what
  * "no auto-creation anywhere" rules out. It prints the bill first and
  * --dry-run pays none of it.
+ *
+ * A customer can now ask for the extraction half themselves, from the
+ * conversation page ("Find insights in this call") — the same principle, with
+ * the customer as the person asking. This script remains the operator's way
+ * to embed, which the web app cannot do yet, and to extract in bulk.
  */
 import Anthropic from '@anthropic-ai/sdk';
 import {

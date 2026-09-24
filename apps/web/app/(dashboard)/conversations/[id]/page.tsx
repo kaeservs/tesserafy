@@ -4,6 +4,7 @@ import { clock, splitByHighlights } from '@/lib/highlight';
 import { Shortfall } from '@/components/criterion-shortfall';
 import { conversationPipeline, nextCommand, stageOf } from '@/lib/pipeline';
 import { scoreConversation } from '@/lib/scorecard';
+import { ExtractButton } from '@/components/extract-button';
 import { RefreshWhile } from '@/components/refresh-while';
 import { capturedState, type CapturedState } from '@/lib/scoring-status';
 import { createClient } from '@/lib/supabase/server';
@@ -128,10 +129,13 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
   const pipeline = (await conversationPipeline(supabase)).get(id);
   const stage = stageOf(pipeline);
   const command = nextCommand(stage, id);
+  // Extraction has run if it stored anything or recorded any usage — a run
+  // that found nothing is still a run, and the button must not come back for
+  // it. Independent of embedding, which is a separate step.
+  const extracted = (pipeline?.signals ?? 0) > 0 || (pipeline?.extractionRuns ?? 0) > 0;
   // Extraction ran and stored nothing. Worth saying plainly rather than
   // leaving a reader to wonder whether the pass is still owed.
-  const foundNothing =
-    stage === 'processed' && (pipeline?.signals ?? 0) === 0 && (pipeline?.extractionRuns ?? 0) > 0;
+  const foundNothing = extracted && (pipeline?.signals ?? 0) === 0;
   const observed = card.criteria.some((criterion) => criterion.status !== 'unobserved');
 
   const [segmentsResult, signalsResult, evidenceResult] = await Promise.all([
@@ -198,23 +202,20 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
         />
       ) : null}
 
-      {command && stage !== 'captured' && (
+      {stage === 'scored' && !extracted ? (
         <section aria-labelledby="pipeline-heading" className="card">
           <h2 id="pipeline-heading" style={{ marginTop: 0 }}>
-            No signals yet
+            Find what this call says
           </h2>
-          {/* "No signals" rather than "not extracted": nothing here can tell
-              a pass that never ran from one that ran and found nothing it
-              could evidence, and claiming the first would be asserting more
-              than is known. */}
-          <p className="muted" style={{ margin: 0 }}>
-            Nothing has been extracted from this call yet, so it cannot contribute to an
-            insight. Extraction reads the whole call with a larger model and is run by the
-            Tesserafy team for now.
+          <p className="muted">
+            The scorecard shows which criteria this conversation met. Reading it for problems the
+            customer raised and things they asked for is a separate pass over the whole call, by a
+            larger model. Every signal it finds is quoted word for word from the transcript.
           </p>
-          <OperatorCommand command={command} />
+          <ExtractButton conversationId={id} />
+          {command ? <OperatorCommand command={command} /> : null}
         </section>
-      )}
+      ) : null}
 
       <section aria-labelledby="scorecard-heading">
         <h2 id="scorecard-heading">Scorecard</h2>
@@ -276,7 +277,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
               ? 'Extraction has run over this call and found nothing it could evidence. ' +
                 'That is an answer, not an omission — a conversation with no stated problem ' +
                 'and no request produces no signals.'
-              : 'Nothing extracted yet. Run pnpm process against this conversation.'}
+              : 'Nothing read from this call yet.'}
           </p>
         ) : (
           <ul className="signals">

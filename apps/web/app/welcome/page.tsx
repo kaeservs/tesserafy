@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { CreateCompany } from './create-company';
 
 /**
  * Signed in, but not yet part of a company.
@@ -10,8 +11,9 @@ import { createClient } from '@/lib/supabase/server';
  * reads through a company — so without this page the first thing a new
  * customer ever saw was "not a member of any company", as an error.
  *
- * Checkout is not built yet. Until it is, this page says so plainly rather
- * than offering a button that goes nowhere.
+ * With sign-up open (an operator's switch, in the database), this is where a
+ * confirmed account names its company and its trial starts. Closed, it says
+ * so rather than offering a button that the database would refuse.
  */
 export const dynamic = 'force-dynamic';
 
@@ -29,20 +31,32 @@ export default async function Welcome() {
     .eq('user_id', user.id);
   if ((count ?? 0) > 0) redirect('/dashboard');
 
+  const { data: open } = await supabase.rpc('signup_is_open');
+
   return (
     <main style={{ maxWidth: '36rem' }}>
       <h1>Your account is ready</h1>
       <p>
-        You are signed in as <strong>{user.email}</strong>. To start importing calls, your company
-        needs a plan.
+        You are signed in as <strong>{user.email}</strong>.
       </p>
-      <div className="card">
-        <h2 style={{ marginTop: 0 }}>Plans are opening soon</h2>
-        <p className="muted" style={{ marginBottom: 0 }}>
-          Checkout is not live yet. Your account will be kept, and nothing needs to be done again
-          once it is — choosing a plan will create your company and bring you straight in.
-        </p>
-      </div>
+      {open === true ? (
+        <>
+          <p>
+            Name your company to start a fourteen-day trial: 3 imported calls, 3 “Find insights in
+            this call”, 1 “Look for patterns” and 15 live minutes. After that, Basic is $9 a month
+            and Pro $20.
+          </p>
+          <CreateCompany />
+        </>
+      ) : (
+        <div className="card">
+          <h2 style={{ marginTop: 0 }}>You are not part of a company yet</h2>
+          <p className="muted" style={{ marginBottom: 0 }}>
+            Sign-up is not open yet. If you expected to be part of a company, ask its owner to add
+            you — or Tesserafy, if you are setting one up.
+          </p>
+        </div>
+      )}
       <form action="/auth/sign-out" method="post">
         <button type="submit">Sign out</button>
       </form>

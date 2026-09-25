@@ -1,3 +1,5 @@
+import Link from 'next/link';
+import { createClient } from '@/lib/supabase/server';
 import { LoginForm } from './login-form';
 
 /**
@@ -28,13 +30,15 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
+  const supabase = await createClient();
+  const { data: open } = await supabase.rpc('signup_is_open');
 
   return (
     <main>
       <h1>Sign in to Tesserafy</h1>
       <p className="muted">
-        Access is by invitation. Sign in with your password, or have a one-time link emailed to
-        you.
+        {open === true ? '' : 'Access is by invitation. '}Sign in with your password, or have a
+        one-time link emailed to you.
       </p>
       {error && (
         <p role="alert">
@@ -43,6 +47,11 @@ export default async function LoginPage({
         </p>
       )}
       <LoginForm />
+      {open === true ? (
+        <p className="muted">
+          New to Tesserafy? <Link href="/signup">Create an account</Link>
+        </p>
+      ) : null}
     </main>
   );
 }

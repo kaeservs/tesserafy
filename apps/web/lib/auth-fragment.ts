@@ -11,6 +11,11 @@
 export interface FragmentSession {
   accessToken: string;
   refreshToken: string;
+  /**
+   * The link was an invitation: the account was just made by an operator and
+   * has no password. Where it lands next depends on it.
+   */
+  invited: boolean;
 }
 
 export interface FragmentError {
@@ -41,7 +46,10 @@ export function parseAuthFragment(hash: string): FragmentResult {
   // no way back, which looks like a random logout later rather than a failure
   // now.
   if (accessToken && refreshToken) {
-    return { kind: 'session', session: { accessToken, refreshToken } };
+    return {
+      kind: 'session',
+      session: { accessToken, refreshToken, invited: params.get('type') === 'invite' },
+    };
   }
 
   return { kind: 'empty' };

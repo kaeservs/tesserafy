@@ -268,6 +268,13 @@ To see what the job has done:
   record is a failure to access. The user can read those rows about their own
   account, because an audit trail the audited cannot see is a private diary.
 
+  Creating accounts is recorded the same way (ADR 0012). An operator adding
+  someone — a new company's owner, or a person joining an existing one —
+  writes an `account_provisioning` row as themselves before the account
+  exists, and the row is closed only once the account the key returned is
+  checked against it. An attempt that stops part-way stays open and is shown
+  as one. One company per person is enforced in both steps.
+
   What is still missing is the ordinary case: RLS decides who *can* read a
   conversation and nothing records who *did*. "Which of our colleagues opened
   this call" is answerable for support sessions and unanswerable for everything

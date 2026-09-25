@@ -21,3 +21,4 @@ accepted ADR to change the decision; write a new one that supersedes it.
 | 0009 | What counts as a correct extraction | proposed |
 | 0010 | The live latency budget, as measured | proposed |
 | 0011 | Retrieval under the user's session (amends 0004) | proposed |
+| 0012 | The operator console creates accounts (amends invariant 3) | proposed |

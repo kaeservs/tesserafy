@@ -50,7 +50,9 @@ export default function ConfirmPage() {
         // Drop the fragment before navigating, so the tokens do not sit in the
         // address bar or get carried into the next page's history entry.
         window.history.replaceState(null, '', '/auth/confirm');
-        router.replace('/conversations');
+        // An invited account was made by an operator and has no password;
+        // without one the person could only sign in again by email.
+        router.replace(result.session.invited ? '/account?invited=1' : '/conversations');
       });
   }, [router]);
 

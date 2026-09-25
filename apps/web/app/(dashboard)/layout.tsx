@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { NavLink } from '@/components/nav-link';
 import { supportBanner } from '@/lib/support-banner';
@@ -62,7 +63,9 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <NavLink href="/settings">Settings</NavLink>
         </nav>
         <form action="/auth/sign-out" method="post" className="toolbar">
-          <span className="muted">{user.email}</span>
+          <Link href="/account" className="muted">
+            {user.email}
+          </Link>
           <button type="submit">Sign out</button>
         </form>
       </header>

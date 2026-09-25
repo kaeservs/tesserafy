@@ -7,8 +7,17 @@ describe('parseAuthFragment', () => {
 
     expect(result).toEqual({
       kind: 'session',
-      session: { accessToken: 'abc', refreshToken: 'def' },
+      session: { accessToken: 'abc', refreshToken: 'def', invited: false },
     });
+  });
+
+  it('knows an invitation from a sign-in', () => {
+    // An invited account has no password yet, so it is sent to choose one.
+    const invite = parseAuthFragment('#access_token=abc&refresh_token=def&type=invite');
+    const signIn = parseAuthFragment('#access_token=abc&refresh_token=def&type=magiclink');
+
+    expect(invite.kind === 'session' && invite.session.invited).toBe(true);
+    expect(signIn.kind === 'session' && signIn.session.invited).toBe(false);
   });
 
   it('works with or without the leading hash', () => {

@@ -48,6 +48,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_provisioning: {
+        Row: {
+          admin_user_id: string
+          company_id: string | null
+          company_name: string | null
+          completed_at: string | null
+          created_at: string
+          email: string
+          id: string
+          new_account: boolean | null
+          plan: string | null
+          role: string
+          user_id: string | null
+        }
+        Insert: {
+          admin_user_id: string
+          company_id?: string | null
+          company_name?: string | null
+          completed_at?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          new_account?: boolean | null
+          plan?: string | null
+          role: string
+          user_id?: string | null
+        }
+        Update: {
+          admin_user_id?: string
+          company_id?: string | null
+          company_name?: string | null
+          completed_at?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          new_account?: boolean | null
+          plan?: string | null
+          role?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_provisioning_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           created_at: string
@@ -862,6 +912,10 @@ export type Database = {
         }
         Returns: string
       }
+      complete_account_provisioning: {
+        Args: { p_id: string; p_new_account: boolean; p_user_id: string }
+        Returns: string
+      }
       conversation_for_source: {
         Args: { p_company_id: string; p_source_key: string }
         Returns: string
@@ -964,6 +1018,34 @@ export type Database = {
           start_ms: number
           text: string
         }[]
+      }
+      open_account_provisioning: {
+        Args: {
+          p_company_id?: string
+          p_company_name?: string
+          p_email: string
+          p_plan?: string
+          p_role: string
+        }
+        Returns: {
+          admin_user_id: string
+          company_id: string | null
+          company_name: string | null
+          completed_at: string | null
+          created_at: string
+          email: string
+          id: string
+          new_account: boolean | null
+          plan: string | null
+          role: string
+          user_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "account_provisioning"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       open_support_access: {
         Args: {

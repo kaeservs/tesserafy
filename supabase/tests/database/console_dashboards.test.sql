@@ -23,6 +23,12 @@ update public.companies set plan = 'basic' where id = '00000000-0000-4000-8000-0
 update public.subscriptions set status = 'active', cancel_at_period_end = true
  where company_id = '00000000-0000-4000-8000-00000000000b';
 
+-- Counted as the superuser: RLS shows an operator no companies at all, which
+-- is exactly why the overview is a definer function.
+create temporary table expected as
+  select count(*)::integer as open_companies from public.companies where closed_at is null;
+grant select on expected to authenticated;
+
 set local role authenticated;
 
 select set_config('request.jwt.claims',
@@ -39,7 +45,7 @@ select set_config('request.jwt.claims',
 create temporary table o as select public.admin_overview() as v;
 
 select is(((select v from o) -> 'companies' ->> 'open')::integer,
-  (select count(*)::integer from public.companies where closed_at is null),
+  (select open_companies from expected),
   'the overview counts open companies');
 select is(((select v from o) -> 'companies' -> 'by_plan' ->> 'basic')::integer, 1,
   'by plan');

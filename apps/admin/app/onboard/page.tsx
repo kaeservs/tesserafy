@@ -1,4 +1,5 @@
 import { requireAdmin } from '@/lib/admin';
+import { utc } from '@/lib/time';
 import { Chrome } from '../chrome';
 import { ProvisionForm } from './form';
 
@@ -56,7 +57,7 @@ export default async function Onboard() {
         <tbody>
           {(log ?? []).map((row) => (
             <tr key={row.id}>
-              <td className="muted">{new Date(row.created_at).toLocaleString('en-GB')}</td>
+              <td className="muted">{utc(row.created_at)}</td>
               <td>{row.email}</td>
               <td>
                 {row.company_id ? (names.get(row.company_id) ?? row.company_id) : row.company_name}

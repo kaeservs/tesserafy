@@ -202,6 +202,22 @@ customer request need not queue behind us. It is not offered as a button
 anywhere yet: it cannot be undone, and a confirmation dialog is a weaker guard
 than having to be an operator at a terminal.
 
+## Closing a company
+
+When a customer leaves, an operator closes the company from the console
+(`close_company`). In one transaction: every call is erased through the same
+logic as an owner's erasure, each leaving its content-free erasure record;
+every member is removed, each recorded; and the company row stays as a closed
+tombstone — when, by whom, why, under its name. Tickets already exported to a
+tracker are listed for a person to delete there.
+
+The row is kept because the records that prove the erasure happened point at
+it, several by cascade: deleting the company would delete the evidence that
+it was deleted. Login accounts are kept, empty; deleting an account is an Auth
+admin call and a separate decision. A closed company is closed for good — a
+trigger refuses any new membership. Platform admins only, with a reason and
+the company's exact name typed back.
+
 ## Retention
 
 `companies.retention_days` is per tenant and stored as data, for the same

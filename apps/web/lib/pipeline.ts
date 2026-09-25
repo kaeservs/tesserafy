@@ -1,3 +1,4 @@
+import { readAll } from '@tesserafy/db';
 import type { SupabaseClient } from '@tesserafy/db';
 
 /**
@@ -39,14 +40,20 @@ export async function conversationPipeline(
   db: SupabaseClient,
 ): Promise<Map<string, PipelineState>> {
   // No argument: the function scopes itself to the caller. Passing null said
-  // the same thing and read like "every company", which it never was.
-  const { data, error } = await db.rpc('conversation_pipeline', {});
-  if (error) {
-    throw new Error(`Could not read pipeline state: ${error.message}`);
-  }
+  // the same thing and read like "every company", which it never was. Paged,
+  // because a function's rows are capped at a thousand like a table's: past
+  // that, calls would show no stage at all.
+  const rows = await readAll<PipelineRow>(
+    (from, to) =>
+      db
+        .rpc('conversation_pipeline', {})
+        .order('conversation_id')
+        .range(from, to),
+    'Could not read pipeline state',
+  );
 
   return new Map(
-    ((data ?? []) as PipelineRow[]).map((row) => [
+    rows.map((row) => [
       row.conversation_id,
       {
         segments: row.segments,

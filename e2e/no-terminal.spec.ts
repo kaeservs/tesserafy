@@ -17,6 +17,10 @@ const USERNAME = process.env['E2E_USERNAME'] ?? 'kaeser';
 const PASSWORD = process.env['E2E_PASSWORD'] ?? 'tesserafy2026';
 
 test('the pages a customer reads name no terminal command', async ({ page }) => {
+  // Ten full page loads in one test. At the default 30 s it failed on time,
+  // not on content, whenever the nightly run's parallel specs slowed the
+  // deployment down — and a check that cries wolf gets ignored.
+  test.setTimeout(120_000);
   await page.goto('/login');
   await page.getByLabel('Username or email').fill(USERNAME);
   await page.getByLabel('Password').fill(PASSWORD);

@@ -9,6 +9,7 @@ import {
 } from '@tesserafy/ai';
 import { NextResponse, type NextRequest } from 'next/server';
 import { caller } from '@/lib/supabase/caller';
+import { liveSeconds, planExhausted, refund, spend } from '@/lib/plan';
 import { allowance, tooMany } from '@/lib/rate-limit';
 
 /**
@@ -78,6 +79,10 @@ export async function POST(request: NextRequest) {
   const limit = await allowance(who.db, 'api/detect');
   if (!limit.allowed) return tooMany('api/detect', limit.retryAfterSeconds);
 
+  // The plan's live minutes, charged by the utterance just said.
+  const spent = await spend(who.db, 'live_seconds', liveSeconds(window));
+  if (!spent.allowed) return planExhausted(spent);
+
   try {
     const result = await detectCriteria(window, {
       client: new Anthropic(),
@@ -115,6 +120,7 @@ export async function POST(request: NextRequest) {
     //
     // The scrubbed message goes back to the caller too. An upstream error
     // quotes the request, and the request is a customer's words.
+    await refund(who.db, spent);
     const failure = recordFailure(error, { db: who.db, source: 'api/detect', tier: 't1' });
     return NextResponse.json({ error: failure.message }, { status: 502 });
   }

@@ -57,6 +57,14 @@ export async function POST(request: NextRequest) {
   const limit = await allowance(who.db, 'api/suggest');
   if (!limit.allowed) return tooMany('api/suggest', limit.retryAfterSeconds);
 
+  // Suggestions ride on detections, which spend the live minutes; with none
+  // left there is no suggestion — the same normal answer as "nothing worth
+  // asking", so the caller needs no special case.
+  const { data: live } = await who.db.rpc('plan_has_allowance', { p_meter: 'live_seconds' });
+  if (live !== true) {
+    return NextResponse.json({ suggestion: null, reason: 'The plan’s live minutes for this month are used.' });
+  }
+
   try {
     const result = await suggestNext(scorecard, window, {
       client: new Anthropic(),

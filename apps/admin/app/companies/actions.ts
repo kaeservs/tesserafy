@@ -49,3 +49,21 @@ export async function closeCompany(_prev: CloseState, formData: FormData): Promi
     exportedTickets: result.exported_tickets,
   };
 }
+
+export type SetPlanState = { status: 'idle' } | { status: 'error'; message: string };
+
+/**
+ * Set a company's plan, as the operator: effective now, recorded in the
+ * company's plan history under the operator's name. `admin_set_plan` checks
+ * the operator is one and the company is open.
+ */
+export async function setPlan(_prev: SetPlanState, formData: FormData): Promise<SetPlanState> {
+  const admin = await requireAdmin();
+  const { error } = await admin.db.rpc('admin_set_plan', {
+    p_company_id: text(formData, 'companyId'),
+    p_plan: text(formData, 'plan'),
+  });
+  if (error) return { status: 'error', message: error.message.replace(/^admin_set_plan: /, '') };
+  revalidatePath('/companies');
+  return { status: 'idle' };
+}

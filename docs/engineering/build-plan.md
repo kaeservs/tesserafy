@@ -119,6 +119,8 @@ What is left cannot be done from a keyboard alone:
   synthetic data.
 - macOS access for S1/S2? Content protection is a different mechanism there.
 - S2 priority: lowest latency or lowest cost?
-- Live minutes in pricing — metered, bundled allowance, or higher base. Live
-  inference is ~9x post-call cost, so the Starter tier as drafted is negative
-  margin. Decide before publishing pricing.
+- ~~Live minutes in pricing~~ — **decided 2026-09-28: a bundled allowance.**
+  Basic ($9) includes 60 live minutes a month and Pro ($20) 180, alongside
+  imported calls, call reads and pattern runs; see the `plans` table. Live is
+  charged by utterance length, 5–30 s each. Payments are not live; plans are
+  free until Stripe.

@@ -109,6 +109,18 @@ can count across instances. Both windows a route wants are taken in one call,
 and the check fails closed: a limiter that fails open is not a limiter during
 exactly the incident it exists for.
 
+On top of that, each company's plan has a monthly AI allowance: imported
+calls (scoring included), "Find insights in this call", "Look for patterns",
+and live minutes. The catalogue is the `plans` table — trial, Basic $9, Pro
+$20, pilot, internal — so a limit is a row, not a deploy. Every AI route
+spends through `apps/web/lib/plan.ts` after its rate limit, and refunds when
+the work fails; `take_plan_allowance` checks and charges in one locked
+statement. Reading, search, export and deleting never need an allowance. Plan
+changes all go through `private.apply_plan`: owners start, upgrade (now),
+downgrade or cancel (at period end); the operator sets any plan; a nightly
+job rolls periods over. Payments do not exist yet and plans are free until
+they do; when Stripe lands its webhook calls the same function.
+
 A failure that only reaches the caller has not been reported. Every catch that
 answers a request records through `recordFailure` in `packages/ai`, which
 classifies it — a request we built wrong is not the same event as an

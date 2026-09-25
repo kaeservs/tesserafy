@@ -78,7 +78,7 @@ export function ProvisionForm({ companies }: { companies: { id: string; name: st
             />
           </div>
           <div className="narrow">
-            <label htmlFor="plan">Plan (label)</label>
+            <label htmlFor="plan">Plan</label>
             <select
               id="plan"
               name="plan"
@@ -87,7 +87,8 @@ export function ProvisionForm({ companies }: { companies: { id: string; name: st
             >
               <option value="pilot">pilot</option>
               <option value="trial">trial</option>
-              <option value="paid">paid</option>
+              <option value="basic">basic</option>
+              <option value="pro">pro</option>
               <option value="internal">internal</option>
             </select>
           </div>

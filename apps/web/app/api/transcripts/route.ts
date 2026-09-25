@@ -9,6 +9,7 @@ import {
 import { recordFailure } from '@tesserafy/ai';
 import { after, NextResponse, type NextRequest } from 'next/server';
 import { CONSENT_REQUIRED, CONSENT_STATEMENTS, consentConfirmed } from '@/lib/consent';
+import { planExhausted, refund, spend } from '@/lib/plan';
 import { allowance, tooMany } from '@/lib/rate-limit';
 import { embedUploadedConversation } from '@/lib/embed-upload';
 import { scoreUploadedConversation } from '@/lib/score-upload';
@@ -129,6 +130,12 @@ export async function POST(request: NextRequest) {
   // with it; this is the one place where removing it removes it everywhere.
   const { segments: clean, counts } = redactSegments(segments);
 
+  // One of the plan's imported calls, which includes scoring it. Charged
+  // here — after the file is known to be a transcript, before anything is
+  // stored — and given back if storing it fails.
+  const spent = await spend(who.db, 'calls');
+  if (!spent.allowed) return planExhausted(spent);
+
   const { data, error } = await who.db.rpc('import_conversation', {
     p_title: title,
     p_segments: clean.map((segment) => ({
@@ -148,6 +155,7 @@ export async function POST(request: NextRequest) {
   });
 
   if (error) {
+    await refund(who.db, spent);
     const status = error.code === '42501' ? 403 : error.code === '22023' ? 400 : 502;
     // A refusal we designed — not a member, or a malformed argument — is an
     // answer, and answers are not failures. A constraint or a missing function

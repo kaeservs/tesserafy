@@ -1,3 +1,4 @@
+import { PlanPanel, type CatalogPlan, type PlanOverview } from '@/components/plan-panel';
 import { RemoveMember } from '@/components/remove-member';
 import { RequestTeammate } from '@/components/request-teammate';
 import { RetentionForm } from '@/components/retention-form';
@@ -7,7 +8,7 @@ import { createClient } from '@/lib/supabase/server';
 export const metadata = { title: 'Settings · Tesserafy' };
 
 /**
- * Company settings: how long calls are kept, and who can read them.
+ * Company settings: the plan, how long calls are kept, and who can read them.
  *
  * Everyone in the company can see the period — it is a fact about their data
  * they are entitled to know. Only an owner is offered the form, because only
@@ -34,6 +35,17 @@ export default async function SettingsPage() {
   const company = membership?.companies ?? null;
   const retention = company?.retention_days ?? null;
   const isOwner = membership?.role === 'owner';
+
+  // Where the company stands on its plan; rolled over first if a period
+  // ended, so this never shows a trial that has already run out.
+  const [{ data: overview }, { data: catalog }] = await Promise.all([
+    supabase.rpc('plan_overview'),
+    supabase
+      .from('plans')
+      .select('id, name, price_usd_cents, calls, extractions, pattern_runs, live_minutes')
+      .eq('self_serve', true)
+      .order('rank'),
+  ]);
 
   // Addresses come through company_team(): auth.users is not readable by a
   // signed-in user, and the function returns this company's people only.
@@ -64,6 +76,21 @@ export default async function SettingsPage() {
   return (
     <main>
       <h1>Settings</h1>
+      <section aria-labelledby="plan-heading" className="card">
+        <h2 id="plan-heading" style={{ marginTop: 0 }}>
+          Plan
+        </h2>
+        {overview ? (
+          <PlanPanel
+            overview={overview as unknown as PlanOverview}
+            catalog={(catalog ?? []) as CatalogPlan[]}
+            isOwner={isOwner}
+          />
+        ) : (
+          <p className="muted">The plan could not be read just now.</p>
+        )}
+      </section>
+
       <section aria-labelledby="retention-heading" className="card">
         <h2 id="retention-heading" style={{ marginTop: 0 }}>
           How long calls are kept

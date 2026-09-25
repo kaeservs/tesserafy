@@ -11,9 +11,9 @@ insert into auth.users (id, email, aud, role) values
   ('aaaa0001-0000-4000-8000-000000000001', 'operator-one@test.tesserafy.local', 'authenticated', 'authenticated'),
   ('aaaa0001-0000-4000-8000-000000000002', 'operator-two@test.tesserafy.local', 'authenticated', 'authenticated'),
   ('aaaa0001-0000-4000-8000-000000000003', 'customer@test.tesserafy.local', 'authenticated', 'authenticated');
-insert into public.platform_admins (user_id) values
-  ('aaaa0001-0000-4000-8000-000000000001'),
-  ('aaaa0001-0000-4000-8000-000000000002');
+insert into public.platform_admins (user_id, note) values
+  ('aaaa0001-0000-4000-8000-000000000001', 'test operator one'),
+  ('aaaa0001-0000-4000-8000-000000000002', 'test operator two');
 insert into public.company_members (company_id, user_id, role) values
   ('00000000-0000-4000-8000-00000000000a', 'aaaa0001-0000-4000-8000-000000000003', 'owner');
 

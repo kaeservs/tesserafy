@@ -14,11 +14,14 @@ import { createClient } from './supabase/server';
  * So the split is kept sharp here too. Everything an operator sees is read
  * through `adminClient()`, which is *them*, signed in, subject to RLS and to
  * functions that check `is_platform_admin()`. The service-role key appears in
- * exactly one function below, `mintSessionFor`, because minting a session is
- * the one thing the Auth admin API will not do for anybody else.
+ * two functions below, `mintSessionFor` and `createAccountFor`, because
+ * minting a session and creating an account are the two things the Auth admin
+ * API will not do for anybody else (ADR 0012).
  *
- * Put another way: the powerful key can create a session and nothing else. It
- * cannot read a conversation, decide who is an admin, or write an audit row.
+ * Put another way: the powerful key can make Auth calls and nothing else. It
+ * cannot read a conversation, decide who is an admin, create a company, add a
+ * membership or write an audit row — the database does those, as the
+ * operator, after checking they are one.
  */
 
 export interface Admin {
@@ -115,6 +118,80 @@ export async function mintSessionFor(email: string): Promise<MintedSession | nul
   const asked = new URL('/auth/confirm', appUrl).toString();
   const going = new URL(link).searchParams.get('redirect_to');
   return going && going !== asked ? { link, landsElsewhere: going } : { link };
+}
+
+/**
+ * An account for somebody, and a link that signs them in once.
+ *
+ * The key's second use (ADR 0012). It is called only between
+ * `open_account_provisioning`, which has already decided this is allowed and
+ * written it down, and `complete_account_provisioning`, which checks the
+ * account returned here is the one recorded before any company or membership
+ * exists. It never touches a table.
+ *
+ * An invite link creates the account; if one already exists for the address,
+ * Auth refuses the invite and a sign-in link is made instead. The difference
+ * matters to the person receiving it: an invite lands them on "choose a
+ * password", because an account made this way has none, and without one they
+ * could only ever sign in again by email.
+ */
+export type CreatedAccount =
+  | { ok: true; userId: string; link: string; newAccount: boolean; landsElsewhere?: string }
+  | { ok: false; message: string };
+
+export async function createAccountFor(email: string): Promise<CreatedAccount> {
+  const url = process.env['NEXT_PUBLIC_SUPABASE_URL'];
+  const serviceKey = process.env['SUPABASE_SERVICE_ROLE_KEY'];
+  const appUrl = process.env['NEXT_PUBLIC_APP_URL'];
+  if (!url || !serviceKey || !appUrl) {
+    return { ok: false, message: 'SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_APP_URL is not set.' };
+  }
+
+  const asked = new URL('/auth/confirm', appUrl).toString();
+  const generate = (type: 'invite' | 'magiclink') =>
+    fetch(new URL('/auth/v1/admin/generate_link', url), {
+      method: 'POST',
+      headers: {
+        apikey: serviceKey,
+        authorization: `Bearer ${serviceKey}`,
+        'content-type': 'application/json',
+      },
+      // Top-level `redirect_to`, as in mintSessionFor and for the same reason.
+      body: JSON.stringify({ type, email, redirect_to: asked }),
+    });
+
+  let newAccount = true;
+  let response = await generate('invite');
+  if (response.status === 422) {
+    // The address already has an account. Anything else that is a 422 will
+    // fail the same way as a sign-in link and say so below.
+    newAccount = false;
+    response = await generate('magiclink');
+  }
+  if (!response.ok) {
+    const detail = (await response.json().catch(() => ({}))) as { msg?: string; message?: string };
+    return { ok: false, message: `Auth refused: ${detail.msg ?? detail.message ?? response.status}` };
+  }
+
+  // The user's fields sit at the top level of this response, beside the link.
+  const body = (await response.json()) as {
+    id?: string;
+    user?: { id?: string };
+    action_link?: string;
+    properties?: { action_link?: string };
+  };
+  const userId = body.id ?? body.user?.id;
+  const link = body.action_link ?? body.properties?.action_link;
+  if (!userId || !link) return { ok: false, message: 'Auth returned no account or no link.' };
+
+  const going = new URL(link).searchParams.get('redirect_to');
+  return {
+    ok: true,
+    userId,
+    link,
+    newAccount,
+    ...(going && going !== asked ? { landsElsewhere: going } : {}),
+  };
 }
 
 /**

@@ -23,6 +23,7 @@ export function Chrome({ email, children }: { email: string; children: ReactNode
       <nav>
         <Link href="/">People</Link>
         <Link href="/companies">Companies</Link>
+        <Link href="/onboard">Add people</Link>
         <Link href="/history">Access history</Link>
         <span className="spacer" />
         <form action={signOut}>

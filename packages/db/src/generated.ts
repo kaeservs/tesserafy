@@ -155,12 +155,34 @@ export type Database = {
           },
         ]
       }
+      app_settings: {
+        Row: {
+          id: boolean
+          signup_open: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: boolean
+          signup_open?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: boolean
+          signup_open?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           closed_at: string | null
           closed_by: string | null
           closed_reason: string | null
           created_at: string
+          created_by: string | null
           id: string
           name: string
           plan: string
@@ -171,6 +193,7 @@ export type Database = {
           closed_by?: string | null
           closed_reason?: string | null
           created_at?: string
+          created_by?: string | null
           id?: string
           name: string
           plan?: string
@@ -181,6 +204,7 @@ export type Database = {
           closed_by?: string | null
           closed_reason?: string | null
           created_at?: string
+          created_by?: string | null
           id?: string
           name?: string
           plan?: string
@@ -1284,6 +1308,7 @@ export type Database = {
         Args: { p_company_id: string; p_plan: string }
         Returns: undefined
       }
+      admin_set_signup_open: { Args: { p_open: boolean }; Returns: undefined }
       admin_users: {
         Args: never
         Returns: {
@@ -1353,6 +1378,7 @@ export type Database = {
           views: number
         }[]
       }
+      create_my_company: { Args: { p_name: string }; Returns: string }
       decide_insight: {
         Args: { p_insight_id: string; p_status: string }
         Returns: {
@@ -1629,6 +1655,7 @@ export type Database = {
         }[]
       }
       set_retention: { Args: { p_days: number }; Returns: number }
+      signup_is_open: { Args: never; Returns: boolean }
       start_live_conversation: {
         Args: {
           p_company_id?: string

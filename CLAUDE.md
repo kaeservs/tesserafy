@@ -121,6 +121,12 @@ downgrade or cancel (at period end); the operator sets any plan; a nightly
 job rolls periods over. Payments do not exist yet and plans are free until
 they do; when Stripe lands its webhook calls the same function.
 
+Brands can sign up themselves (`/signup`) only when an operator opens it in
+the console: the switch is `app_settings.signup_open`, checked by
+`create_my_company` itself, so the database refuses a company while closed
+however it is asked. A confirmed address names its company and starts the
+trial; an account creates one company, ever. Closed until email works.
+
 A failure that only reaches the caller has not been reported. Every catch that
 answers a request records through `recordFailure` in `packages/ai`, which
 classifies it — a request we built wrong is not the same event as an

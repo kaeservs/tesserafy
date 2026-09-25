@@ -4,6 +4,7 @@ import { listCompanies } from '@/lib/companies';
 import { utc } from '@/lib/time';
 import { Chrome } from '../chrome';
 import { SetPlan } from './set-plan';
+import { SignupSwitch } from './signup-switch';
 
 /**
  * The tenants, and what is actually true about them.
@@ -28,7 +29,10 @@ function ago(iso: string | null): string {
 
 export default async function Companies() {
   const admin = await requireAdmin();
-  const { companies, error } = await listCompanies(admin.db);
+  const [{ companies, error }, { data: settings }] = await Promise.all([
+    listCompanies(admin.db),
+    admin.db.from('app_settings').select('signup_open, updated_at').maybeSingle(),
+  ]);
 
   return (
     <Chrome email={admin.email}>
@@ -38,6 +42,11 @@ export default async function Companies() {
         billed. Plan sets the monthly AI allowance and changes now when set here; nothing is
         charged for it until payments exist.
       </p>
+
+      <SignupSwitch
+        open={settings?.signup_open === true}
+        changed={settings && settings.updated_at ? utc(settings.updated_at) : null}
+      />
 
       {error ? <p className="tag open">{error}</p> : null}
 

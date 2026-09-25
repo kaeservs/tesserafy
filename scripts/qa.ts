@@ -86,6 +86,8 @@ async function main(): Promise<void> {
 
   const pages: [string, number][] = [
     ['/login', 200],
+    // Public, open or closed: closed, it says so rather than bouncing to sign-in.
+    ['/signup', 200],
     ['/conversations', 307],
     ['/insights', 307],
     ['/settings', 307],

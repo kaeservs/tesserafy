@@ -67,3 +67,14 @@ export async function setPlan(_prev: SetPlanState, formData: FormData): Promise<
   revalidatePath('/companies');
   return { status: 'idle' };
 }
+
+export type SignupSwitchState = { status: 'idle' } | { status: 'error'; message: string };
+
+/** Open or close self-serve sign-up. The database records who, and when. */
+export async function setSignupOpen(_prev: SignupSwitchState, formData: FormData): Promise<SignupSwitchState> {
+  const admin = await requireAdmin();
+  const { error } = await admin.db.rpc('admin_set_signup_open', { p_open: text(formData, 'open') === 'true' });
+  if (error) return { status: 'error', message: error.message.replace(/^admin_set_signup_open: /, '') };
+  revalidatePath('/companies');
+  return { status: 'idle' };
+}

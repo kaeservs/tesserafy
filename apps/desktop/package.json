@@ -1,20 +1,23 @@
 {
   "name": "@tesserafy/desktop",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "main": "dist/main/index.js",
   "scripts": {
     "build": "tsc -p tsconfig.build.json && esbuild src/renderer/renderer.js --bundle --format=esm --outfile=dist/renderer/renderer.js && node -e \"require('fs').copyFileSync('src/renderer/index.html','dist/renderer/index.html')\"",
     "dev": "pnpm build && electron .",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "dist:win": "pnpm build && electron-builder --win nsis --publish never"
   },
   "devDependencies": {
+    "@tesserafy/scoring": "workspace:*",
     "@types/node": "26.5.1",
     "electron": "39.2.6",
-    "typescript": "7.0.2",
-    "esbuild": "^0.28.2"
+    "electron-builder": "26.15.3",
+    "esbuild": "^0.28.2",
+    "typescript": "7.0.2"
   },
-  "dependencies": {
-    "@tesserafy/scoring": "workspace:*"
-  }
+  "productName": "Tesserafy",
+  "description": "Tesserafy live scorecard overlay",
+  "author": "Tesserafy"
 }

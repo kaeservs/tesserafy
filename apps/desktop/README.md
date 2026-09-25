@@ -51,6 +51,28 @@ the only setting is where the product is. That defaults to production:
 out, the overlay still opens — which is also all S1 needs, since that spike is
 about the window and not about what it displays.
 
+## Installing it
+
+For anyone who is not building it: a Windows installer, `Tesserafy-Setup-<version>.exe`,
+published to this repository's Releases by `.github/workflows/overlay.yml`
+whenever a tag `overlay-v<version>` is pushed (the tag must match `version` in
+`package.json`). It installs per user, with no administrator prompt, adds a
+Start-menu and desktop shortcut, and its uninstaller removes the app, the
+shortcuts and the saved sign-in.
+
+It is not code-signed yet, so SmartScreen says "unknown publisher" (More info
+→ Run anyway) until a certificate is configured in `electron-builder.yml`.
+
+The shipped build turns off the Electron switches that let another program on
+the machine drive it — running the exe as Node, `NODE_OPTIONS`, the inspector
+— and checks its own package's integrity at start. The workflow refuses to
+publish a build whose fuses do not read that way. A side effect: automated
+tests cannot attach to the installed app; they run against the dev build.
+
+To build one locally:
+
+    pnpm --filter @tesserafy/desktop dist:win    # → apps/desktop/release/
+
 ## Running it
 
     pnpm --filter @tesserafy/desktop dev

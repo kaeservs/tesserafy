@@ -8,4 +8,7 @@ allowBuilds:
   esbuild: true
   # Electron's install script downloads the platform binary.
   electron: true
+  # Pulled in by electron-builder for Squirrel installers, which the overlay
+  # does not build (it ships NSIS); its install script has nothing to do.
+  electron-winstaller: false
 

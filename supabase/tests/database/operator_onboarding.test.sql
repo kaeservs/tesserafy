@@ -136,14 +136,18 @@ select ok(
 -- ---------------------------------------------------------------------------
 -- A second person, into that company
 -- ---------------------------------------------------------------------------
+-- Read as the superuser: an operator is not a member, so RLS hides the row.
+insert into opened
+select 'brand', company_id from public.company_members
+ where user_id = 'aaaa0001-0000-4000-8000-000000000004';
+
 set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"aaaa0001-0000-4000-8000-000000000001","role":"authenticated"}', true);
 
 insert into opened
 select 'second', (public.open_account_provisioning('someone-else@brand.example', 'member',
-  p_company_id => (select company_id from public.company_members
-                    where user_id = 'aaaa0001-0000-4000-8000-000000000004'))).id;
+  p_company_id => (select id from opened where label = 'brand'))).id;
 
 select lives_ok(
   $$ select public.complete_account_provisioning((select id from opened where label = 'second'),

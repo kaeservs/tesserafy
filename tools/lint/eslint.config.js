@@ -55,13 +55,14 @@ export default tseslint.config(
     languageOptions: {
       parserOptions: {
         projectService: {
-          // Files no tsconfig owns: the Playwright config and its specs, the
+          // Files no tsconfig owns: the Playwright config (its specs have
+          // e2e/tsconfig.json, so they do not count against the default
+          // project's eight-file cap), the
           // Electron renderer, and the tooling that lints and guards. They are
           // still worth linting — the guard script is a control — so they get
           // the default project rather than an exemption.
           allowDefaultProject: [
             'playwright.config.ts',
-            'e2e/*.ts',
             'scripts/*.mjs',
             'tools/lint/*.js',
             'apps/desktop/src/renderer/*.js',

@@ -21,6 +21,9 @@ insert into public.platform_admins (user_id, note) values
 create temporary table spent (label text, result jsonb) on commit drop;
 grant all on spent to authenticated;
 
+-- The nightly job has no signed-in caller. `reset role` alone keeps the JWT
+-- claims, and auth.uid() with them, so each run below clears them first.
+--
 -- Helpers for moving time: an expired period is simply one whose end has passed.
 create function pg_temp.expire(p_company uuid) returns void language sql as $$
   update public.subscriptions set period_end = now() - interval '1 second' where company_id = p_company;
@@ -165,6 +168,7 @@ select is(public.change_plan('pro'), 'upgraded', 'Pro again');
 select is(public.change_plan('basic'), 'downgrade_scheduled', 'then a downgrade');
 reset role;
 select pg_temp.expire('00000000-0000-4000-8000-00000000000a');
+select set_config('request.jwt.claims', '', true);
 select public.roll_subscription_periods();
 select is(
   (select plan from public.companies where id = '00000000-0000-4000-8000-00000000000a'),
@@ -173,6 +177,7 @@ select is(
 );
 
 select pg_temp.expire('00000000-0000-4000-8000-00000000000a');
+select set_config('request.jwt.claims', '', true);
 select public.roll_subscription_periods();
 select ok(
   (select c.plan = 'basic' and s.status = 'active' and s.period_end > now()
@@ -182,6 +187,7 @@ select ok(
 );
 
 select pg_temp.expire('00000000-0000-4000-8000-0000000000cc');
+select set_config('request.jwt.claims', '', true);
 select public.roll_subscription_periods();
 select is(
   (select plan from public.companies where id = '00000000-0000-4000-8000-0000000000cc'),

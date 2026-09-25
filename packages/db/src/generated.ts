@@ -1070,6 +1070,7 @@ export type Database = {
         Args: { p_conversation_id: string; p_model: string; p_rows: Json }
         Returns: number
       }
+      retention_preview: { Args: { p_days: number }; Returns: number }
       search_segments: {
         Args: { p_limit?: number; p_query: string }
         Returns: {
@@ -1092,6 +1093,7 @@ export type Database = {
           text: string
         }[]
       }
+      set_retention: { Args: { p_days: number }; Returns: number }
       start_live_conversation: {
         Args: {
           p_company_id?: string

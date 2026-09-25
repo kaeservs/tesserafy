@@ -7,7 +7,7 @@
  * during exactly the incident it was built for.
  */
 import { describe, expect, it } from 'vitest';
-import { allowance, LIMITS, tooMany } from '../lib/rate-limit';
+import { allowance, INTERNAL_LIMITS, INTERNAL_MULTIPLIER, LIMITS, tooMany } from '../lib/rate-limit';
 
 type RpcResult = { data: unknown; error: { message: string } | null };
 
@@ -141,5 +141,31 @@ describe('the limits themselves', () => {
       const shortest = [...windows].sort((a, b) => a.seconds - b.seconds)[0]!;
       expect(day!.limit).toBeLessThan(shortest.limit * (86_400 / shortest.seconds));
     }
+  });
+});
+
+describe('internal limits', () => {
+  it('are the customer limits raised, never removed', () => {
+    for (const [bucket, windows] of Object.entries(LIMITS)) {
+      const internal = INTERNAL_LIMITS[bucket]!;
+      expect(internal.map((w) => w.seconds)).toEqual(windows.map((w) => w.seconds));
+      expect(internal.map((w) => w.limit)).toEqual(windows.map((w) => w.limit * INTERNAL_MULTIPLIER));
+    }
+  });
+
+  it('are sent alongside the customer ones, for the database to choose between', async () => {
+    const seen: Record<string, unknown> = {};
+    const db = {
+      rpc: (_name: string, args: Record<string, unknown>) => {
+        Object.assign(seen, args);
+        return Promise.resolve({ data: { allowed: true }, error: null });
+      },
+    } as never;
+
+    await allowance(db, 'api/transcripts');
+
+    expect(seen['p_internal_windows']).toEqual(
+      INTERNAL_LIMITS['api/transcripts']!.map((w) => ({ seconds: w.seconds, limit: w.limit })),
+    );
   });
 });

@@ -1123,7 +1123,7 @@ export type Database = {
         Returns: string[]
       }
       take_rate_limit_tokens: {
-        Args: { p_bucket: string; p_windows: Json }
+        Args: { p_bucket: string; p_internal_windows?: Json; p_windows: Json }
         Returns: Json
       }
     }

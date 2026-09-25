@@ -81,6 +81,25 @@ export const LIMITS: Record<string, readonly Window[]> = {
   ],
 };
 
+/**
+ * Limits for companies on the 'internal' plan: the owner's own testing, and
+ * `pnpm qa`, which uploads as the test account every run.
+ *
+ * Five times the customer limits, not unlimited. Internal testing spends real
+ * money too, so it keeps a ceiling — it just stops sharing a customer's, which
+ * is what made QA fail with a 429 after a busy day (#84). The database picks
+ * these, inside the same call, when the caller's company is internal; only the
+ * service role can set a company's plan.
+ */
+export const INTERNAL_MULTIPLIER = 5;
+
+export const INTERNAL_LIMITS: Record<string, readonly Window[]> = Object.fromEntries(
+  Object.entries(LIMITS).map(([bucket, windows]) => [
+    bucket,
+    windows.map((window) => ({ seconds: window.seconds, limit: window.limit * INTERNAL_MULTIPLIER })),
+  ]),
+);
+
 export interface Allowance {
   readonly allowed: boolean;
   readonly retryAfterSeconds: number;
@@ -113,6 +132,10 @@ export async function allowance(
     // JSON, and `readonly Window[]` is a promise about this file, not about
     // the request body.
     p_windows: windows.map((window) => ({ seconds: window.seconds, limit: window.limit })),
+    p_internal_windows: (INTERNAL_LIMITS[bucket] ?? windows).map((window) => ({
+      seconds: window.seconds,
+      limit: window.limit,
+    })),
   });
 
   if (error) {

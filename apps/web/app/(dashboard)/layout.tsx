@@ -1,3 +1,4 @@
+import { liveAvailable, myCompany } from '@/lib/company';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
@@ -44,6 +45,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     .is('ended_at', null)
     .gt('expires_at', new Date().toISOString());
   const banner = supportBanner(access ?? []);
+  const company = await myCompany(supabase);
 
   return (
     <>
@@ -59,7 +61,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <NavLink href="/conversations">Meetings</NavLink>
           <NavLink href="/insights">Insights</NavLink>
           <NavLink href="/search">Search</NavLink>
-          <NavLink href="/live/mic">Live</NavLink>
+          {liveAvailable(company?.plan) ? <NavLink href="/live/mic">Live</NavLink> : null}
           <NavLink href="/settings">Settings</NavLink>
         </nav>
         <form action="/auth/sign-out" method="post" className="toolbar">

@@ -19,12 +19,20 @@ interface InsightRow {
   title: string;
   summary: string;
   created_at: string;
+  status: string;
 }
 
 interface EvidenceRow {
   insight_id: string;
   signal_id: string;
 }
+
+/** Proposed ones wait on a person; the label says so at a glance. */
+const STATUS: Record<string, string> = {
+  proposed: 'waiting for you',
+  approved: 'approved',
+  dismissed: 'dismissed',
+};
 
 export default async function InsightsPage() {
   const supabase = await createClient();
@@ -37,7 +45,7 @@ export default async function InsightsPage() {
       (from, to) =>
         supabase
           .from('insights')
-          .select('id, title, summary, created_at')
+          .select('id, title, summary, created_at, status')
           .order('created_at', { ascending: false })
           .order('id')
           .range(from, to),
@@ -82,10 +90,11 @@ export default async function InsightsPage() {
             return (
               <li key={insight.id} className="signal">
                 <div>
-                  <Link href={`/insights/${insight.id}`}>{insight.title}</Link>
+                  <Link href={`/insights/${insight.id}`}>{insight.title}</Link>{' '}
+                  <span className={`stage stage-${insight.status}`}>{STATUS[insight.status] ?? insight.status}</span>
                 </div>
                 <p className="muted">
-                  {counts?.signals ?? 0} signals across {counts?.conversations ?? 0} conversations
+                  {counts?.signals ?? 0} signals across {counts?.conversations ?? 0} meetings
                 </p>
               </li>
             );

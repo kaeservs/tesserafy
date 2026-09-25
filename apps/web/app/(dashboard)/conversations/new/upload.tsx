@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
+import { engagementLabel } from '@/lib/company';
 import { CONSENT_STATEMENTS } from '@/lib/consent';
 
 /**
@@ -95,7 +96,10 @@ export function Upload({ sets }: { sets: { engagementType: string; version: numb
           <select id="engagementType" name="engagementType" disabled={busy}>
             {sets.map((set) => (
               <option key={`${set.engagementType}/${set.version}`} value={set.engagementType}>
-                {set.engagementType} v{set.version}
+                {engagementLabel(set.engagementType)}
+                {sets.filter((other) => other.engagementType === set.engagementType).length > 1
+                  ? ` (version ${set.version})`
+                  : ''}
               </option>
             ))}
           </select>

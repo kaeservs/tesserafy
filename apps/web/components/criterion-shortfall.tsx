@@ -33,20 +33,18 @@ export function Shortfall({ shortfall }: { shortfall: CriterionShortfall | null 
   }
 
   const remaining = Math.max(0, segmentsNeeded - segments);
+  const heard = segments === 1 ? 'heard once' : `heard ${segments} times`;
+  // Confidences are the engine's business; the reader needs the two routes
+  // to confirmation, not the thresholds behind them.
+  const clearer = bestConfidence !== null && bestConfidence < confirmingConfidence;
 
   return (
     <span className="shortfall">
       {remaining > 0
-        ? `${segments} of ${segmentsNeeded} corroborating utterances`
-        : `${segments} corroborating`}
-      {bestConfidence !== null && (
-        <>
-          {' · strongest '}
-          {bestConfidence.toFixed(2)}
-          {bestConfidence < confirmingConfidence &&
-            ` — ${confirmingConfidence.toFixed(2)} would confirm on its own`}
-        </>
-      )}
+        ? `${heard} — ${remaining === 1 ? 'one more mention' : `${remaining} more mentions`}${clearer ? ', or one clear statement,' : ''} would confirm it`
+        : clearer
+          ? `${heard} — one clear statement would confirm it`
+          : heard}
     </span>
   );
 }

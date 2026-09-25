@@ -5,6 +5,7 @@ import { apply, initialState, score, type CriteriaSet, type DetectorEvent } from
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Shortfall } from '@/components/criterion-shortfall';
+import { CONSENT_STATEMENTS } from '@/lib/consent';
 import { LiveSession, type LiveSessionState } from '@/lib/live-session';
 
 /**
@@ -86,6 +87,8 @@ export function LiveMicrophone({
 }) {
   const [supported, setSupported] = useState<boolean | null>(null);
   const [listening, setListening] = useState(false);
+  // Not remembered between visits: each call is a different set of people.
+  const [consented, setConsented] = useState(false);
   const [speaker, setSpeaker] = useState<'customer' | 'me'>('customer');
   const [interim, setInterim] = useState('');
   const [utterances, setUtterances] = useState<Utterance[]>([]);
@@ -185,6 +188,7 @@ export function LiveMicrophone({
   );
 
   const start = useCallback(() => {
+    if (!consented) return;
     const engine = recogniser();
     if (!engine) return;
 
@@ -195,6 +199,7 @@ export function LiveMicrophone({
       `Live call — ${new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}`,
       scorecard.engagementType,
       scorecard.version,
+      consented,
     );
 
     engine.continuous = true;
@@ -263,7 +268,7 @@ export function LiveMicrophone({
     setError(null);
     engine.start();
     setListening(true);
-  }, [detect, scorecard.engagementType, scorecard.version]);
+  }, [consented, detect, scorecard.engagementType, scorecard.version]);
 
   const stop = useCallback(() => {
     recognition.current?.stop();
@@ -290,8 +295,24 @@ export function LiveMicrophone({
 
   return (
     <div>
+      {/*
+        Asked before the first word, not after: the recording starts the
+        moment the button is pressed. The words are the ones stored with the
+        call.
+      */}
+      <div className="field consent">
+        <label>
+          <input
+            type="checkbox"
+            checked={consented}
+            disabled={listening}
+            onChange={(event) => setConsented(event.target.checked)}
+          />{' '}
+          {CONSENT_STATEMENTS.live}
+        </label>
+      </div>
       <div className="toolbar">
-        <button type="button" onClick={listening ? stop : start}>
+        <button type="button" onClick={listening ? stop : start} disabled={!listening && !consented}>
           {listening ? 'Stop listening' : 'Start listening'}
         </button>
         <button type="button" onClick={() => setSpeaker((s) => (s === 'customer' ? 'me' : 'customer'))}>

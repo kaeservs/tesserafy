@@ -450,7 +450,19 @@ async function checkLiveCapture(baseUrl: string, token: string): Promise<void> {
   let conversationId: string | null = null;
 
   try {
-    const started = await post('/api/live/sessions', { title: 'QA PROBE — erased immediately' });
+    // Refused before anything is created: a call nobody confirmed consent for
+    // is not kept. Nothing to erase if this passes.
+    const unconfirmed = await post('/api/live/sessions', { title: 'QA PROBE — must be refused' });
+    record(
+      'a live call without recording consent is not kept',
+      unconfirmed.status === 400,
+      `${unconfirmed.status}`,
+    );
+
+    const started = await post('/api/live/sessions', {
+      title: 'QA PROBE — erased immediately',
+      consent: true,
+    });
     const startedBody = (await started.json()) as { conversationId?: string; error?: string };
     conversationId = startedBody.conversationId ?? null;
     record(
@@ -631,6 +643,23 @@ async function checkImport(baseUrl: string, token: string): Promise<void> {
   let conversationId: string | null = null;
 
   try {
+    // The same file without the box ticked is refused before it is read.
+    const unconfirmed = await fetch(new URL('/api/transcripts', baseUrl), {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}` },
+      body: form,
+    });
+    const unconfirmedBody = (await unconfirmed.json()) as { conversationId?: string };
+    if (unconfirmedBody.conversationId) conversationId = unconfirmedBody.conversationId;
+    record(
+      'an import without recording consent is refused',
+      unconfirmed.status === 400 && !unconfirmedBody.conversationId,
+      `${unconfirmed.status}`,
+    );
+    // Anything it did create is erased by the finally; a second id would leak.
+    if (conversationId) return;
+
+    form.set('consent', 'on');
     const response = await fetch(new URL('/api/transcripts', baseUrl), {
       method: 'POST',
       headers: { authorization: `Bearer ${token}` },
@@ -653,6 +682,22 @@ async function checkImport(baseUrl: string, token: string): Promise<void> {
       url: requireEnv('SUPABASE_URL'),
       key: requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
     });
+
+    // Who confirmed comes from the session, never the request: the probe
+    // account's own id, read out of the token that made the upload.
+    const { data: consent } = await db
+      .from('conversations')
+      .select('consent_statement, consent_confirmed_by, consent_confirmed_at')
+      .eq('id', conversationId)
+      .single();
+    const uploader = (JSON.parse(Buffer.from(token.split('.')[1] ?? '', 'base64url').toString()) as { sub?: string }).sub;
+    record(
+      'the import records the consent confirmed, by whom and when',
+      Boolean(consent?.consent_statement) &&
+        Boolean(consent?.consent_confirmed_at) &&
+        consent?.consent_confirmed_by === uploader,
+      consent?.consent_statement ? `by ${consent.consent_confirmed_by === uploader ? 'the uploader' : 'someone else'}` : 'nothing recorded',
+    );
     const { data } = await db
       .from('segments')
       .select('text')

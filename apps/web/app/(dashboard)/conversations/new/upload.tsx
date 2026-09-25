@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
+import { CONSENT_STATEMENTS } from '@/lib/consent';
 
 /**
  * The upload itself.
@@ -100,6 +101,14 @@ export function Upload({ sets }: { sets: { engagementType: string; version: numb
           </select>
         </div>
       )}
+
+      {/* Required, and the words are the ones stored with the call. */}
+      <div className="field consent">
+        <label>
+          <input type="checkbox" name="consent" required disabled={busy} />{' '}
+          {CONSENT_STATEMENTS.imported}
+        </label>
+      </div>
 
       <button type="submit" disabled={busy}>
         {busy ? 'Reading…' : 'Import transcript'}

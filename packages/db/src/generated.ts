@@ -104,6 +104,9 @@ export type Database = {
       conversations: {
         Row: {
           company_id: string
+          consent_confirmed_at: string | null
+          consent_confirmed_by: string | null
+          consent_statement: string | null
           created_at: string
           criteria_version: number
           engagement_type: string
@@ -114,6 +117,9 @@ export type Database = {
         }
         Insert: {
           company_id: string
+          consent_confirmed_at?: string | null
+          consent_confirmed_by?: string | null
+          consent_statement?: string | null
           created_at?: string
           criteria_version?: number
           engagement_type?: string
@@ -124,6 +130,9 @@ export type Database = {
         }
         Update: {
           company_id?: string
+          consent_confirmed_at?: string | null
+          consent_confirmed_by?: string | null
+          consent_statement?: string | null
           created_at?: string
           criteria_version?: number
           engagement_type?: string
@@ -918,6 +927,7 @@ export type Database = {
       import_conversation: {
         Args: {
           p_company_id?: string
+          p_consent_statement?: string
           p_criteria_version?: number
           p_engagement_type?: string
           p_occurred_at?: string
@@ -1097,6 +1107,7 @@ export type Database = {
       start_live_conversation: {
         Args: {
           p_company_id?: string
+          p_consent_statement?: string
           p_criteria_version?: number
           p_engagement_type?: string
           p_title: string

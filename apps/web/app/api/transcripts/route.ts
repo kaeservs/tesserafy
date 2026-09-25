@@ -8,6 +8,7 @@ import {
 } from '@tesserafy/ingest';
 import { recordFailure } from '@tesserafy/ai';
 import { after, NextResponse, type NextRequest } from 'next/server';
+import { CONSENT_REQUIRED, CONSENT_STATEMENTS, consentConfirmed } from '@/lib/consent';
 import { allowance, tooMany } from '@/lib/rate-limit';
 import { embedUploadedConversation } from '@/lib/embed-upload';
 import { scoreUploadedConversation } from '@/lib/score-upload';
@@ -67,6 +68,12 @@ export async function POST(request: NextRequest) {
     form = await request.formData();
   } catch {
     return NextResponse.json({ error: 'expected a file upload' }, { status: 400 });
+  }
+
+  // Before the file is read: a call nobody confirmed consent for is not
+  // one this product keeps, however well it parses.
+  if (!consentConfirmed(form.get('consent'))) {
+    return NextResponse.json({ error: CONSENT_REQUIRED }, { status: 400 });
   }
 
   const file = form.get('transcript');
@@ -133,6 +140,9 @@ export async function POST(request: NextRequest) {
     ...(occurredAt ? { p_occurred_at: new Date(occurredAt).toISOString() } : {}),
     p_engagement_type: engagementType,
     p_criteria_version: Number.isInteger(criteriaVersion) ? criteriaVersion : 1,
+    // The words, chosen here rather than sent by the browser, so what is
+    // stored is what the form showed. Who and when are taken by the database.
+    p_consent_statement: CONSENT_STATEMENTS.imported,
     // No company named: the function resolves the caller's own. A browser has
     // no business choosing which tenant a transcript lands in.
   });

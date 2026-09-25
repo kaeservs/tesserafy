@@ -272,9 +272,28 @@ To see what the job has done:
   conversation and nothing records who *did*. "Which of our colleagues opened
   this call" is answerable for support sessions and unanswerable for everything
   else.
-- **No consent record.** `conversations` has no field for who agreed to being
-  recorded, when, or under which jurisdiction. This is load-bearing in
-  two-party-consent regions.
+- **Consent is recorded, and asked for before a call is kept.** Importing a
+  transcript and starting a live call (web microphone or overlay) both need a
+  box ticked first: "Everyone on this call was told it was being recorded,
+  transcribed and analysed, and agreed to it." One strict statement for every
+  call rather than a model of jurisdictions: it meets the strictest two-party
+  rule, and a product that guessed which rule applied would be guessing about
+  a law.
+
+  The call stores the words verbatim (`consent_statement`), who confirmed
+  them (`consent_confirmed_by`, taken from the session inside the database,
+  never from the request) and when (`consent_confirmed_at`, the database's
+  clock). The wording is chosen by the server, in `apps/web/lib/consent.ts`,
+  so what is stored is what the form showed; the overlay carries a copy a
+  unit test holds to the same words. Every conversation page says what is on
+  file, including "no recording consent on file" for calls added before the
+  question existed or imported by an operator.
+
+  It is an attestation by the person recording, not proof that each
+  participant agreed; nothing here captures the other side's voice saying
+  yes. The routes require it today; the database records it and does not yet
+  refuse a signed-in caller who omits it — that is the next migration, once
+  no deployed client omits it.
 - **No data residency choice.** One project, one region.
 - **Backups outlive erasure.** A row erased today is still in whatever
   point-in-time backup the platform keeps. Any erasure promise made to a

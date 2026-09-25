@@ -109,13 +109,47 @@ function CapturedCard({ state, command }: { state: CapturedState; command: strin
   );
 }
 
+/**
+ * Whether anyone confirmed the people on this call agreed to be recorded.
+ *
+ * Shown on every call, including the ones with no record: a missing answer
+ * said plainly is a fact someone can act on, and leaving it off would let a
+ * reader assume the question was asked.
+ */
+function ConsentRecord({
+  statement,
+  confirmedAt,
+  byYou,
+}: {
+  statement: string | null;
+  confirmedAt: string | null;
+  byYou: boolean;
+}) {
+  if (!statement || !confirmedAt) {
+    return (
+      <p className="muted">
+        No recording consent on file. This call was added before the product asked, or by support
+        without one.
+      </p>
+    );
+  }
+  return (
+    <p className="muted">
+      Recording consent confirmed {byYou ? 'by you' : 'by a colleague'} on{' '}
+      {new Date(confirmedAt).toLocaleDateString('en-GB')}: “{statement}”
+    </p>
+  );
+}
+
 export default async function ConversationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
 
   const { data: conversation } = await supabase
     .from('conversations')
-    .select('id, title, occurred_at, created_at, engagement_type, criteria_version')
+    .select(
+      'id, title, occurred_at, created_at, engagement_type, criteria_version, consent_statement, consent_confirmed_by, consent_confirmed_at',
+    )
     .eq('id', id)
     .maybeSingle();
 
@@ -201,6 +235,11 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
         {segments.length} segments · {signals.length} signals · {scored.engagementType} v
         {scored.criteriaVersion}
       </p>
+      <ConsentRecord
+        statement={conversation.consent_statement}
+        confirmedAt={conversation.consent_confirmed_at}
+        byYou={Boolean(user && conversation.consent_confirmed_by === user.id)}
+      />
 
       {/*
         Where this call has got to, and what would move it on.

@@ -79,6 +79,13 @@ export const LIMITS: Record<string, readonly Window[]> = {
     { seconds: 3_600, limit: 6 },
     { seconds: 86_400, limit: 10 },
   ],
+  // A full copy of every call. Cheap for us, but it is the whole company
+  // leaving in one file, so a handful a day is plenty for a person and a
+  // ceiling on a stolen session.
+  'api/export': [
+    { seconds: 3_600, limit: 3 },
+    { seconds: 86_400, limit: 10 },
+  ],
 };
 
 /**

@@ -9,6 +9,7 @@ import { CallViewers } from '@/components/call-viewers';
 import { DeleteCall } from '@/components/delete-call';
 import { RefreshWhile } from '@/components/refresh-while';
 import { capturedState, type CapturedState } from '@/lib/scoring-status';
+import { batches, readAll } from '@tesserafy/db';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -207,24 +208,52 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
   const foundNothing = extracted && (pipeline?.signals ?? 0) === 0;
   const observed = card.criteria.some((criterion) => criterion.status !== 'unobserved');
 
-  const [segmentsResult, signalsResult, evidenceResult] = await Promise.all([
-    supabase.from('segments').select('id, speaker, start_ms, text').eq('conversation_id', id).order('start_ms'),
-    supabase.from('signals').select('id, kind, summary, confidence').eq('conversation_id', id),
-    // Evidence is fetched separately rather than embedded: signal_evidence
-    // reaches signals through a composite (company_id, signal_id) key, which
-    // PostgREST cannot resolve into an embed.
-    supabase.from('signal_evidence').select('signal_id, segment_id, quote, quote_start, quote_end'),
+  const [segments, signals] = await Promise.all([
+    readAll<SegmentRow>(
+      (from, to) =>
+        supabase
+          .from('segments')
+          .select('id, speaker, start_ms, text')
+          .eq('conversation_id', id)
+          .order('start_ms')
+          .order('id')
+          .range(from, to),
+      'Could not load the conversation',
+    ),
+    readAll<SignalRow>(
+      (from, to) =>
+        supabase
+          .from('signals')
+          .select('id, kind, summary, confidence')
+          .eq('conversation_id', id)
+          .order('id')
+          .range(from, to),
+      'Could not load the conversation',
+    ),
   ]);
 
-  const failure = segmentsResult.error ?? signalsResult.error ?? evidenceResult.error;
-  if (failure) throw new Error(`Could not load the conversation: ${failure.message}`);
-
-  const segments = (segmentsResult.data ?? []) as SegmentRow[];
-  const signals = (signalsResult.data ?? []) as SignalRow[];
-  const signalIds = new Set(signals.map((signal) => signal.id));
-  const evidence = ((evidenceResult.data ?? []) as EvidenceRow[]).filter((row) =>
-    signalIds.has(row.signal_id),
-  );
+  // Evidence is fetched separately rather than embedded: signal_evidence
+  // reaches signals through a composite (company_id, signal_id) key, which
+  // PostgREST cannot resolve into an embed. For this call's signals only: it
+  // used to read the whole company's evidence and filter here, which stops
+  // being all of it at a thousand rows — and the quotes that went missing
+  // would have been whichever the server returned last.
+  const evidence = (
+    await Promise.all(
+      batches(signals.map((signal) => signal.id)).map((ids) =>
+        readAll<EvidenceRow>(
+          (from, to) =>
+            supabase
+              .from('signal_evidence')
+              .select('signal_id, segment_id, quote, quote_start, quote_end')
+              .in('signal_id', ids)
+              .order('id')
+              .range(from, to),
+          'Could not load the conversation',
+        ),
+      ),
+    )
+  ).flat();
 
   const evidenceBySignal = new Map<string, EvidenceRow[]>();
   const rangesBySegment = new Map<string, { start: number; end: number }[]>();

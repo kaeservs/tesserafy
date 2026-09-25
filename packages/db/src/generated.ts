@@ -131,6 +131,41 @@ export type Database = {
         }
         Relationships: []
       }
+      company_exports: {
+        Row: {
+          company_id: string
+          conversations: number
+          email: string
+          id: string
+          requested_at: string
+          user_id: string | null
+        }
+        Insert: {
+          company_id: string
+          conversations: number
+          email: string
+          id?: string
+          requested_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          conversations?: number
+          email?: string
+          id?: string
+          requested_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_exports_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_members: {
         Row: {
           company_id: string
@@ -1187,6 +1222,7 @@ export type Database = {
         Args: { p_company_id?: string; p_limit?: number }
         Returns: Json
       }
+      record_company_export: { Args: never; Returns: string }
       record_conversation_view: {
         Args: { p_conversation_id: string }
         Returns: undefined

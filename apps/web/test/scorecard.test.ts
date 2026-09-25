@@ -38,13 +38,21 @@ function criteriaRows() {
 /** Enough of PostgREST's builder for fetchCriteria and fetchCriterionEvents. */
 function builder(table: string) {
   const rows = () => (table === 'criteria_definitions' ? criteriaRows() : events);
+  // A range is honoured, as the server honours it: events are read a page at
+  // a time until a page comes back empty, so a fake that ignored it would
+  // hand back the same rows forever.
+  let window: [number, number] | null = null;
   const chain: Record<string, unknown> = {
     select: () => chain,
     eq: () => chain,
     in: () => chain,
     order: () => chain,
+    range: (from: number, to: number) => {
+      window = [from, to];
+      return chain;
+    },
     then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
-      resolve({ data: rows(), error: null }),
+      resolve({ data: window ? rows().slice(window[0], window[1] + 1) : rows(), error: null }),
   };
   return chain;
 }

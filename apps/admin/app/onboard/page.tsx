@@ -3,6 +3,7 @@ import { listCompanies } from '@/lib/companies';
 import { utc } from '@/lib/time';
 import { Chrome } from '../chrome';
 import { ProvisionForm } from './form';
+import { RequestsPanel } from './request-actions';
 
 /**
  * Onboarding a pilot customer, until checkout does it.
@@ -15,7 +16,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function Onboard() {
   const admin = await requireAdmin();
-  const [{ companies }, { data: log, error }] = await Promise.all([
+  const [{ companies }, { data: log, error }, { data: requests }] = await Promise.all([
     // Through admin_companies, not the table: an operator is not a member of
     // the companies they look after, so RLS would show them none.
     listCompanies(admin.db),
@@ -24,6 +25,7 @@ export default async function Onboard() {
       .select('id, email, role, company_name, company_id, created_at, completed_at, new_account')
       .order('created_at', { ascending: false })
       .limit(25),
+    admin.db.rpc('admin_access_requests'),
   ]);
 
   const names = new Map(companies.map((c) => [c.companyId, c.name]));
@@ -36,6 +38,24 @@ export default async function Onboard() {
         one-time link to send them yourself. One company per person: someone already in one is
         refused.
       </p>
+
+      {/*
+        What owners have asked for, first: someone is waiting on each. Always
+        rendered, even with nothing waiting, so the panel — and a link it is
+        showing — survives the refresh that answering causes.
+      */}
+      <RequestsPanel
+        requests={(requests ?? []).map((request) => ({
+          id: request.id,
+          companyId: request.company_id,
+          companyName: request.company_name,
+          email: request.email,
+          role: request.role,
+          note: request.note,
+          requestedBy: request.requested_by,
+          asked: utc(request.created_at),
+        }))}
+      />
 
       <ProvisionForm
         // A closed company cannot take anyone; the database would refuse.

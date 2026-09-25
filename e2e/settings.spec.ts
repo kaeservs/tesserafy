@@ -42,4 +42,7 @@ test('a member sees who has access, themselves included, and cannot remove anyon
   // At least one owner, or nobody could ever remove anyone.
   await expect(team.getByRole('row').filter({ hasText: 'owner' }).first()).toBeVisible();
   await expect(team.getByRole('button', { name: 'Remove' })).toHaveCount(0);
+  // Asking for a teammate is an owner's; a member is told who to ask.
+  await expect(team.getByText('To add someone, ask an owner of your company.')).toBeVisible();
+  await expect(team.getByRole('button', { name: 'Ask for them to be added' })).toHaveCount(0);
 });

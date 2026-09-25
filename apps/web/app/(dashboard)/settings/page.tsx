@@ -1,4 +1,5 @@
 import { RemoveMember } from '@/components/remove-member';
+import { RequestTeammate } from '@/components/request-teammate';
 import { RetentionForm } from '@/components/retention-form';
 import { PURGE_TIME_UTC, describeRetention } from '@/lib/retention';
 import { createClient } from '@/lib/supabase/server';
@@ -37,6 +38,13 @@ export default async function SettingsPage() {
   // Addresses come through company_team(): auth.users is not readable by a
   // signed-in user, and the function returns this company's people only.
   const { data: team } = await supabase.rpc('company_team');
+  const { data: requests } = isOwner
+    ? await supabase
+        .from('access_requests')
+        .select('id, email, role, created_at, resolution, resolution_note, resolved_at')
+        .order('created_at', { ascending: false })
+        .limit(10)
+    : { data: [] };
   const { data: exports } = isOwner
     ? await supabase
         .from('company_exports')
@@ -119,8 +127,30 @@ export default async function SettingsPage() {
         </table>
         <p className="muted">
           Anyone removed loses access to every call at once; their account stays, with nothing in
-          it. To add someone, ask Tesserafy support — accounts are created there for now.
+          it.
+          {isOwner
+            ? ' To add someone, ask below: Tesserafy creates the account and sends them a sign-in link.'
+            : ' To add someone, ask an owner of your company.'}
         </p>
+        {isOwner ? (
+          <>
+            <RequestTeammate />
+            {(requests ?? []).length > 0 ? (
+              <ul className="muted">
+                {(requests ?? []).map((request) => (
+                  <li key={request.id}>
+                    {request.email} ({request.role}), asked {day(request.created_at)} —{' '}
+                    {request.resolution === 'added'
+                      ? `added ${request.resolved_at ? day(request.resolved_at) : ''}`
+                      : request.resolution === 'declined'
+                        ? `declined: ${request.resolution_note ?? ''}`
+                        : 'waiting for Tesserafy'}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </>
+        ) : null}
         {isOwner && (removals ?? []).length > 0 ? (
           <details>
             <summary>Removed recently</summary>

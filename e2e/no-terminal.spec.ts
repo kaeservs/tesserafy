@@ -27,7 +27,7 @@ test('the pages a customer reads name no terminal command', async ({ page }) => 
   await page.getByRole('button', { name: 'Sign in' }).click();
   await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 30_000 });
 
-  const paths = ['/dashboard', '/conversations', '/conversations/new', '/insights', '/search', '/settings', '/account', '/live/mic'];
+  const paths = ['/dashboard', '/conversations', '/conversations/new', '/insights', '/reports', '/search', '/settings', '/account', '/live/mic'];
   await page.goto('/conversations');
   const first = await page
     .locator('a[href^="/conversations/"]:not([href="/conversations/new"])')

@@ -328,6 +328,7 @@ export type Database = {
       }
       conversations: {
         Row: {
+          added_by: string | null
           company_id: string
           consent_confirmed_at: string | null
           consent_confirmed_by: string | null
@@ -341,6 +342,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          added_by?: string | null
           company_id: string
           consent_confirmed_at?: string | null
           consent_confirmed_by?: string | null
@@ -354,6 +356,7 @@ export type Database = {
           title: string
         }
         Update: {
+          added_by?: string | null
           company_id?: string
           consent_confirmed_at?: string | null
           consent_confirmed_by?: string | null
@@ -1304,6 +1307,8 @@ export type Database = {
           spend_30d_usd: number
         }[]
       }
+      admin_company_detail: { Args: { p_company_id: string }; Returns: Json }
+      admin_overview: { Args: never; Returns: Json }
       admin_set_plan: {
         Args: { p_company_id: string; p_plan: string }
         Returns: undefined

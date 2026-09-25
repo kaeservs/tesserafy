@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(8);
+select plan(11);
 
 insert into auth.users (id, email, aud, role)
 values ('88888888-8888-4888-8888-888888888888', 'consent-a@test.tesserafy.local',
@@ -28,10 +28,32 @@ insert into made
 select 'live', public.start_live_conversation(
   'Consent live', p_consent_statement => 'Everyone on this call has been told it is being recorded, and agreed.');
 
-insert into made
-select 'none', public.start_live_conversation('No statement');
+select throws_ok(
+  $$ select public.start_live_conversation('No statement') $$,
+  '22023', null,
+  'a live call without a statement is refused'
+);
+
+select throws_ok(
+  $$ select public.import_conversation(
+       'No statement', '[{"speaker":"customer","startMs":0,"endMs":1000,"text":"hello"}]'::jsonb) $$,
+  '22023', null,
+  'and so is an import'
+);
+
+select throws_ok(
+  $$ select public.start_live_conversation('   ', p_consent_statement => '   ') $$,
+  '22023', null,
+  'a blank statement is no statement'
+);
 
 reset role;
+
+-- The operator path: pnpm ingest writes the table directly and records none.
+insert into made (label, id)
+values ('none', '99999999-0000-4000-8000-000000000001');
+insert into public.conversations (id, company_id, title)
+values ('99999999-0000-4000-8000-000000000001', '00000000-0000-4000-8000-00000000000a', 'Operator import');
 
 select is(
   (select consent_statement from public.conversations where id = (select id from made where label = 'import')),
@@ -59,7 +81,7 @@ select is(
 select ok(
   (select consent_statement is null and consent_confirmed_by is null and consent_confirmed_at is null
      from public.conversations where id = (select id from made where label = 'none')),
-  'a call started without a statement records nothing rather than a guess'
+  'a call an operator imports records nothing rather than a guess'
 );
 
 select throws_ok(

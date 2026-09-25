@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(15);
+select plan(16);
 
 insert into auth.users (id, email, aud, role) values
   ('ffff0001-0000-4000-8000-000000000001', 'owner@acme.test', 'authenticated', 'authenticated'),
@@ -138,6 +138,15 @@ select is(
   (select count(*)::integer from public.admin_access_requests()),
   1,
   'an answered request leaves the operator''s list'
+);
+
+-- The one left is Globex's. Once Globex is closed, nobody can be added to it,
+-- so its request is not waiting on anyone.
+select public.close_company('00000000-0000-4000-8000-00000000000b', 'pilot ended', 'Globex Logistics');
+select is(
+  (select count(*)::integer from public.admin_access_requests()),
+  0,
+  'a closed company''s open requests leave the list too'
 );
 
 select * from finish();

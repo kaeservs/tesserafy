@@ -9,7 +9,7 @@ Last audited: 2026-09-22.
 
 ## What leaves the tenant
 
-Four flows carry meeting content past the boundary that RLS defends. They are
+Five flows carry meeting content past the boundary that RLS defends. They are
 listed worst first, where "worst" means hardest to undo.
 
 ### 1. Tickets, into an external tracker
@@ -62,6 +62,21 @@ what the text contains, which is what redaction below is about.
 The Supabase project is in `ap-southeast-1`. For a customer in the EU or the
 UK that is a transfer question before it is a technical one, and it is not
 currently configurable per tenant.
+
+### 5. A full export, to the owner
+
+Settings → *Take a copy of your data* gives a company's owner one JSON file
+with every call's transcript, the evidence behind its score, the signals and
+insights read from it, the team, and the erasure log. It is the customer's own
+data going to the customer, which is why it is last here — but it is also the
+whole company leaving in one file, so it is owners only, rate limited to three
+an hour, and recorded in `company_exports` before a single row is read; a
+failure to record is a failure to export. It runs under the owner's session,
+so RLS bounds it to their company, and every read is paged so the file is
+complete rather than the first thousand rows of it.
+
+What happens to the file after that is the customer's. Scores in it are
+computed at export time, and the file says so.
 
 ## Looking at somebody's account
 

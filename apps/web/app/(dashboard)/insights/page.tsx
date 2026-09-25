@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { FindInsightsButton } from '@/components/find-insights-button';
+import { readAll } from '@tesserafy/db';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -28,23 +29,33 @@ interface EvidenceRow {
 export default async function InsightsPage() {
   const supabase = await createClient();
 
-  const [insightsResult, evidenceResult, signalsResult] = await Promise.all([
-    supabase.from('insights').select('id, title, summary, created_at').order('created_at', { ascending: false }),
-    supabase.from('insight_evidence').select('insight_id, signal_id'),
-    supabase.from('signals').select('id, conversation_id'),
+  // Every row, not the first thousand: the counts beside each insight are
+  // its support, and a count computed from part of the evidence understates
+  // exactly the insights that matter most. See readAll.
+  const [insights, evidence, signals] = await Promise.all([
+    readAll<InsightRow>(
+      (from, to) =>
+        supabase
+          .from('insights')
+          .select('id, title, summary, created_at')
+          .order('created_at', { ascending: false })
+          .order('id')
+          .range(from, to),
+      'Could not load insights',
+    ),
+    readAll<EvidenceRow>(
+      (from, to) =>
+        supabase.from('insight_evidence').select('insight_id, signal_id').order('id').range(from, to),
+      'Could not load insights',
+    ),
+    readAll(
+      (from, to) =>
+        supabase.from('signals').select('id, conversation_id').order('id').range(from, to),
+      'Could not load insights',
+    ),
   ]);
 
-  const failure = insightsResult.error ?? evidenceResult.error ?? signalsResult.error;
-  if (failure) throw new Error(`Could not load insights: ${failure.message}`);
-
-  const insights = (insightsResult.data ?? []) as InsightRow[];
-  const evidence = (evidenceResult.data ?? []) as EvidenceRow[];
-  const conversationOf = new Map(
-    ((signalsResult.data ?? [])).map((row) => [
-      row.id,
-      row.conversation_id,
-    ]),
-  );
+  const conversationOf = new Map(signals.map((row) => [row.id, row.conversation_id]));
 
   const support = new Map<string, { signals: number; conversations: number }>();
   for (const insight of insights) {

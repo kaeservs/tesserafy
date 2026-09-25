@@ -3,6 +3,7 @@ import { GettingStarted } from '@/components/getting-started';
 import { ScorecardStrip } from '@/components/scorecard-strip';
 import { coverageBySet as coverageForSets } from '@/lib/coverage';
 import { scoreConversations } from '@/lib/scorecard';
+import { readAll } from '@tesserafy/db';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -48,21 +49,31 @@ function when(occurredAt: string | null): string {
 export default async function DashboardPage() {
   const supabase = await createClient();
 
-  const [conversationsResult, signalsResult, insightsResult] = await Promise.all([
+  // Every row, not the first thousand (see readAll), and signals as a count
+  // rather than a list: the page only ever showed how many.
+  const [conversations, signalCount, insights] = await Promise.all([
+    readAll<ConversationRow>(
+      (from, to) =>
+        supabase
+          .from('conversations')
+          .select('id, title, occurred_at, engagement_type, criteria_version')
+          .order('occurred_at', { ascending: false })
+          .order('id')
+          .range(from, to),
+      'Could not load the dashboard',
+    ),
     supabase
-      .from('conversations')
-      .select('id, title, occurred_at, engagement_type, criteria_version')
-      .order('occurred_at', { ascending: false }),
-    supabase.from('signals').select('id'),
-    supabase.from('insights').select('id, status'),
+      .from('signals')
+      .select('id', { count: 'exact', head: true })
+      .then(({ count, error }) => {
+        if (error) throw new Error(`Could not load the dashboard: ${error.message}`);
+        return count ?? 0;
+      }),
+    readAll(
+      (from, to) => supabase.from('insights').select('id, status').order('id').range(from, to),
+      'Could not load the dashboard',
+    ),
   ]);
-
-  const failure = conversationsResult.error ?? signalsResult.error ?? insightsResult.error;
-  if (failure) throw new Error(`Could not load the dashboard: ${failure.message}`);
-
-  const conversations = (conversationsResult.data ?? []) as ConversationRow[];
-  const signals = (signalsResult.data ?? []);
-  const insights = (insightsResult.data ?? []);
 
   const scores = await scoreConversations(supabase, conversations);
 
@@ -116,7 +127,7 @@ export default async function DashboardPage() {
           </span>
         </div>
         <div className="card">
-          <span className="stat-value">{signals.length}</span>
+          <span className="stat-value">{signalCount}</span>
           <span className="stat-label">signals, each with a quote</span>
         </div>
         <div className="card">

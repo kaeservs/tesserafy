@@ -1,3 +1,4 @@
+import { batches, readAll } from './paged';
 import type { SupabaseClient } from '../client';
 
 /**
@@ -68,16 +69,27 @@ export async function fetchCriterionEvents(
 ): Promise<CriterionEventRow[]> {
   if (conversationIds.length === 0) return [];
 
-  const { data, error } = await db
-    .from('criterion_events')
-    .select(COLUMNS)
-    .in('conversation_id', [...conversationIds]);
+  // Batched and paged: a dashboard scores every call at once, and one request
+  // for all of them used to put every id in the URL and take back at most a
+  // thousand events — past which calls were scored on part of their evidence,
+  // silently. See paged.ts.
+  const pages = await Promise.all(
+    batches(conversationIds).map((ids) =>
+      readAll<RawRow>(
+        (from, to) =>
+          db
+            .from('criterion_events')
+            .select(COLUMNS)
+            .in('conversation_id', ids)
+            .order('id')
+            .range(from, to)
+            .then(({ data, error }) => ({ data: data as RawRow[] | null, error })),
+        'Loading criterion events',
+      ),
+    ),
+  );
 
-  if (error) {
-    throw new Error(`Loading criterion events failed: ${error.message}`, { cause: error });
-  }
-
-  const rows = ((data ?? []) as RawRow[]).flatMap((row) => {
+  const rows = pages.flat().flatMap((row) => {
     // supabase-js cannot tell a to-one embed from a to-many one without
     // generated types; the foreign key says there is exactly one segment.
     const segment = Array.isArray(row.segments) ? row.segments[0] : row.segments;

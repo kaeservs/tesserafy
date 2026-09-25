@@ -37,6 +37,13 @@ export default async function SettingsPage() {
   // Addresses come through company_team(): auth.users is not readable by a
   // signed-in user, and the function returns this company's people only.
   const { data: team } = await supabase.rpc('company_team');
+  const { data: exports } = isOwner
+    ? await supabase
+        .from('company_exports')
+        .select('email, conversations, requested_at')
+        .order('requested_at', { ascending: false })
+        .limit(5)
+    : { data: [] };
   // Only an owner can read these; for anyone else RLS returns none.
   const { data: removals } = isOwner
     ? await supabase
@@ -127,6 +134,39 @@ export default async function SettingsPage() {
           </details>
         ) : null}
       </section>
+
+      {/*
+        The whole company's data as one file, for the owner: before a pilot
+        ends, or when someone asks what is held about them. A plain link, so
+        the browser saves it like any other download.
+      */}
+      {isOwner ? (
+        <section aria-labelledby="export-heading" className="card">
+          <h2 id="export-heading" style={{ marginTop: 0 }}>
+            Take a copy of your data
+          </h2>
+          <p className="muted">
+            One JSON file with every call&apos;s transcript, the quoted evidence behind its score,
+            the signals and insights read from it, your team, and the log of deleted calls. Each
+            export is recorded here, with who took it.
+          </p>
+          <p>
+            <a href="/api/export" download>
+              Download everything
+            </a>
+          </p>
+          {(exports ?? []).length > 0 ? (
+            <ul className="muted" style={{ marginBottom: 0 }}>
+              {(exports ?? []).map((row) => (
+                <li key={row.requested_at}>
+                  {row.email}, {day(row.requested_at)} — {row.conversations} call
+                  {row.conversations === 1 ? '' : 's'}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
     </main>
   );
 }

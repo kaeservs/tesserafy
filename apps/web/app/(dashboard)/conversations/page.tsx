@@ -3,6 +3,7 @@ import { GettingStarted } from '@/components/getting-started';
 import { ScorecardStrip } from '@/components/scorecard-strip';
 import { conversationPipeline, stageOf } from '@/lib/pipeline';
 import { scoreConversations, type ScorableConversation } from '@/lib/scorecard';
+import { readAll } from '@tesserafy/db';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -51,16 +52,18 @@ export default async function ConversationsPage({
   const { erased, tickets } = await searchParams;
   const exported = Number(tickets ?? 0);
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('conversations')
-    .select('id, title, occurred_at, engagement_type, criteria_version, companies ( name )')
-    .order('occurred_at', { ascending: false });
-
-  if (error) {
-    throw new Error(`Could not load conversations: ${error.message}`);
-  }
-
-  const conversations = (data ?? []) as ConversationRow[];
+  // Every call, not the first thousand. See readAll.
+  const conversations = await readAll<ConversationRow>(
+    (from, to) =>
+      supabase
+        .from('conversations')
+        .select('id, title, occurred_at, engagement_type, criteria_version, companies ( name )')
+        .order('occurred_at', { ascending: false })
+        .order('id')
+        .range(from, to)
+        .then(({ data, error }) => ({ data: data as ConversationRow[] | null, error })),
+    'Could not load conversations',
+  );
   const [scores, pipeline] = await Promise.all([
     scoreConversations(supabase, conversations as ScorableConversation[]),
     conversationPipeline(supabase),

@@ -144,6 +144,44 @@ td {
   padding: 0.2rem 0.75rem 0.2rem 0;
 }
 
+/* The team: one row a person, read across. */
+table.team {
+  width: 100%;
+}
+
+table.team th {
+  text-align: left;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+  padding: 0 0.75rem 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+table.team td {
+  padding: 0.5rem 0.75rem 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+table.team th,
+table.team td.when {
+  white-space: nowrap;
+}
+
+/* The second click, said in a sentence with its two answers beneath. */
+.remove-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  max-width: 16rem;
+  font-size: 0.9rem;
+}
+
+.remove-confirm span {
+  flex-basis: 100%;
+}
+
 /* --------------------------------------------------------------------------
    Signals, insights and their evidence
    -------------------------------------------------------------------------- */

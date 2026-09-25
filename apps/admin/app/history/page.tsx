@@ -1,4 +1,5 @@
 import { requireAdmin } from '@/lib/admin';
+import { utc } from '@/lib/time';
 import { endSession } from '../actions';
 import { Chrome } from '../chrome';
 
@@ -12,9 +13,6 @@ import { Chrome } from '../chrome';
  */
 export const dynamic = 'force-dynamic';
 
-function when(iso: string): string {
-  return new Date(iso).toISOString().replace('T', ' ').slice(0, 16);
-}
 
 export default async function History() {
   const admin = await requireAdmin();
@@ -57,13 +55,13 @@ export default async function History() {
             const live = !row.ended_at && new Date(row.expires_at) > new Date();
             return (
               <tr key={row.id}>
-                <td className="muted">{when(row.created_at)}</td>
+                <td className="muted">{utc(row.created_at)}</td>
                 <td>{emailOf.get(row.admin_user_id) ?? row.admin_user_id}</td>
                 <td>{emailOf.get(row.subject_user_id) ?? row.subject_user_id}</td>
                 <td>{row.reason}</td>
                 <td>
                   {live ? (
-                    <span className="tag open">open until {when(row.expires_at)}</span>
+                    <span className="tag open">open until {utc(row.expires_at)}</span>
                   ) : (
                     <span className="muted">{row.ended_at ? 'ended' : 'expired'}</span>
                   )}

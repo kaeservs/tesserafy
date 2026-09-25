@@ -521,6 +521,44 @@ export type Database = {
           },
         ]
       }
+      membership_removals: {
+        Row: {
+          company_id: string
+          email: string
+          id: string
+          removed_at: string
+          removed_by: string | null
+          role: string
+          user_id: string | null
+        }
+        Insert: {
+          company_id: string
+          email: string
+          id?: string
+          removed_at?: string
+          removed_by?: string | null
+          role: string
+          user_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          email?: string
+          id?: string
+          removed_at?: string
+          removed_by?: string | null
+          role?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "membership_removals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       model_usage: {
         Row: {
           cache_creation_tokens: number
@@ -912,6 +950,17 @@ export type Database = {
         }
         Returns: string
       }
+      company_team: {
+        Args: never
+        Returns: {
+          email: string
+          is_you: boolean
+          joined_at: string
+          last_sign_in_at: string
+          role: string
+          user_id: string
+        }[]
+      }
       complete_account_provisioning: {
         Args: { p_id: string; p_new_account: boolean; p_user_id: string }
         Returns: string
@@ -1162,6 +1211,7 @@ export type Database = {
         Args: { p_conversation_id: string; p_model: string; p_rows: Json }
         Returns: number
       }
+      remove_company_member: { Args: { p_user_id: string }; Returns: undefined }
       retention_preview: { Args: { p_days: number }; Returns: number }
       search_segments: {
         Args: { p_limit?: number; p_query: string }

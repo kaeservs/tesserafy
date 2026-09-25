@@ -303,6 +303,13 @@ To see what the job has done:
   statement, so a hand-made request straight to PostgREST cannot create one
   either. Only `pnpm ingest`, an operator writing with the service role,
   creates a call with none on file.
+- **Someone who leaves a customer can be removed by that customer.** An
+  owner sees everyone with access under Settings and removes anyone but
+  themselves; the person loses every call at once, because RLS reads through
+  the membership that is gone. Each removal is recorded before it happens —
+  the address, the role, and which owner — and only the company's owners and
+  platform admins can read that record. Adding people still goes through the
+  operator console, because it creates an account (ADR 0012).
 - **No data residency choice.** One project, one region.
 - **Backups outlive erasure.** A row erased today is still in whatever
   point-in-time backup the platform keeps. Any erasure promise made to a

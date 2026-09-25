@@ -245,6 +245,9 @@ async function main(): Promise<void> {
   console.info('\nRetention');
   await checkRetention(supabaseUrl, token);
 
+  console.info('\nRecording consent, underneath the routes');
+  await checkConsentInDatabase(supabaseUrl, token);
+
   console.info('\nData invariants');
   const db = createServiceClient({ url: supabaseUrl, key: serviceKey });
 
@@ -887,6 +890,42 @@ async function checkRetention(supabaseUrl: string, token: string | null): Promis
     'and nobody signed out can ask',
     !anonymous.ok,
     `${anonymous.status}`,
+  );
+}
+
+/**
+ * The routes refuse an unconfirmed call, and the checks above prove it. This
+ * goes around them, the way a hand-made request would: straight to PostgREST
+ * with the probe's own session and no statement. The database must refuse it
+ * too, or the routes are the only thing between a script and a call nobody
+ * confirmed. Refused before anything is inserted, so there is nothing to erase
+ * — unless it is wrongly accepted, in which case it is erased at once.
+ */
+async function checkConsentInDatabase(supabaseUrl: string, token: string | null): Promise<void> {
+  const publishableKey = process.env['SUPABASE_PUBLISHABLE_KEY'] ?? null;
+  if (!token || !publishableKey) {
+    record('recording consent in the database', true, 'skipped — needs SUPABASE_PUBLISHABLE_KEY and a session');
+    return;
+  }
+
+  const response = await fetch(new URL('/rest/v1/rpc/start_live_conversation', supabaseUrl), {
+    method: 'POST',
+    headers: {
+      apikey: publishableKey,
+      authorization: `Bearer ${token}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ p_title: 'QA PROBE — must be refused' }),
+  });
+  const body = (await response.json()) as { code?: string } | string;
+  if (typeof body === 'string') {
+    const db = createServiceClient({ url: supabaseUrl, key: requireEnv('SUPABASE_SERVICE_ROLE_KEY') });
+    await db.rpc('erase_conversation', { p_conversation_id: body, p_reason: 'operator' });
+  }
+  record(
+    'a direct call without a statement is refused by the database',
+    typeof body !== 'string' && body.code === '22023',
+    typeof body === 'string' ? 'a call was created (and erased)' : (body.code ?? `${response.status}`),
   );
 }
 

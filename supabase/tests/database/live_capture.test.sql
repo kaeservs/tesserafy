@@ -28,7 +28,8 @@ select set_config('request.jwt.claims',
 -- ---------------------------------------------------------------------------
 
 select lives_ok(
-  $$ select public.start_live_conversation('Live test call') $$,
+  $$ select public.start_live_conversation('Live test call',
+       p_consent_statement => 'Everyone agreed.') $$,
   'a member starts a live conversation without naming their company'
 );
 
@@ -49,7 +50,8 @@ select throws_ok(
 
 -- Keep the conversation and a segment to hang the rest of the tests off.
 create temporary table fixture as
-  select public.start_live_conversation('Evidence test call') as conversation_id;
+  select public.start_live_conversation('Evidence test call',
+    p_consent_statement => 'Everyone agreed.') as conversation_id;
 
 create temporary table seg as
   select public.append_live_segment(

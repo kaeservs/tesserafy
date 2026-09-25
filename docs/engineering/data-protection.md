@@ -291,9 +291,11 @@ To see what the job has done:
 
   It is an attestation by the person recording, not proof that each
   participant agreed; nothing here captures the other side's voice saying
-  yes. The routes require it today; the database records it and does not yet
-  refuse a signed-in caller who omits it — that is the next migration, once
-  no deployed client omits it.
+  yes. The routes refuse an unconfirmed call, and so does the database:
+  `import_conversation` and `start_live_conversation` raise 22023 without a
+  statement, so a hand-made request straight to PostgREST cannot create one
+  either. Only `pnpm ingest`, an operator writing with the service role,
+  creates a call with none on file.
 - **No data residency choice.** One project, one region.
 - **Backups outlive erasure.** A row erased today is still in whatever
   point-in-time backup the platform keeps. Any erasure promise made to a

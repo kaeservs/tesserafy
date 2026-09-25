@@ -291,10 +291,19 @@ To see what the job has done:
   checked against it. An attempt that stops part-way stays open and is shown
   as one. One company per person is enforced in both steps.
 
-  What is still missing is the ordinary case: RLS decides who *can* read a
-  conversation and nothing records who *did*. "Which of our colleagues opened
-  this call" is answerable for support sessions and unanswerable for everything
-  else.
+  The ordinary case is recorded too, for the page where a call is read in
+  full. Opening a call writes a `conversation_views` row — who from the
+  session, once per person per call per ten minutes — before anything of the
+  call is shown, and a failure to record is a failure to open. A visit made
+  while the account had an open support session is flagged, because that
+  session genuinely is the customer's and would otherwise read as their own.
+  Owners see "Who has opened this call" on the call; platform admins can read
+  every row; ordinary members cannot, so colleagues are not watching each
+  other. The rows go when the call is erased.
+
+  Not recorded: search results and insight quotes, which show pieces of calls
+  across many at once. "Who opened this call" is answerable; "who ever saw
+  this sentence" is not.
 - **Consent is recorded, and asked for before a call is kept.** Importing a
   transcript and starting a live call (web microphone or overlay) both need a
   box ticked first: "Everyone on this call was told it was being recorded,

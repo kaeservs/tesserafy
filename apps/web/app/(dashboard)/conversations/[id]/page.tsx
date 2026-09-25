@@ -5,6 +5,7 @@ import { Shortfall } from '@/components/criterion-shortfall';
 import { conversationPipeline, nextCommand, stageOf } from '@/lib/pipeline';
 import { scoreConversation } from '@/lib/scorecard';
 import { ExtractButton } from '@/components/extract-button';
+import { CallViewers } from '@/components/call-viewers';
 import { DeleteCall } from '@/components/delete-call';
 import { RefreshWhile } from '@/components/refresh-while';
 import { capturedState, type CapturedState } from '@/lib/scoring-status';
@@ -155,6 +156,16 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
 
   if (!conversation) notFound();
 
+  // Recorded before anything of the call is shown, and a failure to record
+  // is a failure to open — the rule support sessions already follow. An
+  // access trail with gaps where recording failed answers "did they look?"
+  // with "probably not", which is worse than no trail. The same database
+  // serves this page, so a failure here is rarely a failure only here.
+  const { error: unrecorded } = await supabase.rpc('record_conversation_view', {
+    p_conversation_id: id,
+  });
+  if (unrecorded) throw new Error(`Could not record opening this call: ${unrecorded.message}`);
+
   // Computed on read from the quoted spans in criterion_events, by the same
   // two pure functions the live overlay runs. Nothing stored is a score
   // (invariant 1), so this page and a call happening right now cannot
@@ -171,6 +182,16 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
     .eq('role', 'owner')
     .limit(1);
   const isOwner = (ownership ?? []).length > 0;
+
+  const { data: viewerRows } = isOwner
+    ? await supabase.rpc('conversation_viewers', { p_conversation_id: id })
+    : { data: null };
+  const viewers = (viewerRows ?? []).map((row) => ({
+    email: row.email,
+    lastViewedAt: row.last_viewed_at,
+    views: Number(row.views),
+    duringSupport: row.during_support,
+  }));
 
   const scored = await scoreConversation(supabase, conversation);
   const card = scored.scorecard;
@@ -381,6 +402,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
           </ol>
         )}
       </section>
+      {isOwner ? <CallViewers viewers={viewers} /> : null}
       {isOwner ? <DeleteCall conversationId={id} /> : null}
     </main>
   );

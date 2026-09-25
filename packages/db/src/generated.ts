@@ -160,6 +160,48 @@ export type Database = {
           },
         ]
       }
+      conversation_views: {
+        Row: {
+          company_id: string
+          conversation_id: string
+          during_support: boolean
+          id: string
+          user_id: string | null
+          viewed_at: string
+        }
+        Insert: {
+          company_id: string
+          conversation_id: string
+          during_support?: boolean
+          id?: string
+          user_id?: string | null
+          viewed_at?: string
+        }
+        Update: {
+          company_id?: string
+          conversation_id?: string
+          during_support?: boolean
+          id?: string
+          user_id?: string | null
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_views_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_views_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           company_id: string
@@ -994,6 +1036,15 @@ export type Database = {
           signals: number
         }[]
       }
+      conversation_viewers: {
+        Args: { p_conversation_id: string }
+        Returns: {
+          during_support: boolean
+          email: string
+          last_viewed_at: string
+          views: number
+        }[]
+      }
       decide_insight: {
         Args: { p_insight_id: string; p_status: string }
         Returns: {
@@ -1135,6 +1186,10 @@ export type Database = {
       purge_expired_conversations: {
         Args: { p_company_id?: string; p_limit?: number }
         Returns: Json
+      }
+      record_conversation_view: {
+        Args: { p_conversation_id: string }
+        Returns: undefined
       }
       record_criterion_events: {
         Args: { p_conversation_id: string; p_events: Json }

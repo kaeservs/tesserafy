@@ -28,15 +28,28 @@ by the main process, so the renderer holds no credential: a renderer is a
 browser, and a browser is where a credential gets read by something nobody
 wrote.
 
-## Connecting it
+## Signing in
 
-    # PowerShell
-    $env:TESSERAFY_URL   = 'https://web-beta-khaki-cxdkp6udxk.vercel.app'
-    $env:TESSERAFY_TOKEN = '<a Supabase access token for a member>'
+The overlay signs in with the same username or email and password as the web
+app (`src/main/session.ts`). The password goes from the form to the main
+process once, on to Supabase Auth, and is not kept. The access token stays in
+the main process's memory and is renewed before it expires. Only the refresh
+token is saved, encrypted by the operating system through Electron's
+`safeStorage` (DPAPI on Windows, the Keychain on macOS), in `session.bin`
+under the app's user-data folder; where that encryption is unavailable nothing
+is saved and the overlay asks each launch. *Sign out* ends this overlay's
+session only — the web app stays signed in — and deletes the file.
+
+It learns where Auth is from the web app's public `/auth/client-config`, so
+the only setting is where the product is. That defaults to production:
+
+    # PowerShell — only to point it somewhere else, e.g. a local web app
+    $env:TESSERAFY_URL = 'http://localhost:3000'
     pnpm --filter @tesserafy/desktop dev
 
-Without a token the overlay still opens and says so — which is also all S1
-needs, since that spike is about the window and not about what it displays.
+`TESSERAFY_TOKEN` is gone: a second way in is one more thing to leak. Signed
+out, the overlay still opens — which is also all S1 needs, since that spike is
+about the window and not about what it displays.
 
 ## Running it
 

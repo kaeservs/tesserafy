@@ -83,6 +83,18 @@
       .suggestion[hidden] { display: none; }
       .suggestion-ask { margin: 0 0 3px; font-weight: 600; font-size: 12px; }
       .suggestion-why { margin: 0; font-size: 10px; line-height: 1.4; }
+
+      /* Signing in. Inputs must opt out of the window drag, or clicking one
+         drags the overlay instead of focusing the field. */
+      .signin { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+      .signin[hidden] { display: none; }
+      .signin input { -webkit-app-region: no-drag; font: inherit; font-size: 12px; color: #f5f5f4;
+                      background: rgba(28, 25, 23, 0.9); border: 1px solid rgba(120, 113, 108, 0.45);
+                      border-radius: 6px; padding: 6px 8px; user-select: text; }
+      .signin .error { color: #f87171; font-size: 11px; margin: 0; }
+      .signin .error:empty { display: none; }
+      .who { font-size: 10px; color: #a8a29e; margin-top: 8px; display: flex; gap: 6px; align-items: center; }
+      .who[hidden] { display: none; }
     </style>
   </head>
   <body>
@@ -101,6 +113,21 @@
       <p class="suggestion-ask" id="suggestionAsk"></p>
       <p class="suggestion-why muted" id="suggestionWhy"></p>
     </aside>
+
+    <!-- The same account as the web app. The password goes to the main
+         process once and is not kept; the page is told who, never a token. -->
+    <form class="signin" id="signin" hidden>
+      <input id="identifier" autocomplete="username" placeholder="Username or email" required />
+      <input id="password" type="password" autocomplete="current-password" placeholder="Password" required />
+      <button type="submit" id="signinButton">Sign in</button>
+      <p class="error" id="signinError" role="alert"></p>
+      <p class="muted" id="remembers"></p>
+    </form>
+
+    <div class="who" id="who" hidden>
+      <span id="whoEmail"></span>
+      <button type="button" id="signout">Sign out</button>
+    </div>
 
     <!-- Asked before the first word: listening starts the recording. The
          sentence is the one the server stores with the call, word for word;

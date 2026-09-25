@@ -79,13 +79,15 @@ defect even when it reads well.
 
 ## P7 and S1 — the overlay
 
-    $env:TESSERAFY_URL   = 'https://web-beta-khaki-cxdkp6udxk.vercel.app'
-    $env:TESSERAFY_TOKEN = '<a Supabase access token>'
     Remove-Item Env:\ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
     pnpm --filter @tesserafy/desktop dev
 
+It connects to production by default; sign in with your usual username or
+email and password.
+
 | # | Do | Pass looks like |
 |---|---|---|
+| 0 | Sign in, quit, start it again | Second start is already signed in; *Sign out* then brings the form back |
 | 1 | Look at the overlay | Always on top, transparent edges, criteria listed, score at the top |
 | 2 | Click Listen and speak | Score updates, same as the browser |
 | 3 | **Share your entire screen** in Zoom | Participants do **not** see the overlay |

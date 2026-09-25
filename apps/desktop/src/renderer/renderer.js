@@ -12,7 +12,8 @@
  *
  * The token is never here. Detection and criteria go through the main process,
  * so this page holds no credential — a renderer is a browser, and a browser is
- * where a credential gets read by something nobody wrote.
+ * where a credential gets read by something nobody wrote. Signing in passes a
+ * password through once, to the main process, and keeps nothing.
  */
 import { apply, defineCriteriaSet, initialState, score } from '@tesserafy/scoring';
 
@@ -25,6 +26,8 @@ const utterances = [];
 let protection = true;
 let clickThrough = false;
 let listening = false;
+// Whether the main process holds a session. Listen is offered only then.
+let signedIn = false;
 let recognition = null;
 let sessionStart = 0;
 const latencies = [];
@@ -339,7 +342,7 @@ function startListening() {
 // Each call is a different set of people, so the box starts unticked and is
 // never remembered.
 el('consent').addEventListener('change', () => {
-  el('listen').disabled = !el('consent').checked && !listening;
+  el('listen').disabled = (!el('consent').checked || !signedIn) && !listening;
 });
 
 el('listen').addEventListener('click', () => {
@@ -347,7 +350,7 @@ el('listen').addEventListener('click', () => {
     recognition?.stop();
     return;
   }
-  if (!el('consent').checked) return;
+  if (!el('consent').checked || !signedIn) return;
   if (state) {
     startListening();
     return;
@@ -366,12 +369,58 @@ el('clickthrough').addEventListener('click', async () => {
   el('clickthrough').textContent = `Click-through: ${clickThrough ? 'on (restart to undo)' : 'off'}`;
 });
 
-api.config().then((config) => {
-  // Presence, not the value. The renderer has never needed the token itself
-  // and must not be given it — see overlay:config in the main process.
-  if (!config.hasToken) {
-    setStatus('set TESSERAFY_TOKEN to connect');
-    return;
-  }
+/*
+ * Signed in or not.
+ *
+ * The page learns only who is signed in. Signing in hands the password to the
+ * main process and forgets it; the token that comes back stays there.
+ */
+function showSignedIn(email) {
+  signedIn = true;
+  el('signin').hidden = true;
+  el('who').hidden = false;
+  el('whoEmail').textContent = email;
+  el('password').value = '';
+  el('signinError').textContent = '';
   void loadCriteria();
+}
+
+function showSignedOut(remembers) {
+  signedIn = false;
+  el('signin').hidden = false;
+  el('who').hidden = true;
+  el('listen').disabled = true;
+  el('remembers').textContent = remembers
+    ? 'You stay signed in on this computer until you sign out.'
+    : 'This computer cannot store a sign-in securely, so you will be asked each time.';
+  setStatus('sign in to connect');
+}
+
+el('signin').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  el('signinButton').disabled = true;
+  el('signinError').textContent = '';
+  const result = await api.signIn(el('identifier').value, el('password').value);
+  el('signinButton').disabled = false;
+  if (result.ok) {
+    showSignedIn(result.email);
+    el('listen').disabled = !el('consent').checked;
+  } else {
+    el('password').value = '';
+    el('signinError').textContent = result.message;
+  }
+});
+
+el('signout').addEventListener('click', async () => {
+  // A call in progress is not carried across accounts.
+  if (listening) recognition?.stop();
+  await api.signOut();
+  state = null;
+  const session = await api.session();
+  showSignedOut(session.remembers);
+});
+
+api.session().then((session) => {
+  if (session.email) showSignedIn(session.email);
+  else showSignedOut(session.remembers);
 });

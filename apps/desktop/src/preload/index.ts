@@ -7,6 +7,8 @@
  *
  * Note what is missing: the session token. Detection and criteria are fetched
  * by the main process, so the page never holds a credential it could leak.
+ * Signing in sends a password to the main process once; what comes back is
+ * who is signed in, never a token.
  */
 import { contextBridge, ipcRenderer } from 'electron';
 
@@ -17,8 +19,16 @@ contextBridge.exposeInMainWorld('overlay', {
     ipcRenderer.invoke('overlay:set-click-through', enabled),
   platform: (): Promise<{ platform: string; electron: string; chrome: string }> =>
     ipcRenderer.invoke('overlay:platform'),
-  config: (): Promise<{ baseUrl: string; hasToken: boolean; engagementType: string }> =>
+  config: (): Promise<{ baseUrl: string; engagementType: string }> =>
     ipcRenderer.invoke('overlay:config'),
+  session: (): Promise<{ email: string | null; remembers: boolean }> =>
+    ipcRenderer.invoke('overlay:session'),
+  signIn: (
+    identifier: string,
+    password: string,
+  ): Promise<{ ok: true; email: string } | { ok: false; message: string }> =>
+    ipcRenderer.invoke('overlay:sign-in', identifier, password),
+  signOut: (): Promise<{ email: null }> => ipcRenderer.invoke('overlay:sign-out'),
   criteria: (): Promise<{ criteria?: unknown[]; error?: string }> =>
     ipcRenderer.invoke('overlay:criteria'),
   detect: (body: unknown): Promise<{ events?: unknown[]; error?: string }> =>

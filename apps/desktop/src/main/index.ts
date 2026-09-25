@@ -14,10 +14,47 @@
  * toggle it, and the label is deliberately loud so a screenshot of the share
  * settles the question without anyone squinting.
  */
-import { app, BrowserWindow, ipcMain, screen } from 'electron';
+import { app, BrowserWindow, ipcMain, safeStorage, screen } from 'electron';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { Session, type Store } from './session';
 
 let overlay: BrowserWindow | null = null;
+
+/** Where the product is. The production app unless told otherwise. */
+const BASE_URL = process.env['TESSERAFY_URL'] ?? 'https://web-beta-khaki-cxdkp6udxk.vercel.app';
+const ENGAGEMENT = process.env['TESSERAFY_ENGAGEMENT'] ?? 'discovery';
+
+/**
+ * The refresh token, encrypted by the operating system and nowhere else.
+ *
+ * safeStorage uses the Windows account's DPAPI and the macOS Keychain. Where
+ * it is unavailable — some Linux desktops without a keyring — Electron would
+ * fall back to a hard-coded key, which is encryption in name only; so then
+ * nothing is saved and the overlay asks for a password each launch instead.
+ */
+function encryptedStore(): Store {
+  const file = join(app.getPath('userData'), 'session.bin');
+  const persistent = safeStorage.isEncryptionAvailable();
+  return {
+    persistent,
+    async read() {
+      if (!persistent) return null;
+      try {
+        return safeStorage.decryptString(await readFile(file));
+      } catch {
+        return null;
+      }
+    },
+    async write(refreshToken) {
+      if (!persistent) return;
+      await writeFile(file, safeStorage.encryptString(refreshToken));
+    },
+    async clear() {
+      await rm(file, { force: true });
+    },
+  };
+}
 
 function createOverlay(): BrowserWindow {
   const { workArea } = screen.getPrimaryDisplay();
@@ -58,7 +95,28 @@ function createOverlay(): BrowserWindow {
 // `void`: nothing can await this, it is the top of the process. Marked so
 // that the next promise added here has to say what it does about failure.
 void app.whenReady().then(() => {
+  const session = new Session(BASE_URL, encryptedStore());
+  // Before the window asks who is signed in, so a returning user is not shown
+  // a sign-in form for the half-second a refresh takes.
+  const resumed = session.resume().catch(() => false);
+
   overlay = createOverlay();
+
+  ipcMain.handle('overlay:session', async () => {
+    await resumed;
+    return { email: session.signedInAs, remembers: session.remembers };
+  });
+
+  // The password crosses from the page to here once, goes to Auth, and is
+  // not kept. What the page gets back is who, never a token.
+  ipcMain.handle('overlay:sign-in', async (_event, identifier: string, password: string) =>
+    session.signIn(String(identifier), String(password)),
+  );
+
+  ipcMain.handle('overlay:sign-out', async () => {
+    await session.signOut();
+    return { email: null };
+  });
 
   ipcMain.handle('overlay:set-protection', (_event, enabled: boolean) => {
     overlay?.setContentProtection(Boolean(enabled));
@@ -78,32 +136,24 @@ void app.whenReady().then(() => {
     chrome: process.versions.chrome,
   }));
 
-  // Where to reach the product, and whether we can reach it — not as whom.
-  //
-  // This used to hand the token itself to the renderer, while three comments
-  // in this file and the preload's own docstring all claimed the page never
-  // holds a credential. The page only ever wanted to know whether one was
-  // configured, so that is the only thing it is told. Sign-in inside the
-  // overlay is P7 work proper; an operator-supplied token is enough to prove
-  // the loop.
+  // Where the product is, and which criteria to score against — not as whom.
+  // Who is signed in is overlay:session; the token is never sent here.
   ipcMain.handle('overlay:config', () => ({
-    baseUrl: process.env['TESSERAFY_URL'] ?? 'http://localhost:3000',
-    hasToken: Boolean(process.env['TESSERAFY_TOKEN']),
-    engagementType: process.env['TESSERAFY_ENGAGEMENT'] ?? 'discovery',
+    baseUrl: BASE_URL,
+    engagementType: ENGAGEMENT,
   }));
+
+  const NOT_SIGNED_IN = { error: 'not signed in' };
 
   // The renderer never sees the token: it asks the main process to make the
   // call, and gets back only what the endpoint returned.
   ipcMain.handle('overlay:detect', async (_event, body: unknown) => {
-    const baseUrl = process.env['TESSERAFY_URL'] ?? 'http://localhost:3000';
-    const token = process.env['TESSERAFY_TOKEN'];
-    if (!token) return { error: 'TESSERAFY_TOKEN is not set' };
-
-    const response = await fetch(new URL('/api/detect', baseUrl), {
+    const response = await session.fetch('/api/detect', {
       method: 'POST',
-      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
     });
+    if (!response) return NOT_SIGNED_IN;
     if (!response.ok) {
       return { error: `detect failed: ${response.status} ${await response.text()}` };
     }
@@ -114,15 +164,12 @@ void app.whenReady().then(() => {
   // server: a suggestion must never be able to delay a score, and the easiest
   // way to guarantee that is for them never to share a call.
   ipcMain.handle('overlay:suggest', async (_event, body: unknown) => {
-    const baseUrl = process.env['TESSERAFY_URL'] ?? 'http://localhost:3000';
-    const token = process.env['TESSERAFY_TOKEN'];
-    if (!token) return { error: 'TESSERAFY_TOKEN is not set' };
-
-    const response = await fetch(new URL('/api/suggest', baseUrl), {
+    const response = await session.fetch('/api/suggest', {
       method: 'POST',
-      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
     });
+    if (!response) return NOT_SIGNED_IN;
     if (!response.ok) {
       return { error: `suggest failed: ${response.status}` };
     }
@@ -132,8 +179,8 @@ void app.whenReady().then(() => {
   /*
    * Keeping the call.
    *
-   * Three thin proxies, for the same reason detection is one: the token lives
-   * here and never in the page. They add nothing of their own — every rule
+   * Three thin proxies, for the same reason detection is one: the session
+   * lives here and never in the page. They add nothing of their own — every rule
    * about what may be written lives in the database, where a caller that
    * skipped this process would still meet it.
    *
@@ -141,15 +188,12 @@ void app.whenReady().then(() => {
    * keeping is still not worth a millisecond of the score.
    */
   const post = async (path: string, body: unknown) => {
-    const baseUrl = process.env['TESSERAFY_URL'] ?? 'http://localhost:3000';
-    const token = process.env['TESSERAFY_TOKEN'];
-    if (!token) return { error: 'TESSERAFY_TOKEN is not set' };
-
-    const response = await fetch(new URL(path, baseUrl), {
+    const response = await session.fetch(path, {
       method: 'POST',
-      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
     });
+    if (!response) return NOT_SIGNED_IN;
     if (!response.ok) {
       return { error: `${path} failed: ${response.status}` };
     }
@@ -169,14 +213,10 @@ void app.whenReady().then(() => {
   );
 
   ipcMain.handle('overlay:criteria', async () => {
-    const baseUrl = process.env['TESSERAFY_URL'] ?? 'http://localhost:3000';
-    const token = process.env['TESSERAFY_TOKEN'];
-    const engagement = process.env['TESSERAFY_ENGAGEMENT'] ?? 'discovery';
-    if (!token) return { error: 'TESSERAFY_TOKEN is not set' };
-
-    const url = new URL('/api/criteria', baseUrl);
-    url.searchParams.set('engagement_type', engagement);
-    const response = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
+    const response = await session.fetch(
+      `/api/criteria?engagement_type=${encodeURIComponent(ENGAGEMENT)}`,
+    );
+    if (!response) return NOT_SIGNED_IN;
     if (!response.ok) {
       return { error: `criteria failed: ${response.status} ${await response.text()}` };
     }

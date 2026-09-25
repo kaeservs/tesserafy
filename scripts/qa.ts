@@ -118,6 +118,35 @@ async function main(): Promise<void> {
     );
   }
 
+  // Public on purpose (the overlay signs in with it), so the one thing to
+  // check is that public is all it is: the key it hands out must be the
+  // publishable one. A service-role key here would be every tenant's data,
+  // served to anyone who asked.
+  const config = await fetch(new URL('/auth/client-config', baseUrl));
+  const configBody = config.ok
+    ? ((await config.json()) as { supabaseUrl?: string; publishableKey?: string })
+    : {};
+  const key = configBody.publishableKey ?? '';
+  const payload = key.split('.')[1];
+  const role = payload
+    ? ((JSON.parse(Buffer.from(payload, 'base64url').toString()) as { role?: string }).role ?? '')
+    : '';
+  record(
+    '/auth/client-config hands out the publishable key and nothing more',
+    config.ok &&
+      Boolean(configBody.supabaseUrl) &&
+      key.length > 0 &&
+      !key.startsWith('sb_secret_') &&
+      role !== 'service_role',
+    config.ok
+      ? key.startsWith('sb_publishable_')
+        ? 'publishable'
+        : role
+          ? `a JWT for ${role}`
+          : 'unrecognised key'
+      : `${config.status}`,
+  );
+
   console.info('\nThe API, as a signed-in user');
   const token = await accessToken(supabaseUrl, serviceKey, email);
   record('mint a session for the probe account', token !== null, token ? '' : 'no token');

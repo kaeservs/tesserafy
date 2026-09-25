@@ -60,7 +60,7 @@ describe('LiveSession', () => {
   it('translates local segment ids into the ones the database assigned', async () => {
     segmentIds = ['server-1'];
     const session = new LiveSession();
-    await session.start('Live call', 'discovery', 1);
+    await session.start('Live call', 'discovery', 1, true);
 
     session.appendSegment('u0', { speaker: 'customer', startMs: 0, endMs: 1000, text: 'hello' });
     await session.saveEvents([event('u0')]);
@@ -75,7 +75,7 @@ describe('LiveSession', () => {
     // only one of the two is visibly absent.
     segmentIds = [null];
     const session = new LiveSession();
-    await session.start('Live call', 'discovery', 1);
+    await session.start('Live call', 'discovery', 1, true);
 
     session.appendSegment('u0', { speaker: 'customer', startMs: 0, endMs: 1000, text: 'hello' });
     await session.saveEvents([event('u0')]);
@@ -103,7 +103,7 @@ describe('LiveSession', () => {
     });
 
     const session = new LiveSession();
-    await session.start('Live call', 'discovery', 1);
+    await session.start('Live call', 'discovery', 1, true);
     session.appendSegment('u0', { speaker: 'customer', startMs: 0, endMs: 1000, text: 'hello' });
 
     const saving = session.saveEvents([event('u0')]);
@@ -121,7 +121,7 @@ describe('LiveSession', () => {
     // run; it just stops being recorded.
     startFails = true;
     const session = new LiveSession();
-    const id = await session.start('Live call', 'discovery', 1);
+    const id = await session.start('Live call', 'discovery', 1, true);
 
     expect(id).toBeNull();
     calls = [];
@@ -143,7 +143,7 @@ describe('LiveSession', () => {
     });
 
     const session = new LiveSession();
-    await session.start('Live call', 'discovery', 1);
+    await session.start('Live call', 'discovery', 1, true);
     session.appendSegment('u0', { speaker: 'customer', startMs: 0, endMs: 1, text: 'hello' });
     await session.saveEvents([event('u0'), event('u0', 'paraphrased')]);
 

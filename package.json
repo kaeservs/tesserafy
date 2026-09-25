@@ -13,7 +13,7 @@
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "test:integration": "pnpm -r test:integration",
-    "typecheck": "pnpm -r typecheck && tsc -p scripts/tsconfig.json && tsc -p tsconfig.e2e.json",
+    "typecheck": "pnpm -r typecheck && tsc -p scripts/tsconfig.json && tsc -p e2e/tsconfig.json",
     "lint": "node tools/lint/node_modules/eslint/bin/eslint.js --config tools/lint/eslint.config.js .",
     "guard:retrieval": "node scripts/check-retrieval-guard.mjs",
     "ingest": "tsx --env-file-if-exists=.env scripts/ingest.ts",

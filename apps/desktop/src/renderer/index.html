@@ -58,6 +58,10 @@
                background: transparent; border: 1px solid rgba(120, 113, 108, 0.35);
                border-radius: 6px; padding: 3px 7px; cursor: pointer; }
       button:hover { border-color: #a8a29e; }
+      button:disabled { opacity: 0.45; cursor: default; }
+      .consent { -webkit-app-region: no-drag; display: flex; gap: 6px; align-items: flex-start;
+                 margin-top: 12px; font-size: 10px; color: #a8a29e; cursor: pointer; }
+      .consent input { margin: 1px 0 0; }
       .muted { color: #78716c; font-size: 10px; }
       /* How close a criterion is, in the smallest thing that can say it. */
       .hint { color: #57534e; font-size: 9px; margin-right: 6px;
@@ -98,8 +102,16 @@
       <p class="suggestion-why muted" id="suggestionWhy"></p>
     </aside>
 
+    <!-- Asked before the first word: listening starts the recording. The
+         sentence is the one the server stores with the call, word for word;
+         the overlay only says it was ticked. -->
+    <label class="consent">
+      <input type="checkbox" id="consent" />
+      <span>Everyone on this call has been told it is being recorded, transcribed and analysed, and has agreed to it.</span>
+    </label>
+
     <footer>
-      <button id="listen">Listen</button>
+      <button id="listen" disabled>Listen</button>
       <button id="protection">Protection: on</button>
       <button id="clickthrough">Click-through: off</button>
       <span class="muted" id="status">idle</span>

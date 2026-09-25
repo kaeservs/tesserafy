@@ -702,6 +702,25 @@ mark {
   width: 100%;
 }
 
+/* A confirmation someone is agreeing to, so it reads as a sentence at full
+   strength rather than as a field caption. */
+.field.consent {
+  max-width: 36rem;
+}
+
+.field.consent label {
+  font-size: 0.9rem;
+  color: inherit;
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.field.consent input {
+  width: auto;
+  margin-top: 0.2rem;
+}
+
 /* A button that is a choice, not an action — it reveals the other sign-in
    route. A link would be wrong: it goes nowhere. */
 .link-button {

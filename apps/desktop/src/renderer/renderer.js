@@ -150,6 +150,9 @@ async function startSession() {
     title: `Live call — ${when}`,
     engagementType: state?.criteriaSet?.engagementType ?? 'discovery',
     criteriaVersion: state?.criteriaSet?.version ?? 1,
+    // Only reachable with the box ticked; the server refuses without it, and
+    // a refusal leaves the call running unsaved rather than stopping it.
+    consent: el('consent').checked,
   });
 
   if (result.error || !result.conversationId) {
@@ -317,11 +320,15 @@ function startListening() {
   recognition.onend = () => {
     listening = false;
     el('listen').textContent = 'Listen';
+    el('consent').disabled = false;
   };
 
   recognition.start();
   listening = true;
   el('listen').textContent = 'Stop';
+  // Fixed for the length of the call: unticking mid-call would not unrecord
+  // what was already said.
+  el('consent').disabled = true;
   setStatus('listening');
 
   // Not awaited. The first utterance can be detected before the conversation
@@ -329,11 +336,18 @@ function startListening() {
   void startSession();
 }
 
+// Each call is a different set of people, so the box starts unticked and is
+// never remembered.
+el('consent').addEventListener('change', () => {
+  el('listen').disabled = !el('consent').checked && !listening;
+});
+
 el('listen').addEventListener('click', () => {
   if (listening) {
     recognition?.stop();
     return;
   }
+  if (!el('consent').checked) return;
   if (state) {
     startListening();
     return;

@@ -65,13 +65,21 @@ export class LiveSession {
     for (const listener of this.listeners) listener(this.state);
   }
 
-  /** Called when recording starts. Resolves to null if the call is not kept. */
-  async start(title: string, engagementType: string, criteriaVersion: number): Promise<string | null> {
+  /**
+   * Called when recording starts. Resolves to null if the call is not kept —
+   * including when `consented` is false, which the server refuses.
+   */
+  async start(
+    title: string,
+    engagementType: string,
+    criteriaVersion: number,
+    consented: boolean,
+  ): Promise<string | null> {
     try {
       const response = await fetch('/api/live/sessions', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ title, engagementType, criteriaVersion }),
+        body: JSON.stringify({ title, engagementType, criteriaVersion, consent: consented }),
       });
       if (!response.ok) throw new Error(String(response.status));
       const body = (await response.json()) as { conversationId: string };

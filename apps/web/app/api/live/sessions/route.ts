@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { CONSENT_REQUIRED, CONSENT_STATEMENTS, consentConfirmed } from '@/lib/consent';
 import { caller } from '@/lib/supabase/caller';
 
 /**
@@ -22,6 +23,8 @@ interface StartBody {
   engagementType?: string;
   criteriaVersion?: number;
   companyId?: string;
+  /** That everyone on the call was told it is being recorded and agreed. */
+  consent?: boolean;
 }
 
 export async function POST(request: NextRequest) {
@@ -37,6 +40,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'body must be JSON' }, { status: 400 });
   }
 
+  // A call is kept only once somebody has confirmed everyone agreed. The
+  // clients degrade to an unsaved session when this is refused, so a missing
+  // confirmation stops the recording being kept, never the meeting.
+  if (!consentConfirmed(body.consent)) {
+    return NextResponse.json({ error: CONSENT_REQUIRED }, { status: 400 });
+  }
+
   const title = (body.title ?? '').trim();
   if (title.length === 0) {
     return NextResponse.json({ error: 'a title is required' }, { status: 400 });
@@ -46,6 +56,7 @@ export async function POST(request: NextRequest) {
     p_title: title,
     p_engagement_type: body.engagementType ?? 'discovery',
     p_criteria_version: body.criteriaVersion ?? 1,
+    p_consent_statement: CONSENT_STATEMENTS.live,
     // Omitted when the caller did not name a company: the function then
     // resolves the one company they belong to, and raises 22023 if there is
     // more than one. Sending null says the same thing; leaving it out is what

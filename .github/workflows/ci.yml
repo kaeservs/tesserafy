@@ -9,6 +9,13 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Neither job runs the desktop overlay, so neither needs Electron's ~100 MB
+# binary — and its postinstall download failing (a 500 from the host, on
+# #98) failed the tenant-isolation job over nothing it tests. The overlay's
+# own workflow (overlay.yml) still downloads it.
+env:
+  ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+
 jobs:
   checks:
     name: Typecheck, unit tests, retrieval guard

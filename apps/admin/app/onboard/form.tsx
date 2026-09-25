@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from 'react';
 import { provisionAccount, type ProvisionState } from './actions';
+import { LinkResult } from './link-result';
 
 const START: ProvisionState = { status: 'idle' };
 
@@ -27,36 +28,7 @@ export function ProvisionForm({ companies }: { companies: { id: string; name: st
   const [role, setRole] = useState('member');
 
   if (state.status === 'ready') {
-    return (
-      <div className="card">
-        <p style={{ marginTop: 0 }}>
-          {state.newAccount ? 'Account created' : 'Existing account added'} for{' '}
-          <strong>{state.email}</strong>. Recorded as <code>{state.recordId}</code>.
-        </p>
-        <p>Send them this link. It signs them in once and is valid for one hour:</p>
-        <p>
-          <code>{state.link}</code>
-        </p>
-        <p className="muted">
-          {state.newAccount
-            ? 'It takes them to “choose a password”, so they can sign in again without email.'
-            : 'They already have an account, so it signs them in and takes them to their calls.'}{' '}
-          Do not open it yourself: it would sign this browser in as them, and the link would be
-          spent.
-        </p>
-        {state.landsElsewhere ? (
-          <p className="tag open" style={{ display: 'block', padding: '0.6rem' }}>
-            This link will land on <code>{state.landsElsewhere}</code>, not the confirm page it
-            asked for. Check the Redirect URLs allow-list in Supabase.
-          </p>
-        ) : null}
-        <p style={{ marginBottom: 0 }}>
-          <a className="link" href="/onboard">
-            Add someone else →
-          </a>
-        </p>
-      </div>
-    );
+    return <LinkResult state={state} again={{ href: '/onboard', label: 'Add someone else →' }} />;
   }
 
   return (

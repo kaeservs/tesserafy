@@ -48,6 +48,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_requests: {
+        Row: {
+          company_id: string
+          created_at: string
+          email: string
+          id: string
+          note: string | null
+          requested_by: string | null
+          resolution: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          role: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          email: string
+          id?: string
+          note?: string | null
+          requested_by?: string | null
+          resolution?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          role: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          email?: string
+          id?: string
+          note?: string | null
+          requested_by?: string | null
+          resolution?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "access_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       account_provisioning: {
         Row: {
           admin_user_id: string
@@ -997,6 +1047,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_access_requests: {
+        Args: never
+        Returns: {
+          company_id: string
+          company_name: string
+          created_at: string
+          email: string
+          id: string
+          note: string
+          requested_by: string
+          role: string
+        }[]
+      }
       admin_companies: {
         Args: never
         Returns: {
@@ -1317,6 +1380,14 @@ export type Database = {
         Returns: number
       }
       remove_company_member: { Args: { p_user_id: string }; Returns: undefined }
+      request_teammate: {
+        Args: { p_email: string; p_note?: string; p_role: string }
+        Returns: string
+      }
+      resolve_access_request: {
+        Args: { p_id: string; p_note?: string; p_resolution: string }
+        Returns: undefined
+      }
       retention_preview: { Args: { p_days: number }; Returns: number }
       search_segments: {
         Args: { p_limit?: number; p_query: string }

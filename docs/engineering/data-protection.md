@@ -349,7 +349,10 @@ To see what the job has done:
   the membership that is gone. Each removal is recorded before it happens —
   the address, the role, and which owner — and only the company's owners and
   platform admins can read that record. Adding people still goes through the
-  operator console, because it creates an account (ADR 0012).
+  operator console, because it creates an account (ADR 0012): an owner asks
+  under Settings (`access_requests`), the console lists what owners asked
+  for, and the operator adds or declines — declining with a reason the owner
+  reads. A request creates nothing by itself.
 - **No data residency choice.** One project, one region.
 - **Backups outlive erasure.** A row erased today is still in whatever
   point-in-time backup the platform keeps. Any erasure promise made to a

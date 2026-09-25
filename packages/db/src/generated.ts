@@ -146,6 +146,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "account_provisioning_plan_fkey"
+            columns: ["plan"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
         ]
       }
       companies: {
@@ -179,7 +186,15 @@ export type Database = {
           plan?: string
           retention_days?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "companies_plan_fkey"
+            columns: ["plan"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_exports: {
         Row: {
@@ -748,6 +763,45 @@ export type Database = {
           },
         ]
       }
+      plans: {
+        Row: {
+          calls: number | null
+          extractions: number | null
+          id: string
+          live_minutes: number | null
+          name: string
+          pattern_runs: number | null
+          price_usd_cents: number | null
+          rank: number
+          self_serve: boolean
+          trial_days: number | null
+        }
+        Insert: {
+          calls?: number | null
+          extractions?: number | null
+          id: string
+          live_minutes?: number | null
+          name: string
+          pattern_runs?: number | null
+          price_usd_cents?: number | null
+          rank: number
+          self_serve?: boolean
+          trial_days?: number | null
+        }
+        Update: {
+          calls?: number | null
+          extractions?: number | null
+          id?: string
+          live_minutes?: number | null
+          name?: string
+          pattern_runs?: number | null
+          price_usd_cents?: number | null
+          rank?: number
+          self_serve?: boolean
+          trial_days?: number | null
+        }
+        Relationships: []
+      }
       platform_admins: {
         Row: {
           created_at: string
@@ -958,6 +1012,115 @@ export type Database = {
           },
         ]
       }
+      subscription_events: {
+        Row: {
+          actor: string | null
+          at: string
+          company_id: string
+          from_plan: string | null
+          id: string
+          kind: string
+          source: string
+          to_plan: string | null
+        }
+        Insert: {
+          actor?: string | null
+          at?: string
+          company_id: string
+          from_plan?: string | null
+          id?: string
+          kind: string
+          source: string
+          to_plan?: string | null
+        }
+        Update: {
+          actor?: string | null
+          at?: string
+          company_id?: string
+          from_plan?: string | null
+          id?: string
+          kind?: string
+          source?: string
+          to_plan?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_events_from_plan_fkey"
+            columns: ["from_plan"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_events_to_plan_fkey"
+            columns: ["to_plan"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean
+          company_id: string
+          period_end: string
+          period_start: string
+          provider: string
+          provider_customer_id: string | null
+          provider_subscription_id: string | null
+          scheduled_plan: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean
+          company_id: string
+          period_end: string
+          period_start: string
+          provider?: string
+          provider_customer_id?: string | null
+          provider_subscription_id?: string | null
+          scheduled_plan?: string | null
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean
+          company_id?: string
+          period_end?: string
+          period_start?: string
+          provider?: string
+          provider_customer_id?: string | null
+          provider_subscription_id?: string | null
+          scheduled_plan?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_scheduled_plan_fkey"
+            columns: ["scheduled_plan"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_access: {
         Row: {
           admin_user_id: string
@@ -1042,6 +1205,47 @@ export type Database = {
           },
         ]
       }
+      usage_ledger: {
+        Row: {
+          amount: number
+          at: string
+          company_id: string
+          id: number
+          meter: string
+          period_start: string
+          refunded_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          at?: string
+          company_id: string
+          id?: never
+          meter: string
+          period_start: string
+          refunded_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          at?: string
+          company_id?: string
+          id?: never
+          meter?: string
+          period_start?: string
+          refunded_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usage_ledger_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1076,6 +1280,10 @@ export type Database = {
           spend_30d_usd: number
         }[]
       }
+      admin_set_plan: {
+        Args: { p_company_id: string; p_plan: string }
+        Returns: undefined
+      }
       admin_users: {
         Args: never
         Returns: {
@@ -1100,6 +1308,8 @@ export type Database = {
         }
         Returns: string
       }
+      cancel_plan: { Args: never; Returns: undefined }
+      change_plan: { Args: { p_plan: string }; Returns: string }
       close_company: {
         Args: { p_company_id: string; p_confirm_name: string; p_reason: string }
         Returns: Json
@@ -1281,6 +1491,8 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      plan_has_allowance: { Args: { p_meter: string }; Returns: boolean }
+      plan_overview: { Args: never; Returns: Json }
       purge_expired_conversations: {
         Args: { p_company_id?: string; p_limit?: number }
         Returns: Json
@@ -1379,6 +1591,10 @@ export type Database = {
         Args: { p_conversation_id: string; p_model: string; p_rows: Json }
         Returns: number
       }
+      refund_plan_allowance: {
+        Args: { p_ledger_id: number }
+        Returns: undefined
+      }
       remove_company_member: { Args: { p_user_id: string }; Returns: undefined }
       request_teammate: {
         Args: { p_email: string; p_note?: string; p_role: string }
@@ -1389,6 +1605,7 @@ export type Database = {
         Returns: undefined
       }
       retention_preview: { Args: { p_days: number }; Returns: number }
+      roll_subscription_periods: { Args: never; Returns: number }
       search_segments: {
         Args: { p_limit?: number; p_query: string }
         Returns: {
@@ -1442,6 +1659,10 @@ export type Database = {
           p_signals: Json
         }
         Returns: string[]
+      }
+      take_plan_allowance: {
+        Args: { p_amount?: number; p_meter: string }
+        Returns: Json
       }
       take_rate_limit_tokens: {
         Args: { p_bucket: string; p_internal_windows?: Json; p_windows: Json }

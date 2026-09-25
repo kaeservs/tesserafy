@@ -1,6 +1,7 @@
 import { recordFailure } from '@tesserafy/ai';
 import { NextResponse, type NextRequest } from 'next/server';
 import { extractConversation } from '@/lib/extract-conversation';
+import { planExhausted, refund, spend } from '@/lib/plan';
 import { allowance, tooMany } from '@/lib/rate-limit';
 import { caller } from '@/lib/supabase/caller';
 
@@ -30,9 +31,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const limit = await allowance(who.db, 'api/extract');
   if (!limit.allowed) return tooMany('api/extract', limit.retryAfterSeconds);
 
+  const spent = await spend(who.db, 'extractions');
+  if (!spent.allowed) return planExhausted(spent);
+
   const { id } = await params;
   try {
     const outcome = await extractConversation(who.db, id);
+    // Only a call actually read costs one. The refusals below never reached
+    // the model.
+    if (outcome.status !== 'extracted') await refund(who.db, spent);
     switch (outcome.status) {
       case 'already_extracted':
         return NextResponse.json({ error: 'This call has already been read for insights.' }, { status: 409 });
@@ -47,6 +54,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         return NextResponse.json({ recorded: outcome.recorded, rejected: outcome.rejected });
     }
   } catch (error) {
+    await refund(who.db, spent);
     const failure = recordFailure(error, {
       db: who.db,
       source: 'api/conversations/extract',

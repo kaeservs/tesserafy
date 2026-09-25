@@ -169,6 +169,19 @@ table.team td.when {
   white-space: nowrap;
 }
 
+/* Basic and Pro side by side where there is room. */
+.plan-choices {
+  margin-top: 1rem;
+}
+
+.plan-choices > .card {
+  display: inline-block;
+  vertical-align: top;
+  width: calc(50% - 0.5rem);
+  min-width: 16rem;
+  margin: 0 0.5rem 0.75rem 0;
+}
+
 /* The second click, said in a sentence with its two answers beneath. */
 .remove-confirm {
   display: flex;

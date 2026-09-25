@@ -3,13 +3,15 @@ import { requireAdmin } from '@/lib/admin';
 import { listCompanies } from '@/lib/companies';
 import { utc } from '@/lib/time';
 import { Chrome } from '../chrome';
+import { SetPlan } from './set-plan';
 
 /**
  * The tenants, and what is actually true about them.
  *
- * `plan` is a label somebody set by hand; there is no billing system behind
- * it, and the column header says so rather than letting a dashboard imply a
- * revenue number that nobody computed. Everything else here is counted.
+ * `plan` decides each company's monthly AI allowance, and can be set here —
+ * but nothing is charged for it yet: payments do not exist, and plans are
+ * free until they do. The lede says so rather than letting a dashboard imply
+ * revenue nobody collected. Everything else here is counted.
  */
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +35,8 @@ export default async function Companies() {
       <h1>Companies</h1>
       <p className="lede">
         One row per tenant. Spend is estimated from recorded token usage at published rates, not
-        billed. Plan is a hand-set label — there is no billing system behind it.
+        billed. Plan sets the monthly AI allowance and changes now when set here; nothing is
+        charged for it until payments exist.
       </p>
 
       {error ? <p className="tag open">{error}</p> : null}
@@ -42,7 +45,7 @@ export default async function Companies() {
         <thead>
           <tr>
             <th>Company</th>
-            <th>Plan (label)</th>
+            <th>Plan</th>
             <th className="num">People</th>
             <th className="num">Calls</th>
             <th className="num">Segments</th>
@@ -63,7 +66,7 @@ export default async function Companies() {
                     closed
                   </span>
                 ) : (
-                  <span className="tag">{company.plan}</span>
+                  <SetPlan companyId={company.companyId} current={company.plan} />
                 )}
               </td>
               <td className="num">{company.members}</td>

@@ -1,6 +1,7 @@
 import { recordFailure } from '@tesserafy/ai';
 import { NextResponse, type NextRequest } from 'next/server';
 import { findInsights, NoSingleCompany } from '@/lib/find-insights';
+import { planExhausted, refund, spend } from '@/lib/plan';
 import { allowance, tooMany } from '@/lib/rate-limit';
 import { caller } from '@/lib/supabase/caller';
 
@@ -32,9 +33,13 @@ export async function POST(request: NextRequest) {
     null;
   if (!accessToken) return NextResponse.json({ error: 'not signed in' }, { status: 401 });
 
+  const spent = await spend(who.db, 'pattern_runs');
+  if (!spent.allowed) return planExhausted(spent);
+
   try {
     return NextResponse.json(await findInsights(who.db, who.userId, accessToken));
   } catch (error) {
+    await refund(who.db, spent);
     if (error instanceof NoSingleCompany) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }

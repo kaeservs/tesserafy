@@ -1,0 +1,58 @@
+# The Windows installer for the overlay.
+#
+# Only what the installed app runs is packaged: the compiled main and preload,
+# and the renderer, which esbuild has already bundled with @tesserafy/scoring.
+# The app has no runtime dependencies to install — which is why scoring sits
+# in devDependencies, and why packaging does not have to untangle pnpm's
+# workspace links.
+#
+# Unsigned. Windows SmartScreen will say "unknown publisher" until a code
+# signing certificate is bought and configured here (win.azureSignOptions or
+# a certificate file); nothing else about the installer depends on it.
+appId: com.tesserafy.overlay
+productName: Tesserafy
+copyright: Tesserafy
+directories:
+  output: release
+files:
+  - dist/**
+  - package.json
+asar: true
+
+# Electron's defaults are for development. A shipped overlay holds a signed-in
+# session and runs on customers' machines, so the switches that let anything
+# else drive it are turned off: running the exe as plain Node, NODE_OPTIONS,
+# and the inspector flags (any of which would let another program on the
+# machine run code as this app, with its session). The packaged code is
+# checked against its hash at start, and nothing outside the package loads.
+#
+# One is left on, deliberately: extra privileges for file://. The overlay's
+# page is a module script loaded from disk, and Chromium blocks module scripts
+# from file:// without them. It widens only what our own page may do.
+#
+# The inspector switch is also what automated tests attach through, so the
+# shipped build cannot be driven by Playwright — which is how the check that
+# this is on works (see the PR that added it).
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  enableCookieEncryption: true
+  grantFileProtocolExtraPrivileges: true
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  artifactName: Tesserafy-Setup-${version}.${ext}
+nsis:
+  # A normal per-user install: no administrator prompt, choosable folder,
+  # Start-menu entry, and an uninstaller that removes the saved sign-in too.
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Tesserafy
+  deleteAppDataOnUninstall: true

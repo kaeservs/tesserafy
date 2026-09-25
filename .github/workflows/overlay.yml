@@ -1,0 +1,94 @@
+# The overlay's Windows installer, built where every build happens the same way.
+#
+# Pushing a tag `overlay-vX.Y.Z` builds Tesserafy-Setup-X.Y.Z.exe on Windows and
+# publishes it as a GitHub Release, whose download link is what a pilot is
+# sent. On a pull request that touches the overlay, or run by hand, it builds
+# the same installer and keeps it as a run artifact without publishing.
+#
+# Two checks fail the build rather than ship something wrong:
+#   - the tag must match apps/desktop/package.json's version, or the file
+#     name and the app's own idea of its version disagree;
+#   - the Electron fuses must read hardened. A config change that silently
+#     dropped them would ship an exe any local program can run as Node.
+#
+# Unsigned: SmartScreen shows "unknown publisher" until a signing certificate
+# is configured in apps/desktop/electron-builder.yml. The release notes say so.
+
+name: Overlay installer
+
+on:
+  push:
+    tags: ['overlay-v*']
+  # Any change to the overlay or to this file builds the installer too, so a
+  # packaging break is found in review rather than on release day. Nothing is
+  # published from a pull request.
+  pull_request:
+    paths:
+      - 'apps/desktop/**'
+      - 'packages/scoring/**'
+      - '.github/workflows/overlay.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: Build the Windows installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: The tag matches the app's version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          version=$(node -p "require('./apps/desktop/package.json').version")
+          tag="${GITHUB_REF_NAME#overlay-v}"
+          if [ "$version" != "$tag" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} but apps/desktop/package.json says ${version}"
+            exit 1
+          fi
+
+      - name: Build
+        run: pnpm --filter @tesserafy/desktop dist:win
+
+      - name: The fuses are hardened
+        shell: bash
+        working-directory: ${{ runner.temp }}
+        run: |
+          fuses=$(npx --yes @electron/fuses read --app "$GITHUB_WORKSPACE/apps/desktop/release/win-unpacked/Tesserafy.exe")
+          echo "$fuses"
+          for expected in "RunAsNode is Disabled" \
+                          "EnableNodeOptionsEnvironmentVariable is Disabled" \
+                          "EnableNodeCliInspectArguments is Disabled" \
+                          "EnableEmbeddedAsarIntegrityValidation is Enabled" \
+                          "OnlyLoadAppFromAsar is Enabled"; do
+            echo "$fuses" | grep -q "$expected" || { echo "::error::expected '$expected'"; exit 1; }
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: overlay-installer
+          path: apps/desktop/release/Tesserafy-Setup-*.exe
+          if-no-files-found: error
+
+      - name: Publish the release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" apps/desktop/release/Tesserafy-Setup-*.exe \
+            --title "Tesserafy overlay ${GITHUB_REF_NAME#overlay-v}" \
+            --notes "Windows installer for the Tesserafy live scorecard overlay. Sign in with your usual Tesserafy username or email and password.
+
+          The installer is not yet code-signed, so Windows SmartScreen will say it is from an unknown publisher: choose More info, then Run anyway.
+
+          Not for customer calls until the screen-share check (S1 in docs/engineering/qa-checklist.md) has passed in Zoom, Meet and Teams."

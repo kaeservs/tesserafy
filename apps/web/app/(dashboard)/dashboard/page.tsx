@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { GettingStarted } from '@/components/getting-started';
 import { ScorecardStrip } from '@/components/scorecard-strip';
 import { coverageBySet as coverageForSets } from '@/lib/coverage';
 import { scoreConversations } from '@/lib/scorecard';
@@ -90,9 +91,16 @@ export default async function DashboardPage() {
     <main className="wide">
       <h1>Dashboard</h1>
       <p className="muted">
-        Every conversation this account can see, scored against the criteria it was pinned to.
-        Scores are computed from quoted evidence each time this page loads — none of them is stored.
+        Every meeting your company has imported, scored against its criteria. Each score is worked
+        out from the quoted evidence behind it, every time this page loads.
       </p>
+
+      {/* The first page after a pilot's first sign-in; say what fills it. */}
+      {conversations.length === 0 ? (
+        <div style={{ marginTop: '1.5rem' }}>
+          <GettingStarted />
+        </div>
+      ) : null}
 
       <div className="grid" style={{ marginTop: '1.5rem' }}>
         <div className="card">
@@ -176,8 +184,8 @@ export default async function DashboardPage() {
           <div className="card">
             {coverageBySet.length === 0 ? (
               <p className="muted">
-                Nothing scored yet. Run <code>pnpm score --company &lt;uuid&gt;</code> to score
-                imported conversations against their criteria.
+                Nothing scored yet. Each call is scored on its own a couple of minutes after it
+                is imported.
               </p>
             ) : (
               coverageBySet.map((set) => (

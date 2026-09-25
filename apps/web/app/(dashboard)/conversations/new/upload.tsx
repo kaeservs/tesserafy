@@ -63,7 +63,7 @@ export function Upload({ sets }: { sets: { engagementType: string; version: numb
           disabled={busy}
         />
         <span className="muted" style={{ fontSize: '0.8rem' }}>
-          WebVTT, or JSON turns. Parsed by the same code the importer uses.
+          WebVTT (.vtt) is what Zoom, Meet and Teams export as a transcript.
         </span>
       </div>
 

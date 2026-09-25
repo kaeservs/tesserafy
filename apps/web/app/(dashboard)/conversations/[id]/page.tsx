@@ -274,8 +274,8 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
         <h2 id="scorecard-heading">Scorecard</h2>
         {!observed ? (
           <p className="muted">
-            Not scored yet — which is not the same as scoring zero. Run{' '}
-            <code>pnpm score --conversation {id}</code> to detect criteria over this transcript.
+            Not scored yet — which is not the same as scoring zero. The card above says where
+            it has got to.
           </p>
         ) : (
           <>

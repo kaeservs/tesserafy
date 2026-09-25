@@ -88,6 +88,7 @@ async function main(): Promise<void> {
     ['/login', 200],
     ['/conversations', 307],
     ['/insights', 307],
+    ['/settings', 307],
   ];
   for (const [path, expected] of pages) {
     const response = await fetch(new URL(path, baseUrl), { redirect: 'manual' });
@@ -240,6 +241,9 @@ async function main(): Promise<void> {
 
   console.info('\nFailures have somewhere to go');
   await checkFailureRecording(supabaseUrl, serviceKey);
+
+  console.info('\nRetention');
+  await checkRetention(supabaseUrl, token);
 
   console.info('\nData invariants');
   const db = createServiceClient({ url: supabaseUrl, key: serviceKey });
@@ -791,6 +795,55 @@ async function checkFailureRecording(supabaseUrl: string, serviceKey: string): P
   }
 }
 
+/**
+ * Retention, without changing it.
+ *
+ * Setting a period in production would schedule real deletions, so nothing
+ * here saves one. It asks the question an owner's review step asks, and makes
+ * one call the database must refuse — a period shorter than a week — which
+ * proves the deployed range check without touching the row.
+ */
+async function checkRetention(supabaseUrl: string, token: string | null): Promise<void> {
+  const publishableKey = process.env['SUPABASE_PUBLISHABLE_KEY'] ?? null;
+  if (!token || !publishableKey) {
+    record('retention', true, 'skipped — needs SUPABASE_PUBLISHABLE_KEY and a session');
+    return;
+  }
+
+  const rpc = (name: string, bearer: string, body: unknown) =>
+    fetch(new URL(`/rest/v1/rpc/${name}`, supabaseUrl), {
+      method: 'POST',
+      headers: {
+        apikey: publishableKey,
+        authorization: `Bearer ${bearer}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+  const preview = await rpc('retention_preview', token, { p_days: 30 });
+  const affected = preview.ok ? await preview.json() : null;
+  record(
+    'a member can preview what a period would delete',
+    typeof affected === 'number',
+    typeof affected === 'number' ? `${affected} calls older than 30 days` : `${preview.status}`,
+  );
+
+  const tooShort = await rpc('set_retention', token, { p_days: 3 });
+  const tooShortBody = (await tooShort.json()) as { code?: string };
+  record(
+    'a period under a week is refused',
+    tooShortBody.code === '22023',
+    tooShortBody.code ?? `${tooShort.status}`,
+  );
+
+  const anonymous = await rpc('retention_preview', publishableKey, { p_days: 30 });
+  record(
+    'and nobody signed out can ask',
+    !anonymous.ok,
+    `${anonymous.status}`,
+  );
+}
 
 main().catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : error);

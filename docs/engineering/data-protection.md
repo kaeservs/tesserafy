@@ -213,9 +213,29 @@ and is a position, not an absence of one.
     pnpm erase --purge
 
 What expires is the meeting, not the import: `occurred_at` decides, so a call
-from two years ago imported yesterday is two years old. The purge is
-operator-only and runs nothing on a schedule yet — wiring it to `pg_cron` or
-to CI is the obvious next step and deliberately not done silently.
+from two years ago imported yesterday is two years old.
+
+An owner sets the period in the product, under Settings, from a short list
+(30 days to two years); the database accepts a week to ten years and refuses
+anyone who is not an owner, because a retention period is deletion on a
+schedule and only an owner may delete. Before it is saved the owner is shown
+how many calls the next run would remove — `retention_preview` counts exactly
+as the purge counts — and has to type "delete" when that number is not zero.
+Going back to keeping everything needs no confirmation.
+
+The purge runs nightly at 03:15 UTC as a `pg_cron` job inside the database
+(`purge-expired-conversations`). No key leaves Supabase for it and nothing in
+CI holds a secret to trigger it. `purge_expired_conversations` is unchanged:
+it refuses any signed-in caller, and a cron job has none. Each call it removes
+goes through `erase_conversation` with the reason `retention`, so the erasure
+record says why. A company with no period set is never touched, which is
+every company until an owner chooses otherwise.
+
+To see what the job has done:
+
+    select * from cron.job_run_details
+     where jobid = (select jobid from cron.job where jobname = 'purge-expired-conversations')
+     order by start_time desc limit 10;
 
 ## Still open
 

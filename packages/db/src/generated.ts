@@ -100,6 +100,9 @@ export type Database = {
       }
       companies: {
         Row: {
+          closed_at: string | null
+          closed_by: string | null
+          closed_reason: string | null
           created_at: string
           id: string
           name: string
@@ -107,6 +110,9 @@ export type Database = {
           retention_days: number | null
         }
         Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          closed_reason?: string | null
           created_at?: string
           id?: string
           name: string
@@ -114,6 +120,9 @@ export type Database = {
           retention_days?: number | null
         }
         Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          closed_reason?: string | null
           created_at?: string
           id?: string
           name?: string
@@ -914,6 +923,7 @@ export type Database = {
       admin_companies: {
         Args: never
         Returns: {
+          closed_at: string
           company_id: string
           conversations: number
           failures_24h: number
@@ -949,6 +959,10 @@ export type Database = {
           p_text: string
         }
         Returns: string
+      }
+      close_company: {
+        Args: { p_company_id: string; p_confirm_name: string; p_reason: string }
+        Returns: Json
       }
       company_team: {
         Args: never

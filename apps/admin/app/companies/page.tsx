@@ -1,4 +1,7 @@
+import Link from 'next/link';
 import { requireAdmin } from '@/lib/admin';
+import { listCompanies } from '@/lib/companies';
+import { utc } from '@/lib/time';
 import { Chrome } from '../chrome';
 
 /**
@@ -23,8 +26,7 @@ function ago(iso: string | null): string {
 
 export default async function Companies() {
   const admin = await requireAdmin();
-  const { data, error } = await admin.db.rpc('admin_companies');
-  const companies = data ?? [];
+  const { companies, error } = await listCompanies(admin.db);
 
   return (
     <Chrome email={admin.email}>
@@ -34,7 +36,7 @@ export default async function Companies() {
         billed. Plan is a hand-set label — there is no billing system behind it.
       </p>
 
-      {error ? <p className="tag open">{error.message}</p> : null}
+      {error ? <p className="tag open">{error}</p> : null}
 
       <table>
         <thead>
@@ -48,29 +50,43 @@ export default async function Companies() {
             <th className="num">Failures 24h</th>
             <th className="num">Spend 30d</th>
             <th className="num">Retention</th>
+            <th />
           </tr>
         </thead>
         <tbody>
           {companies.map((company) => (
-            <tr key={company.company_id}>
+            <tr key={company.companyId} className={company.closedAt ? 'muted' : undefined}>
               <td>{company.name}</td>
               <td>
-                <span className="tag">{company.plan}</span>
+                {company.closedAt ? (
+                  <span className="tag" title={utc(company.closedAt)}>
+                    closed
+                  </span>
+                ) : (
+                  <span className="tag">{company.plan}</span>
+                )}
               </td>
               <td className="num">{company.members}</td>
               <td className="num">{company.conversations}</td>
               <td className="num">{company.segments}</td>
-              <td className="muted">{ago(company.last_activity)}</td>
+              <td className="muted">{ago(company.lastActivity)}</td>
               <td className="num">
-                {company.failures_24h > 0 ? (
-                  <span className="tag open">{company.failures_24h}</span>
+                {company.failures24h > 0 ? (
+                  <span className="tag open">{company.failures24h}</span>
                 ) : (
                   <span className="muted">0</span>
                 )}
               </td>
-              <td className="num">${Number(company.spend_30d_usd).toFixed(2)}</td>
+              <td className="num">${company.spend30dUsd.toFixed(2)}</td>
               <td className="num muted">
-                {company.retention_days ? `${company.retention_days}d` : 'unset'}
+                {company.retentionDays ? `${company.retentionDays}d` : 'unset'}
+              </td>
+              <td>
+                {company.closedAt ? null : (
+                  <Link className="link" href={`/companies/${company.companyId}/close`}>
+                    Close…
+                  </Link>
+                )}
               </td>
             </tr>
           ))}

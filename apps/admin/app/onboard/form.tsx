@@ -17,6 +17,14 @@ const START: ProvisionState = { status: 'idle' };
 export function ProvisionForm({ companies }: { companies: { id: string; name: string }[] }) {
   const [state, action, pending] = useActionState(provisionAccount, START);
   const [target, setTarget] = useState('new');
+  // Held here so a refused attempt keeps what was typed: React resets a
+  // form's uncontrolled fields after every action.
+  const [email, setEmail] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  // The selects too: reset to their defaults, a retried "paid" would quietly
+  // go through as "pilot".
+  const [plan, setPlan] = useState('pilot');
+  const [role, setRole] = useState('member');
 
   if (state.status === 'ready') {
     return (
@@ -56,7 +64,15 @@ export function ProvisionForm({ companies }: { companies: { id: string; name: st
       <div className="row">
         <div>
           <label htmlFor="email">Email</label>
-          <input id="email" name="email" type="email" required autoComplete="off" />
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            autoComplete="off"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
         </div>
         <div>
           <label htmlFor="target">Company</label>
@@ -80,11 +96,23 @@ export function ProvisionForm({ companies }: { companies: { id: string; name: st
         <div className="row" style={{ marginTop: '0.6rem' }}>
           <div>
             <label htmlFor="companyName">Company name</label>
-            <input id="companyName" name="companyName" required autoComplete="off" />
+            <input
+              id="companyName"
+              name="companyName"
+              required
+              autoComplete="off"
+              value={companyName}
+              onChange={(event) => setCompanyName(event.target.value)}
+            />
           </div>
           <div className="narrow">
             <label htmlFor="plan">Plan (label)</label>
-            <select id="plan" name="plan" defaultValue="pilot">
+            <select
+              id="plan"
+              name="plan"
+              value={plan}
+              onChange={(event) => setPlan(event.target.value)}
+            >
               <option value="pilot">pilot</option>
               <option value="trial">trial</option>
               <option value="paid">paid</option>
@@ -101,7 +129,12 @@ export function ProvisionForm({ companies }: { companies: { id: string; name: st
         <div className="row" style={{ marginTop: '0.6rem' }}>
           <div className="narrow">
             <label htmlFor="role">Role</label>
-            <select id="role" name="role" defaultValue="member">
+            <select
+              id="role"
+              name="role"
+              value={role}
+              onChange={(event) => setRole(event.target.value)}
+            >
               <option value="member">member</option>
               <option value="owner">owner</option>
             </select>

@@ -1,4 +1,5 @@
 import { requireAdmin } from '@/lib/admin';
+import { listCompanies } from '@/lib/companies';
 import { utc } from '@/lib/time';
 import { Chrome } from '../chrome';
 import { ProvisionForm } from './form';
@@ -14,10 +15,10 @@ export const dynamic = 'force-dynamic';
 
 export default async function Onboard() {
   const admin = await requireAdmin();
-  const [{ data: companies }, { data: log, error }] = await Promise.all([
+  const [{ companies }, { data: log, error }] = await Promise.all([
     // Through admin_companies, not the table: an operator is not a member of
     // the companies they look after, so RLS would show them none.
-    admin.db.rpc('admin_companies'),
+    listCompanies(admin.db),
     admin.db
       .from('account_provisioning')
       .select('id, email, role, company_name, company_id, created_at, completed_at, new_account')
@@ -25,7 +26,7 @@ export default async function Onboard() {
       .limit(25),
   ]);
 
-  const names = new Map((companies ?? []).map((c) => [c.company_id, c.name]));
+  const names = new Map(companies.map((c) => [c.companyId, c.name]));
 
   return (
     <Chrome email={admin.email}>
@@ -37,8 +38,10 @@ export default async function Onboard() {
       </p>
 
       <ProvisionForm
-        companies={(companies ?? [])
-          .map((c) => ({ id: c.company_id, name: c.name }))
+        // A closed company cannot take anyone; the database would refuse.
+        companies={companies
+          .filter((c) => !c.closedAt)
+          .map((c) => ({ id: c.companyId, name: c.name }))
           .sort((a, b) => a.name.localeCompare(b.name))}
       />
 

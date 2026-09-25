@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { GettingStarted } from '@/components/getting-started';
 import { ScorecardStrip } from '@/components/scorecard-strip';
 import { conversationPipeline, stageOf } from '@/lib/pipeline';
 import { scoreConversations, type ScorableConversation } from '@/lib/scorecard';
@@ -87,11 +88,8 @@ export default async function ConversationsPage({
       </p>
 
       {conversations.length === 0 ? (
-        <div className="meetings" style={{ marginTop: '1.5rem' }}>
-          <p className="empty">
-            Nothing here yet. If you expected conversations, your account may not be attached to a
-            company.
-          </p>
+        <div style={{ marginTop: '1.5rem' }}>
+          <GettingStarted />
         </div>
       ) : (
         <ul className="meetings" style={{ marginTop: '1.5rem' }}>

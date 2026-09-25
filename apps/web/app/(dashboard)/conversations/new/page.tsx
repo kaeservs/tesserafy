@@ -28,9 +28,8 @@ export default async function NewConversationPage() {
       </p>
       <h1>Import a transcript</h1>
       <p className="muted">
-        A WebVTT file from Zoom, Meet or Teams, or turns as JSON. It is parsed and stored here;
-        extracting signals from it is a second step, because that runs a model an operator pays
-        for and a local one a browser cannot reach.
+        A WebVTT file from Zoom, Meet or Teams, or turns as JSON. Email addresses and phone numbers
+        in it are masked before anything is stored.
       </p>
 
       <Upload sets={sets} />
@@ -38,19 +37,17 @@ export default async function NewConversationPage() {
       <section aria-labelledby="after-heading">
         <h2 id="after-heading">What happens next</h2>
         <ol className="muted">
-          <li>The transcript is stored and the conversation appears under Meetings as captured.</li>
+          <li>You are taken straight to the call. It is under Meetings from then on.</li>
           <li>
-            <code>pnpm score --conversation &lt;id&gt;</code> detects criteria and gives it a
-            scorecard.
+            It is scored against your criteria and indexed for search on its own, usually within
+            a couple of minutes. The page refreshes itself while it waits.
           </li>
           <li>
-            <code>pnpm process --conversation &lt;id&gt;</code> embeds it and extracts signals, so
-            it can join an insight.
+            When you want the problems the customer raised and what they asked for, press{' '}
+            <strong>Find insights in this call</strong>. It runs a larger model, so it runs when
+            you ask rather than on every upload.
           </li>
         </ol>
-        <p className="muted">
-          The conversation page prints whichever of those it is waiting for.
-        </p>
       </section>
     </main>
   );

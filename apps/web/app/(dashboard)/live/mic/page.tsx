@@ -40,14 +40,15 @@ export default async function LiveMicPage({
     sets[0];
 
   if (!chosen) {
-    // Nothing can be scored at all. Say which command fixes it rather than
-    // rendering an empty scorecard that looks like a bug.
+    // Nothing can be scored at all. Say who fixes it — criteria are published
+    // by an operator (`pnpm criteria --add`), never from a browser — rather
+    // than rendering an empty scorecard that looks like a bug.
     return (
       <main>
         <h1>Live scorecard, from the microphone</h1>
         <p role="alert">
-          There are no criteria sets, so nothing can be scored. Add one with{' '}
-          <code>pnpm criteria --add &lt;file.json&gt;</code>.
+          Your company has no criteria set up yet, so nothing can be scored. Ask Tesserafy support
+          to set one up for you.
         </p>
       </main>
     );

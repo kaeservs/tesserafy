@@ -42,6 +42,7 @@ export async function closeCompany(_prev: CloseState, formData: FormData): Promi
   revalidatePath('/companies');
   revalidatePath('/onboard');
   revalidatePath('/');
+  revalidatePath('/people');
   return {
     status: 'closed',
     callsErased: result.calls_erased,

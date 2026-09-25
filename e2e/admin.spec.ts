@@ -21,7 +21,7 @@ test.describe('the console refuses everybody else', () => {
   test.skip(!ADMIN, 'set ADMIN_BASE_URL to run these');
 
   test('sends an anonymous visitor to the door', async ({ page }) => {
-    for (const path of ['/', '/companies', '/history', '/onboard', '/companies/00000000-0000-4000-8000-000000000000/close']) {
+    for (const path of ['/', '/people', '/companies', '/history', '/onboard', '/companies/00000000-0000-4000-8000-000000000000', '/companies/00000000-0000-4000-8000-000000000000/close']) {
       const response = await page.goto(`${ADMIN}${path}`);
       expect(response?.status(), `${path} should not be served`).toBeLessThan(400);
       expect(new URL(page.url()).pathname, `${path} should redirect`).toBe('/login');

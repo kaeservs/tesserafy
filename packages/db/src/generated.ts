@@ -1304,6 +1304,8 @@ export type Database = {
           spend_30d_usd: number
         }[]
       }
+      admin_company_detail: { Args: { p_company_id: string }; Returns: Json }
+      admin_overview: { Args: never; Returns: Json }
       admin_set_plan: {
         Args: { p_company_id: string; p_plan: string }
         Returns: undefined

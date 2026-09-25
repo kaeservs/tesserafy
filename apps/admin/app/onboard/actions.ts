@@ -77,6 +77,7 @@ async function provision(admin: Admin, target: Target): Promise<ProvisionState> 
   revalidatePath('/onboard');
   revalidatePath('/companies');
   revalidatePath('/');
+  revalidatePath('/people');
   return {
     status: 'ready',
     recordId: record.id,

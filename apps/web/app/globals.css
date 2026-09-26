@@ -169,6 +169,38 @@ table.team td.when {
   white-space: nowrap;
 }
 
+/* The weekly score line on Reports. */
+.trend {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.trend-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.trend-axis,
+.trend-count {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+.trend-count {
+  font-size: 10px;
+}
+
+.trend-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.trend-point {
+  fill: var(--accent);
+}
+
 /* Basic and Pro side by side where there is room. */
 .plan-choices {
   margin-top: 1rem;

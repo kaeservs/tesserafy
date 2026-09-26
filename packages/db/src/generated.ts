@@ -328,6 +328,7 @@ export type Database = {
       }
       conversations: {
         Row: {
+          added_by: string | null
           company_id: string
           consent_confirmed_at: string | null
           consent_confirmed_by: string | null
@@ -341,6 +342,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          added_by?: string | null
           company_id: string
           consent_confirmed_at?: string | null
           consent_confirmed_by?: string | null
@@ -354,6 +356,7 @@ export type Database = {
           title: string
         }
         Update: {
+          added_by?: string | null
           company_id?: string
           consent_confirmed_at?: string | null
           consent_confirmed_by?: string | null

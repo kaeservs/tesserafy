@@ -188,6 +188,13 @@ void app.whenReady().then(async () => {
     return { email: null };
   });
 
+  // The overlay's own way out. On macOS a window kept above full-screen
+  // meetings makes the app a background agent — no Dock icon, no menu bar —
+  // so without this there is nothing to quit it from but Activity Monitor.
+  ipcMain.handle('overlay:quit', () => {
+    app.quit();
+  });
+
   ipcMain.handle('overlay:set-protection', (_event, enabled: boolean) => {
     overlay?.setContentProtection(Boolean(enabled));
     return Boolean(enabled);

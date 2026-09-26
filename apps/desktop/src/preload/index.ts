@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('overlay', {
   setAppearance: (change: AppearanceChange): Promise<Appearance> =>
     ipcRenderer.invoke('overlay:set-appearance', change),
   resetAppearance: (): Promise<Appearance> => ipcRenderer.invoke('overlay:reset-appearance'),
+  quit: (): Promise<void> => ipcRenderer.invoke('overlay:quit'),
   setProtection: (enabled: boolean): Promise<boolean> =>
     ipcRenderer.invoke('overlay:set-protection', enabled),
   setClickThrough: (enabled: boolean): Promise<boolean> =>

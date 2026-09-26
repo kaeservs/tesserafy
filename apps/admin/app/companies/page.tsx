@@ -3,7 +3,6 @@ import { requireAdmin } from '@/lib/admin';
 import { listCompanies } from '@/lib/companies';
 import { utc } from '@/lib/time';
 import { Chrome } from '../chrome';
-import { SetPlan } from './set-plan';
 import { SignupSwitch } from './signup-switch';
 
 /**
@@ -27,20 +26,45 @@ function ago(iso: string | null): string {
   return days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days}d ago`;
 }
 
-export default async function Companies() {
+/** Where a company's plan stands, in a few words. */
+function standing(sub: Subscription | undefined): string {
+  if (!sub) return '';
+  const end = sub.period_end && sub.period_end !== 'infinity' ? utc(sub.period_end).slice(0, 10) : '';
+  if (sub.status === 'trialing') return `ends ${end}`;
+  if (sub.status === 'canceled') return '';
+  if (sub.cancel_at_period_end) return `cancels ${end}`;
+  if (sub.scheduled_plan) return `→ ${sub.scheduled_plan} ${end}`;
+  return '';
+}
+
+interface Subscription {
+  company_id: string;
+  status: string;
+  period_end: string;
+  cancel_at_period_end: boolean;
+  scheduled_plan: string | null;
+}
+
+export default async function Companies({ searchParams }: { searchParams: Promise<{ closed?: string }> }) {
+  const { closed } = await searchParams;
   const admin = await requireAdmin();
-  const [{ companies, error }, { data: settings }] = await Promise.all([
+  const [{ companies: all, error }, { data: settings }, { data: subscriptions }] = await Promise.all([
     listCompanies(admin.db),
     admin.db.from('app_settings').select('signup_open, updated_at').maybeSingle(),
+    admin.db.from('subscriptions').select('company_id, status, period_end, cancel_at_period_end, scheduled_plan'),
   ]);
+  const subs = new Map<string, Subscription>((subscriptions ?? []).map((s) => [s.company_id, s]));
+  // Closed companies are the record of what was erased, not work to do;
+  // listed only when asked for.
+  const closedCount = all.filter((c) => c.closedAt).length;
+  const companies = closed === '1' ? all : all.filter((c) => !c.closedAt);
 
   return (
     <Chrome email={admin.email}>
       <h1>Companies</h1>
       <p className="lede">
-        One row per tenant. Spend is estimated from recorded token usage at published rates, not
-        billed. Plan sets the monthly AI allowance and changes now when set here; nothing is
-        charged for it until payments exist.
+        One row per tenant; open one to change its plan or close it. Spend is estimated from
+        recorded token usage at published rates, not billed — payments do not exist yet.
       </p>
 
       <SignupSwitch
@@ -49,6 +73,18 @@ export default async function Companies() {
       />
 
       {error ? <p className="tag open">{error}</p> : null}
+
+      <p className="muted">
+        {closed === '1' ? (
+          <a className="link" href="/companies">
+            Hide the {closedCount} closed
+          </a>
+        ) : (
+          <a className="link" href="/companies?closed=1">
+            Show the {closedCount} closed
+          </a>
+        )}
+      </p>
 
       <table>
         <thead>
@@ -62,20 +98,26 @@ export default async function Companies() {
             <th className="num">Failures 24h</th>
             <th className="num">Spend 30d</th>
             <th className="num">Retention</th>
-            <th />
           </tr>
         </thead>
         <tbody>
           {companies.map((company) => (
             <tr key={company.companyId} className={company.closedAt ? 'muted' : undefined}>
-              <td>{company.name}</td>
+              <td>
+                <Link className="link" href={`/companies/${company.companyId}`}>
+                  {company.name}
+                </Link>
+              </td>
               <td>
                 {company.closedAt ? (
                   <span className="tag" title={utc(company.closedAt)}>
                     closed
                   </span>
                 ) : (
-                  <SetPlan companyId={company.companyId} current={company.plan} />
+                  <>
+                    <span className="tag">{company.plan}</span>{' '}
+                    <span className="muted">{standing(subs.get(company.companyId))}</span>
+                  </>
                 )}
               </td>
               <td className="num">{company.members}</td>
@@ -92,13 +134,6 @@ export default async function Companies() {
               <td className="num">${company.spend30dUsd.toFixed(2)}</td>
               <td className="num muted">
                 {company.retentionDays ? `${company.retentionDays}d` : 'unset'}
-              </td>
-              <td>
-                {company.closedAt ? null : (
-                  <Link className="link" href={`/companies/${company.companyId}/close`}>
-                    Close…
-                  </Link>
-                )}
               </td>
             </tr>
           ))}

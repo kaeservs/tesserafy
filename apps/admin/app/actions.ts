@@ -66,6 +66,7 @@ export async function openSession(_prev: SessionState, formData: FormData): Prom
   }
 
   revalidatePath('/');
+  revalidatePath('/people');
   return {
     status: 'ready',
     link: minted.link,
@@ -80,6 +81,7 @@ export async function endSession(formData: FormData): Promise<void> {
   await admin.db.rpc('end_support_access', { p_id: text(formData, 'id') });
   revalidatePath('/history');
   revalidatePath('/');
+  revalidatePath('/people');
 }
 
 /**

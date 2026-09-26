@@ -35,8 +35,9 @@ export function Chrome({ email, children }: { email: string; children: ReactNode
         <span>{email}</span>
       </div>
       <nav>
-        <Link href="/">People</Link>
+        <Link href="/">Overview</Link>
         <Link href="/companies">Companies</Link>
+        <Link href="/people">People</Link>
         <Link href="/onboard">
           Add people <RequestCount />
         </Link>

@@ -17,13 +17,50 @@
        */
       :root { color-scheme: dark; font: 13px/1.5 system-ui, sans-serif; }
 
-      body {
-        margin: 0;
+      /*
+       * The seller's choice of look (Appearance, in the footer), as variables.
+       * Themes change the panel and its text; the state colours change only
+       * as far as each theme needs for contrast, and keep their meaning.
+       * --alpha fades the background and nothing else: text stays solid.
+       */
+      :root, :root[data-theme="dark"] {
+        --bg: 12, 10, 9; --line: 120, 113, 108; --field: rgba(28, 25, 23, 0.9);
+        --text: #f5f5f4; --text-2: #e7e5e4; --button-text: #d6d3d1;
+        --dim: #a8a29e; --muted: #78716c; --faint: #57534e;
+        --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+        --accent-rgb: var(--accent-hi);
+        --alpha: 0.88;
+      }
+      :root[data-theme="midnight"] {
+        --bg: 15, 23, 42; --line: 100, 116, 139; --field: rgba(30, 41, 59, 0.9);
+        --text: #f1f5f9; --text-2: #e2e8f0; --button-text: #cbd5e1;
+        --dim: #94a3b8; --muted: #8391a7; --faint: #64748b;
+      }
+      :root[data-theme="light"] {
+        color-scheme: light;
+        --bg: 250, 250, 249; --line: 120, 113, 108; --field: rgba(255, 255, 255, 0.95);
+        --text: #1c1917; --text-2: #292524; --button-text: #44403c;
+        --dim: #57534e; --muted: #6b645f; --faint: #a8a29e;
+        --ok: #15803d; --warn: #b45309; --bad: #b91c1c;
+        --accent-rgb: var(--accent-lo);
+      }
+      /* Each accent in a light tint for dark themes and a deep one for light.
+         None is green, amber or red: those are taken. */
+      :root, :root[data-accent="indigo"] { --accent-hi: 165, 180, 252; --accent-lo: 67, 56, 202; }
+      :root[data-accent="sky"] { --accent-hi: 125, 211, 252; --accent-lo: 3, 105, 161; }
+      :root[data-accent="violet"] { --accent-hi: 196, 181, 253; --accent-lo: 109, 40, 217; }
+      :root[data-accent="stone"] { --accent-hi: 214, 211, 209; --accent-lo: 68, 64, 60; }
+
+      /* The card is its own element, not the body: a body background spreads
+         to the whole window, which painted a tinted rectangle over the
+         meeting below a card that ends well short of the window's bottom. */
+      html, body { margin: 0; background: transparent; }
+      .card {
         padding: 12px 14px;
-        color: #f5f5f4;
-        background: rgba(12, 10, 9, 0.88);
+        color: var(--text);
+        background: rgba(var(--bg), var(--alpha));
         backdrop-filter: blur(8px);
-        border: 1px solid rgba(120, 113, 108, 0.35);
+        border: 1px solid rgba(var(--line), 0.35);
         border-radius: 12px;
         -webkit-app-region: drag;
         user-select: none;
@@ -31,40 +68,44 @@
 
       header { display: flex; justify-content: space-between; align-items: baseline; }
       h1 { font-size: 11px; margin: 0; font-weight: 600; letter-spacing: 0.08em;
-           text-transform: uppercase; color: #a8a29e; }
-      .score { font-size: 28px; font-weight: 700; line-height: 1; }
-      .score span { font-size: 11px; font-weight: 400; color: #78716c; }
+           text-transform: uppercase; color: var(--dim); }
+      .score { font-size: 28px; font-weight: 700; line-height: 1; color: rgb(var(--accent-rgb)); }
+      .score span { font-size: 11px; font-weight: 400; color: var(--muted); }
+      .score #scoreValue { font-size: inherit; font-weight: inherit; color: inherit; }
 
       ul { list-style: none; margin: 10px 0 0; padding: 0; }
       li { display: flex; justify-content: space-between; align-items: baseline;
            gap: 10px; padding: 5px 0; }
-      li + li { border-top: 1px solid rgba(120, 113, 108, 0.18); }
-      .label { color: #e7e5e4; }
+      li + li { border-top: 1px solid rgba(var(--line), 0.18); }
+      .label { color: var(--text-2); }
 
       /* State is never colour alone: peripheral vision reads shape and weight
          long before it reads hue. */
-      .state { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: #78716c; }
+      .state { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
       .state::before { margin-right: 5px; }
-      .state.confirmed { color: #4ade80; font-weight: 700; }
+      .state.confirmed { color: var(--ok); font-weight: 700; }
       .state.confirmed::before { content: "●"; }
-      .state.candidate { color: #fbbf24; }
+      .state.candidate { color: var(--warn); }
       .state.candidate::before { content: "◐"; }
-      .state.contradicted { color: #f87171; font-weight: 700; }
+      .state.contradicted { color: var(--bad); font-weight: 700; }
       .state.contradicted::before { content: "✕"; }
       .state.unobserved::before { content: "○"; }
 
       footer { margin-top: 12px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-      button { -webkit-app-region: no-drag; font: inherit; font-size: 11px; color: #d6d3d1;
-               background: transparent; border: 1px solid rgba(120, 113, 108, 0.35);
+      button, input { -webkit-app-region: no-drag; }
+      button { font: inherit; font-size: 11px; color: var(--button-text);
+               background: transparent; border: 1px solid rgba(var(--line), 0.35);
                border-radius: 6px; padding: 3px 7px; cursor: pointer; }
-      button:hover { border-color: #a8a29e; }
+      button:hover { border-color: var(--dim); }
       button:disabled { opacity: 0.45; cursor: default; }
+      button[aria-pressed="true"] { color: var(--text); border-color: rgb(var(--accent-rgb));
+                                    background: rgba(var(--accent-rgb), 0.14); }
       .consent { -webkit-app-region: no-drag; display: flex; gap: 6px; align-items: flex-start;
-                 margin-top: 12px; font-size: 10px; color: #a8a29e; cursor: pointer; }
+                 margin-top: 12px; font-size: 10px; color: var(--dim); cursor: pointer; }
       .consent input { margin: 1px 0 0; }
-      .muted { color: #78716c; font-size: 10px; }
+      .muted { color: var(--muted); font-size: 10px; }
       /* How close a criterion is, in the smallest thing that can say it. */
-      .hint { color: #57534e; font-size: 9px; margin-right: 6px;
+      .hint { color: var(--faint); font-size: 9px; margin-right: 6px;
               font-variant-numeric: tabular-nums; }
       /* Pushed to its own end of the footer so it reads as a separate fact
          from the score, which is what it is. */
@@ -78,8 +119,8 @@
       .banner[hidden] { display: none; }
 
       .suggestion { margin-top: 10px; padding: 8px 10px; border-radius: 8px;
-                    border: 1px solid rgba(165, 180, 252, 0.5);
-                    background: rgba(67, 56, 202, 0.18); }
+                    border: 1px solid rgba(var(--accent-rgb), 0.5);
+                    background: rgba(var(--accent-lo), 0.18); }
       .suggestion[hidden] { display: none; }
       .suggestion-ask { margin: 0 0 3px; font-weight: 600; font-size: 12px; }
       .suggestion-why { margin: 0; font-size: 10px; line-height: 1.4; }
@@ -88,16 +129,41 @@
          drags the overlay instead of focusing the field. */
       .signin { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
       .signin[hidden] { display: none; }
-      .signin input { -webkit-app-region: no-drag; font: inherit; font-size: 12px; color: #f5f5f4;
-                      background: rgba(28, 25, 23, 0.9); border: 1px solid rgba(120, 113, 108, 0.45);
+      .signin input { font: inherit; font-size: 12px; color: var(--text);
+                      background: var(--field); border: 1px solid rgba(var(--line), 0.45);
                       border-radius: 6px; padding: 6px 8px; user-select: text; }
-      .signin .error { color: #f87171; font-size: 11px; margin: 0; }
+      .signin .error { color: var(--bad); font-size: 11px; margin: 0; }
       .signin .error:empty { display: none; }
-      .who { font-size: 10px; color: #a8a29e; margin-top: 8px; display: flex; gap: 6px; align-items: center; }
+      .who { font-size: 10px; color: var(--dim); margin-top: 8px; display: flex; gap: 6px; align-items: center; }
       .who[hidden] { display: none; }
+
+      /* Appearance. Takes the scorecard's place while open, so the window
+         does not grow; the score stays in view to show the accent. */
+      .look { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+      .look[hidden] { display: none; }
+      .look-row { display: grid; grid-template-columns: 74px 1fr; align-items: center; gap: 8px; }
+      .look-row > span, .look-row > label { font-size: 10px; color: var(--dim);
+                                             letter-spacing: 0.04em; text-transform: uppercase; }
+      .choices { display: flex; gap: 4px; flex-wrap: wrap; }
+      .corners { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+      .swatch { width: 22px; height: 22px; padding: 0; border-radius: 50%; }
+      .swatch::after { content: ""; display: block; width: 12px; height: 12px; margin: auto;
+                       border-radius: 50%; background: rgb(var(--swatch)); }
+      .swatch[data-accent-choice="indigo"] { --swatch: 129, 140, 248; }
+      .swatch[data-accent-choice="sky"] { --swatch: 56, 189, 248; }
+      .swatch[data-accent-choice="violet"] { --swatch: 167, 139, 250; }
+      .swatch[data-accent-choice="stone"] { --swatch: 168, 162, 158; }
+      .opacity { display: flex; align-items: center; gap: 8px; }
+      .opacity input { flex: 1; accent-color: rgb(var(--accent-rgb)); }
+      .opacity output { font-size: 10px; color: var(--dim); width: 32px; text-align: right;
+                        font-variant-numeric: tabular-nums; }
+      .look-actions { display: flex; gap: 6px; justify-content: flex-end; }
+      body.looking #criteria, body.looking #suggestion, body.looking .signin,
+      body.looking .who, body.looking .consent { display: none; }
     </style>
   </head>
   <body>
+    <div class="card">
     <div class="banner" id="unprotected" hidden>PROTECTION OFF — VISIBLE IN A SHARE</div>
 
     <header>
@@ -106,6 +172,60 @@
     </header>
 
     <ul id="criteria" aria-live="polite"></ul>
+
+    <!-- How the overlay looks and where it sits: saved on this computer only.
+         Every choice applies as it is made; there is nothing to save. -->
+    <section class="look" id="look" aria-label="Appearance" hidden>
+      <div class="look-row">
+        <span>Theme</span>
+        <div class="choices">
+          <button type="button" data-theme-choice="dark">Dark</button>
+          <button type="button" data-theme-choice="midnight">Midnight</button>
+          <button type="button" data-theme-choice="light">Light</button>
+        </div>
+      </div>
+      <div class="look-row">
+        <span>Accent</span>
+        <div class="choices">
+          <button type="button" class="swatch" data-accent-choice="indigo" aria-label="Indigo" title="Indigo"></button>
+          <button type="button" class="swatch" data-accent-choice="sky" aria-label="Sky" title="Sky"></button>
+          <button type="button" class="swatch" data-accent-choice="violet" aria-label="Violet" title="Violet"></button>
+          <button type="button" class="swatch" data-accent-choice="stone" aria-label="Neutral" title="Neutral"></button>
+        </div>
+      </div>
+      <div class="look-row">
+        <label for="opacity">Background</label>
+        <div class="opacity">
+          <input type="range" id="opacity" min="35" max="100" step="5" />
+          <output id="opacityValue" for="opacity"></output>
+        </div>
+      </div>
+      <div class="look-row">
+        <span>Size</span>
+        <div class="choices">
+          <button type="button" data-size-choice="small">Small</button>
+          <button type="button" data-size-choice="normal">Normal</button>
+          <button type="button" data-size-choice="large">Large</button>
+        </div>
+      </div>
+      <div class="look-row">
+        <span>Position</span>
+        <div class="corners">
+          <button type="button" data-corner-choice="top-left">↖ Top left</button>
+          <button type="button" data-corner-choice="top-right">↗ Top right</button>
+          <button type="button" data-corner-choice="bottom-left">↙ Bottom left</button>
+          <button type="button" data-corner-choice="bottom-right">↘ Bottom right</button>
+        </div>
+      </div>
+      <p class="muted" style="margin: 0">
+        Or drag the overlay anywhere; it opens there next time. The text stays solid at any
+        background. Saved on this computer only.
+      </p>
+      <div class="look-actions">
+        <button type="button" id="lookReset">Reset</button>
+        <button type="button" id="lookDone">Done</button>
+      </div>
+    </section>
 
     <!-- One suggestion, or nothing. Someone mid-conversation cannot read a
          list, and a stale suggestion is worse than none. -->
@@ -141,12 +261,14 @@
       <button id="listen" disabled>Listen</button>
       <button id="protection">Protection: on</button>
       <button id="clickthrough">Click-through: off</button>
+      <button id="lookOpen" aria-expanded="false" aria-controls="look">Appearance</button>
       <span class="muted" id="status">idle</span>
       <!-- Whether the call is being kept. Deliberately its own line rather
            than folded into the status: the score and the saving fail
            independently, and one reading fine says nothing about the other. -->
       <span class="muted keeping" id="keeping"></span>
     </footer>
+    </div>
 
     <script type="module" src="./renderer.js"></script>
   </body>

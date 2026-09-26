@@ -370,6 +370,73 @@ el('clickthrough').addEventListener('click', async () => {
 });
 
 /*
+ * Appearance.
+ *
+ * Theme, accent and background are this page's CSS; size and position move
+ * the window, which only the main process can do. Every change goes through
+ * the main process either way, and what it sends back — checked, clamped and
+ * saved — is what is shown, so the page never displays a look that was not
+ * kept.
+ */
+function showAppearance(look) {
+  const root = document.documentElement;
+  root.dataset.theme = look.theme;
+  root.dataset.accent = look.accent;
+  root.style.setProperty('--alpha', String(look.opacity / 100));
+  el('opacity').value = String(look.opacity);
+  el('opacityValue').textContent = `${look.opacity}%`;
+
+  const pressed = (attribute, value) => {
+    for (const button of document.querySelectorAll(`[${attribute}]`)) {
+      button.setAttribute('aria-pressed', String(button.getAttribute(attribute) === value));
+    }
+  };
+  pressed('data-theme-choice', look.theme);
+  pressed('data-accent-choice', look.accent);
+  pressed('data-size-choice', look.size);
+  // Dragged somewhere of its own: no corner is the answer.
+  pressed('data-corner-choice', look.position.corner ?? '');
+}
+
+async function changeAppearance(change) {
+  showAppearance(await api.setAppearance(change));
+}
+
+function openLook(open) {
+  el('look').hidden = !open;
+  document.body.classList.toggle('looking', open);
+  el('lookOpen').setAttribute('aria-expanded', String(open));
+  // Read afresh: a drag since the last look moved it off its corner.
+  if (open) void api.appearance().then(showAppearance);
+}
+
+const choices = [
+  ['data-theme-choice', 'theme'],
+  ['data-accent-choice', 'accent'],
+  ['data-size-choice', 'size'],
+  ['data-corner-choice', 'corner'],
+];
+for (const [attribute, field] of choices) {
+  for (const button of document.querySelectorAll(`[${attribute}]`)) {
+    button.addEventListener('click', () => void changeAppearance({ [field]: button.getAttribute(attribute) }));
+  }
+}
+
+// Shown while dragging, kept when let go: one save per choice, not per pixel.
+el('opacity').addEventListener('input', () => {
+  const value = Number(el('opacity').value);
+  document.documentElement.style.setProperty('--alpha', String(value / 100));
+  el('opacityValue').textContent = `${value}%`;
+});
+el('opacity').addEventListener('change', () => void changeAppearance({ opacity: Number(el('opacity').value) }));
+
+el('lookOpen').addEventListener('click', () => openLook(el('look').hidden));
+el('lookDone').addEventListener('click', () => openLook(false));
+el('lookReset').addEventListener('click', async () => showAppearance(await api.resetAppearance()));
+
+void api.appearance().then(showAppearance);
+
+/*
  * Signed in or not.
  *
  * The page learns only who is signed in. Signing in hands the password to the

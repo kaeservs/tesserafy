@@ -436,6 +436,11 @@ el('lookReset').addEventListener('click', async () => showAppearance(await api.r
 
 void api.appearance().then(showAppearance);
 
+el('quit').addEventListener('click', () => {
+  if (listening) recognition?.stop();
+  void api.quit();
+});
+
 /*
  * Signed in or not.
  *

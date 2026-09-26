@@ -1,4 +1,4 @@
-# The Windows installer for the overlay.
+# The overlay's installers: Windows (NSIS) and macOS (a .dmg per chip).
 #
 # Only what the installed app runs is packaged: the compiled main and preload,
 # and the renderer, which esbuild has already bundled with @tesserafy/scoring.
@@ -56,3 +56,33 @@ nsis:
   createStartMenuShortcut: true
   shortcutName: Tesserafy
   deleteAppDataOnUninstall: true
+
+# macOS: one .dmg for Apple silicon and one for Intel, each half the size of a
+# universal build that every Mac would download both halves of.
+#
+# Not signed by Apple and not notarised, so Gatekeeper refuses the first open
+# and the user allows it once under System Settings → Privacy & Security. It
+# is signed ad hoc ("-"), and that part is not optional: flipping the fuses and
+# packing the asar edit the Electron binary, which breaks the signature it
+# shipped with, and macOS calls an app with a broken signature "damaged" —
+# with no Open Anyway. The workflow checks the signature verifies.
+#
+# Notarising needs an Apple Developer ID ($99 a year), identity set to it, the
+# hardened runtime on, and an entitlements file that allows audio input (and
+# the JIT Electron needs). The hardened runtime is off until then because an
+# ad-hoc signature cannot carry the entitlements it would demand.
+mac:
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  artifactName: Tesserafy-${version}-mac-${arch}.${ext}
+  category: public.app-category.business
+  identity: '-'
+  hardenedRuntime: false
+  notarize: false
+  extendInfo:
+    # macOS stops an app that opens the microphone without saying why. This is
+    # the sentence in the permission prompt.
+    NSMicrophoneUsageDescription: Tesserafy listens to your call, once you start it, to score it live against your criteria.
+dmg:
+  title: Tesserafy ${version}

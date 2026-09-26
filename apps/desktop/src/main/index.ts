@@ -17,9 +17,21 @@
 import { app, BrowserWindow, ipcMain, safeStorage, screen } from 'electron';
 import { readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import {
+  DEFAULT_APPEARANCE,
+  normalize,
+  placement,
+  SCALE,
+  withChange,
+  type Appearance,
+  type Rect,
+} from './appearance';
 import { Session, type Store } from './session';
 
 let overlay: BrowserWindow | null = null;
+let appearance: Appearance = DEFAULT_APPEARANCE;
+/** Where this process last put the window, so its own moves are not taken for a drag. */
+let placed: Rect | null = null;
 
 /** Where the product is. The production app unless told otherwise. */
 const BASE_URL = process.env['TESSERAFY_URL'] ?? 'https://web-beta-khaki-cxdkp6udxk.vercel.app';
@@ -56,17 +68,43 @@ function encryptedStore(): Store {
   };
 }
 
+/*
+ * The overlay's look, kept on this computer (see ./appearance for why). Not
+ * encrypted: it says which corner and which colour, nothing about anyone.
+ * A file that is missing or unreadable is the default look, and a failed
+ * save is only a look not remembered — neither is worth interrupting a call.
+ */
+const appearanceFile = () => join(app.getPath('userData'), 'appearance.json');
+
+async function loadAppearance(): Promise<Appearance> {
+  try {
+    return normalize(JSON.parse(await readFile(appearanceFile(), 'utf8')));
+  } catch {
+    return DEFAULT_APPEARANCE;
+  }
+}
+
+function saveAppearance(): void {
+  writeFile(appearanceFile(), JSON.stringify(appearance, null, 2)).catch(() => undefined);
+}
+
+function workAreas(): Rect[] {
+  return screen.getAllDisplays().map((display) => display.workArea);
+}
+
+/** Size, zoom and position for the current appearance; the position is then saved as placed. */
+function place(window: BrowserWindow): void {
+  placed = placement(appearance, workAreas(), screen.getPrimaryDisplay().workArea);
+  window.setBounds(placed);
+  window.webContents.setZoomFactor(SCALE[appearance.size]);
+  appearance = { ...appearance, position: { ...appearance.position, x: placed.x, y: placed.y } };
+}
+
 function createOverlay(): BrowserWindow {
-  const { workArea } = screen.getPrimaryDisplay();
-  const width = 380;
-  const height = 460;
+  placed = placement(appearance, workAreas(), screen.getPrimaryDisplay().workArea);
 
   const window = new BrowserWindow({
-    width,
-    height,
-    // Top right, clear of the meeting controls most tools put at the bottom.
-    x: workArea.x + workArea.width - width - 24,
-    y: workArea.y + 24,
+    ...placed,
     frame: false,
     transparent: true,
     resizable: false,
@@ -78,7 +116,18 @@ function createOverlay(): BrowserWindow {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      zoomFactor: SCALE[appearance.size],
     },
+  });
+
+  // Dragged somewhere: it stays there, on that display, from now on. `moved`
+  // fires once a drag ends; a move this process made itself is not a choice.
+  window.on('moved', () => {
+    const { x, y } = window.getBounds();
+    if (placed && placed.x === x && placed.y === y) return;
+    placed = window.getBounds();
+    appearance = { ...appearance, position: { corner: null, x, y } };
+    saveAppearance();
   });
 
   window.setAlwaysOnTop(true, 'screen-saver');
@@ -94,13 +143,34 @@ function createOverlay(): BrowserWindow {
 
 // `void`: nothing can await this, it is the top of the process. Marked so
 // that the next promise added here has to say what it does about failure.
-void app.whenReady().then(() => {
+void app.whenReady().then(async () => {
   const session = new Session(BASE_URL, encryptedStore());
   // Before the window asks who is signed in, so a returning user is not shown
   // a sign-in form for the half-second a refresh takes.
   const resumed = session.resume().catch(() => false);
 
+  // Before the window exists, so it opens where it was left rather than
+  // appearing in the default corner and jumping.
+  appearance = await loadAppearance();
   overlay = createOverlay();
+
+  ipcMain.handle('overlay:appearance', () => appearance);
+
+  // Whatever the page sends is checked field by field; a size or corner
+  // change moves the window, the rest is the page's own CSS.
+  ipcMain.handle('overlay:set-appearance', (_event, change: unknown) => {
+    appearance = withChange(appearance, change);
+    if (overlay) place(overlay);
+    saveAppearance();
+    return appearance;
+  });
+
+  ipcMain.handle('overlay:reset-appearance', () => {
+    appearance = DEFAULT_APPEARANCE;
+    if (overlay) place(overlay);
+    saveAppearance();
+    return appearance;
+  });
 
   ipcMain.handle('overlay:session', async () => {
     await resumed;

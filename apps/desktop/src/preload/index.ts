@@ -11,8 +11,13 @@
  * who is signed in, never a token.
  */
 import { contextBridge, ipcRenderer } from 'electron';
+import type { Appearance, AppearanceChange } from '../main/appearance';
 
 contextBridge.exposeInMainWorld('overlay', {
+  appearance: (): Promise<Appearance> => ipcRenderer.invoke('overlay:appearance'),
+  setAppearance: (change: AppearanceChange): Promise<Appearance> =>
+    ipcRenderer.invoke('overlay:set-appearance', change),
+  resetAppearance: (): Promise<Appearance> => ipcRenderer.invoke('overlay:reset-appearance'),
   setProtection: (enabled: boolean): Promise<boolean> =>
     ipcRenderer.invoke('overlay:set-protection', enabled),
   setClickThrough: (enabled: boolean): Promise<boolean> =>

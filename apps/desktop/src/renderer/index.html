@@ -67,7 +67,7 @@
       }
 
       header { display: flex; justify-content: space-between; align-items: baseline; }
-      h1 { font-size: 11px; margin: 0; font-weight: 600; letter-spacing: 0.08em;
+      h1 { font-size: 11px; margin: 0 auto 0 0; font-weight: 600; letter-spacing: 0.08em;
            text-transform: uppercase; color: var(--dim); }
       .score { font-size: 28px; font-weight: 700; line-height: 1; color: rgb(var(--accent-rgb)); }
       .score span { font-size: 11px; font-weight: 400; color: var(--muted); }
@@ -98,6 +98,9 @@
                border-radius: 6px; padding: 3px 7px; cursor: pointer; }
       button:hover { border-color: var(--dim); }
       button:disabled { opacity: 0.45; cursor: default; }
+      .quit { margin-left: 10px; border-color: transparent; padding: 0 5px; font-size: 14px;
+              line-height: 1.2; color: var(--muted); align-self: flex-start; }
+      .quit:hover { color: var(--text); }
       button[aria-pressed="true"] { color: var(--text); border-color: rgb(var(--accent-rgb));
                                     background: rgba(var(--accent-rgb), 0.14); }
       .consent { -webkit-app-region: no-drag; display: flex; gap: 6px; align-items: flex-start;
@@ -169,6 +172,7 @@
     <header>
       <h1 id="engagement">…</h1>
       <div class="score"><span id="scoreValue">0</span><span> / 100</span></div>
+      <button type="button" class="quit" id="quit" title="Quit Tesserafy" aria-label="Quit Tesserafy">×</button>
     </header>
 
     <ul id="criteria" aria-live="polite"></ul>

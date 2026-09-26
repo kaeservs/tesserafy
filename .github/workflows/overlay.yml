@@ -1,25 +1,34 @@
-# The overlay's Windows installer, built where every build happens the same way.
+# The overlay's installers, built where every build happens the same way.
 #
-# Pushing a tag `overlay-vX.Y.Z` builds Tesserafy-Setup-X.Y.Z.exe on Windows and
-# publishes it as a GitHub Release, whose download link is what a pilot is
-# sent. On a pull request that touches the overlay, or run by hand, it builds
-# the same installer and keeps it as a run artifact without publishing.
+# Pushing a tag `overlay-vX.Y.Z` builds Tesserafy-Setup-X.Y.Z.exe on Windows
+# and a .dmg for each Mac chip on macOS, and publishes them together as one
+# GitHub Release, whose download links are what a pilot is sent. On a pull
+# request that touches the overlay, or run by hand, it builds the same
+# installers and keeps them as run artifacts without publishing.
 #
-# Two checks fail the build rather than ship something wrong:
+# Checks that fail the build rather than ship something wrong:
 #   - the tag must match apps/desktop/package.json's version, or the file
-#     name and the app's own idea of its version disagree;
-#   - the Electron fuses must read hardened. A config change that silently
-#     dropped them would ship an exe any local program can run as Node.
+#     names and the app's own idea of its version disagree;
+#   - the Electron fuses must read hardened, on every platform. A config change
+#     that silently dropped them would ship an app any local program can run
+#     as Node;
+#   - on macOS, the app's signature must verify. The build edits the Electron
+#     binary, and a Mac app whose signature no longer matches is "damaged"
+#     rather than merely unsigned — it cannot be opened at all.
 #
-# Unsigned: SmartScreen shows "unknown publisher" until a signing certificate
-# is configured in apps/desktop/electron-builder.yml. The release notes say so.
+# The release is created only after every platform has built and passed, so
+# a pilot never finds a release with one platform missing.
+#
+# Unsigned: Windows SmartScreen shows "unknown publisher" and macOS Gatekeeper
+# refuses the first open, until signing is configured in
+# apps/desktop/electron-builder.yml. The release notes say what to do.
 
 name: Overlay installer
 
 on:
   push:
     tags: ['overlay-v*']
-  # Any change to the overlay or to this file builds the installer too, so a
+  # Any change to the overlay or to this file builds the installers too, so a
   # packaging break is found in review rather than on release day. Nothing is
   # published from a pull request.
   pull_request:
@@ -30,7 +39,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   windows:
@@ -44,17 +53,6 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-
-      - name: The tag matches the app's version
-        if: startsWith(github.ref, 'refs/tags/')
-        shell: bash
-        run: |
-          version=$(node -p "require('./apps/desktop/package.json').version")
-          tag="${GITHUB_REF_NAME#overlay-v}"
-          if [ "$version" != "$tag" ]; then
-            echo "::error::tag ${GITHUB_REF_NAME} but apps/desktop/package.json says ${version}"
-            exit 1
-          fi
 
       - name: Build
         run: pnpm --filter @tesserafy/desktop dist:win
@@ -75,20 +73,101 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: overlay-installer
+          name: overlay-windows
           path: apps/desktop/release/Tesserafy-Setup-*.exe
           if-no-files-found: error
 
-      - name: Publish the release
-        if: startsWith(github.ref, 'refs/tags/')
+  mac:
+    name: Build the macOS installers
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # No signing identity is looked for: the config signs ad hoc, and a
+      # runner that happened to hold a certificate should not change that.
+      #
+      # Signed on pull requests too. electron-builder skips all signing on a
+      # PR by default — the ad-hoc signature included — which builds exactly
+      # the "damaged" app the check below exists to refuse; and a PR's build
+      # is what gets tested before a release.
+      - name: Build
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          CSC_FOR_PULL_REQUEST: 'true'
+        run: |
+          pnpm --filter @tesserafy/desktop build
+          pnpm --filter @tesserafy/desktop exec electron-builder --mac --publish never
+
+      - name: The fuses are hardened, and the signature verifies
         shell: bash
+        working-directory: ${{ runner.temp }}
+        run: |
+          apps=("$GITHUB_WORKSPACE"/apps/desktop/release/mac*/Tesserafy.app)
+          [ "${#apps[@]}" -eq 2 ] && [ -d "${apps[0]}" ] || { echo "::error::expected two apps, found: ${apps[*]}"; exit 1; }
+          for app in "${apps[@]}"; do
+            echo "== $app"
+            fuses=$(npx --yes @electron/fuses read --app "$app")
+            echo "$fuses"
+            for expected in "RunAsNode is Disabled" \
+                            "EnableNodeOptionsEnvironmentVariable is Disabled" \
+                            "EnableNodeCliInspectArguments is Disabled" \
+                            "EnableEmbeddedAsarIntegrityValidation is Enabled" \
+                            "OnlyLoadAppFromAsar is Enabled"; do
+              echo "$fuses" | grep -q "$expected" || { echo "::error::$app: expected '$expected'"; exit 1; }
+            done
+            codesign --verify --deep --strict --verbose=2 "$app" || { echo "::error::$app: signature does not verify"; exit 1; }
+            /usr/libexec/PlistBuddy -c 'Print :NSMicrophoneUsageDescription' "$app/Contents/Info.plist"
+            lipo -archs "$app/Contents/MacOS/Tesserafy"
+          done
+          ls -la "$GITHUB_WORKSPACE"/apps/desktop/release/*.dmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: overlay-mac
+          path: apps/desktop/release/Tesserafy-*-mac-*.dmg
+          if-no-files-found: error
+
+  publish:
+    name: Publish the release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [windows, mac]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: The tag matches the app's version
+        run: |
+          version=$(node -p "require('./apps/desktop/package.json').version")
+          tag="${GITHUB_REF_NAME#overlay-v}"
+          if [ "$version" != "$tag" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} but apps/desktop/package.json says ${version}"
+            exit 1
+          fi
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: installers
+          merge-multiple: true
+
+      - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" apps/desktop/release/Tesserafy-Setup-*.exe \
+          ls -la installers
+          gh release create "$GITHUB_REF_NAME" installers/* \
             --title "Tesserafy overlay ${GITHUB_REF_NAME#overlay-v}" \
-            --notes "Windows installer for the Tesserafy live scorecard overlay. Sign in with your usual Tesserafy username or email and password.
+            --notes "The Tesserafy live scorecard overlay. Sign in with your usual Tesserafy username or email and password.
 
-          The installer is not yet code-signed, so Windows SmartScreen will say it is from an unknown publisher: choose More info, then Run anyway.
+          Windows: download Tesserafy-Setup-${GITHUB_REF_NAME#overlay-v}.exe. It is not yet code-signed, so Windows SmartScreen will say it is from an unknown publisher: choose More info, then Run anyway.
 
-          Not for customer calls until the screen-share check (S1 in docs/engineering/qa-checklist.md) has passed in Zoom, Meet and Teams."
+          Mac: download the -mac-arm64.dmg for Apple silicon (M1 and later; Apple menu → About This Mac says Chip) or the -mac-x64.dmg for Intel. Open it and drag Tesserafy to Applications. It is not yet notarised by Apple, so the first open is refused: go to System Settings → Privacy & Security, scroll to Security, choose Open Anyway, then open it again. macOS asks once for the microphone, and may ask once to use the keychain, where the sign-in is kept — choose Always Allow.
+
+          Not for customer calls until the screen-share check (S1 in docs/engineering/qa-checklist.md) has passed in Zoom, Meet and Teams, on each platform."

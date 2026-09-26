@@ -1,4 +1,6 @@
 import { requireAdmin } from '@/lib/admin';
+import { deletable } from '@/lib/people';
+import { ago, utc } from '@/lib/time';
 import { Chrome } from '../chrome';
 import { OpenSession } from '../open-session';
 
@@ -14,19 +16,6 @@ import { OpenSession } from '../open-session';
  */
 export const dynamic = 'force-dynamic';
 
-function ago(iso: string | null): string {
-  if (!iso) return 'never';
-  // Clamped at zero. A timestamp can sit a moment in the future — the
-  // server's clock against this one, or, in the support tool, the sign-in
-  // this very command just performed — and an unclamped floor renders that
-  // as "-1d ago", which reads like a bug in the data rather than in the
-  // arithmetic.
-  const days = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000));
-  if (days === 0) return 'today';
-  if (days === 1) return 'yesterday';
-  return `${days}d ago`;
-}
-
 export default async function People({
   searchParams,
 }: {
@@ -34,8 +23,17 @@ export default async function People({
 }) {
   const { q = '', all } = await searchParams;
   const admin = await requireAdmin();
-  const { data, error } = await admin.db.rpc('admin_users');
+  const [{ data, error }, { data: deletions }] = await Promise.all([
+    admin.db.rpc('admin_users'),
+    admin.db
+      .from('account_deletions')
+      .select('id, admin_user_id, reason, created_at, completed_at')
+      .order('created_at', { ascending: false })
+      .limit(50),
+  ]);
   const everyone = data ?? [];
+  const emailOf = new Map(everyone.map((user) => [user.user_id, user.email ?? '—']));
+  const deletableWithoutCompany = everyone.filter((user) => deletable(user, admin.userId)).length;
   // Accounts in no company are mostly people removed, or companies closed —
   // and, today, the synthetic accounts the checks leave behind. Hidden unless
   // asked for, so the list is the people who can see something.
@@ -68,9 +66,19 @@ export default async function People({
         </div>
         <div className="go">
           {all === '1' ? (
-            <a className="link" href={`/people${q ? `?q=${encodeURIComponent(q)}` : ''}`}>
-              Hide the {withoutCompany} with no company
-            </a>
+            <>
+              <a className="link" href={`/people${q ? `?q=${encodeURIComponent(q)}` : ''}`}>
+                Hide the {withoutCompany} with no company
+              </a>
+              {deletableWithoutCompany > 0 ? (
+                <>
+                  {' · '}
+                  <a className="link" href="/people/delete?all=1">
+                    Delete accounts with no company…
+                  </a>
+                </>
+              ) : null}
+            </>
           ) : (
             <a className="link" href={`/people?all=1${q ? `&q=${encodeURIComponent(q)}` : ''}`}>
               Show the {withoutCompany} with no company
@@ -90,6 +98,7 @@ export default async function People({
             <th>Last seen</th>
             <th>Joined</th>
             <th>Open a session</th>
+            <th />
           </tr>
         </thead>
         <tbody>
@@ -111,12 +120,54 @@ export default async function People({
                   <OpenSession subjectId={user.user_id} email={user.email ?? ''} />
                 )}
               </td>
+              <td>
+                {deletable(user, admin.userId) ? (
+                  <a className="link" href={`/people/delete?ids=${user.user_id}`}>
+                    Delete…
+                  </a>
+                ) : null}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
 
       {users.length === 0 && !error ? <p className="muted">Nobody matches.</p> : null}
+
+      {(deletions ?? []).length > 0 ? (
+        <section aria-labelledby="deleted-heading">
+          <h2 id="deleted-heading">Deleted accounts</h2>
+          <p className="muted">
+            Who deleted an account, when and why. The address is not kept, only a fingerprint of it.
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>By</th>
+                <th>Reason</th>
+                <th>State</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(deletions ?? []).map((row) => (
+                <tr key={row.id}>
+                  <td className="muted">{utc(row.created_at)}</td>
+                  <td>{emailOf.get(row.admin_user_id) ?? 'a former operator'}</td>
+                  <td>{row.reason}</td>
+                  <td>
+                    {row.completed_at ? (
+                      <span className="muted">deleted</span>
+                    ) : (
+                      <span className="tag open">did not finish</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ) : null}
     </Chrome>
   );
 }

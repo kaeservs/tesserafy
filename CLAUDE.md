@@ -27,12 +27,15 @@ Do not break these without an ADR that supersedes the existing one.
 3. **Only `apps/admin` may hold the service-role key.** The guard lists the
    apps allowed to name `SUPABASE_SERVICE_ROLE_KEY` or `createServiceClient`,
    and every other app under `apps/` fails CI for doing so. The console is a
-   separate deployment for exactly this reason, and it uses the key for two
+   separate deployment for exactly this reason, and it uses the key for three
    Auth admin calls, each preceded by a record the operator writes as
    themselves: minting a session for a user whose account an operator has
-   recorded a reason for opening, and creating an account an operator has
-   recorded provisioning (ADR 0012). The key never writes a table. Everything
-   an operator reads goes through RLS as them.
+   recorded a reason for opening, creating an account an operator has
+   recorded provisioning (ADR 0012), and deleting an account in no company
+   that an operator has recorded deleting (ADR 0013). The key never writes a
+   table. Everything an operator reads goes through RLS as them. A reference
+   to an account must cascade, set null, or be a plain id with no foreign key
+   (ADR 0013); a pgTAP guard fails any that could block a deletion.
 4. **Every retrieval is tenant-scoped.** Exactly one `retrieve()` in
    `packages/ai` may construct a vector query, and `companyId` is its required
    first argument. The AI pipeline runs with a service-role key that bypasses

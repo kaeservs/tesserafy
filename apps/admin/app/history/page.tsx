@@ -17,16 +17,21 @@ export const dynamic = 'force-dynamic';
 export default async function History() {
   const admin = await requireAdmin();
 
-  const [{ data: rows, error }, { data: users }] = await Promise.all([
+  const [{ data: rows, error }, { data: users }, { data: deletions }] = await Promise.all([
     admin.db
       .from('support_access')
       .select('id, admin_user_id, subject_user_id, reason, created_at, expires_at, ended_at')
       .order('created_at', { ascending: false })
       .limit(200),
     admin.db.rpc('admin_users'),
+    admin.db.from('account_deletions').select('user_id').not('completed_at', 'is', null),
   ]);
 
   const emailOf = new Map((users ?? []).map((user) => [user.user_id, user.email ?? '—']));
+  // A row outlives the account it names (ADR 0013). Its id then leads to
+  // nobody, and the page says so rather than printing a bare uuid.
+  const deleted = new Set((deletions ?? []).map((row) => row.user_id));
+  const who = (id: string) => emailOf.get(id) ?? (deleted.has(id) ? 'a deleted account' : id);
   const access = rows ?? [];
 
   return (
@@ -56,8 +61,8 @@ export default async function History() {
             return (
               <tr key={row.id}>
                 <td className="muted">{utc(row.created_at)}</td>
-                <td>{emailOf.get(row.admin_user_id) ?? row.admin_user_id}</td>
-                <td>{emailOf.get(row.subject_user_id) ?? row.subject_user_id}</td>
+                <td>{who(row.admin_user_id)}</td>
+                <td>{who(row.subject_user_id)}</td>
                 <td>{row.reason}</td>
                 <td>
                   {live ? (

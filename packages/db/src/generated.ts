@@ -98,6 +98,36 @@ export type Database = {
           },
         ]
       }
+      account_deletions: {
+        Row: {
+          admin_user_id: string
+          completed_at: string | null
+          created_at: string
+          email_sha256: string
+          id: string
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          admin_user_id: string
+          completed_at?: string | null
+          created_at?: string
+          email_sha256: string
+          id?: string
+          reason: string
+          user_id: string
+        }
+        Update: {
+          admin_user_id?: string
+          completed_at?: string | null
+          created_at?: string
+          email_sha256?: string
+          id?: string
+          reason?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       account_provisioning: {
         Row: {
           admin_user_id: string
@@ -1355,6 +1385,24 @@ export type Database = {
           user_id: string
         }[]
       }
+      complete_account_deletion: {
+        Args: { p_id: string }
+        Returns: {
+          admin_user_id: string
+          completed_at: string | null
+          created_at: string
+          email_sha256: string
+          id: string
+          reason: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "account_deletions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       complete_account_provisioning: {
         Args: { p_id: string; p_new_account: boolean; p_user_id: string }
         Returns: string
@@ -1471,6 +1519,24 @@ export type Database = {
           start_ms: number
           text: string
         }[]
+      }
+      open_account_deletion: {
+        Args: { p_reason: string; p_user_id: string }
+        Returns: {
+          admin_user_id: string
+          completed_at: string | null
+          created_at: string
+          email_sha256: string
+          id: string
+          reason: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "account_deletions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       open_account_provisioning: {
         Args: {

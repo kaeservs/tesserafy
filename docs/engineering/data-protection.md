@@ -228,10 +228,37 @@ tracker are listed for a person to delete there.
 
 The row is kept because the records that prove the erasure happened point at
 it, several by cascade: deleting the company would delete the evidence that
-it was deleted. Login accounts are kept, empty; deleting an account is an Auth
-admin call and a separate decision. A closed company is closed for good — a
+it was deleted. Login accounts are kept, empty; deleting one is a separate
+decision, below. A closed company is closed for good — a
 trigger refuses any new membership. Platform admins only, with a reason and
 the company's exact name typed back.
+
+## Deleting an account
+
+A person can ask to be forgotten, and their calls are not theirs to erase:
+they belong to the company, which erases them by its own means. What is
+theirs is the login, meaning the address, the password and the sessions. An
+operator deletes it from the console's People page (ADR 0013), for an account
+in no company only, so a person leaves their team first (removed by the owner,
+or the company closed) and deleting never reaches into a live team.
+
+Recorded first, like every use of the service-role key: `open_account_deletion`
+writes who is deleting, why, and a SHA-256 of the lower-cased address, not the
+address. Then the key hard-deletes the account in Auth. The record is closed
+only once the account is gone. The fingerprint answers "was this address
+erased, and when?" for someone who already knows the address, and nobody else.
+
+What the account leaves behind is decided by the schema, not by the console:
+
+- memberships and operator rows cascade;
+- who added a call, who confirmed consent, who viewed a call, who asked for an
+  export and the like are set to null, so a call stays with its company and is
+  no longer attributed;
+- the audit records that say what was done to or by the person (support
+  access, onboarding, insight decisions and tickets) keep the account's id,
+  with no foreign key. The record survives, and the id resolves to nobody.
+
+A pgTAP guard fails CI if any foreign key outside Auth could block a deletion.
 
 ## Retention
 
@@ -304,7 +331,9 @@ To see what the job has done:
   writes an `account_provisioning` row as themselves before the account
   exists, and the row is closed only once the account the key returned is
   checked against it. An attempt that stops part-way stays open and is shown
-  as one. One company per person is enforced in both steps.
+  as one. One company per person is enforced in both steps. Deleting an
+  account is recorded the same way (ADR 0013), keeping a fingerprint of the
+  address rather than the address.
 
   The ordinary case is recorded too, for the page where a call is read in
   full. Opening a call writes a `conversation_views` row — who from the

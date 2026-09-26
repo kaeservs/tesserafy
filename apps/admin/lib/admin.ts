@@ -14,9 +14,10 @@ import { createClient } from './supabase/server';
  * So the split is kept sharp here too. Everything an operator sees is read
  * through `adminClient()`, which is *them*, signed in, subject to RLS and to
  * functions that check `is_platform_admin()`. The service-role key appears in
- * two functions below, `mintSessionFor` and `createAccountFor`, because
- * minting a session and creating an account are the two things the Auth admin
- * API will not do for anybody else (ADR 0012).
+ * three functions below, `mintSessionFor`, `createAccountFor` and
+ * `deleteAccountFor`, because minting a session, creating an account and
+ * deleting one are the things the Auth admin API will not do for anybody else
+ * (ADR 0012, ADR 0013).
  *
  * Put another way: the powerful key can make Auth calls and nothing else. It
  * cannot read a conversation, decide who is an admin, create a company, add a
@@ -192,6 +193,40 @@ export async function createAccountFor(email: string): Promise<CreatedAccount> {
     newAccount,
     ...(going && going !== asked ? { landsElsewhere: going } : {}),
   };
+}
+
+/**
+ * Delete somebody's account: the key's third use (ADR 0013).
+ *
+ * Called only between `open_account_deletion`, which has decided this account
+ * may go and written down who is deleting it and why, and
+ * `complete_account_deletion`, which closes that record only once the account
+ * is really gone. It never touches a table: what the account leaves behind is
+ * decided by the schema — memberships cascade, attributions are set to null,
+ * and the audit records keep the id without it resolving to anyone.
+ *
+ * A hard delete. Auth's soft delete keeps the address and obfuscates it,
+ * which is not what someone asking to be forgotten asked for.
+ */
+export async function deleteAccountFor(userId: string): Promise<{ ok: true } | { ok: false; message: string }> {
+  const url = process.env['NEXT_PUBLIC_SUPABASE_URL'];
+  const serviceKey = process.env['SUPABASE_SERVICE_ROLE_KEY'];
+  if (!url || !serviceKey) return { ok: false, message: 'SUPABASE_SERVICE_ROLE_KEY is not set.' };
+
+  const response = await fetch(new URL(`/auth/v1/admin/users/${encodeURIComponent(userId)}`, url), {
+    method: 'DELETE',
+    headers: {
+      apikey: serviceKey,
+      authorization: `Bearer ${serviceKey}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ should_soft_delete: false }),
+  });
+  if (!response.ok) {
+    const detail = (await response.json().catch(() => ({}))) as { msg?: string; message?: string };
+    return { ok: false, message: `Auth refused: ${detail.msg ?? detail.message ?? response.status}` };
+  }
+  return { ok: true };
 }
 
 /**

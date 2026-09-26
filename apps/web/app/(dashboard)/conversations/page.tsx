@@ -1,3 +1,4 @@
+import { engagementLabel } from '@/lib/company';
 import Link from 'next/link';
 import { GettingStarted } from '@/components/getting-started';
 import { ScorecardStrip } from '@/components/scorecard-strip';
@@ -25,7 +26,6 @@ interface ConversationRow {
   occurred_at: string | null;
   engagement_type: string;
   criteria_version: number;
-  companies: { name: string } | { name: string }[] | null;
 }
 
 function when(occurredAt: string | null): string {
@@ -37,12 +37,15 @@ function when(occurredAt: string | null): string {
   });
 }
 
-// Without generated types, supabase-js cannot tell a to-one embed from a
-// to-many one. Replace with packages/db generated types once they exist.
-function companyName(embed: ConversationRow['companies']): string {
-  const row = Array.isArray(embed) ? embed[0] : embed;
-  return row?.name ?? '';
-}
+/**
+ * A call's stage, in a brand's words. "scored" read as a verdict; what it
+ * means is that the call has not been read for insights yet.
+ */
+const STAGE_LABEL: Record<string, string> = {
+  captured: 'scoring',
+  scored: 'not read for insights yet',
+  empty: 'empty',
+};
 
 export default async function ConversationsPage({
   searchParams,
@@ -57,11 +60,10 @@ export default async function ConversationsPage({
     (from, to) =>
       supabase
         .from('conversations')
-        .select('id, title, occurred_at, engagement_type, criteria_version, companies ( name )')
+        .select('id, title, occurred_at, engagement_type, criteria_version')
         .order('occurred_at', { ascending: false })
         .order('id')
-        .range(from, to)
-        .then(({ data, error }) => ({ data: data as ConversationRow[] | null, error })),
+        .range(from, to),
     'Could not load conversations',
   );
   const [scores, pipeline] = await Promise.all([
@@ -86,7 +88,7 @@ export default async function ConversationsPage({
         </p>
       ) : null}
       <p className="muted">
-        {conversations.length} conversation{conversations.length === 1 ? '' : 's'}, newest first.
+        {conversations.length} meeting{conversations.length === 1 ? '' : 's'}, newest first.
         Each score is computed from the quoted evidence behind it.
       </p>
 
@@ -107,14 +109,11 @@ export default async function ConversationsPage({
                   {conversation.title}
                 </Link>
                 <span className="meeting-meta">
-                  {when(conversation.occurred_at)}
-                  {companyName(conversation.companies) &&
-                    ` · ${companyName(conversation.companies)}`}{' '}
-                  · {conversation.engagement_type} v{conversation.criteria_version}
+                  {when(conversation.occurred_at)} · {engagementLabel(conversation.engagement_type)}
                   {/* One word for how far this call has got. An imported
                       transcript arrives finished; a live one does not, and
                       looked identical to a finished call that scored badly. */}
-                  {stage !== 'processed' && <span className={`stage stage-${stage}`}>{stage}</span>}
+                  {stage !== 'processed' && <span className={`stage stage-${stage}`}>{STAGE_LABEL[stage] ?? stage}</span>}
                 </span>
                 <span className="meeting-score">
                   {card && observed ? (

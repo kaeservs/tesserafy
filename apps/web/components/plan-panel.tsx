@@ -76,10 +76,13 @@ export function PlanPanel({
   overview,
   catalog,
   isOwner,
+  liveAvailable,
 }: {
   overview: PlanOverview;
   catalog: CatalogPlan[];
   isOwner: boolean;
+  /** False until live scorecards launch for this company: the minutes are shown as coming. */
+  liveAvailable: boolean;
 }) {
   // One action for every button, so the message below is always about the
   // last one pressed.
@@ -102,7 +105,12 @@ export function PlanPanel({
         <tbody>
           {overview.meters.map((meter) => (
             <tr key={meter.meter}>
-              <td>{METER_LABEL[meter.meter] ?? meter.meter}</td>
+              <td>
+                {METER_LABEL[meter.meter] ?? meter.meter}
+                {meter.meter === 'live_seconds' && !liveAvailable ? (
+                  <span className="muted"> — live scorecards are coming soon</span>
+                ) : null}
+              </td>
               <td className="muted when">{usage(meter)}</td>
             </tr>
           ))}
@@ -135,7 +143,8 @@ export function PlanPanel({
                 </h3>
                 <p className="muted" style={{ marginBottom: '0.5rem' }}>
                   {plan.calls} imported calls, {plan.extractions} “Find insights in this call”,{' '}
-                  {plan.pattern_runs} “Look for patterns”, {plan.live_minutes} live minutes — a month.
+                  {plan.pattern_runs} “Look for patterns”, {plan.live_minutes} live minutes
+                  {liveAvailable ? '' : ' (when live launches)'} — a month.
                 </p>
                 {label ? (
                   <form action={act}>

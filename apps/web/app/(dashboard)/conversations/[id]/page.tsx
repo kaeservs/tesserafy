@@ -1,3 +1,4 @@
+import { engagementLabel, liveAvailable, myCompany } from '@/lib/company';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { clock, splitByHighlights } from '@/lib/highlight';
@@ -65,7 +66,7 @@ function OperatorCommand({ command }: { command: string }) {
 }
 
 /** What a conversation with no criteria yet is waiting for. */
-function CapturedCard({ state, command }: { state: CapturedState; command: string }) {
+function CapturedCard({ state, command }: { state: CapturedState; command: string | null }) {
   if (state.kind === 'scoring') {
     return (
       <section aria-labelledby="pipeline-heading" className="card" aria-live="polite">
@@ -92,7 +93,7 @@ function CapturedCard({ state, command }: { state: CapturedState; command: strin
           hour. It has not been scored partially, because a scorecard over the first hour of a
           longer meeting would look complete and be wrong. The Tesserafy team can score it in full.
         </p>
-        <OperatorCommand command={command} />
+        {command ? <OperatorCommand command={command} /> : null}
       </section>
     );
   }
@@ -106,7 +107,7 @@ function CapturedCard({ state, command }: { state: CapturedState; command: strin
         No criteria have been detected over this call. If it was uploaded recently, scoring did
         not finish — that has been reported. A call captured live is scored as it happens.
       </p>
-      <OperatorCommand command={command} />
+      {command ? <OperatorCommand command={command} /> : null}
     </section>
   );
 }
@@ -156,6 +157,8 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
     .maybeSingle();
 
   if (!conversation) notFound();
+  // Tesserafy's own company still sees the tools it tests with.
+  const internal = liveAvailable((await myCompany(supabase))?.plan);
 
   // Recorded before anything of the call is shown, and a failure to record
   // is a failure to open — the rule support sessions already follow. An
@@ -274,16 +277,19 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
   return (
     <main>
       <p>
-        <Link href="/conversations">← Conversations</Link>
+        <Link href="/conversations">← Meetings</Link>
       </p>
       <h1>{title}</h1>
-      <p className="muted">
-        <Link href={`/live/${id}`}>Replay as a live scorecard →</Link>
-      </p>
+      {internal ? (
+        <p className="muted">
+          <Link href={`/live/${id}`}>Replay as a live scorecard →</Link>
+        </p>
+      ) : null}
       <p className="muted">
         {occurredAt ? new Date(occurredAt).toLocaleDateString('en-GB') : 'Date unknown'} ·{' '}
-        {segments.length} segments · {signals.length} signals · {scored.engagementType} v
-        {scored.criteriaVersion}
+        {segments.length} transcript line{segments.length === 1 ? '' : 's'} · {signals.length} signal
+        {signals.length === 1 ? '' : 's'} ·{' '}
+        {engagementLabel(scored.engagementType)}
       </p>
       <ConsentRecord
         statement={conversation.consent_statement}
@@ -301,7 +307,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
       {command && stage === 'captured' ? (
         <CapturedCard
           state={capturedState(segments.length, conversation.created_at)}
-          command={command}
+          command={internal ? command : null}
         />
       ) : null}
 
@@ -316,7 +322,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
             larger model. Every signal it finds is quoted word for word from the transcript.
           </p>
           <ExtractButton conversationId={id} />
-          {command ? <OperatorCommand command={command} /> : null}
+          {command && internal ? <OperatorCommand command={command} /> : null}
         </section>
       ) : null}
 
@@ -365,8 +371,8 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
               ))}
             </ul>
             <p className="muted" style={{ fontSize: '0.82rem' }}>
-              Computed from {scored.detectors.join(', ') || 'no detector'} · the score is not
-              stored, it is derived from the quotes above each time this page loads.
+              Scored against the {engagementLabel(scored.engagementType)} criteria, from the
+              quotes above. The score is worked out again each time this page loads.
             </p>
           </>
         )}

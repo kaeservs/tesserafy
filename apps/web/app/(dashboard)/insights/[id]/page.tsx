@@ -34,13 +34,19 @@ const KIND_LABEL: Record<string, string> = {
   feature_request: 'Feature request',
 };
 
+const STATUS_LABEL: Record<string, string> = {
+  proposed: 'Proposed — waiting for your decision',
+  approved: 'Approved',
+  dismissed: 'Dismissed',
+};
+
 export default async function InsightPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
 
   const { data: insight } = await supabase
     .from('insights')
-    .select('id, title, summary, synthesiser, model, created_at, status')
+    .select('id, title, summary, created_at, status')
     .eq('id', id)
     .maybeSingle();
 
@@ -90,11 +96,9 @@ export default async function InsightPage({ params }: { params: Promise<{ id: st
     ),
   );
 
-  const { title, summary, synthesiser, model, status } = insight as {
+  const { title, summary, status } = insight as {
     title: string;
     summary: string;
-    synthesiser: string;
-    model: string;
     status: string;
   };
 
@@ -106,8 +110,8 @@ export default async function InsightPage({ params }: { params: Promise<{ id: st
       <h1>{title}</h1>
       <p>{summary}</p>
       <p className="muted">
-        {signals.length} signals across {conversationIds.length} conversations · {synthesiser} ·{' '}
-        {model} · {status}
+        {signals.length} signals across {conversationIds.length} meetings ·{' '}
+        {STATUS_LABEL[status] ?? status}
       </p>
 
       <Decide

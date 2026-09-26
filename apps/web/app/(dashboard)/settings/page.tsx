@@ -1,4 +1,5 @@
 import { PlanPanel, type CatalogPlan, type PlanOverview } from '@/components/plan-panel';
+import { liveAvailable } from '@/lib/company';
 import { RemoveMember } from '@/components/remove-member';
 import { RequestTeammate } from '@/components/request-teammate';
 import { RetentionForm } from '@/components/retention-form';
@@ -27,7 +28,7 @@ export default async function SettingsPage() {
 
   const { data: membership } = await supabase
     .from('company_members')
-    .select('role, companies(name, retention_days)')
+    .select('role, companies(name, retention_days, plan)')
     .eq('user_id', user?.id ?? '')
     .limit(1)
     .maybeSingle();
@@ -85,6 +86,7 @@ export default async function SettingsPage() {
             overview={overview as unknown as PlanOverview}
             catalog={(catalog ?? []) as CatalogPlan[]}
             isOwner={isOwner}
+            liveAvailable={liveAvailable(company?.plan)}
           />
         ) : (
           <p className="muted">The plan could not be read just now.</p>

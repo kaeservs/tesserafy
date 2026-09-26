@@ -1,3 +1,4 @@
+import { engagementLabel } from '@/lib/company';
 import Link from 'next/link';
 import { GettingStarted } from '@/components/getting-started';
 import { ScorecardStrip } from '@/components/scorecard-strip';
@@ -164,8 +165,7 @@ export default async function DashboardPage() {
                       {conversation.title}
                     </Link>
                     <span className="meeting-meta">
-                      {when(conversation.occurred_at)} · {conversation.engagement_type} v
-                      {conversation.criteria_version}
+                      {when(conversation.occurred_at)} · {engagementLabel(conversation.engagement_type)}
                     </span>
                     <span className="meeting-score">
                       {card && observed ? (

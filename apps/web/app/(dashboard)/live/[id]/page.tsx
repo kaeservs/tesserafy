@@ -1,3 +1,5 @@
+import { LiveComingSoon } from '@/components/live-coming-soon';
+import { liveAvailable, myCompany } from '@/lib/company';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { fetchCriteria } from '@tesserafy/db';
@@ -17,6 +19,7 @@ import { createClient } from '@/lib/supabase/server';
 export default async function LivePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
+  if (!liveAvailable((await myCompany(supabase))?.plan)) return <LiveComingSoon />;
 
   const { data: conversation } = await supabase
     .from('conversations')

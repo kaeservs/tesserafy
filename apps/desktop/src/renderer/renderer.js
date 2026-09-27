@@ -436,6 +436,13 @@ el('lookReset').addEventListener('click', async () => showAppearance(await api.r
 
 void api.appearance().then(showAppearance);
 
+// The window is as tall as the card and no taller: the transparent part of a
+// taller one looks like nothing and still takes the clicks meant for the
+// meeting under it. Told on every change — signing in, a suggestion, the
+// appearance panel — and the main process resizes to match.
+const card = document.querySelector('.card');
+new ResizeObserver(() => void api.fit(card.getBoundingClientRect().height)).observe(card);
+
 el('quit').addEventListener('click', () => {
   if (listening) recognition?.stop();
   void api.quit();

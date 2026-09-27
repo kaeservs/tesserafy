@@ -4,5 +4,5 @@
     "types": ["node"],
     "lib": ["es2024", "dom"]
   },
-  "include": ["src"]
+  "include": ["src", "test"]
 }

@@ -42,6 +42,7 @@ export function Chrome({ email, children }: { email: string; children: ReactNode
           Add people <RequestCount />
         </Link>
         <Link href="/history">Access history</Link>
+        <Link href="/failures">Failures</Link>
         <span className="spacer" />
         <form action={signOut}>
           <button type="submit">Sign out</button>

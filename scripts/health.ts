@@ -20,28 +20,11 @@
  * failure mode this whole thing was built to end. Two false alarms teach an
  * operator to ignore the alarm, which is worse than not having one.
  */
-import { createServiceClient } from '@tesserafy/db';
+import { ALARM_AT, alarming, createServiceClient, groupFailures, type FailureRow } from '@tesserafy/db';
 
-/** The kinds that mean somebody must act today. */
-const ACTIONABLE = new Set(['model_rejected', 'database']);
-
-/**
- * Below this, an actionable failure is reported but does not fail the run.
- * One rejected request can be a fluke — a truncated deploy, a single bad
- * payload. Two inside the window is a pattern, and the four-merge outage would
- * have produced dozens within an hour.
- */
-const ALARM_AT = 2;
-
-interface FailureRow {
-  source: string;
-  kind: string;
-  tier: string | null;
-  model: string | null;
-  status: number | null;
-  message: string;
-  created_at: string;
-}
+// Which failures need a person, and how they group, live in
+// packages/db/src/health.ts, shared with the operator console's Failures page:
+// the page and this alarm must never disagree about what matters.
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -103,42 +86,24 @@ async function main(): Promise<void> {
 
   // Grouped by what broke and where, because twenty rows of the same 400 is
   // one problem and reading it twenty times does not make it clearer.
-  const groups = new Map<string, { rows: FailureRow[] }>();
-  for (const row of rows) {
-    const key = `${row.kind}\u0000${row.source}\u0000${row.status ?? ''}`;
-    const group = groups.get(key) ?? { rows: [] };
-    group.rows.push(row);
-    groups.set(key, group);
-  }
-
-  const ordered = [...groups.values()].sort((a, b) => {
-    const actionable = Number(ACTIONABLE.has(b.rows[0]!.kind)) - Number(ACTIONABLE.has(a.rows[0]!.kind));
-    return actionable !== 0 ? actionable : b.rows.length - a.rows.length;
-  });
-
-  let alarming = 0;
+  const groups = groupFailures(rows);
+  const alarmingCount = alarming(groups);
   console.log(`health: ${rows.length} failure(s) in the last ${hours}h\n`);
 
-  for (const group of ordered) {
-    const first = group.rows[0]!;
-    const needsAPerson = ACTIONABLE.has(first.kind);
-    if (needsAPerson && group.rows.length >= ALARM_AT) alarming += group.rows.length;
-
-    const mark = needsAPerson ? '!' : '-';
-    const where = [first.source, first.tier, first.model, first.status]
-      .filter(Boolean)
-      .join(' ');
-    console.log(`  ${mark} ${first.kind}  ${where}  ×${group.rows.length}  (last ${ago(first.created_at)})`);
-    console.log(`      ${first.message.split('\n')[0]!.slice(0, 160)}`);
+  for (const group of groups) {
+    const mark = group.needsAPerson ? '!' : '-';
+    const where = [group.source, group.tier, group.model, group.status].filter(Boolean).join(' ');
+    console.log(`  ${mark} ${group.kind}  ${where}  ×${group.count}  (last ${ago(group.last)})`);
+    console.log(`      ${group.message.slice(0, 160)}`);
   }
 
-  if (alarming === 0) {
+  if (alarmingCount === 0) {
     console.log(`\nNothing here needs a person: no bug of ours repeated ${ALARM_AT}+ times.`);
     process.exit(0);
   }
 
   console.log(
-    `\n${alarming} failure(s) marked ! are requests we built wrong or our own database refusing us.`,
+    `\n${alarmingCount} failure(s) marked ! are requests we built wrong or our own database refusing us.`,
   );
   console.log('Those do not fix themselves. Exiting 1 so a scheduled run says so.');
   process.exit(1);

@@ -19,9 +19,9 @@ https://claude.ai/code/artifact/a7cdd883-3bc5-48f5-84da-a0fe6b21f329
 | P5 | Retrieval and insights | One insight with >= 3 evidence items from >= 2 conversations, each citing customer and timestamp. Cross-tenant test still green. | **Done** — one insight in production, 4 signals across 4 conversations; page shows every citation |
 | P6 | Live path, browser first | Measured p50/p95 for utterance -> visible score against the latency budget. | Built — replay and microphone paths both measure against ADR 0010; real STT awaits S2 |
 | P7 | Electron HUD | Overlay over a live Zoom call; scorecard updates; meeting stays visible and clickable; screen-share behaviour matches S1. | Built — overlay listens, detects and scores; screen-share behaviour awaits S1 |
-| P8 | Prepare and Act | An insight moves from approval to a created ticket carrying its evidence citations. No auto-creation anywhere. | Built and applied; needs GITHUB_TOKEN and GITHUB_TICKET_REPO to raise a real ticket |
+| P8 | Prepare and Act | An insight moves from approval to a created ticket carrying its evidence citations. No auto-creation anywhere. | Built; **not usable by customers yet** — tickets go to one repository set in the web app's environment (not configured), not to each company's own tracker. Per-company tracker connection is next |
 | P10 | Transcript import | A signed-in member can add a transcript without a terminal; it parses through the same chunker as `pnpm ingest`. | **Done** — `/conversations/new`; an upload scores itself (T1) within seconds, as the uploader |
-| P9 | Dashboard and history | A past meeting shows a scorecard derived from stored evidence; criteria coverage across every meeting. No score stored anywhere. | Built — `criterion_events` + `/dashboard`; needs the migration applied and `pnpm score` run |
+| P9 | Dashboard and history | A past meeting shows a scorecard derived from stored evidence; criteria coverage across every meeting. No score stored anywhere. | **Done** — `/dashboard`, `/reports` (weekly trend, by seller) and each meeting's scorecard, computed on read from `criterion_events` |
 
 ## MVP
 
@@ -81,10 +81,14 @@ leaves every link working and every highlight landing while the product
 quietly improves on what a customer said, and that is invisible to any test
 that does not compare the two strings.
 
-A transcript can now be imported from the web app, which was the gap between
-"the MVP works" and "somebody other than an operator can use it". It lands
-with segments and no embeddings; `pnpm score` and `pnpm process` finish it,
-and the conversation says which of them it is waiting for.
+A transcript can be imported from the web app, which was the gap between "the
+MVP works" and "somebody other than an operator can use it". It scores itself
+on arrival, as the uploader (in 48-utterance windows since ADR 0014), and
+"Find insights in this call" and "Look for patterns" are buttons, spent from
+the company's plan allowance. No step needs a terminal.
+
+Operators see what failed in production on the console's Failures page, with
+the same judgement as the scheduled `pnpm health` alarm.
 
 What is left cannot be done from a keyboard alone:
 
@@ -95,8 +99,8 @@ What is left cannot be done from a keyboard alone:
   browser vendor.
 - **ADR 0010** — accept, amend or reject the revised ~2 s budget. It changes a
   product promise, so it is not a technical call.
-- **P8** — `GITHUB_TOKEN` and `GITHUB_TICKET_REPO` in Vercel, then approve an
-  insight and raise a ticket.
+- **P8** — each company connects its own tracker; then approve an insight and
+  raise a ticket into it.
 - **QA** — `pnpm qa` covers what a machine can judge; the rest is in
   `qa-checklist.md`.
 - **Sign-in** — works in any browser now, via the implicit flow, and a

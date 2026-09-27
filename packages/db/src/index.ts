@@ -65,3 +65,11 @@ export {
 } from './queries/criteria';
 export { fetchCriterionEvents, type CriterionEventRow } from './queries/criterion-events';
 export { batches, ID_BATCH, PAGE_SIZE, readAll } from './queries/paged';
+export {
+  ACTIONABLE_KINDS,
+  ALARM_AT,
+  alarming,
+  groupFailures,
+  type FailureGroup,
+  type FailureRow,
+} from './health';

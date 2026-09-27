@@ -92,11 +92,23 @@ function workAreas(): Rect[] {
   return screen.getAllDisplays().map((display) => display.workArea);
 }
 
+/**
+ * The card's height in CSS pixels, as the page last measured it. Undefined
+ * until it has, when the window opens at a guess and stays hidden.
+ */
+let cardHeight: number | undefined;
+
 /** Size, zoom and position for the current appearance; the position is then saved as placed. */
 function place(window: BrowserWindow): void {
-  placed = placement(appearance, workAreas(), screen.getPrimaryDisplay().workArea);
+  const zoom = SCALE[appearance.size];
+  placed = placement(
+    appearance,
+    workAreas(),
+    screen.getPrimaryDisplay().workArea,
+    cardHeight === undefined ? undefined : cardHeight * zoom,
+  );
   window.setBounds(placed);
-  window.webContents.setZoomFactor(SCALE[appearance.size]);
+  window.webContents.setZoomFactor(zoom);
   appearance = { ...appearance, position: { ...appearance.position, x: placed.x, y: placed.y } };
 }
 
@@ -105,6 +117,10 @@ function createOverlay(): BrowserWindow {
 
   const window = new BrowserWindow({
     ...placed,
+    // Shown once the page has measured its card and the window has taken its
+    // height; otherwise an overlay pinned to a bottom corner opens at the
+    // guessed height and visibly drops into place.
+    show: false,
     frame: false,
     transparent: true,
     resizable: false,
@@ -137,6 +153,14 @@ function createOverlay(): BrowserWindow {
   // leaking a real overlay into a real call while someone is fiddling.
   window.setContentProtection(true);
 
+  // If the page never reports its card, the overlay still appears, at the
+  // guessed height, rather than never at all.
+  window.once('ready-to-show', () => {
+    setTimeout(() => {
+      if (!window.isDestroyed() && !window.isVisible()) window.show();
+    }, 1000);
+  });
+
   void window.loadFile(join(__dirname, '../renderer/index.html'));
   return window;
 }
@@ -155,6 +179,17 @@ void app.whenReady().then(async () => {
   overlay = createOverlay();
 
   ipcMain.handle('overlay:appearance', () => appearance);
+
+  // The card changed height: the window follows, so it covers the meeting
+  // only where the card does. Not saved — the next launch measures again.
+  ipcMain.handle('overlay:fit', (_event, height: unknown) => {
+    if (typeof height !== 'number' || !Number.isFinite(height) || height <= 0) return;
+    if (!overlay) return;
+    const changed = cardHeight === undefined || Math.abs(cardHeight - height) >= 1;
+    cardHeight = height;
+    if (changed) place(overlay);
+    if (!overlay.isVisible()) overlay.show();
+  });
 
   // Whatever the page sends is checked field by field; a size or corner
   // change moves the window, the rest is the page's own CSS.

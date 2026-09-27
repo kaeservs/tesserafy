@@ -65,9 +65,16 @@ export const DEFAULT_APPEARANCE: Appearance = {
 
 /** The page is zoomed by this and the window grows with it. */
 export const SCALE: Record<Size, number> = { small: 0.85, normal: 1, large: 1.2 };
+/**
+ * The width is fixed by the size; the height is the card's, once the page has
+ * measured it (`placement`'s `height`). This height is only the guess the
+ * window opens with, before it has.
+ */
 const BASE = { width: 380, height: 460 };
 /** Clear of the screen edge, and of the meeting controls at the bottom. */
 const MARGIN = 24;
+/** Never shorter than this, whatever the page reports. */
+const MIN_HEIGHT = 80;
 
 export interface Rect {
   x: number;
@@ -180,15 +187,24 @@ function clampInto(rect: Rect, area: Rect): Rect {
  * since been unplugged falls back to the primary display rather than opening
  * the overlay somewhere nobody can see it — and a window nobody can see
  * cannot be dragged back.
+ *
+ * `height` is the card's height in window pixels, when the page has measured
+ * it. The window is exactly that tall, so it covers nothing of the meeting
+ * that the card does not: the transparent part of a taller window still
+ * takes the clicks meant for whatever is under it. A bottom corner keeps the
+ * card's bottom edge where it is, so the card grows upwards. Never taller than
+ * the display.
  */
-export function placement(appearance: Appearance, areas: Rect[], primary: Rect): Rect {
-  const { width, height } = sizeOf(appearance.size);
+export function placement(appearance: Appearance, areas: Rect[], primary: Rect, height?: number): Rect {
+  const { width, height: guess } = sizeOf(appearance.size);
   const { corner, x, y } = appearance.position;
-  const area = x === null || y === null ? undefined : displayOf({ x, y, width, height }, areas);
+  const area = x === null || y === null ? undefined : displayOf({ x, y, width, height: guess }, areas);
+  const wanted = height !== undefined && Number.isFinite(height) ? Math.ceil(height) : guess;
+  const tall = Math.max(MIN_HEIGHT, Math.min(wanted, (area ?? primary).height - 2 * MARGIN));
 
-  if (corner) return atCorner(corner, area ?? primary, width, height);
+  if (corner) return atCorner(corner, area ?? primary, width, tall);
   if (!area || x === null || y === null) {
-    return atCorner(DEFAULT_APPEARANCE.position.corner ?? 'top-right', primary, width, height);
+    return atCorner(DEFAULT_APPEARANCE.position.corner ?? 'top-right', primary, width, tall);
   }
-  return clampInto({ x, y, width, height }, area);
+  return clampInto({ x, y, width, height: tall }, area);
 }

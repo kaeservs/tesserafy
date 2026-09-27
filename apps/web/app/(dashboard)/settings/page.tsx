@@ -4,8 +4,10 @@ import { liveAvailable } from '@/lib/company';
 import { RemoveMember } from '@/components/remove-member';
 import { RequestTeammate } from '@/components/request-teammate';
 import { RetentionForm } from '@/components/retention-form';
+import { TrackerPanel } from '@/components/tracker-panel';
 import { PURGE_TIME_UTC, describeRetention } from '@/lib/retention';
 import { createClient } from '@/lib/supabase/server';
+import { trackerKeyAvailable } from '@/lib/tracker-secret';
 
 export const metadata = { title: 'Settings · Tesserafy' };
 
@@ -81,6 +83,14 @@ export default async function SettingsPage() {
         .order('changed_at', { ascending: false })
         .limit(10)
     : { data: [] };
+  // Where tickets go. Every member may read this; the token itself is a
+  // column no customer can select (ADR 0015).
+  const { data: tracker } = await supabase
+    .from('company_trackers')
+    .select('target, token_hint, connected_by, connected_at')
+    .maybeSingle();
+  const emailOf = new Map((team ?? []).map((person) => [person.user_id, person.email]));
+
   // The last owner cannot step down; the button is not offered when it would
   // only be refused.
   const owners = (team ?? []).filter((person) => person.role === 'owner').length;
@@ -223,6 +233,27 @@ export default async function SettingsPage() {
             </ul>
           </details>
         ) : null}
+      </section>
+
+      <section aria-labelledby="tracker-heading" className="card">
+        <h2 id="tracker-heading" style={{ marginTop: 0 }}>
+          Where tickets go
+        </h2>
+        <TrackerPanel
+          connected={
+            tracker
+              ? {
+                  target: tracker.target,
+                  tokenHint: tracker.token_hint,
+                  connectedBy: tracker.connected_by ? (emailOf.get(tracker.connected_by) ?? 'a former member') : null,
+                  connectedAt: tracker.connected_at,
+                }
+              : null
+          }
+          connectedDate={tracker ? day(tracker.connected_at) : null}
+          isOwner={isOwner}
+          available={trackerKeyAvailable()}
+        />
       </section>
 
       {/*

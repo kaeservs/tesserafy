@@ -1,11 +1,18 @@
 import type { SupabaseClient } from '@tesserafy/db';
 import { NextResponse, type NextRequest } from 'next/server';
+import { createIssue } from '@/lib/github-tracker';
 import { ticketBody, ticketTitle, type TicketCitation } from '@/lib/ticket';
 import { siteUrl } from '@/lib/site-url';
 import { caller } from '@/lib/supabase/caller';
+import { openToken, trackerKeyAvailable } from '@/lib/tracker-secret';
 
 /**
- * Create a ticket from an approved insight.
+ * Create a ticket from an approved insight, in the company's own tracker.
+ *
+ * Where it goes and with which token come from `company_trackers`, connected
+ * by the company's owner (ADR 0015) — not from this app's environment, which
+ * would have sent every brand's insights to one repository. The token arrives
+ * sealed and is opened here, on the server, for this one request.
  *
  * Nothing here runs on its own. The route is a POST a person makes from the
  * insight page, it refuses an insight that is not approved, and the database
@@ -40,15 +47,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: 'not signed in' }, { status: 401 });
   }
   const supabase = who.db;
-
-  const token = process.env['GITHUB_TOKEN'];
-  const repo = process.env['GITHUB_TICKET_REPO'];
-  if (!token || !repo) {
-    return NextResponse.json(
-      { error: 'GITHUB_TOKEN and GITHUB_TICKET_REPO are not set' },
-      { status: 503 },
-    );
-  }
 
   // RLS decides visibility; another tenant's insight is simply not found.
   const { data: insight } = await supabase
@@ -97,28 +95,45 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: 'insight has no evidence' }, { status: 409 });
   }
 
-  const insightUrl = siteUrl(request, `/insights/${id}`).toString();
-  const created = await fetch(`https://api.github.com/repos/${repo}/issues`, {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${token}`,
-      accept: 'application/vnd.github+json',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      title: ticketTitle({ title, summary, citations, insightUrl }),
-      body: ticketBody({ title, summary, citations, insightUrl }),
-    }),
-  });
-
-  if (!created.ok) {
+  if (!trackerKeyAvailable()) {
     return NextResponse.json(
-      { error: `creating the issue failed: ${created.status} ${await created.text()}` },
-      { status: 502 },
+      { error: 'Tracker connections are not switched on for this deployment yet.' },
+      { status: 503 },
     );
   }
 
-  const issue = (await created.json()) as { number: number; html_url: string };
+  // The company's own tracker, and its token still sealed. The function checks
+  // the insight is approved and the caller's.
+  const { data: trackers, error: trackerError } = await supabase.rpc('tracker_for_ticket', { p_insight_id: id });
+  if (trackerError) {
+    return NextResponse.json({ error: trackerError.message.replace(/^tracker_for_ticket: /, '') }, { status: 409 });
+  }
+  const tracker = trackers?.[0];
+  if (!tracker) {
+    return NextResponse.json(
+      { error: 'No tracker is connected. An owner can connect one under Settings → Where tickets go.' },
+      { status: 409 },
+    );
+  }
+  const token = openToken(tracker.token_ciphertext, tracker.company_id);
+  if (!token) {
+    return NextResponse.json(
+      { error: 'The stored token could not be read. An owner can reconnect it under Settings → Where tickets go.' },
+      { status: 409 },
+    );
+  }
+
+  const insightUrl = siteUrl(request, `/insights/${id}`).toString();
+  const created = await createIssue(tracker.target, token, {
+    title: ticketTitle({ title, summary, citations, insightUrl }),
+    body: ticketBody({ title, summary, citations, insightUrl }),
+  });
+
+  if (!created.ok) {
+    return NextResponse.json({ error: `Creating the issue failed: ${created.message}` }, { status: 502 });
+  }
+
+  const issue = { number: created.number, html_url: created.url };
 
   // Recorded through a function that re-checks approval, so a ticket cannot be
   // attributed to an insight nobody agreed to.

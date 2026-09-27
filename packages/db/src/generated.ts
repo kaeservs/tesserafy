@@ -356,6 +356,44 @@ export type Database = {
           },
         ]
       }
+      company_trackers: {
+        Row: {
+          company_id: string
+          connected_at: string
+          connected_by: string | null
+          provider: string
+          target: string
+          token_ciphertext: string
+          token_hint: string
+        }
+        Insert: {
+          company_id: string
+          connected_at?: string
+          connected_by?: string | null
+          provider: string
+          target: string
+          token_ciphertext: string
+          token_hint: string
+        }
+        Update: {
+          company_id?: string
+          connected_at?: string
+          connected_by?: string | null
+          provider?: string
+          target?: string
+          token_ciphertext?: string
+          token_hint?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_trackers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation_views: {
         Row: {
           company_id: string
@@ -1345,6 +1383,44 @@ export type Database = {
           },
         ]
       }
+      tracker_events: {
+        Row: {
+          action: string
+          actor: string | null
+          at: string
+          company_id: string
+          id: string
+          provider: string
+          target: string
+        }
+        Insert: {
+          action: string
+          actor?: string | null
+          at?: string
+          company_id: string
+          id?: string
+          provider: string
+          target: string
+        }
+        Update: {
+          action?: string
+          actor?: string | null
+          at?: string
+          company_id?: string
+          id?: string
+          provider?: string
+          target?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracker_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       usage_ledger: {
         Row: {
           amount: number
@@ -1494,6 +1570,15 @@ export type Database = {
         Args: { p_id: string; p_new_account: boolean; p_user_id: string }
         Returns: string
       }
+      connect_tracker: {
+        Args: {
+          p_provider: string
+          p_target: string
+          p_token_ciphertext: string
+          p_token_hint: string
+        }
+        Returns: undefined
+      }
       conversation_for_source: {
         Args: { p_company_id: string; p_source_key: string }
         Returns: string
@@ -1540,6 +1625,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      disconnect_tracker: { Args: never; Returns: undefined }
       embed_stored_segments: {
         Args: { p_company_id: string; p_model: string; p_rows: Json }
         Returns: number
@@ -1873,6 +1959,15 @@ export type Database = {
       take_rate_limit_tokens: {
         Args: { p_bucket: string; p_internal_windows?: Json; p_windows: Json }
         Returns: Json
+      }
+      tracker_for_ticket: {
+        Args: { p_insight_id: string }
+        Returns: {
+          company_id: string
+          provider: string
+          target: string
+          token_ciphertext: string
+        }[]
       }
     }
     Enums: {

@@ -101,13 +101,15 @@ shows nothing, stop: the test was never valid, and steps 3–4 say nothing.
 
 ## P8 — approval and a ticket
 
-Needs `GITHUB_TOKEN` and `GITHUB_TICKET_REPO` set in Vercel first.
+Needs `TRACKER_TOKEN_KEY` set in the web app's Vercel environment (ADR 0015),
+and a GitHub repository you can use for a test issue — a private one is best.
 
 | # | Do | Pass looks like |
 |---|---|---|
+| 0 | As an owner, Settings → **Where tickets go**: paste the repository and a fine-grained token (that repository only, Issues: read and write) | "Connected to owner/repo"; the section shows the token's last four characters and nothing more |
 | 1 | Open an insight | Status reads `proposed`, with Approve and Dismiss |
-| 2 | Click **Approve** | Status becomes `approved`; a **Create ticket** button appears |
-| 3 | Click **Create ticket** | A link to the created issue appears |
+| 2 | Click **Approve** | Status becomes `approved`; a **Create ticket in owner/repo** button appears |
+| 3 | Click it | A link to the created issue appears, in *your* repository |
 | 4 | Open the issue | Title is the insight; body carries every quote with customer, timestamp and a link back |
 | 5 | Click a transcript link from inside the issue | Lands on the right segment |
 | 6 | Reload and click Create ticket again | Not possible — the existing ticket is shown instead. Clicking twice must not open two issues |

@@ -7,7 +7,8 @@
     "build": "tsc -p tsconfig.build.json && esbuild src/renderer/renderer.js --bundle --format=esm --outfile=dist/renderer/renderer.js && node -e \"require('fs').copyFileSync('src/renderer/index.html','dist/renderer/index.html')\"",
     "dev": "pnpm build && electron .",
     "typecheck": "tsc -p tsconfig.json",
-    "dist:win": "pnpm build && electron-builder --win nsis --publish never"
+    "dist:win": "pnpm build && electron-builder --win nsis --publish never",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@tesserafy/scoring": "workspace:*",
@@ -15,7 +16,8 @@
     "electron": "39.2.6",
     "electron-builder": "26.15.3",
     "esbuild": "^0.28.2",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "vitest": "^5.0.1"
   },
   "productName": "Tesserafy",
   "description": "Tesserafy live scorecard overlay",

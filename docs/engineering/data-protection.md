@@ -248,7 +248,11 @@ their company at once, recorded in `membership_removals` as removed by
 themselves, so their owner sees they left. It writes one open request, and
 signs them out. Signing in again shows only that the account is being
 deleted. An owner cannot ask while their company exists, because a company
-needs an owner; the page tells them to have it closed or handed over. The
+needs an owner. They hand it over themselves under Settings: make someone
+else an owner, step down to member, then ask. An operator can do the same
+from the console for a company whose only owner has gone. A company always
+keeps at least one owner, and every role change is recorded first in
+`membership_role_changes`, readable by its owners and operators. The
 console's overview lists open requests with the age of the oldest, since the
 page promised deletion within 30 days. The operator's deletion resolves the
 request it fulfils.
@@ -271,7 +275,8 @@ What the account leaves behind is decided by the schema, not by the console:
 
 Some records keep the address itself, and deleting the login does not remove
 it: a company's `membership_removals` (who was taken off its team, by whom,
-and when), the operator's `account_provisioning` log (whom an operator
+and when) and `membership_role_changes` (who became an owner or a member),
+the operator's `account_provisioning` log (whom an operator
 created), and `access_requests` (whom an owner asked to have added). They are
 the company's, and our, record of who had access to a company's calls, which
 is the question a breach or a dispute asks, so they are kept on purpose. They

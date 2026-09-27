@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/admin';
 import { utc } from '@/lib/time';
 import { Chrome } from '../../chrome';
 import { SetPlan } from '../set-plan';
+import { SetRole } from './set-role';
 
 /**
  * One company, in full: where its plan stands, what it has used, who is in
@@ -67,8 +68,22 @@ function standing(d: Detail): string {
 export default async function CompanyPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const admin = await requireAdmin();
-  const { data, error } = await admin.db.rpc('admin_company_detail', { p_company_id: id });
+  const [{ data, error }, { data: people }, { data: roleChanges }] = await Promise.all([
+    admin.db.rpc('admin_company_detail', { p_company_id: id }),
+    // The detail names members by address; changing a role needs their id.
+    admin.db.rpc('admin_users'),
+    admin.db
+      .from('membership_role_changes')
+      .select('id, email, from_role, to_role, changed_by, changed_at')
+      .eq('company_id', id)
+      .order('changed_at', { ascending: false })
+      .limit(20),
+  ]);
   if (error?.code === '22023') notFound();
+  const idOf = new Map(
+    (people ?? []).filter((p) => p.company_id === id).map((p) => [p.email ?? '', p.user_id]),
+  );
+  const emailOf = new Map((people ?? []).map((p) => [p.user_id, p.email ?? '']));
   // A function's jsonb comes typed as Json; this is its shape.
   const d = data as unknown as Detail | null;
   if (!d) {
@@ -146,11 +161,34 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
                     <td>{m.email}</td>
                     <td className="muted">{m.role}</td>
                     <td className="muted">{m.last_sign_in ? `seen ${utc(m.last_sign_in)}` : 'never signed in'}</td>
+                    <td>
+                      {d.company.closed_at || !idOf.get(m.email) ? null : (
+                        <SetRole
+                          companyId={d.company.id}
+                          userId={idOf.get(m.email)!}
+                          email={m.email}
+                          to={m.role === 'owner' ? 'member' : 'owner'}
+                        />
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           )}
+          {(roleChanges ?? []).length > 0 ? (
+            <details style={{ marginTop: '0.6rem' }}>
+              <summary className="muted">Role changes</summary>
+              <ul style={{ marginBottom: 0 }}>
+                {(roleChanges ?? []).map((c) => (
+                  <li key={c.id} className="muted">
+                    {utc(c.changed_at)} — {c.email}: {c.from_role} → {c.to_role}, by{' '}
+                    {c.changed_by ? (emailOf.get(c.changed_by) ?? 'a deleted account') : 'a deleted account'}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
         </section>
 
         <section className="card">

@@ -69,6 +69,27 @@ export async function setPlan(_prev: SetPlanState, formData: FormData): Promise<
   return { status: 'idle' };
 }
 
+export type SetRoleState = { status: 'idle' } | { status: 'error'; message: string };
+
+/**
+ * Make someone in a company an owner, or an owner a member, as the operator:
+ * for a company whose only owner has left and cannot hand over themselves.
+ * `admin_set_member_role` checks the operator is one and keeps the company
+ * with an owner; the change is recorded under the operator's name.
+ */
+export async function setMemberRole(_prev: SetRoleState, formData: FormData): Promise<SetRoleState> {
+  const admin = await requireAdmin();
+  const companyId = text(formData, 'companyId');
+  const { error } = await admin.db.rpc('admin_set_member_role', {
+    p_company_id: companyId,
+    p_user_id: text(formData, 'userId'),
+    p_role: text(formData, 'role'),
+  });
+  if (error) return { status: 'error', message: error.message.replace(/^admin_set_member_role: /, '') };
+  revalidatePath(`/companies/${companyId}`);
+  return { status: 'idle' };
+}
+
 export type SignupSwitchState = { status: 'idle' } | { status: 'error'; message: string };
 
 /** Open or close self-serve sign-up. The database records who, and when. */

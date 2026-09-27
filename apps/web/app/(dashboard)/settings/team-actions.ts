@@ -42,6 +42,34 @@ export async function removeMember(_prev: RemoveState, formData: FormData): Prom
 }
 
 /**
+ * Make someone an owner, or an owner a member — the owner's own role included.
+ *
+ * `set_member_role` decides: only an owner, only in their company, and the
+ * company always keeps an owner — so the last one cannot step down until
+ * someone else holds it. The change is recorded before it happens.
+ */
+export async function changeRole(_prev: RemoveState, formData: FormData): Promise<RemoveState> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('set_member_role', {
+    p_user_id: text(formData, 'userId'),
+    p_role: text(formData, 'role'),
+  });
+  if (error) {
+    const message = error.message.replace(/^set_member_role: /, '');
+    return {
+      status: 'error',
+      message:
+        error.code === '42501'
+          ? 'Only an owner can change someone’s role.'
+          : `${message.charAt(0).toUpperCase()}${message.slice(1)}.`,
+    };
+  }
+  revalidatePath('/settings');
+  revalidatePath('/account');
+  return { status: 'idle' };
+}
+
+/**
  * Ask for someone to be added, as an owner.
  *
  * `request_teammate` decides: owners only, a real address, nobody already on

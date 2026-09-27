@@ -1,3 +1,4 @@
+import { ChangeRole } from '@/components/change-role';
 import { PlanPanel, type CatalogPlan, type PlanOverview } from '@/components/plan-panel';
 import { liveAvailable } from '@/lib/company';
 import { RemoveMember } from '@/components/remove-member';
@@ -73,6 +74,16 @@ export default async function SettingsPage() {
         .order('removed_at', { ascending: false })
         .limit(10)
     : { data: [] };
+  const { data: roleChanges } = isOwner
+    ? await supabase
+        .from('membership_role_changes')
+        .select('id, email, to_role, changed_at')
+        .order('changed_at', { ascending: false })
+        .limit(10)
+    : { data: [] };
+  // The last owner cannot step down; the button is not offered when it would
+  // only be refused.
+  const owners = (team ?? []).filter((person) => person.role === 'owner').length;
 
   return (
     <main>
@@ -147,7 +158,14 @@ export default async function SettingsPage() {
                 </td>
                 {isOwner ? (
                   <td>
-                    {person.is_you ? null : <RemoveMember userId={person.user_id} email={person.email} />}
+                    <div className="toolbar" style={{ flexWrap: 'wrap' }}>
+                      {person.role === 'member' ? (
+                        <ChangeRole userId={person.user_id} email={person.email} to="owner" isYou={person.is_you} />
+                      ) : owners > 1 ? (
+                        <ChangeRole userId={person.user_id} email={person.email} to="member" isYou={person.is_you} />
+                      ) : null}
+                      {person.is_you ? null : <RemoveMember userId={person.user_id} email={person.email} />}
+                    </div>
                   </td>
                 ) : null}
               </tr>
@@ -179,6 +197,19 @@ export default async function SettingsPage() {
               </ul>
             ) : null}
           </>
+        ) : null}
+        {isOwner && (roleChanges ?? []).length > 0 ? (
+          <details>
+            <summary>Role changes</summary>
+            <ul>
+              {(roleChanges ?? []).map((change) => (
+                <li key={change.id} className="muted">
+                  {change.email} became {change.to_role === 'owner' ? 'an owner' : 'a member'},{' '}
+                  {day(change.changed_at)}
+                </li>
+              ))}
+            </ul>
+          </details>
         ) : null}
         {isOwner && (removals ?? []).length > 0 ? (
           <details>

@@ -38,7 +38,15 @@ function Stat({ value, label }: { value: string | number; label: string }) {
 
 export default async function OverviewPage() {
   const admin = await requireAdmin();
-  const { data, error } = await admin.db.rpc('admin_overview');
+  const [{ data, error }, { data: deletionRequests }] = await Promise.all([
+    admin.db.rpc('admin_overview'),
+    admin.db
+      .from('account_deletion_requests')
+      .select('user_id, requested_at')
+      .is('resolved_at', null)
+      .order('requested_at'),
+  ]);
+  const asked = deletionRequests ?? [];
   // A function's jsonb comes typed as Json; this is its shape.
   const o = data as unknown as Overview | null;
 
@@ -51,7 +59,26 @@ export default async function OverviewPage() {
     );
   }
 
+  // The oldest request sets the clock: the page promised deletion within 30 days.
+  const oldestDays =
+    asked.length > 0
+      ? Math.floor((Date.now() - new Date(asked[0]!.requested_at).getTime()) / 86_400_000)
+      : 0;
+
   const attention = [
+    asked.length > 0 && (
+      <li key="deletions">
+        <Link
+          className="link"
+          href={`/people/delete?requested=1&ids=${asked.map((r) => r.user_id).join(',')}`}
+        >
+          {asked.length} {asked.length === 1 ? 'person has' : 'people have'} asked for their account
+          to be deleted
+        </Link>{' '}
+        — the oldest {oldestDays === 0 ? 'today' : `${oldestDays} day${oldestDays === 1 ? '' : 's'} ago`}; they
+        were promised within 30 days
+      </li>
+    ),
     o.waiting.requests > 0 && (
       <li key="requests">
         <Link className="link" href="/onboard">

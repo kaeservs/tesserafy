@@ -1,3 +1,4 @@
+import { DeleteMyAccount } from '@/components/delete-my-account';
 import { PasswordForm } from '@/components/password-form';
 import { createClient } from '@/lib/supabase/server';
 
@@ -51,6 +52,23 @@ export default async function AccountPage({
         ) : null}
         <PasswordForm invited={welcome} />
       </section>
+
+      {welcome ? null : (
+        <section aria-labelledby="delete-account-heading" className="card">
+          <h2 id="delete-account-heading" style={{ marginTop: 0 }}>
+            Delete your account
+          </h2>
+          {membership?.role === 'owner' ? (
+            <p className="muted" style={{ marginBottom: 0 }}>
+              You own {membership.companies?.name ?? 'your company'}, and a company needs an owner, so
+              your account cannot be deleted while it exists. Ask Tesserafy to close the company —
+              which deletes its calls and removes everyone — or to make someone else its owner first.
+            </p>
+          ) : (
+            <DeleteMyAccount email={user?.email ?? ''} company={membership?.companies?.name ?? null} />
+          )}
+        </section>
+      )}
     </main>
   );
 }

@@ -22,10 +22,10 @@ const RESULT_LABEL = { deleted: 'deleted', refused: 'not deleted', unfinished: '
  * the reason. The outcome stays above the form, which stays mounted, so the
  * page refreshing after a deletion does not take the result with it.
  */
-export function DeleteForm({ candidates }: { candidates: Candidate[] }) {
+export function DeleteForm({ candidates, defaultReason }: { candidates: Candidate[]; defaultReason: string }) {
   const [state, action, pending] = useActionState(deleteAccounts, START);
   const [ticked, setTicked] = useState<Set<string>>(() => new Set(candidates.map((c) => c.userId)));
-  const [reason, setReason] = useState('');
+  const [reason, setReason] = useState(defaultReason);
   const [confirm, setConfirm] = useState('');
 
   const chosen = candidates.filter((c) => ticked.has(c.userId));

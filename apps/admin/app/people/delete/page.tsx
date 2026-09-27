@@ -18,9 +18,9 @@ export const dynamic = 'force-dynamic';
 export default async function DeletePeople({
   searchParams,
 }: {
-  searchParams: Promise<{ ids?: string; all?: string }>;
+  searchParams: Promise<{ ids?: string; all?: string; requested?: string }>;
 }) {
-  const { ids = '', all } = await searchParams;
+  const { ids = '', all, requested } = await searchParams;
   const admin = await requireAdmin();
   const { data, error } = await admin.db.rpc('admin_users');
   const everyone = data ?? [];
@@ -67,7 +67,10 @@ export default async function DeletePeople({
 
       {error ? <p className="tag open">{error.message}</p> : null}
 
-      <DeleteForm candidates={candidates} />
+      <DeleteForm
+        candidates={candidates}
+        defaultReason={requested === '1' ? 'the account holder asked for it to be deleted' : ''}
+      />
 
       {blocked.length > 0 ? (
         <section aria-labelledby="blocked-heading">

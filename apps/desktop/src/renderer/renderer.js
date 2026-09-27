@@ -358,15 +358,32 @@ el('listen').addEventListener('click', () => {
   void loadCriteria().then((ready) => ready && startListening());
 });
 
-el('protection').addEventListener('click', async () => {
-  protection = await api.setProtection(!protection);
+// The main process owns both switches, and the tray changes them too; the
+// buttons show what it says rather than what was last clicked here.
+// Where the icon is, in the words each system uses: once click-through is on
+// it is the only way back, so the button says where to look.
+let trayPlace = 'the tray';
+void api.platform().then((p) => {
+  trayPlace = p.platform === 'darwin' ? 'the menu bar' : 'the taskbar corner';
+});
+
+function showSwitches(state) {
+  protection = state.protection;
+  clickThrough = state.clickThrough;
   el('protection').textContent = `Protection: ${protection ? 'on' : 'off'}`;
   el('unprotected').hidden = protection;
+  el('clickthrough').textContent = clickThrough
+    ? `Click-through: on — turn off from the Tesserafy icon in ${trayPlace}`
+    : 'Click-through: off';
+}
+api.onState(showSwitches);
+
+el('protection').addEventListener('click', async () => {
+  showSwitches({ protection: await api.setProtection(!protection), clickThrough });
 });
 
 el('clickthrough').addEventListener('click', async () => {
-  clickThrough = await api.setClickThrough(!clickThrough);
-  el('clickthrough').textContent = `Click-through: ${clickThrough ? 'on (restart to undo)' : 'off'}`;
+  showSwitches({ protection, clickThrough: await api.setClickThrough(!clickThrough) });
 });
 
 /*

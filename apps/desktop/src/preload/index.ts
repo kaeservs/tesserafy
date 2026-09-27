@@ -20,6 +20,13 @@ contextBridge.exposeInMainWorld('overlay', {
   resetAppearance: (): Promise<Appearance> => ipcRenderer.invoke('overlay:reset-appearance'),
   quit: (): Promise<void> => ipcRenderer.invoke('overlay:quit'),
   fit: (height: number): Promise<void> => ipcRenderer.invoke('overlay:fit', height),
+  // The switches changed, possibly from the tray. Only the two booleans cross;
+  // the page is never handed the event or ipcRenderer itself.
+  onState: (listener: (state: { protection: boolean; clickThrough: boolean }) => void): void => {
+    ipcRenderer.on('overlay:state', (_event, state: { protection: boolean; clickThrough: boolean }) =>
+      listener({ protection: Boolean(state.protection), clickThrough: Boolean(state.clickThrough) }),
+    );
+  },
   setProtection: (enabled: boolean): Promise<boolean> =>
     ipcRenderer.invoke('overlay:set-protection', enabled),
   setClickThrough: (enabled: boolean): Promise<boolean> =>

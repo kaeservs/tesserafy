@@ -367,13 +367,26 @@ void api.platform().then((p) => {
   trayPlace = p.platform === 'darwin' ? 'the menu bar' : 'the taskbar corner';
 });
 
+// The keyboard shortcuts as they read on this system, and whether they are
+// ours — another app may own them (see src/main/shortcuts.ts).
+let keys = { visible: null, clickThrough: null };
+void api.config().then((config) => {
+  keys = config.shortcuts;
+  const say = (shortcut, does, would) =>
+    shortcut.available ? `${shortcut.keys} ${does}` : `${shortcut.keys} would ${would}, but another app uses it`;
+  el('shortcutsNote').textContent =
+    `Keyboard, whichever window is in front: ` +
+    `${say(keys.visible, 'shows or hides the overlay', 'show or hide the overlay')}; ` +
+    `${say(keys.clickThrough, 'turns click-through on or off', 'turn click-through on or off')}.`;
+});
+
 function showSwitches(state) {
   protection = state.protection;
   clickThrough = state.clickThrough;
   el('protection').textContent = `Protection: ${protection ? 'on' : 'off'}`;
   el('unprotected').hidden = protection;
   el('clickthrough').textContent = clickThrough
-    ? `Click-through: on — turn off from the Tesserafy icon in ${trayPlace}`
+    ? `Click-through: on — ${keys.clickThrough?.available ? `${keys.clickThrough.keys} or ` : ''}the Tesserafy icon in ${trayPlace} turns it off`
     : 'Click-through: off';
 }
 api.onState(showSwitches);

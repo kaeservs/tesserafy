@@ -16,7 +16,7 @@
  * menu bar recolours to match itself; on Windows it is indigo, which reads on
  * a light or a dark taskbar.
  */
-import { Menu, Tray, nativeImage, type NativeImage } from 'electron';
+import { Menu, Tray, nativeImage, type MenuItemConstructorOptions, type NativeImage } from 'electron';
 
 const ICONS = {
   template16:
@@ -50,7 +50,20 @@ export interface TrayControls {
   update(): string | null;
   openUpdate(): void;
   checkForUpdates(): void;
+  /** Each shortcut's accelerator if it registered, or null if another app owns it. */
+  shortcuts(): { visible: string | null; clickThrough: string | null };
   quit(): void;
+}
+
+/**
+ * The keys beside a menu item, only displayed: the shortcut itself is
+ * registered globally, and registering it again here would take it twice.
+ * One another app owns says so instead.
+ */
+function keys(accelerator: string | null): Partial<MenuItemConstructorOptions> {
+  return accelerator
+    ? { accelerator, registerAccelerator: false }
+    : { sublabel: 'Shortcut unavailable: another app uses it' };
 }
 
 export interface OverlayTray {
@@ -64,6 +77,7 @@ export function createTray(controls: TrayControls): OverlayTray {
 
   const refresh = () => {
     const update = controls.update();
+    const shortcuts = controls.shortcuts();
     tray.setContextMenu(
       Menu.buildFromTemplate([
         // Which version this is, for anyone asked "what are you running?".
@@ -75,11 +89,13 @@ export function createTray(controls: TrayControls): OverlayTray {
         {
           label: controls.visible() ? 'Hide the overlay' : 'Show the overlay',
           click: () => controls.setVisible(!controls.visible()),
+          ...keys(shortcuts.visible),
         },
         { type: 'separator' },
         {
           label: 'Click-through',
           sublabel: 'The meeting under the overlay stays clickable',
+          ...keys(shortcuts.clickThrough),
           type: 'checkbox',
           checked: controls.clickThrough(),
           click: (item) => controls.setClickThrough(item.checked),

@@ -14,7 +14,7 @@
  * toggle it, and the label is deliberately loud so a screenshot of the share
  * settles the question without anyone squinting.
  */
-import { app, BrowserWindow, ipcMain, net, safeStorage, screen, shell } from 'electron';
+import { app, BrowserWindow, globalShortcut, ipcMain, net, safeStorage, screen, shell } from 'electron';
 import { readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
@@ -27,6 +27,7 @@ import {
   type Rect,
 } from './appearance';
 import { Session, type Store } from './session';
+import { SHORTCUTS, shortcutLabel } from './shortcuts';
 import { createTray, type OverlayTray } from './tray';
 import { isNewer, latestOverlayRelease, RELEASES_API, type Release } from './updates';
 
@@ -248,9 +249,17 @@ function createOverlay(): BrowserWindow {
   return window;
 }
 
+// One overlay at a time. A second launch — the Start menu after a desktop
+// shortcut, say — would be a second window and a second tray icon, both
+// listening to the same keys; instead it quits and brings the first forward.
+const firstInstance = app.requestSingleInstanceLock();
+if (!firstInstance) app.quit();
+app.on('second-instance', () => overlay?.show());
+
 // `void`: nothing can await this, it is the top of the process. Marked so
 // that the next promise added here has to say what it does about failure.
 void app.whenReady().then(async () => {
+  if (!firstInstance) return;
   const session = new Session(BASE_URL, encryptedStore());
   // Before the window asks who is signed in, so a returning user is not shown
   // a sign-in form for the half-second a refresh takes.
@@ -261,6 +270,19 @@ void app.whenReady().then(async () => {
   appearance = await loadAppearance();
   overlay = createOverlay();
 
+  // Global shortcuts (see ./shortcuts). Showing is inactive: the overlay
+  // appears without taking focus from the meeting being typed into. Each is
+  // registered once; one another app owns stays false, and says so.
+  const shortcuts = {
+    visible: globalShortcut.register(SHORTCUTS.visible, () => {
+      if (!overlay) return;
+      if (overlay.isVisible()) overlay.hide();
+      else overlay.showInactive();
+    }),
+    clickThrough: globalShortcut.register(SHORTCUTS.clickThrough, () => setClickThrough(!clickThrough)),
+  };
+  app.on('will-quit', () => globalShortcut.unregisterAll());
+
   tray = createTray({
     visible: () => overlay?.isVisible() ?? false,
     setVisible: (visible) => {
@@ -268,6 +290,10 @@ void app.whenReady().then(async () => {
       if (visible) overlay.show();
       else overlay.hide();
     },
+    shortcuts: () => ({
+      visible: shortcuts.visible ? SHORTCUTS.visible : null,
+      clickThrough: shortcuts.clickThrough ? SHORTCUTS.clickThrough : null,
+    }),
     clickThrough: () => clickThrough,
     setClickThrough,
     protection: () => protection,
@@ -367,6 +393,15 @@ void app.whenReady().then(async () => {
   ipcMain.handle('overlay:config', () => ({
     baseUrl: BASE_URL,
     engagementType: ENGAGEMENT,
+    // As the keys read on this system, and whether they are ours: another app
+    // may own them.
+    shortcuts: {
+      visible: { keys: shortcutLabel(SHORTCUTS.visible, process.platform), available: shortcuts.visible },
+      clickThrough: {
+        keys: shortcutLabel(SHORTCUTS.clickThrough, process.platform),
+        available: shortcuts.clickThrough,
+      },
+    },
   }));
 
   const NOT_SIGNED_IN = { error: 'not signed in' };

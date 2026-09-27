@@ -60,9 +60,11 @@ export default async function AccountPage({
           </h2>
           {membership?.role === 'owner' ? (
             <p className="muted" style={{ marginBottom: 0 }}>
-              You own {membership.companies?.name ?? 'your company'}, and a company needs an owner, so
-              your account cannot be deleted while it exists. Ask Tesserafy to close the company —
-              which deletes its calls and removes everyone — or to make someone else its owner first.
+              You own {membership.companies?.name ?? 'your company'}, and a company needs an owner. To
+              delete your account, first make someone else an owner and step down to member, under{' '}
+              <a href="/settings">Settings → Who has access</a>; then this page offers it. If you are
+              the only person in the company, ask Tesserafy to close it instead, which deletes its
+              calls.
             </p>
           ) : (
             <DeleteMyAccount email={user?.email ?? ''} company={membership?.companies?.name ?? null} />

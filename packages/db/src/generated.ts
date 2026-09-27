@@ -809,6 +809,47 @@ export type Database = {
           },
         ]
       }
+      membership_role_changes: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          company_id: string
+          email: string
+          from_role: string
+          id: string
+          to_role: string
+          user_id: string | null
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          company_id: string
+          email: string
+          from_role: string
+          id?: string
+          to_role: string
+          user_id?: string | null
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          company_id?: string
+          email?: string
+          from_role?: string
+          id?: string
+          to_role?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "membership_role_changes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       model_usage: {
         Row: {
           cache_creation_tokens: number
@@ -1381,6 +1422,10 @@ export type Database = {
       }
       admin_company_detail: { Args: { p_company_id: string }; Returns: Json }
       admin_overview: { Args: never; Returns: Json }
+      admin_set_member_role: {
+        Args: { p_company_id: string; p_role: string; p_user_id: string }
+        Returns: undefined
+      }
       admin_set_plan: {
         Args: { p_company_id: string; p_plan: string }
         Returns: undefined
@@ -1783,6 +1828,10 @@ export type Database = {
           start_ms: number
           text: string
         }[]
+      }
+      set_member_role: {
+        Args: { p_role: string; p_user_id: string }
+        Returns: undefined
       }
       set_retention: { Args: { p_days: number }; Returns: number }
       signup_is_open: { Args: never; Returns: boolean }

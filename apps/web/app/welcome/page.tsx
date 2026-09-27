@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { DeleteMyAccount } from '@/components/delete-my-account';
 import { createClient } from '@/lib/supabase/server';
 import { CreateCompany } from './create-company';
 
@@ -31,7 +32,38 @@ export default async function Welcome() {
     .eq('user_id', user.id);
   if ((count ?? 0) > 0) redirect('/dashboard');
 
-  const { data: open } = await supabase.rpc('signup_is_open');
+  const [{ data: open }, { data: deletion }] = await Promise.all([
+    supabase.rpc('signup_is_open'),
+    supabase
+      .from('account_deletion_requests')
+      .select('requested_at')
+      .is('resolved_at', null)
+      .maybeSingle(),
+  ]);
+
+  // Asked to be deleted: that is the whole story now, not an invitation to
+  // start a company.
+  if (deletion) {
+    return (
+      <main style={{ maxWidth: '36rem' }}>
+        <h1>Your account is being deleted</h1>
+        <p>
+          You asked on{' '}
+          {new Date(deletion.requested_at).toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            timeZone: 'UTC',
+          })}{' '}
+          for <strong>{user.email}</strong> to be deleted. Tesserafy deletes the login — your address
+          and password — within 30 days of that, usually much sooner. There is nothing else to do.
+        </p>
+        <form action="/auth/sign-out" method="post">
+          <button type="submit">Sign out</button>
+        </form>
+      </main>
+    );
+  }
 
   return (
     <main style={{ maxWidth: '36rem' }}>
@@ -60,6 +92,12 @@ export default async function Welcome() {
       <form action="/auth/sign-out" method="post">
         <button type="submit">Sign out</button>
       </form>
+      <section aria-labelledby="delete-account-heading" className="card" style={{ marginTop: '2rem' }}>
+        <h2 id="delete-account-heading" style={{ marginTop: 0 }}>
+          Delete your account
+        </h2>
+        <DeleteMyAccount email={user.email ?? ''} company={null} />
+      </section>
     </main>
   );
 }

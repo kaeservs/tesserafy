@@ -242,6 +242,17 @@ operator deletes it from the console's People page (ADR 0013), for an account
 in no company only, so a person leaves their team first (removed by the owner,
 or the company closed) and deleting never reaches into a live team.
 
+The person asks for it themselves under Account (or, with no company, on the
+welcome page), typing their address to confirm. Asking takes a member out of
+their company at once, recorded in `membership_removals` as removed by
+themselves, so their owner sees they left. It writes one open request, and
+signs them out. Signing in again shows only that the account is being
+deleted. An owner cannot ask while their company exists, because a company
+needs an owner; the page tells them to have it closed or handed over. The
+console's overview lists open requests with the age of the oldest, since the
+page promised deletion within 30 days. The operator's deletion resolves the
+request it fulfils.
+
 Recorded first, like every use of the service-role key: `open_account_deletion`
 writes who is deleting, why, and a SHA-256 of the lower-cased address, not the
 address. Then the key hard-deletes the account in Auth. The record is closed
@@ -257,6 +268,16 @@ What the account leaves behind is decided by the schema, not by the console:
 - the audit records that say what was done to or by the person (support
   access, onboarding, insight decisions and tickets) keep the account's id,
   with no foreign key. The record survives, and the id resolves to nobody.
+
+Some records keep the address itself, and deleting the login does not remove
+it: a company's `membership_removals` (who was taken off its team, by whom,
+and when), the operator's `account_provisioning` log (whom an operator
+created), and `access_requests` (whom an owner asked to have added). They are
+the company's, and our, record of who had access to a company's calls, which
+is the question a breach or a dispute asks, so they are kept on purpose. They
+are not the person's data to have forgotten in the way their login is, but
+they do name them. If that judgement changes, these are the columns to
+replace with the same SHA-256 fingerprint the deletion record uses.
 
 A pgTAP guard fails CI if any foreign key outside Auth could block a deletion.
 

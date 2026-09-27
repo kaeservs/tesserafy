@@ -27,9 +27,9 @@ const REASONS: Record<string, string> = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; deleted?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, deleted } = await searchParams;
   const supabase = await createClient();
   const { data: open } = await supabase.rpc('signup_is_open');
 
@@ -40,6 +40,12 @@ export default async function LoginPage({
         {open === true ? '' : 'Access is by invitation. '}Sign in with your password, or have a
         one-time link emailed to you.
       </p>
+      {deleted === '1' ? (
+        <p role="status">
+          You have been signed out, and your account is being deleted. Tesserafy deletes the login
+          within 30 days, usually much sooner.
+        </p>
+      ) : null}
       {error && (
         <p role="alert">
           {REASONS[error] ?? 'That link did not work. Request a new one.'}{' '}

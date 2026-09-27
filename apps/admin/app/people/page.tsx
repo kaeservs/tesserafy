@@ -31,6 +31,11 @@ export default async function People({
       .order('created_at', { ascending: false })
       .limit(50),
   ]);
+  const { data: requests } = await admin.db
+    .from('account_deletion_requests')
+    .select('user_id')
+    .is('resolved_at', null);
+  const askedToGo = new Set((requests ?? []).map((row) => row.user_id));
   const everyone = data ?? [];
   const emailOf = new Map(everyone.map((user) => [user.user_id, user.email ?? '—']));
   const deletableWithoutCompany = everyone.filter((user) => deletable(user, admin.userId)).length;
@@ -108,6 +113,7 @@ export default async function People({
                 {user.email}{' '}
                 {user.is_admin ? <span className="tag admin">operator</span> : null}{' '}
                 {user.open_support ? <span className="tag open">session open</span> : null}
+                {askedToGo.has(user.user_id) ? <span className="tag open">asked to be deleted</span> : null}
               </td>
               <td>{user.company_name ?? <span className="muted">no company</span>}</td>
               <td className="muted">{user.role ?? '—'}</td>

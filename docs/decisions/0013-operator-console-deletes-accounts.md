@@ -75,6 +75,22 @@ a later table that forgets fails CI, not a deletion in production.
   it. The console asks them not to; nothing can prevent it.
 - The console's access history shows "a deleted account" where a deleted
   person's address used to be.
+- The records that name a person by address rather than id (a company's
+  `membership_removals`, `account_provisioning`, `access_requests`) keep it
+  after the login is deleted. They are the record of who had access to a
+  company's calls, kept on purpose; data-protection.md says so.
+
+## Addendum — a person asks (2026-09-27)
+
+A person can now ask for their own account to be deleted, from Account or,
+with no company, from the welcome page. `request_account_deletion` checks the
+address they type is theirs, refuses an owner (a company needs one) and an
+operator, and takes a member out of their company at once, recorded as a
+removal by themselves. It leaves one open `account_deletion_requests` row and
+signs them out. The request changes nothing above: the operator still deletes
+the login, through the same three steps, and `complete_account_deletion` now
+resolves the request it fulfils. The customer app still holds no key; asking
+is a row, not a deletion.
 
 ## Alternatives
 

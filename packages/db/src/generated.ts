@@ -98,6 +98,48 @@ export type Database = {
           },
         ]
       }
+      account_deletion_requests: {
+        Row: {
+          company_id: string | null
+          deletion_id: string | null
+          id: string
+          requested_at: string
+          resolved_at: string | null
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          deletion_id?: string | null
+          id?: string
+          requested_at?: string
+          resolved_at?: string | null
+          user_id: string
+        }
+        Update: {
+          company_id?: string | null
+          deletion_id?: string | null
+          id?: string
+          requested_at?: string
+          resolved_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_deletion_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_deletion_requests_deletion_id_fkey"
+            columns: ["deletion_id"]
+            isOneToOne: false
+            referencedRelation: "account_deletions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       account_deletions: {
         Row: {
           admin_user_id: string
@@ -1693,6 +1735,23 @@ export type Database = {
         Returns: undefined
       }
       remove_company_member: { Args: { p_user_id: string }; Returns: undefined }
+      request_account_deletion: {
+        Args: { p_confirm_email: string }
+        Returns: {
+          company_id: string | null
+          deletion_id: string | null
+          id: string
+          requested_at: string
+          resolved_at: string | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "account_deletion_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       request_teammate: {
         Args: { p_email: string; p_note?: string; p_role: string }
         Returns: string

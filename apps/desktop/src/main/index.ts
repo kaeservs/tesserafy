@@ -14,7 +14,7 @@
  * toggle it, and the label is deliberately loud so a screenshot of the share
  * settles the question without anyone squinting.
  */
-import { app, BrowserWindow, ipcMain, safeStorage, screen } from 'electron';
+import { app, BrowserWindow, ipcMain, net, safeStorage, screen, shell } from 'electron';
 import { readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
@@ -28,6 +28,7 @@ import {
 } from './appearance';
 import { Session, type Store } from './session';
 import { createTray, type OverlayTray } from './tray';
+import { isNewer, latestOverlayRelease, RELEASES_API, type Release } from './updates';
 
 let overlay: BrowserWindow | null = null;
 let tray: OverlayTray | null = null;
@@ -58,6 +59,48 @@ function setClickThrough(enabled: boolean): void {
   clickThrough = enabled;
   overlay?.setIgnoreMouseEvents(enabled, { forward: true });
   announce();
+}
+
+/*
+ * A newer overlay, if GitHub has published one (see ./updates). Checked
+ * shortly after launch and every six hours, and when asked from the tray. A
+ * check that fails — offline, rate-limited — says nothing unless it was asked
+ * for: an overlay that nags about the network mid-call is worse than one that
+ * finds out about an update tomorrow.
+ */
+let available: Release | null = null;
+const SIX_HOURS = 6 * 60 * 60 * 1000;
+
+type UpdateNote = 'latest' | 'failed' | null;
+
+function announceUpdate(note: UpdateNote): void {
+  overlay?.webContents.send('overlay:update', {
+    current: app.getVersion(),
+    available: available?.version ?? null,
+    note,
+  });
+  tray?.refresh();
+}
+
+async function checkForUpdates(asked: boolean): Promise<void> {
+  try {
+    // Electron's network stack, not Node's, so an office proxy applies.
+    const response = await net.fetch(RELEASES_API, {
+      headers: { accept: 'application/vnd.github+json' },
+    });
+    if (!response.ok) throw new Error(`GitHub answered ${response.status}`);
+    const latest = latestOverlayRelease(await response.json());
+    available = latest && isNewer(latest.version, app.getVersion()) ? latest : null;
+    announceUpdate(asked && !available ? 'latest' : null);
+  } catch {
+    if (asked) announceUpdate('failed');
+  }
+}
+
+function openUpdate(): void {
+  // The address was checked when it was kept (latestOverlayRelease): only
+  // this repository's page for that release. The page never supplies one.
+  if (available) void shell.openExternal(available.url);
 }
 
 function showFirstTime(window: BrowserWindow): void {
@@ -229,8 +272,22 @@ void app.whenReady().then(async () => {
     setClickThrough,
     protection: () => protection,
     setProtection,
+    version: () => app.getVersion(),
+    update: () => available?.version ?? null,
+    openUpdate,
+    checkForUpdates: () => void checkForUpdates(true),
     quit: () => app.quit(),
   });
+
+  setTimeout(() => void checkForUpdates(false), 5000);
+  setInterval(() => void checkForUpdates(false), SIX_HOURS);
+
+  ipcMain.handle('overlay:update', () => ({
+    current: app.getVersion(),
+    available: available?.version ?? null,
+    note: null,
+  }));
+  ipcMain.handle('overlay:open-update', () => openUpdate());
 
   ipcMain.handle('overlay:appearance', () => appearance);
 

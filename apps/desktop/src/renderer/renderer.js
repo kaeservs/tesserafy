@@ -453,6 +453,52 @@ el('lookReset').addEventListener('click', async () => showAppearance(await api.r
 
 void api.appearance().then(showAppearance);
 
+/*
+ * A newer overlay. The main process checks and holds the address; this line
+ * only says so, and "Download" asks the main process to open the page.
+ * "Later" hides one version for the rest of this run, not for good: the next
+ * start says it again.
+ */
+let laterFor = null;
+let offered = null;
+let noteTimer = null;
+
+function showUpdate(state) {
+  const box = el('update');
+  clearTimeout(noteTimer);
+  offered = state.available;
+  if (state.available && state.available !== laterFor) {
+    el('updateText').textContent = `Version ${state.available} is out (you have ${state.current}).`;
+    el('updateDownload').hidden = false;
+    el('updateLater').hidden = false;
+    box.hidden = false;
+    return;
+  }
+  if (state.note) {
+    // Only for a check someone asked for, and gone again after a few seconds.
+    el('updateText').textContent =
+      state.note === 'latest'
+        ? `Tesserafy ${state.current} is the latest version.`
+        : 'Could not check for updates. Try again later.';
+    el('updateDownload').hidden = true;
+    el('updateLater').hidden = true;
+    box.hidden = false;
+    noteTimer = setTimeout(() => {
+      box.hidden = true;
+    }, 5000);
+    return;
+  }
+  box.hidden = true;
+}
+
+api.onUpdate(showUpdate);
+void api.update().then(showUpdate);
+el('updateDownload').addEventListener('click', () => void api.openUpdate());
+el('updateLater').addEventListener('click', () => {
+  laterFor = offered;
+  el('update').hidden = true;
+});
+
 // The window is as tall as the card and no taller: the transparent part of a
 // taller one looks like nothing and still takes the clicks meant for the
 // meeting under it. Told on every change — signing in, a suggestion, the

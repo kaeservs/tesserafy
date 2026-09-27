@@ -121,6 +121,13 @@
                 letter-spacing: 0.04em; }
       .banner[hidden] { display: none; }
 
+      .update { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; padding: 5px 8px;
+                border-radius: 6px; font-size: 11px; color: var(--text);
+                border: 1px solid rgba(var(--accent-rgb), 0.5); background: rgba(var(--accent-lo), 0.14); }
+      .update[hidden] { display: none; }
+      .update span { flex: 1; }
+      .update button[hidden] { display: none; }
+
       .suggestion { margin-top: 10px; padding: 8px 10px; border-radius: 8px;
                     border: 1px solid rgba(var(--accent-rgb), 0.5);
                     background: rgba(var(--accent-lo), 0.18); }
@@ -168,6 +175,15 @@
   <body>
     <div class="card">
     <div class="banner" id="unprotected" hidden>PROTECTION OFF — VISIBLE IN A SHARE</div>
+
+    <!-- A newer overlay is published, or the answer to "check for updates".
+         One line, and only between calls' worth of attention: Later hides it
+         until the overlay is next started. -->
+    <div class="update" id="update" role="status" hidden>
+      <span id="updateText"></span>
+      <button type="button" id="updateDownload" hidden>Download</button>
+      <button type="button" id="updateLater" hidden>Later</button>
+    </div>
 
     <header>
       <h1 id="engagement">…</h1>

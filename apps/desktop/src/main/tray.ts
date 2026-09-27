@@ -45,6 +45,11 @@ export interface TrayControls {
   setClickThrough(enabled: boolean): void;
   protection(): boolean;
   setProtection(enabled: boolean): void;
+  /** This overlay's version, and a newer one if there is one. */
+  version(): string;
+  update(): string | null;
+  openUpdate(): void;
+  checkForUpdates(): void;
   quit(): void;
 }
 
@@ -58,8 +63,15 @@ export function createTray(controls: TrayControls): OverlayTray {
   tray.setToolTip('Tesserafy');
 
   const refresh = () => {
+    const update = controls.update();
     tray.setContextMenu(
       Menu.buildFromTemplate([
+        // Which version this is, for anyone asked "what are you running?".
+        { label: `Tesserafy ${controls.version()}`, enabled: false },
+        update
+          ? { label: `Download version ${update}…`, click: () => controls.openUpdate() }
+          : { label: 'Check for updates', click: () => controls.checkForUpdates() },
+        { type: 'separator' },
         {
           label: controls.visible() ? 'Hide the overlay' : 'Show the overlay',
           click: () => controls.setVisible(!controls.visible()),

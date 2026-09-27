@@ -13,6 +13,13 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { Appearance, AppearanceChange } from '../main/appearance';
 
+interface UpdateState {
+  current: string;
+  available: string | null;
+  /** Only after a check someone asked for: it found nothing newer, or failed. */
+  note: 'latest' | 'failed' | null;
+}
+
 contextBridge.exposeInMainWorld('overlay', {
   appearance: (): Promise<Appearance> => ipcRenderer.invoke('overlay:appearance'),
   setAppearance: (change: AppearanceChange): Promise<Appearance> =>
@@ -20,6 +27,19 @@ contextBridge.exposeInMainWorld('overlay', {
   resetAppearance: (): Promise<Appearance> => ipcRenderer.invoke('overlay:reset-appearance'),
   quit: (): Promise<void> => ipcRenderer.invoke('overlay:quit'),
   fit: (height: number): Promise<void> => ipcRenderer.invoke('overlay:fit', height),
+  // A newer overlay, if one is published. The page is told the version, never
+  // an address: opening the release page is the main process's to do.
+  update: (): Promise<UpdateState> => ipcRenderer.invoke('overlay:update'),
+  openUpdate: (): Promise<void> => ipcRenderer.invoke('overlay:open-update'),
+  onUpdate: (listener: (state: UpdateState) => void): void => {
+    ipcRenderer.on('overlay:update', (_event, state: UpdateState) =>
+      listener({
+        current: String(state.current),
+        available: typeof state.available === 'string' ? state.available : null,
+        note: state.note === 'latest' || state.note === 'failed' ? state.note : null,
+      }),
+    );
+  },
   // The switches changed, possibly from the tray. Only the two booleans cross;
   // the page is never handed the event or ipcRenderer itself.
   onState: (listener: (state: { protection: boolean; clickThrough: boolean }) => void): void => {

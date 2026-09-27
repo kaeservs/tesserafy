@@ -53,8 +53,14 @@ contextBridge.exposeInMainWorld('overlay', {
     ipcRenderer.invoke('overlay:set-click-through', enabled),
   platform: (): Promise<{ platform: string; electron: string; chrome: string }> =>
     ipcRenderer.invoke('overlay:platform'),
-  config: (): Promise<{ baseUrl: string; engagementType: string }> =>
-    ipcRenderer.invoke('overlay:config'),
+  config: (): Promise<{
+    baseUrl: string;
+    engagementType: string;
+    shortcuts: {
+      visible: { keys: string; available: boolean };
+      clickThrough: { keys: string; available: boolean };
+    };
+  }> => ipcRenderer.invoke('overlay:config'),
   session: (): Promise<{ email: string | null; remembers: boolean }> =>
     ipcRenderer.invoke('overlay:session'),
   signIn: (

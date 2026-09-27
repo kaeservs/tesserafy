@@ -362,7 +362,7 @@ describe('loadSignals and what an insight may rest on', () => {
   it('leaves out signals that already back an insight', async () => {
     // The duplicate this prevents: clustering is deterministic over unchanged
     // data, so a second run over every signal re-derives a finding that
-    // already exists, pays for the same Opus call, and leaves a person two
+    // already exists, pays for the same T3 call, and leaves a person two
     // near-identical insights to approve.
     const { db } = fakeDb({ signalRows: rows, evidenceRows, citedRows: [{ signal_id: 's1' }] });
 

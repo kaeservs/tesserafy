@@ -1,6 +1,6 @@
 /**
  * T3: post-call extraction. One call per conversation, latency-tolerant, on
- * `claude-opus-5` (ADR 0002).
+ * `claude-sonnet-5` (ADR 0002, moved from Opus 5 by ADR 0014).
  *
  * The model proposes; it never decides. It returns claims with verbatim
  * quotes, and every quote is located in the segment it came from before any
@@ -13,7 +13,12 @@ import { z } from 'zod';
 import { logUsage, toUsageEvent, type UsageSink } from '../telemetry/usage';
 import { resolveSignals, type ResolutionResult } from './evidence';
 
-export const T3_MODEL = 'claude-opus-5';
+/**
+ * Sonnet 5 since 2026-09-27 (ADR 0014): on the extraction corpus it scored
+ * within noise of Opus 5 — F1 85–93% against 88–90%, two runs each — at 58%
+ * less per call. Opus remains a model id away for a measurement that needs it.
+ */
+export const T3_MODEL = 'claude-sonnet-5';
 
 /** A segment as the extractor needs it: identity, attribution, words. */
 export interface ExtractableSegment {

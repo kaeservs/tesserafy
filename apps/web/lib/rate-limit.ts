@@ -58,23 +58,23 @@ export const LIMITS: Record<string, readonly Window[]> = {
     { seconds: 60, limit: 20 },
     { seconds: 86_400, limit: 600 },
   ],
-  // An upload now scores itself, up to ~500 detector calls (~$0.95) for the
-  // longest call taken on. Ten a day bounds one account at about $9.50 a day,
-  // which is a busy week of real meetings, not a runaway.
-  // Opus, pressed by a person. Short test calls measured at ~$0.008; a real
-  // hour-long call is likely $0.10-0.25. Each call can only be read once, so
-  // this bounds how many different calls one account reads in a day.
+  // Sonnet 5, pressed by a person. Measured at ~$0.007 per short test call; a
+  // real hour-long call is likely $0.04-0.10. Each call can only be read once,
+  // so this bounds how many different calls one account reads in a day.
   'api/extract': [
     { seconds: 3_600, limit: 10 },
     { seconds: 86_400, limit: 20 },
   ],
-  // Up to five Opus write-ups per press (lib/find-insights.ts). Three presses
+  // Up to five Sonnet write-ups per press (lib/find-insights.ts). Three presses
   // an hour and ten a day bound one account at fifty write-ups a day, and
   // cited signals are skipped, so repeated presses find less, not the same.
   'api/insights/find': [
     { seconds: 3_600, limit: 3 },
     { seconds: 86_400, limit: 10 },
   ],
+  // An upload scores itself: up to 40 windows (~$0.45) for the longest call
+  // taken on, ~$0.12 for an hour. Ten a day bounds one account at about $4.50
+  // a day, which is a busy week of real meetings, not a runaway.
   'api/transcripts': [
     { seconds: 3_600, limit: 6 },
     { seconds: 86_400, limit: 10 },

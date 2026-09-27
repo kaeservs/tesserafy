@@ -51,10 +51,18 @@ Do not break these without an ADR that supersedes the existing one.
 | Tier | Job | Model |
 |---|---|---|
 | T0 | Chunking, endpointing, redaction | none — pure TS |
-| T1 | Criterion detectors (<= 700 ms) | `claude-haiku-4-5` |
+| T1 | Criterion detectors: live on the last 3 utterances (<= 700 ms); a stored call in 48-utterance windows | `claude-haiku-4-5` |
 | T2 | Live suggestions (<= 3.5 s) | `claude-sonnet-5` |
-| T3 | Post-call extraction and synthesis | `claude-opus-5` |
+| T3 | Post-call extraction and synthesis | `claude-sonnet-5` (ADR 0014) |
 | — | Embeddings | `gte-small` in a Supabase Edge Function, 384-dim |
+
+Cost is decided by the number of calls before the price of the model. A
+stored call used to be scored one Haiku call per utterance (~500 for an hour,
+up to ~$0.95, more than Basic's price over its imports); in 48-utterance
+windows it is ~11, and measured better, not worse — rolling three-utterance
+windows claim criteria the surrounding conversation does not support (ADR
+0014). Change windowing or a tier's model only against the harness in
+`services/eval` (`spike_s3 --stride`, `run --model`), over several runs.
 
 Live calls put the frozen prefix (system + criteria definitions + context pack)
 before the cache breakpoint and the rolling transcript window after it. Check

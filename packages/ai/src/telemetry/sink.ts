@@ -62,7 +62,7 @@ async function record(event: UsageEvent, context: UsageContext): Promise<void> {
  * the function freezes after responding. That matters more than a lost cost
  * row here, because a T3 usage row is also how the product knows extraction
  * has run — lose it after a run that found nothing and the button comes back,
- * and a second press pays Opus again for the same answer.
+ * and a second press pays T3 again for the same answer.
  *
  * Recording still never throws into the caller; `settled()` only waits.
  */

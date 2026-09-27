@@ -149,7 +149,7 @@ describe('extractSignals', () => {
     expect(result.rejected).toEqual([]);
   });
 
-  it('sends the transcript and asks for opus by default', async () => {
+  it('sends the transcript and asks for sonnet 5 by default (ADR 0014)', async () => {
     const { client, parse } = fakeClient();
 
     await extractSignals(SEGMENTS, { client, onUsage: () => {} });
@@ -159,7 +159,7 @@ describe('extractSignals', () => {
       system: string;
       messages: { content: string }[];
     };
-    expect(params.model).toBe('claude-opus-5');
+    expect(params.model).toBe('claude-sonnet-5');
     expect(params.system).toContain('character for character');
     expect(params.messages[0]?.content).toContain('seg-1');
   });

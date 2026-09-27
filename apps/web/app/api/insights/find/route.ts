@@ -9,7 +9,7 @@ import { caller } from '@/lib/supabase/caller';
  * "Look for patterns across your calls."
  *
  * Synchronous, like extraction: a person asked and is waiting, so the answer —
- * how many were proposed, how many Opus declined — comes back in the response.
+ * how many were proposed, how many T3 declined — comes back in the response.
  * See lib/find-insights.ts for why it runs as the customer and what stops it
  * proposing the same finding twice.
  */

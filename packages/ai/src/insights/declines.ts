@@ -5,7 +5,7 @@ import type { CompanyId } from '../retrieval/company-id';
  * Groups synthesis has already judged are not one finding.
  *
  * Clustering is deterministic over unchanged data, so a declined group comes
- * straight back on the next run and Opus is paid again for the same verdict —
+ * straight back on the next run and T3 is paid again for the same verdict —
  * observed on #81. A decline is remembered against the exact set of signals:
  * add a signal to the group and it is a different group, judged afresh.
  */

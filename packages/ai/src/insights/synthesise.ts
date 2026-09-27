@@ -15,7 +15,12 @@ import { logUsage, toUsageEvent, type UsageSink } from '../telemetry/usage';
 import type { SignalCluster } from './cluster';
 
 export const T3_SYNTHESISER = 't3-synthesise@2026-09-19';
-export const T3_SYNTHESIS_MODEL = 'claude-opus-5';
+/**
+ * Sonnet 5 since 2026-09-27 (ADR 0014). There is no labelled set for
+ * synthesis; on the production clusters both models reached the same verdicts
+ * — the one real finding written, the false cluster declined — at 44% less.
+ */
+export const T3_SYNTHESIS_MODEL = 'claude-sonnet-5';
 
 export interface SynthesiseOptions {
   readonly client: Anthropic;

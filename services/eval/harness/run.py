@@ -27,10 +27,13 @@ REPO_ROOT = EVAL_ROOT.parent.parent
 TSX = str(REPO_ROOT / "node_modules" / ".bin" / "tsx")
 
 
-def extract(transcript: Path) -> dict:
+def extract(transcript: Path, model: str | None = None) -> dict:
     """Runs the shipped extractor. stdout is JSON; stderr carries usage."""
+    command = [TSX, "scripts/extract.ts", str(transcript)]
+    if model:
+        command += ["--model", model]
     result = subprocess.run(
-        [TSX, "scripts/extract.ts", str(transcript)],
+        command,
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -101,6 +104,7 @@ def main() -> int:
         action="store_true",
         help="validate the corpus and resolve every label without calling a model",
     )
+    parser.add_argument("--model", default=None, help="defaults to the T3 model in packages/ai")
     args = parser.parse_args()
 
     corpus_path = (EVAL_ROOT / args.corpus).resolve()
@@ -125,7 +129,7 @@ def main() -> int:
             # what catches a label that quotes text no segment contains.
             payload = extract_segments_only(transcript)
         else:
-            payload = extract(transcript)
+            payload = extract(transcript, args.model)
             usage = payload.get("usage") or {}
             totals["input_tokens"] += usage.get("inputTokens", 0)
             totals["output_tokens"] += usage.get("outputTokens", 0)

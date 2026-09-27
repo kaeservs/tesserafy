@@ -39,6 +39,8 @@ interface Args {
   write: boolean;
   minSignals: number;
   minConversations: number;
+  /** Another model for the synthesis, for comparing models before switching. */
+  model?: string;
 }
 
 function parseArgs(argv: readonly string[]): Args {
@@ -72,6 +74,9 @@ function parseArgs(argv: readonly string[]): Args {
       case '--no-write':
         args.write = false;
         break;
+      case '--model':
+        args.model = argv[++i] ?? usage('--model needs a model id');
+        break;
       default:
         usage(`unknown option ${argv[i]}`);
     }
@@ -95,6 +100,8 @@ Options:
                             lands in front of anyone.
   --min-signals <n>         Signals a cluster needs. Default 3.
   --min-conversations <n>   Conversations it must span. Default 2.
+  --model <id>              Synthesise with another model. With --no-write,
+                            how two models are compared on the same clusters.
 
 Environment:
   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY   required
@@ -130,7 +137,7 @@ async function main(): Promise<void> {
   // Signals already cited by an insight are left out unless this is a
   // deliberate re-synthesis. Clustering is deterministic over unchanged data,
   // so including them means re-deriving a finding that exists, paying for the
-  // Opus call again, and leaving somebody two near-identical insights to
+  // T3 call again, and leaving somebody two near-identical insights to
   // approve.
   const signals = await loadSignals(companyId, db, { includeCited: args.resynthesise });
   console.info(`${signals.length} signal(s) across ${new Set(signals.map((s) => s.conversationId)).size} conversation(s)`);
@@ -144,7 +151,7 @@ async function main(): Promise<void> {
   });
 
   // The same memory the customer's button uses: a group already judged not to
-  // be one finding is not sent to Opus again, unless this is a deliberate
+  // be one finding is not sent to T3 again, unless this is a deliberate
   // re-synthesis.
   const declinedBefore = args.resynthesise ? new Set<string>() : await loadDeclined(companyId, db);
   const clusters = clustered.filter(
@@ -173,6 +180,7 @@ async function main(): Promise<void> {
   for (const cluster of clusters) {
     const result = await synthesiseInsight(cluster, {
       client,
+      ...(args.model ? { model: args.model } : {}),
       minSignals: args.minSignals,
       minConversations: args.minConversations,
       onUsage: both(

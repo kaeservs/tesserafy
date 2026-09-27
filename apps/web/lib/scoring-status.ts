@@ -1,5 +1,7 @@
-import { SCORE_WINDOW_SIZE } from '@tesserafy/ai';
+import { windowCount } from '@tesserafy/ai';
 import { AUTO_SCORE_MAX_WINDOWS } from './score-upload';
+
+export { windowCount };
 
 /**
  * What to tell someone looking at a conversation that has no criteria yet.
@@ -13,7 +15,7 @@ import { AUTO_SCORE_MAX_WINDOWS } from './score-upload';
  * Nothing records that scoring is in progress, so "scoring" is inferred from
  * how recently the conversation arrived. That is honest only because the
  * window is generous: the longest call taken on is sized to finish in about
- * 190 s, and ten minutes covers that plus a cold start several times over.
+ * 100 s, and ten minutes covers that plus a cold start several times over.
  * Past it, the pass either failed — which the failure log has — or never ran.
  */
 
@@ -24,12 +26,6 @@ export type CapturedState =
   | { readonly kind: 'scoring' }
   | { readonly kind: 'too_long'; readonly windows: number }
   | { readonly kind: 'not_scored' };
-
-/** Windows the scoring pass would make, without building them. */
-export function windowCount(segments: number): number {
-  if (segments <= 0) return 0;
-  return segments <= SCORE_WINDOW_SIZE ? 1 : segments - SCORE_WINDOW_SIZE + 1;
-}
 
 export function capturedState(
   segments: number,

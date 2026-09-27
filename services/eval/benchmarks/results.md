@@ -12,6 +12,20 @@ version, and only meaningful next to the detector that produced them.
 All on `claude-opus-5`. The first row measured one conversation and is kept
 only to show where the harness started.
 
+### Opus 5 against Sonnet 5 (2026-09-27, ADR 0014)
+
+Same corpus, same extractor, `python -m harness.run … --model <id>`, two runs
+each. T3 moved to Sonnet 5 on this.
+
+| Model | Overall P / R / F1 | Problem P / R | Feature request P / R | Tokens in / out | Per call |
+|---|---|---|---|---|---|
+| `claude-opus-5` | 95% / 82–86% / 88–90% | 91–92% / 71–79% | 100% / 100% | 13,738 / ~3,465 | $0.0155 |
+| `claude-sonnet-5` | 94–100% / 77–86% / 85–93% | 90–100% / 64–79% | 100% / 100% | 13,738 / ~3,806 | $0.0066 |
+
+Within noise at this size (one label is four or five points); both miss
+`someone always fat-fingers a column`. The Opus figures sit a few points
+below the 2026-09-19 row, which is the run-to-run spread, not a change.
+
 ## What the corpus can and cannot tell you
 
 **It is synthetic.** The transcripts and the labels were written by the same
@@ -163,6 +177,39 @@ That is a definition to sharpen, not a model to replace — and
 
 Full method, the local-model comparison and the latency findings:
 `docs/experiments/s3-criterion-detection.md`.
+
+## How a stored call is windowed (2026-09-27, ADR 0014)
+
+`spike_s3 --stride N [--window W]` scores each transcript through the
+product's own path (`windowsOf` + `scanWindows`) instead of as one window, so
+windowing can be graded against these labels. Criteria v1, three runs per row
+unless noted.
+
+Ten discovery calls, 28 labels:
+
+| Windowing | Overall P / R / F1 | Tokens in / out |
+|---|---|---|
+| 3 utterances, stride 1 (the old product path) | 58–60% / 89–93% / 70–73% | 24,775 / ~3,660 |
+| 3 utterances, stride 2 | 60–63% / 75–79% / 67–70% | 19,791 / ~2,370 |
+| one window per call | 77% / 82–86% / 79–81% | 9,755 / 1,953 |
+| **the product now** (48, stride 46), one run | 77% / 86% / 81% | 9,755 / 1,953 |
+
+The same ten joined into one 47-segment call (`runs/concat`, built by a
+throwaway script; not committed, because it is derived):
+
+| Windowing | Overall P / R / F1 | Tokens in / out |
+|---|---|---|
+| 3 utterances, stride 1, two runs | 39–40% / 100% / 57% | 41,210 / ~6,400 |
+| one window | 85% / 79% / 81% | 2,456 / 1,624 |
+| **the product now**, one run | 85% / 79% / 81% | 2,456 / 1,624 |
+
+Stride 2 lost `desired_outcome_stated` recall (100% → 57%) in every run and
+was not shipped. Small windows lose precision because a sentence seen without
+its conversation looks like evidence it is not; one window loses a little
+recall, almost all of it on `timeline_stated` (25% recall on the long call),
+which was already the weakest criterion. **Every figure here is on synthetic
+calls of under ten minutes.** Label real ones before trusting the long-call
+behaviour.
 
 ## Still not measured
 

@@ -1,7 +1,10 @@
 /**
  * Run T0 + T3 over one transcript and print the result as JSON.
  *
- *   pnpm extract <file.vtt|file.json> [--max-tokens N]
+ *   pnpm extract <file.vtt|file.json> [--max-tokens N] [--model <id>]
+ *
+ * --model runs the same prompt on another model, so the harness can compare
+ * models on the extractor that ships rather than on a copy of it.
  *
  * No database, no embeddings: this exists so the evaluation harness measures
  * the extractor that ships, rather than a Python copy of its prompt that
@@ -25,6 +28,8 @@ if (!file) {
 
 const maxTokensIndex = rest.indexOf('--max-tokens');
 const maxTokens = maxTokensIndex === -1 ? undefined : Number(rest[maxTokensIndex + 1]);
+const modelIndex = rest.indexOf('--model');
+const model = modelIndex === -1 ? undefined : rest[modelIndex + 1];
 
 function parseFile(path: string): ParsedTranscript {
   const source = readFileSync(path, 'utf8');
@@ -44,6 +49,7 @@ async function main(): Promise<void> {
   const result = await extractSignals(segments, {
     client: new Anthropic(),
     ...(maxTokens ? { maxTokens } : {}),
+    ...(model ? { model } : {}),
     onUsage: (event) => {
       usage = event;
       console.error(JSON.stringify({ event: 'model.usage', ...event }));

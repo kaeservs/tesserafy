@@ -20,10 +20,53 @@ import type { UsageSink } from '../telemetry/usage';
  * produces no score — invariant 1 — only the spans a score is computed from.
  */
 
-/** Utterances per window, matching the live path. */
-export const SCORE_WINDOW_SIZE = 3;
-/** How far the window advances. Two of three utterances are re-shown. */
-export const SCORE_STRIDE = 1;
+/*
+ * How a stored call is cut up for T1: large windows, barely overlapping.
+ *
+ * This used to be the live path's window — three utterances, advancing one at
+ * a time — which made an imported call one detector call per utterance: about
+ * 500 for an hour-long meeting, up to $0.95 to score, most of a Basic plan's
+ * price over its ten imports. Measured on 2026-09-27 against the criteria
+ * labels (services/eval/benchmarks/results.md), a call scored in one large
+ * window was cheaper *and* better:
+ *
+ *   ten short calls   rolling 3/1: P 58–60% R 89–93% F1 70–73%
+ *                     one window:  P 77%    R 82–86% F1 79–81%   (−60% tokens)
+ *   the ten joined,   rolling 3/1: P 39–40% R 100%   F1 57%
+ *   47 segments       one window:  P 85%    R 79%    F1 81%      (7× cheaper)
+ *
+ * Small windows see a sentence without the conversation around it and claim
+ * criteria it does not support; latching makes those claims permanent. A
+ * window of 48 is the longest that was measured, so a longer call is cut into
+ * windows of 48 overlapping by two — enough that a complaint and its cost in
+ * the next utterance still share a window at every boundary.
+ *
+ * The live path is unaffected: it scores the last three utterances as they are
+ * spoken (apps/desktop, /api/detect), because there a score must move after
+ * every sentence.
+ */
+
+/** Utterances per detector call when scoring a stored call. */
+export const SCORE_WINDOW_SIZE = 48;
+/** How far the window advances: neighbouring windows share two utterances. */
+export const SCORE_STRIDE = 46;
+/**
+ * Output room per window. A 47-utterance window of dense evidence came back at
+ * 1,624 tokens; the detector's default cap is sized for three utterances and
+ * truncated it mid-JSON.
+ */
+export const SCORE_MAX_TOKENS = 8192;
+
+/** Windows `windowsOf` would make for this many segments, without building them. */
+export function windowCount(
+  segments: number,
+  stride: number = SCORE_STRIDE,
+  size: number = SCORE_WINDOW_SIZE,
+): number {
+  if (segments <= 0) return 0;
+  if (segments <= size) return 1;
+  return Math.ceil((segments - size) / Math.max(1, Math.floor(stride))) + 1;
+}
 
 export interface StoredSegment {
   readonly id: string;
@@ -38,13 +81,20 @@ export interface StoredSegment {
  *
  * Overlap is deliberate. A criterion is often established across two
  * utterances — a complaint in one, its cost in the next — and disjoint windows
- * would miss exactly the evidence the corroboration threshold exists to reward.
- * Latching and the uniqueness constraint make the repeats free.
+ * would miss it at a boundary. Latching and the uniqueness constraint make the
+ * repeats free. `stride` and `size` default to the product's; the evaluation
+ * harness passes others to compare.
  */
-export function windowsOf(segments: readonly StoredSegment[]): DetectableSegment[][] {
+export function windowsOf(
+  segments: readonly StoredSegment[],
+  stride: number = SCORE_STRIDE,
+  size: number = SCORE_WINDOW_SIZE,
+): DetectableSegment[][] {
+  const step = Math.max(1, Math.floor(stride));
+  const width = Math.max(1, Math.floor(size));
   const windows: DetectableSegment[][] = [];
-  for (let start = 0; start < segments.length; start += SCORE_STRIDE) {
-    const slice = segments.slice(start, start + SCORE_WINDOW_SIZE);
+  for (let start = 0; start < segments.length; start += step) {
+    const slice = segments.slice(start, start + width);
     if (slice.length === 0) break;
     windows.push(
       slice.map((segment) => ({
@@ -56,7 +106,7 @@ export function windowsOf(segments: readonly StoredSegment[]): DetectableSegment
       })),
     );
     // The last window is whatever is left; advancing past it would repeat it.
-    if (start + SCORE_WINDOW_SIZE >= segments.length) break;
+    if (start + width >= segments.length) break;
   }
   return windows;
 }
@@ -81,6 +131,8 @@ export interface ScanOptions {
    * with a time budget, and a 300-utterance call is 300 Haiku round trips.
    */
   readonly concurrency?: number;
+  /** Output cap per window; SCORE_MAX_TOKENS unless the caller's windows are smaller. */
+  readonly maxTokens?: number;
   /** The detector. Replaced in tests; always detectCriteria otherwise. */
   readonly detect?: typeof detectCriteria;
 }
@@ -117,6 +169,7 @@ export async function scanWindows(
       const result = await (opts.detect ?? detectCriteria)(window, {
         client: opts.client,
         criteria: opts.criteria,
+        maxTokens: opts.maxTokens ?? SCORE_MAX_TOKENS,
         ...(opts.onUsage ? { onUsage: opts.onUsage } : {}),
       });
       rejected += result.rejected.length;

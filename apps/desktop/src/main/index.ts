@@ -27,8 +27,45 @@ import {
   type Rect,
 } from './appearance';
 import { Session, type Store } from './session';
+import { createTray, type OverlayTray } from './tray';
 
 let overlay: BrowserWindow | null = null;
+let tray: OverlayTray | null = null;
+
+/*
+ * Two switches the overlay's buttons and the tray menu both show, so they are
+ * kept here, once, and every change is sent to both. Protection starts on: a
+ * spike that starts unprotected risks leaking a real overlay into a real call
+ * while someone is fiddling.
+ */
+let protection = true;
+let clickThrough = false;
+/** The first measured height shows the window; after that, only the user does. */
+let shownOnce = false;
+
+function announce(): void {
+  overlay?.webContents.send('overlay:state', { protection, clickThrough });
+  tray?.refresh();
+}
+
+function setProtection(enabled: boolean): void {
+  protection = enabled;
+  overlay?.setContentProtection(enabled);
+  announce();
+}
+
+function setClickThrough(enabled: boolean): void {
+  clickThrough = enabled;
+  overlay?.setIgnoreMouseEvents(enabled, { forward: true });
+  announce();
+}
+
+function showFirstTime(window: BrowserWindow): void {
+  if (shownOnce || window.isDestroyed()) return;
+  shownOnce = true;
+  window.show();
+  tray?.refresh();
+}
 let appearance: Appearance = DEFAULT_APPEARANCE;
 /** Where this process last put the window, so its own moves are not taken for a drag. */
 let placed: Rect | null = null;
@@ -113,6 +150,9 @@ function place(window: BrowserWindow): void {
 }
 
 function createOverlay(): BrowserWindow {
+  // A new window measures and shows afresh (macOS re-creates one on activate).
+  shownOnce = false;
+  cardHeight = undefined;
   placed = placement(appearance, workAreas(), screen.getPrimaryDisplay().workArea);
 
   const window = new BrowserWindow({
@@ -149,17 +189,17 @@ function createOverlay(): BrowserWindow {
   window.setAlwaysOnTop(true, 'screen-saver');
   window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
-  // The claim under test. Starts on: a spike that starts unprotected risks
-  // leaking a real overlay into a real call while someone is fiddling.
-  window.setContentProtection(true);
+  // The claim under test, and whatever the switches say now.
+  window.setContentProtection(protection);
+  if (clickThrough) window.setIgnoreMouseEvents(true, { forward: true });
 
   // If the page never reports its card, the overlay still appears, at the
   // guessed height, rather than never at all.
   window.once('ready-to-show', () => {
-    setTimeout(() => {
-      if (!window.isDestroyed() && !window.isVisible()) window.show();
-    }, 1000);
+    setTimeout(() => showFirstTime(window), 1000);
   });
+  window.on('show', () => tray?.refresh());
+  window.on('hide', () => tray?.refresh());
 
   void window.loadFile(join(__dirname, '../renderer/index.html'));
   return window;
@@ -178,6 +218,20 @@ void app.whenReady().then(async () => {
   appearance = await loadAppearance();
   overlay = createOverlay();
 
+  tray = createTray({
+    visible: () => overlay?.isVisible() ?? false,
+    setVisible: (visible) => {
+      if (!overlay) return;
+      if (visible) overlay.show();
+      else overlay.hide();
+    },
+    clickThrough: () => clickThrough,
+    setClickThrough,
+    protection: () => protection,
+    setProtection,
+    quit: () => app.quit(),
+  });
+
   ipcMain.handle('overlay:appearance', () => appearance);
 
   // The card changed height: the window follows, so it covers the meeting
@@ -188,7 +242,9 @@ void app.whenReady().then(async () => {
     const changed = cardHeight === undefined || Math.abs(cardHeight - height) >= 1;
     cardHeight = height;
     if (changed) place(overlay);
-    if (!overlay.isVisible()) overlay.show();
+    // Shown the first time only: an overlay hidden from the tray must not
+    // come back because a suggestion changed the card's height.
+    showFirstTime(overlay);
   });
 
   // Whatever the page sends is checked field by field; a size or corner
@@ -231,15 +287,16 @@ void app.whenReady().then(async () => {
   });
 
   ipcMain.handle('overlay:set-protection', (_event, enabled: boolean) => {
-    overlay?.setContentProtection(Boolean(enabled));
-    return Boolean(enabled);
+    setProtection(Boolean(enabled));
+    return protection;
   });
 
   // Click-through: the meeting underneath must stay usable, which is the other
-  // half of "the meeting stays visible and clickable" in the P7 gate.
+  // half of "the meeting stays visible and clickable" in the P7 gate. Turned
+  // off again from the tray, since nothing on the overlay can be clicked.
   ipcMain.handle('overlay:set-click-through', (_event, enabled: boolean) => {
-    overlay?.setIgnoreMouseEvents(Boolean(enabled), { forward: true });
-    return Boolean(enabled);
+    setClickThrough(Boolean(enabled));
+    return clickThrough;
   });
 
   ipcMain.handle('overlay:platform', () => ({

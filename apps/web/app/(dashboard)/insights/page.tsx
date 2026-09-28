@@ -12,6 +12,9 @@ import { createClient } from '@/lib/supabase/server';
  * apart at a glance.
  *
  * No company filter: these queries run as the signed-in user, so RLS decides.
+ *
+ * Filtered by status with plain links, each carrying its count, so "waiting
+ * for you" is one click and says how many before it is clicked.
  */
 
 interface InsightRow {
@@ -34,7 +37,20 @@ const STATUS: Record<string, string> = {
   dismissed: 'dismissed',
 };
 
-export default async function InsightsPage() {
+const FILTERS = [
+  { status: null, label: 'All' },
+  { status: 'proposed', label: 'Waiting for you' },
+  { status: 'approved', label: 'Approved' },
+  { status: 'dismissed', label: 'Dismissed' },
+] as const;
+
+export default async function InsightsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
+  const { status: asked } = await searchParams;
+  const status = FILTERS.find((filter) => filter.status === asked)?.status ?? null;
   const supabase = await createClient();
 
   // Every row, not the first thousand: the counts beside each insight are
@@ -74,10 +90,30 @@ export default async function InsightsPage() {
     });
   }
 
+  const countOf = (wanted: string | null) =>
+    wanted === null ? insights.length : insights.filter((insight) => insight.status === wanted).length;
+  const shown = status === null ? insights : insights.filter((insight) => insight.status === status);
+
   return (
     <main>
       <h1>Insights</h1>
       <FindInsightsButton />
+      {insights.length > 0 ? (
+        <nav className="status-tabs" aria-label="Filter by status">
+          {FILTERS.map((filter) => (
+            <Link
+              key={filter.label}
+              href={filter.status ? `/insights?status=${filter.status}` : '/insights'}
+              aria-current={filter.status === status ? 'page' : undefined}
+            >
+              {filter.label} ({countOf(filter.status)})
+            </Link>
+          ))}
+        </nav>
+      ) : null}
+      {insights.length > 0 && shown.length === 0 ? (
+        <p className="muted">None {status === 'proposed' ? 'waiting for you' : `${status ?? ''}`}.</p>
+      ) : null}
       {insights.length === 0 ? (
         <p className="muted">
           Nothing yet. Insights appear when the same finding shows up in more than one
@@ -85,7 +121,7 @@ export default async function InsightsPage() {
         </p>
       ) : (
         <ul className="signals">
-          {insights.map((insight) => {
+          {shown.map((insight) => {
             const counts = support.get(insight.id);
             return (
               <li key={insight.id} className="signal">

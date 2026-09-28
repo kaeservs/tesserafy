@@ -24,10 +24,10 @@ insert into public.conversation_views (company_id, conversation_id, user_id, dur
   ('4ea10001-0000-4000-8000-0000000000cc', '4ea10001-0000-4000-8000-0000000000c1', null, false),
   ('4ea10001-0000-4000-8000-0000000000cc', '4ea10001-0000-4000-8000-0000000000c1', null, true);
 insert into public.usage_ledger (company_id, meter, amount, period_start)
-select '4ea10001-0000-4000-8000-0000000000cc', 'calls', 1, s.period_start
+select '4ea10001-0000-4000-8000-0000000000cc'::uuid, 'calls', 1, s.period_start
   from public.subscriptions s where s.company_id = '4ea10001-0000-4000-8000-0000000000cc'
 union all
-select '4ea10001-0000-4000-8000-0000000000cc', 'calls', 1, s.period_start
+select '4ea10001-0000-4000-8000-0000000000cc'::uuid, 'calls', 1, s.period_start
   from public.subscriptions s where s.company_id = '4ea10001-0000-4000-8000-0000000000cc';
 
 set local role authenticated;

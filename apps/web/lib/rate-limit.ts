@@ -86,6 +86,12 @@ export const LIMITS: Record<string, readonly Window[]> = {
     { seconds: 3_600, limit: 8 },
     { seconds: 86_400, limit: 20 },
   ],
+  // A table as CSV: titles, dates and numbers, no transcript. Cheap to make
+  // and people download several in a sitting, so looser than the full copy.
+  'api/export/csv': [
+    { seconds: 3_600, limit: 30 },
+    { seconds: 86_400, limit: 200 },
+  ],
   // A full copy of every call. Cheap for us, but it is the whole company
   // leaving in one file, so a handful a day is plenty for a person and a
   // ceiling on a stolen session.

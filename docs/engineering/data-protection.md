@@ -88,6 +88,14 @@ complete rather than the first thousand rows of it.
 What happens to the file after that is the customer's. Scores in it are
 computed at export time, and the file says so.
 
+Meetings and Reports can also be downloaded as CSV, by any member: the rows
+the page already shows them — titles, dates, scorecards, outcomes and scores,
+never a transcript — under the page's own rules (sellers only for owners).
+Titles are typed by users, so a cell that would start with `=`, `+`, `-` or
+`@` is written as text: a spreadsheet must not run a call title as a formula
+on the machine of whoever opens the file. Rate limited (30 an hour), not
+recorded; nothing in a CSV is more than its reader can already see.
+
 ## Looking at somebody's account
 
 Support access is impersonation, and it is worth being plain about that: the

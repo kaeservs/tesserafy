@@ -37,11 +37,14 @@ export function Chrome({ email, children }: { email: string; children: ReactNode
       <nav>
         <Link href="/">Overview</Link>
         <Link href="/companies">Companies</Link>
+        <Link href="/adoption">Adoption</Link>
+        <Link href="/spend">Spend</Link>
         <Link href="/people">People</Link>
         <Link href="/onboard">
           Add people <RequestCount />
         </Link>
         <Link href="/history">Access history</Link>
+        <Link href="/activity">Activity</Link>
         <Link href="/failures">Failures</Link>
         <span className="spacer" />
         <form action={signOut}>

@@ -248,6 +248,27 @@ export type Database = {
         }
         Relationships: []
       }
+      app_settings_events: {
+        Row: {
+          actor: string | null
+          at: string
+          id: string
+          signup_open: boolean
+        }
+        Insert: {
+          actor?: string | null
+          at?: string
+          id?: string
+          signup_open: boolean
+        }
+        Update: {
+          actor?: string | null
+          at?: string
+          id?: string
+          signup_open?: boolean
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           closed_at: string | null
@@ -1602,6 +1623,31 @@ export type Database = {
           role: string
         }[]
       }
+      admin_activity: {
+        Args: { p_limit?: number }
+        Returns: {
+          action: string
+          actor: string
+          at: string
+          detail: string
+          subject: string
+        }[]
+      }
+      admin_adoption: {
+        Args: never
+        Returns: {
+          calls: number
+          closed_at: string
+          company_id: string
+          created_at: string
+          first_call_at: string
+          first_insight_at: string
+          first_ticket_at: string
+          name: string
+          plan: string
+          self_serve: boolean
+        }[]
+      }
       admin_companies: {
         Args: never
         Returns: {
@@ -1629,6 +1675,17 @@ export type Database = {
         Returns: undefined
       }
       admin_set_signup_open: { Args: { p_open: boolean }; Returns: undefined }
+      admin_spend_by_week: {
+        Args: { p_weeks?: number }
+        Returns: {
+          calls: number
+          detector: string
+          model: string
+          tier: string
+          usd: number
+          week: string
+        }[]
+      }
       admin_users: {
         Args: never
         Returns: {

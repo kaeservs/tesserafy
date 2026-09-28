@@ -63,6 +63,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <nav className="nav" aria-label="Sections">
           <span className="brand">Tesserafy</span>
           <NavLink href="/dashboard">Dashboard</NavLink>
+          <NavLink href="/week">This week</NavLink>
           <NavLink href="/conversations">Meetings</NavLink>
           <NavLink href="/accounts">Accounts</NavLink>
           <NavLink href="/insights">Insights</NavLink>

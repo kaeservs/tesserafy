@@ -114,6 +114,21 @@ and a GitHub repository you can use for a test issue — a private one is best.
 | 5 | Click a transcript link from inside the issue | Lands on the right segment |
 | 6 | Reload and click Create ticket again | Not possible — the existing ticket is shown instead. Clicking twice must not open two issues |
 
+## Scorecards — a company's own (ADR 0016)
+
+As an owner of a company with at least one imported call.
+
+| # | Do | Expect |
+|---|---|---|
+| 1 | **Scorecards** → **New scorecard**; name it, write three criteria | Problems listed until every criterion has a name and a description of 20+ characters |
+| 2 | **Try on recent calls** | Within a minute: each criterion "met in N of M", with a quote that appears word for word in that call |
+| 3 | Change a word, don't try again | The results say the draft changed since the trial |
+| 4 | **Publish** | The scorecard's page, version 1, every description in full |
+| 5 | **Edit — publishes version 2**, change something, publish | Versions lists 1 and 2; version 1's criteria unchanged |
+| 6 | Import a call, **Score it as** your scorecard | The call's page names your scorecard; the scorecard's page counts it under version 2 |
+| 7 | Sign in as a member | Scorecards readable; no New scorecard; the editor says only an owner can write one |
+| 8 | Console → the company | Its scorecards listed, read-only |
+
 ## What failure looks like
 
 Worth knowing which failures are interesting:

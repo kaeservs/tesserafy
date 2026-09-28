@@ -360,10 +360,11 @@ async function main(): Promise<void> {
   // would render as an error.
   const { data: scorable } = await db
     .from('conversations')
-    .select('id, title, engagement_type, criteria_version')
+    .select('id, company_id, title, engagement_type, criteria_version')
     .limit(50);
   const conversations = (scorable ?? []) as {
     id: string;
+    company_id: string;
     title: string;
     engagement_type: string;
     criteria_version: number;
@@ -377,7 +378,7 @@ async function main(): Promise<void> {
 
   for (const conversation of conversations.filter((row) => scoredIds.has(row.id))) {
     try {
-      const rows = await fetchCriteria(db, conversation.engagement_type, conversation.criteria_version);
+      const rows = await fetchCriteria(db, conversation.company_id, conversation.engagement_type, conversation.criteria_version);
       const set = defineCriteriaSet({
         engagementType: rows[0]!.engagement_type,
         version: rows[0]!.version,
@@ -426,12 +427,14 @@ async function main(): Promise<void> {
   // A conversation pinned to a criteria set that does not exist would render
   // as an empty scorecard with nothing to say about why. A trigger refuses it
   // on write; this is the audit that it held.
-  const pinned = [...new Set(conversations.map((row) => `${row.engagement_type}/${row.criteria_version}`))];
+  const pinned = [
+    ...new Set(conversations.map((row) => `${row.company_id}/${row.engagement_type}/${row.criteria_version}`)),
+  ];
   const missingSets: string[] = [];
   for (const pin of pinned) {
-    const [engagementType, version] = pin.split('/');
+    const [companyId, engagementType, version] = pin.split('/');
     try {
-      await fetchCriteria(db, engagementType!, Number(version));
+      await fetchCriteria(db, companyId!, engagementType!, Number(version));
     } catch {
       missingSets.push(pin);
     }

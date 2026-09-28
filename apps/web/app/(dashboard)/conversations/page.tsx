@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { GettingStarted } from '@/components/getting-started';
 import { ScorecardStrip } from '@/components/scorecard-strip';
 import { conversationPipeline, stageOf } from '@/lib/pipeline';
-import { scoreConversations, type ScorableConversation } from '@/lib/scorecard';
+import { scoreConversations } from '@/lib/scorecard';
 import { readAll } from '@tesserafy/db';
 import { createClient } from '@/lib/supabase/server';
 
@@ -22,6 +22,7 @@ import { createClient } from '@/lib/supabase/server';
 
 interface ConversationRow {
   id: string;
+  company_id: string;
   title: string;
   occurred_at: string | null;
   engagement_type: string;
@@ -60,14 +61,14 @@ export default async function ConversationsPage({
     (from, to) =>
       supabase
         .from('conversations')
-        .select('id, title, occurred_at, engagement_type, criteria_version')
+        .select('id, company_id, title, occurred_at, engagement_type, criteria_version')
         .order('occurred_at', { ascending: false })
         .order('id')
         .range(from, to),
     'Could not load conversations',
   );
   const [scores, pipeline] = await Promise.all([
-    scoreConversations(supabase, conversations as ScorableConversation[]),
+    scoreConversations(supabase, conversations),
     conversationPipeline(supabase),
   ]);
 

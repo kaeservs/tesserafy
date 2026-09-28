@@ -23,7 +23,7 @@ export default async function LivePage({ params }: { params: Promise<{ id: strin
 
   const { data: conversation } = await supabase
     .from('conversations')
-    .select('id, title, engagement_type, criteria_version')
+    .select('id, company_id, title, engagement_type, criteria_version')
     .eq('id', id)
     .maybeSingle();
   if (!conversation) notFound();
@@ -47,9 +47,10 @@ export default async function LivePage({ params }: { params: Promise<{ id: strin
 
   const {
     title,
+    company_id: companyId,
     engagement_type: engagementType,
     criteria_version: criteriaVersion,
-  } = conversation as { title: string; engagement_type: string; criteria_version: number };
+  } = conversation;
 
   // The set this conversation pins, not the default one.
   //
@@ -58,9 +59,9 @@ export default async function LivePage({ params }: { params: Promise<{ id: strin
   // against discovery criteria while its own page scored it against renewal —
   // the same conversation, two scorecards, no way to tell which was right.
   //
-  // Read as the signed-in user like everything else on this page; criteria
-  // are reference data, so RLS lets any member read them.
-  const criteria = await fetchCriteria(supabase, engagementType, criteriaVersion);
+  // Read as the signed-in user like everything else on this page, among the
+  // templates and the conversation's own company's sets (ADR 0016).
+  const criteria = await fetchCriteria(supabase, companyId, engagementType, criteriaVersion);
 
   return (
     <main>

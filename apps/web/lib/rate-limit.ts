@@ -79,6 +79,13 @@ export const LIMITS: Record<string, readonly Window[]> = {
     { seconds: 3_600, limit: 6 },
     { seconds: 86_400, limit: 10 },
   ],
+  // Trying a draft scorecard: up to 15 T1 windows (~$0.17) per press, charged
+  // as one imported call. Drafting is iterative, so more than an upload, but
+  // twenty a day bounds a runaway at a few dollars.
+  'api/scorecards/try': [
+    { seconds: 3_600, limit: 8 },
+    { seconds: 86_400, limit: 20 },
+  ],
   // A full copy of every call. Cheap for us, but it is the whole company
   // leaving in one file, so a handful a day is plenty for a person and a
   // ceiling on a stolen session.

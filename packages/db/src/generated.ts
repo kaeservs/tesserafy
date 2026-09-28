@@ -492,44 +492,61 @@ export type Database = {
       criteria_definitions: {
         Row: {
           candidate_threshold: number
+          company_id: string | null
           confirm_threshold: number
           corroborating_segments: number
           created_at: string
           definition: string
           engagement_type: string
+          id: string
           key: string
           label: string
           position: number
+          published_by: string | null
           version: number
           weight: number
         }
         Insert: {
           candidate_threshold?: number
+          company_id?: string | null
           confirm_threshold?: number
           corroborating_segments?: number
           created_at?: string
           definition: string
           engagement_type: string
+          id?: string
           key: string
           label: string
           position: number
+          published_by?: string | null
           version: number
           weight?: number
         }
         Update: {
           candidate_threshold?: number
+          company_id?: string | null
           confirm_threshold?: number
           corroborating_segments?: number
           created_at?: string
           definition?: string
           engagement_type?: string
+          id?: string
           key?: string
           label?: string
           position?: number
+          published_by?: string | null
           version?: number
           weight?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "criteria_definitions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       criterion_events: {
         Row: {
@@ -1763,6 +1780,10 @@ export type Database = {
       }
       plan_has_allowance: { Args: { p_meter: string }; Returns: boolean }
       plan_overview: { Args: never; Returns: Json }
+      publish_scorecard: {
+        Args: { p_criteria: Json; p_engagement_type: string }
+        Returns: number
+      }
       purge_expired_conversations: {
         Args: { p_company_id?: string; p_limit?: number }
         Returns: Json

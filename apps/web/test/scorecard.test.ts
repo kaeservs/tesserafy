@@ -22,6 +22,7 @@ let criteriaFetches: number;
 function criteriaRows() {
   criteriaFetches += 1;
   return criteria.map((criterion, index) => ({
+    company_id: null,
     engagement_type: 'discovery',
     version: 1,
     key: criterion.key,
@@ -46,6 +47,8 @@ function builder(table: string) {
     select: () => chain,
     eq: () => chain,
     in: () => chain,
+    is: () => chain,
+    or: () => chain,
     order: () => chain,
     range: (from: number, to: number) => {
       window = [from, to];
@@ -63,7 +66,7 @@ vi.mock('@/lib/supabase/server', () => ({ createClient: async () => db }));
 
 const { scoreConversations, scoreConversation } = await import('@/lib/scorecard');
 
-const conversation = { id: 'c1', engagement_type: 'discovery', criteria_version: 1 };
+const conversation = { id: 'c1', company_id: 'acme', engagement_type: 'discovery', criteria_version: 1 };
 
 function evidence(criterionKey: string, segmentId: string, confidence: number, startMs: number) {
   return {

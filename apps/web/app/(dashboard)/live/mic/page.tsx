@@ -1,5 +1,5 @@
 import { LiveComingSoon } from '@/components/live-coming-soon';
-import { liveAvailable, myCompany } from '@/lib/company';
+import { liveAvailable, myCompany, myCompanyId } from '@/lib/company';
 import { fetchCriteria, fetchCriteriaSets } from '@tesserafy/db';
 import { LiveMicrophone } from '@/components/live-microphone';
 import { toPrompts, toScorecard } from '@/lib/criteria';
@@ -32,7 +32,8 @@ export default async function LiveMicPage({
   const supabase = await createClient();
   if (!liveAvailable((await myCompany(supabase))?.plan)) return <LiveComingSoon />;
 
-  const sets = await fetchCriteriaSets(supabase);
+  const companyId = await myCompanyId(supabase);
+  const sets = await fetchCriteriaSets(supabase, companyId);
   const chosen =
     sets.find(
       (set) =>
@@ -57,7 +58,7 @@ export default async function LiveMicPage({
     );
   }
 
-  const criteria = await fetchCriteria(supabase, chosen.engagementType, chosen.version);
+  const criteria = await fetchCriteria(supabase, companyId, chosen.engagementType, chosen.version);
 
   return (
     <main>

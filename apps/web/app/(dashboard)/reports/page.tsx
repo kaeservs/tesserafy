@@ -50,7 +50,7 @@ export default async function ReportsPage() {
       (from, to) =>
         supabase
           .from('conversations')
-          .select('id, occurred_at, created_at, engagement_type, criteria_version, added_by')
+          .select('id, company_id, occurred_at, created_at, engagement_type, criteria_version, added_by')
           .order('id')
           .range(from, to),
       'Could not load the report',

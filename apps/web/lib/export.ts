@@ -18,6 +18,7 @@ export const EXPORT_VERSION = 1;
 
 export interface ConversationRow {
   id: string;
+  company_id: string;
   title: string;
   occurred_at: string | null;
   created_at: string;

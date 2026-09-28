@@ -184,7 +184,7 @@ async function main(): Promise<void> {
     const setKey = `${conversation.engagement_type}/v${conversation.criteria_version}`;
     let criteria = promptsFor.get(setKey);
     if (!criteria) {
-      const rows = await fetchCriteria(db, conversation.engagement_type, conversation.criteria_version);
+      const rows = await fetchCriteria(db, conversation.company_id, conversation.engagement_type, conversation.criteria_version);
       criteria = rows.map((row) => ({ key: row.key, label: row.label, definition: row.definition }));
       promptsFor.set(setKey, criteria);
     }

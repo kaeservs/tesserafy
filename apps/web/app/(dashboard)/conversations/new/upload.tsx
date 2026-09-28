@@ -18,7 +18,7 @@ import { CONSENT_STATEMENTS } from '@/lib/consent';
  * meeting that could never reach an insight would be worse than one that
  * explains the next step.
  */
-export function Upload({ sets }: { sets: { engagementType: string; version: number }[] }) {
+export function Upload({ sets }: { sets: { engagementType: string; version: number; own: boolean }[] }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -93,13 +93,13 @@ export function Upload({ sets }: { sets: { engagementType: string; version: numb
       {sets.length > 1 && (
         <div className="field">
           <label htmlFor="engagementType">Score it as</label>
-          <select id="engagementType" name="engagementType" disabled={busy}>
+          {/* Name and version together: the newest version of each, sent as
+              the pair, so a call is pinned to the version it was shown. */}
+          <select id="engagementType" name="criteriaSet" disabled={busy}>
             {sets.map((set) => (
-              <option key={`${set.engagementType}/${set.version}`} value={set.engagementType}>
+              <option key={`${set.engagementType}/${set.version}`} value={`${set.engagementType}/${set.version}`}>
                 {engagementLabel(set.engagementType)}
-                {sets.filter((other) => other.engagementType === set.engagementType).length > 1
-                  ? ` (version ${set.version})`
-                  : ''}
+                {set.own ? '' : ' (template)'}
               </option>
             ))}
           </select>

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { isProvider, PROVIDER_NAME } from '@/lib/trackers';
 import { notFound } from 'next/navigation';
 import { clock } from '@/lib/highlight';
 import { createClient } from '@/lib/supabase/server';
@@ -55,7 +56,7 @@ export default async function InsightPage({ params }: { params: Promise<{ id: st
   const [{ data: ticket }, { data: tracker }] = await Promise.all([
     supabase.from('insight_tickets').select('url').eq('insight_id', id).maybeSingle(),
     // Where a ticket would go; never the token (ADR 0015).
-    supabase.from('company_trackers').select('target').maybeSingle(),
+    supabase.from('company_trackers').select('provider, target').maybeSingle(),
   ]);
 
   const { data: citations, error: citationsError } = await supabase
@@ -118,7 +119,9 @@ export default async function InsightPage({ params }: { params: Promise<{ id: st
         insightId={id}
         status={status}
         ticketUrl={(ticket)?.url ?? null}
-        trackerTarget={tracker?.target ?? null}
+        trackerTarget={
+          tracker ? `${PROVIDER_NAME[isProvider(tracker.provider) ? tracker.provider : 'github']} (${tracker.target})` : null
+        }
       />
 
       <section aria-labelledby="evidence-heading">

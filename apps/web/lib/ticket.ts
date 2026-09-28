@@ -77,3 +77,16 @@ ${evidence}
 
 Raised from [an insight in Tesserafy](${input.insightUrl}) after a person approved it. Every quote above was checked against the transcript it came from. Who said it, and which customer, are deliberately not in this ticket — follow a transcript link if you need them.`;
 }
+
+/**
+ * The same body in Jira's wiki markup, which its v2 API takes as a string:
+ * `h2.` for a heading, `[text|url]` for a link, `*` for a list item, `----`
+ * for a rule. Same words, same links, same absences as the markdown.
+ */
+export function ticketBodyJira(input: TicketInput): string {
+  return ticketBody(input)
+    .replace(/^## (.+)$/gm, 'h2. $1')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '[$1|$2]')
+    .replace(/^- /gm, '* ')
+    .replace(/^---$/gm, '----');
+}

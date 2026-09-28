@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@tesserafy/db';
 import { NextResponse, type NextRequest } from 'next/server';
-import { createIssue } from '@/lib/github-tracker';
-import { ticketBody, ticketTitle, type TicketCitation } from '@/lib/ticket';
+import { type TicketCitation } from '@/lib/ticket';
+import { isProvider, PROVIDER_NAME, raiseTicket } from '@/lib/trackers';
 import { siteUrl } from '@/lib/site-url';
 import { caller } from '@/lib/supabase/caller';
 import { openToken, trackerKeyAvailable } from '@/lib/tracker-secret';
@@ -65,20 +65,22 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     status: string;
   };
 
-  // Before GitHub, not after. The already-raised answer is a success: whoever
-  // clicked wanted a ticket for this insight, and there is one.
+  // Before the tracker, not after. The already-raised answer is a success:
+  // whoever clicked wanted a ticket for this insight, and there is one — in
+  // whichever tracker it went to.
   const { data: existing } = await supabase
     .from('insight_tickets')
     .select('url, external_id')
     .eq('insight_id', id)
-    .eq('provider', 'github')
+    .order('created_at')
+    .limit(1)
     .maybeSingle();
 
   if (existing) {
     const ticket = existing;
     return NextResponse.json({
       url: ticket.url,
-      number: Number(ticket.external_id),
+      key: ticket.external_id,
       alreadyRaised: true,
     });
   }
@@ -123,24 +125,25 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     );
   }
 
+  const provider = isProvider(tracker.provider) ? tracker.provider : null;
+  if (!provider) {
+    return NextResponse.json({ error: 'The connected tracker is not one this version knows.' }, { status: 409 });
+  }
   const insightUrl = siteUrl(request, `/insights/${id}`).toString();
-  const created = await createIssue(tracker.target, token, {
-    title: ticketTitle({ title, summary, citations, insightUrl }),
-    body: ticketBody({ title, summary, citations, insightUrl }),
-  });
+  const created = await raiseTicket(provider, tracker.target, token, { title, summary, citations, insightUrl });
 
   if (!created.ok) {
-    return NextResponse.json({ error: `Creating the issue failed: ${created.message}` }, { status: 502 });
+    return NextResponse.json({ error: `Creating the ticket in ${PROVIDER_NAME[provider]} failed: ${created.message}` }, { status: 502 });
   }
 
-  const issue = { number: created.number, html_url: created.url };
+  const issue = { key: created.externalId, html_url: created.url };
 
   // Recorded through a function that re-checks approval, so a ticket cannot be
   // attributed to an insight nobody agreed to.
   const { error: recordError } = await supabase.rpc('record_insight_ticket', {
     p_insight_id: id,
-    p_provider: 'github',
-    p_external_id: String(issue.number),
+    p_provider: provider,
+    p_external_id: issue.key,
     p_url: issue.html_url,
   });
 
@@ -154,14 +157,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         .from('insight_tickets')
         .select('url, external_id')
         .eq('insight_id', id)
-        .eq('provider', 'github')
+        .eq('provider', provider)
         .maybeSingle();
 
       if (winner) {
         const ticket = winner;
         return NextResponse.json({
           url: ticket.url,
-          number: Number(ticket.external_id),
+          key: ticket.external_id,
           alreadyRaised: true,
           duplicate: issue.html_url,
         });
@@ -179,7 +182,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     );
   }
 
-  return NextResponse.json({ url: issue.html_url, number: issue.number });
+  return NextResponse.json({ url: issue.html_url, key: issue.key });
 }
 
 async function loadCitations(

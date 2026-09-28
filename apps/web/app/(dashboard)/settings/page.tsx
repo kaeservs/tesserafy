@@ -8,6 +8,7 @@ import { TrackerPanel } from '@/components/tracker-panel';
 import { PURGE_TIME_UTC, describeRetention } from '@/lib/retention';
 import { createClient } from '@/lib/supabase/server';
 import { trackerKeyAvailable } from '@/lib/tracker-secret';
+import { isProvider } from '@/lib/trackers';
 
 export const metadata = { title: 'Settings · Tesserafy' };
 
@@ -87,7 +88,7 @@ export default async function SettingsPage() {
   // column no customer can select (ADR 0015).
   const { data: tracker } = await supabase
     .from('company_trackers')
-    .select('target, token_hint, connected_by, connected_at')
+    .select('provider, target, token_hint, connected_by, connected_at')
     .maybeSingle();
   const emailOf = new Map((team ?? []).map((person) => [person.user_id, person.email]));
 
@@ -243,6 +244,7 @@ export default async function SettingsPage() {
           connected={
             tracker
               ? {
+                  provider: isProvider(tracker.provider) ? tracker.provider : 'github',
                   target: tracker.target,
                   tokenHint: tracker.token_hint,
                   connectedBy: tracker.connected_by ? (emailOf.get(tracker.connected_by) ?? 'a former member') : null,

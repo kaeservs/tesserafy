@@ -14,9 +14,12 @@ listed worst first, where "worst" means hardest to undo.
 
 ### 1. Tickets, into an external tracker
 
-`apps/web/lib/ticket.ts` builds an issue body and posts it to `api.github.com`.
-A tracker repository is usually readable by an entire engineering organisation
-and is sometimes public.
+`apps/web/lib/ticket.ts` builds an issue body and posts it to the company's own
+tracker: GitHub (`api.github.com`), Jira Cloud (the company's
+`*.atlassian.net` site, and no other host — the server calls it with the
+company's token) or Linear (`api.linear.app`). A tracker is usually readable by
+an entire engineering organisation, and a GitHub repository is sometimes
+public.
 
 This is the only egress the product itself initiates, and the only one that
 cannot be recalled: once something is an issue body it is in that system's

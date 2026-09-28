@@ -54,7 +54,11 @@ to one repository with Issues read and write.
 - Closing a company forgets its tracker (a trigger on `closed_at`, because
   closing keeps the company row).
 - `provider` is a column, so Jira or Linear is a new value and a new client,
-  not a new table.
+  not a new table. Both were added on 2026-09-28: Jira Cloud only, with the
+  target restricted to an `*.atlassian.net` site by a database check (the
+  server calls the target, so a free host would let it be pointed anywhere),
+  and its email and API token sealed together as JSON; Linear by team key, on
+  its one API host.
 
 ## Consequences
 

@@ -91,6 +91,9 @@ async function main(): Promise<void> {
     ['/conversations', 307],
     ['/insights', 307],
     ['/settings', 307],
+    ['/scorecards', 307],
+    ['/reports', 307],
+    ['/notifications', 307],
   ];
   for (const [path, expected] of pages) {
     const response = await fetch(new URL(path, baseUrl), { redirect: 'manual' });
@@ -101,7 +104,7 @@ async function main(): Promise<void> {
     );
   }
 
-  for (const path of ['/api/detect', '/api/criteria']) {
+  for (const path of ['/api/detect', '/api/criteria', '/api/criteria/sets', '/api/export/meetings', '/api/export/reports?table=weeks']) {
     const post = path === '/api/detect';
     const response = await fetch(new URL(path, baseUrl), {
       method: post ? 'POST' : 'GET',
@@ -278,6 +281,14 @@ async function main(): Promise<void> {
 
   console.info('\nRecording consent, underneath the routes');
   await checkConsentInDatabase(supabaseUrl, token);
+
+  if (token) {
+    console.info('\nScorecards');
+    await checkScorecards(baseUrl, token);
+
+    console.info('\nThe console, underneath');
+    await checkConsoleReads(token);
+  }
 
   console.info('\nData invariants');
   const db = createServiceClient({ url: supabaseUrl, key: serviceKey });
@@ -802,6 +813,8 @@ async function checkImport(baseUrl: string, token: string): Promise<void> {
       total > 0 && embedded === total,
       `${embedded} of ${total} segment(s) embedded, in Supabase`,
     );
+
+    await checkCallWorkflow(baseUrl, token, conversationId);
   } finally {
     if (conversationId) {
       const { error } = await createServiceClient({
@@ -967,3 +980,156 @@ main().catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : error);
   process.exit(1);
 });
+
+
+/**
+ * PostgREST as the probe account itself: its own session, RLS and all. Null
+ * when the publishable key is not in the environment, and the callers skip.
+ */
+function asProbe(token: string): ((name: string, body: unknown) => Promise<{ status: number; body: unknown }>) | null {
+  const publishableKey = process.env['SUPABASE_PUBLISHABLE_KEY'] ?? null;
+  if (!publishableKey) return null;
+  return async (name, body) => {
+    const response = await fetch(new URL(`/rest/v1/rpc/${name}`, requireEnv('SUPABASE_URL')), {
+      method: 'POST',
+      headers: { apikey: publishableKey, authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const text = await response.text();
+    return { status: response.status, body: text ? (JSON.parse(text) as unknown) : null };
+  };
+}
+
+/**
+ * What people do with a call after it arrives, on the probe: an outcome, a
+ * corrected title, a note, and the CSV of Meetings. Each is undone by the
+ * probe's erasure, which also proves notes and edits go with their call.
+ *
+ * The title is set to start with `=` on purpose: the CSV must write it as
+ * text, or opening the export would run it as a formula.
+ */
+async function checkCallWorkflow(baseUrl: string, token: string, conversationId: string): Promise<void> {
+  const rpc = asProbe(token);
+  if (!rpc) {
+    record('the call workflow', true, 'skipped — needs SUPABASE_PUBLISHABLE_KEY');
+    return;
+  }
+  const db = createServiceClient({ url: requireEnv('SUPABASE_URL'), key: requireEnv('SUPABASE_SERVICE_ROLE_KEY') });
+
+  const edited = await rpc('edit_conversation', {
+    p_conversation_id: conversationId,
+    p_title: '=QA PROBE — erased immediately',
+    p_outcome: 'won',
+  });
+  const changed = (edited.body as { changed?: string[] } | null)?.changed ?? [];
+  record(
+    'whoever added a call can correct it and say how it ended',
+    edited.status === 200 && changed.includes('title') && changed.includes('outcome'),
+    edited.status === 200 ? `changed ${changed.join(', ')}` : JSON.stringify(edited.body),
+  );
+  const { count: logged } = await db
+    .from('conversation_edits')
+    .select('id', { count: 'exact', head: true })
+    .eq('conversation_id', conversationId);
+  record('and every change is logged', (logged ?? 0) >= 2, `${logged ?? 0} logged`);
+
+  const csv = await fetch(new URL('/api/export/meetings?outcome=won&q=QA%20PROBE', baseUrl), {
+    headers: { authorization: `Bearer ${token}` },
+  });
+  const csvText = csv.ok ? await csv.text() : '';
+  record(
+    'Meetings downloads as CSV, with its filters',
+    csv.ok && (csv.headers.get('content-type') ?? '').startsWith('text/csv') && csvText.includes('QA PROBE'),
+    csv.ok ? `${csvText.split('\r\n').filter(Boolean).length - 1} row(s)` : `${csv.status}`,
+  );
+  record(
+    'and a title that starts like a formula is written as text',
+    csvText.includes("'=QA PROBE") && !/(^|,)=QA PROBE/m.test(csvText),
+    csvText.includes("'=QA PROBE") ? 'guarded' : 'the formula would run',
+  );
+
+  const { data: segment } = await db.from('segments').select('id').eq('conversation_id', conversationId).limit(1).single();
+  const noted = segment ? await rpc('add_segment_note', { p_segment_id: segment.id, p_body: 'QA probe note' }) : null;
+  const noteId = typeof noted?.body === 'string' ? noted.body : null;
+  record('a member can note a moment', noted?.status === 200 && Boolean(noteId), noted ? `${noted.status}` : 'no segment');
+  if (noteId) {
+    const { count: told } = await db
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('note_id', noteId);
+    record('nobody is notified of their own note', (told ?? 0) === 0, `${told ?? 0} notification(s)`);
+  }
+}
+
+/**
+ * Scorecards, as the probe account, spending nothing: the picker's list, and
+ * the two refusals that keep a company's set from being ambiguous or broken
+ * — a template's name, and a draft the engine could not score, refused by the
+ * trial before it charges anything.
+ */
+async function checkScorecards(baseUrl: string, token: string): Promise<void> {
+  const sets = await fetch(new URL('/api/criteria/sets', baseUrl), { headers: { authorization: `Bearer ${token}` } });
+  const setsBody = sets.ok ? ((await sets.json()) as { sets?: { engagementType: string; own: boolean }[] }) : {};
+  record(
+    'the overlay can list the scorecards a caller may use',
+    sets.ok && (setsBody.sets ?? []).some((set) => set.engagementType === 'discovery' && !set.own),
+    sets.ok ? (setsBody.sets ?? []).map((set) => set.engagementType).join(', ') : `${sets.status}`,
+  );
+
+  const draft = {
+    name: 'discovery',
+    criteria: [
+      { key: 'a_one', label: 'One', definition: 'Twenty characters or more, for the detector.', weight: 1 },
+      { key: 'b_two', label: 'Two', definition: 'Twenty characters or more, for the detector.', weight: 1 },
+    ],
+  };
+  const tried = await fetch(new URL('/api/scorecards/try', baseUrl), {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body: JSON.stringify(draft),
+  });
+  record(
+    'a draft named like a template is refused before it is tried',
+    tried.status === 422 || tried.status === 403,
+    `${tried.status}`,
+  );
+
+  const rpc = asProbe(token);
+  if (!rpc) {
+    record('publishing a scorecard', true, 'skipped — needs SUPABASE_PUBLISHABLE_KEY');
+    return;
+  }
+  const published = await rpc('publish_scorecard', { p_engagement_type: 'discovery', p_criteria: draft.criteria });
+  record(
+    'and the database refuses to publish one',
+    published.status >= 400 && ['22023', '42501'].includes((published.body as { code?: string } | null)?.code ?? ''),
+    (published.body as { code?: string } | null)?.code ?? `${published.status}`,
+  );
+}
+
+/**
+ * The console's adoption, spend and activity, as the probe account — which
+ * is an operator — and refused to anyone signed out. Reads only.
+ */
+async function checkConsoleReads(token: string): Promise<void> {
+  const rpc = asProbe(token);
+  if (!rpc) {
+    record('console reads', true, 'skipped — needs SUPABASE_PUBLISHABLE_KEY');
+    return;
+  }
+  for (const [name, body] of [
+    ['admin_adoption', {}],
+    ['admin_spend_by_week', { p_weeks: 12 }],
+    ['admin_activity', { p_limit: 20 }],
+  ] as const) {
+    const answer = await rpc(name, body);
+    record(
+      `${name} answers an operator`,
+      answer.status === 200 && Array.isArray(answer.body),
+      answer.status === 200 ? `${(answer.body as unknown[]).length} row(s)` : `${answer.status}`,
+    );
+  }
+  const anonymous = asProbe(process.env['SUPABASE_PUBLISHABLE_KEY'] ?? '');
+  const refused = anonymous ? await anonymous('admin_activity', { p_limit: 1 }) : null;
+  record('and refuses anyone signed out', refused !== null && refused.status >= 400, `${refused?.status}`);
+}

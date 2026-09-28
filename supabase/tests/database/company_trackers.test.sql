@@ -6,7 +6,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(17);
+select plan(21);
 
 insert into auth.users (id, email, aud, role) values
   ('7ac40001-0000-4000-8000-000000000001', 'owner@acme.test', 'authenticated', 'authenticated'),
@@ -44,9 +44,28 @@ select throws_ok(
 select set_config('request.jwt.claims',
   '{"sub":"7ac40001-0000-4000-8000-000000000001","role":"authenticated"}', true);
 select throws_ok(
-  $$ select public.connect_tracker('jira', 'acme/product', 'v1:x:y:z', 'abcd') $$,
+  $$ select public.connect_tracker('gitlab', 'acme/product', 'v1:x:y:z', 'abcd') $$,
   '23514', null,
   'only a provider the product speaks'
+);
+select throws_ok(
+  $$ select public.connect_tracker('jira', 'jira.internal.example/PROD', 'v1:x:y:z', 'abcd') $$,
+  '23514', null,
+  'Jira only on an atlassian.net site: the server calls the target, so no other host'
+);
+select throws_ok(
+  $$ select public.connect_tracker('jira', 'acme.atlassian.net/prod', 'v1:x:y:z', 'abcd') $$,
+  '23514', null,
+  'and a Jira project key in capitals'
+);
+select throws_ok(
+  $$ select public.connect_tracker('linear', 'https://api.linear.app', 'v1:x:y:z', 'abcd') $$,
+  '23514', null,
+  'a Linear target is a team key and nothing else'
+);
+select lives_ok(
+  $$ select public.connect_tracker('jira', 'acme.atlassian.net/PROD', 'v1:j:k:l', 'wxyz') $$,
+  'a Jira Cloud project is accepted'
 );
 select throws_ok(
   $$ select public.connect_tracker('github', 'not a repository', 'v1:x:y:z', 'abcd') $$,
@@ -123,7 +142,7 @@ select set_config('request.jwt.claims',
 select lives_ok($$ select public.disconnect_tracker() $$, 'an owner disconnects it');
 select results_eq(
   $$ select action, target from public.tracker_events order by at, action, target $$,
-  $$ values ('connected', 'acme/product'), ('connected', 'acme/roadmap'), ('disconnected', 'acme/roadmap') $$,
+  $$ values ('connected', 'acme.atlassian.net/PROD'), ('connected', 'acme/product'), ('connected', 'acme/roadmap'), ('disconnected', 'acme/roadmap') $$,
   'every connection and disconnection is logged, with where it pointed'
 );
 

@@ -10,6 +10,7 @@ interface Row {
   created_at: string;
   added_by: string | null;
   outcome: string | null;
+  account_id: string | null;
   engagement_type: string;
   criteria_version: number;
 }
@@ -24,7 +25,7 @@ export async function loadCoachingCalls(db: SupabaseClient): Promise<CoachingCal
     (from, to) =>
       db
         .from('conversations')
-        .select('id, company_id, title, occurred_at, created_at, added_by, outcome, engagement_type, criteria_version')
+        .select('id, company_id, title, occurred_at, created_at, added_by, outcome, account_id, engagement_type, criteria_version')
         .order('id')
         .range(from, to),
     'Could not load calls',
@@ -40,6 +41,7 @@ export async function loadCoachingCalls(db: SupabaseClient): Promise<CoachingCal
       addedBy: row.added_by,
       engagementType: row.engagement_type,
       outcome: asOutcome(row.outcome),
+      accountId: row.account_id,
       score: card && heard ? card.score : null,
       criteria: (card?.criteria ?? []).map((criterion) => ({
         key: criterion.key,

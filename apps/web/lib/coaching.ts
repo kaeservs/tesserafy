@@ -35,6 +35,8 @@ export interface CoachingCall {
   readonly addedBy: string | null;
   readonly engagementType: string;
   readonly outcome: Outcome | null;
+  /** The customer the call was with, when anyone said. */
+  readonly accountId?: string | null;
   /** Null when nothing was heard: not scored, which is not zero. */
   readonly score: number | null;
   readonly criteria: readonly { key: string; label: string; status: string }[];

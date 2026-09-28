@@ -144,7 +144,7 @@ begin
       insert into public.conversation_edits (company_id, conversation_id, field, old_value, new_value, actor)
       values (v_row.company_id, v_row.id, 'title', v_row.title, v_title, v_uid);
       update public.conversations set title = v_title where id = v_row.id;
-      v_changed := v_changed || 'title';
+      v_changed := array_append(v_changed, 'title');
     end if;
   end if;
 
@@ -157,7 +157,7 @@ begin
       insert into public.conversation_edits (company_id, conversation_id, field, old_value, new_value, actor)
       values (v_row.company_id, v_row.id, 'occurred_at', v_row.occurred_at::text, v_date::text, v_uid);
       update public.conversations set occurred_at = v_date where id = v_row.id;
-      v_changed := v_changed || 'occurred_at';
+      v_changed := array_append(v_changed, 'occurred_at');
     end if;
   end if;
 
@@ -178,7 +178,7 @@ begin
       values (v_row.company_id, v_row.id, 'scorecard',
               v_row.engagement_type || ' v' || v_row.criteria_version,
               p_engagement_type || ' v' || p_criteria_version, v_removed, v_uid);
-      v_changed := v_changed || 'scorecard';
+      v_changed := array_append(v_changed, 'scorecard');
     end if;
   end if;
 
@@ -195,7 +195,7 @@ begin
              outcome_set_by = case when v_outcome is null then null else v_uid end,
              outcome_set_at = case when v_outcome is null then null else now() end
        where id = v_row.id;
-      v_changed := v_changed || 'outcome';
+      v_changed := array_append(v_changed, 'outcome');
     end if;
   end if;
 

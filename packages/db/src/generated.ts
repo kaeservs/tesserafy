@@ -675,6 +675,7 @@ export type Database = {
       }
       criterion_events: {
         Row: {
+          by_person: boolean | null
           company_id: string
           confidence: number
           conversation_id: string
@@ -687,9 +688,12 @@ export type Database = {
           quote: string
           quote_end: number
           quote_start: number
+          reason: string | null
+          recorded_by: string | null
           segment_id: string
         }
         Insert: {
+          by_person?: boolean | null
           company_id: string
           confidence: number
           conversation_id: string
@@ -702,9 +706,12 @@ export type Database = {
           quote: string
           quote_end: number
           quote_start: number
+          reason?: string | null
+          recorded_by?: string | null
           segment_id: string
         }
         Update: {
+          by_person?: boolean | null
           company_id?: string
           confidence?: number
           conversation_id?: string
@@ -717,6 +724,8 @@ export type Database = {
           quote?: string
           quote_end?: number
           quote_start?: number
+          reason?: string | null
+          recorded_by?: string | null
           segment_id?: string
         }
         Relationships: [
@@ -1941,6 +1950,17 @@ export type Database = {
       delete_account: { Args: { p_account_id: string }; Returns: undefined }
       delete_segment_note: { Args: { p_note_id: string }; Returns: undefined }
       disconnect_tracker: { Args: never; Returns: undefined }
+      dispute_criterion: {
+        Args: {
+          p_conversation_id: string
+          p_criterion_key: string
+          p_kind: string
+          p_quote: string
+          p_reason: string
+          p_segment_id: string
+        }
+        Returns: string
+      }
       edit_conversation: {
         Args: {
           p_account_id?: string
@@ -2315,6 +2335,7 @@ export type Database = {
           token_ciphertext: string
         }[]
       }
+      withdraw_dispute: { Args: { p_event_id: string }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

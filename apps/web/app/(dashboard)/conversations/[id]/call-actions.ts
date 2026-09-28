@@ -170,3 +170,46 @@ export async function deleteNote(_prev: NoteState, formData: FormData): Promise<
   revalidatePath(`/conversations/${text(formData, 'conversationId')}`);
   return { status: 'saved' };
 }
+
+export type DisputeState = { status: 'idle' } | { status: 'saved' } | { status: 'error'; message: string };
+
+function disputeError(error: { code?: string; message: string }): DisputeState {
+  return {
+    status: 'error',
+    message:
+      error.code === '42501'
+        ? 'Only an owner, or whoever added this call, can correct its score.'
+        : error.message.replace(/^(dispute_criterion|withdraw_dispute): /, ''),
+  };
+}
+
+/**
+ * "This score is wrong": a correction recorded as evidence from a person —
+ * on the words they point at, with their reason — so the engine rescores the
+ * call from it as it would from a detector's (see the score_disputes
+ * migration for why it is evidence and never a typed number).
+ */
+export async function disputeScore(_prev: DisputeState, formData: FormData): Promise<DisputeState> {
+  const supabase = await createClient();
+  const conversationId = text(formData, 'conversationId');
+  const { error } = await supabase.rpc('dispute_criterion', {
+    p_conversation_id: conversationId,
+    p_criterion_key: text(formData, 'criterion'),
+    p_kind: text(formData, 'kind'),
+    p_segment_id: text(formData, 'segmentId'),
+    p_quote: text(formData, 'quote'),
+    p_reason: text(formData, 'reason'),
+  });
+  if (error) return disputeError(error);
+  revalidatePath(`/conversations/${conversationId}`);
+  return { status: 'saved' };
+}
+
+/** Take a correction back, as its author or an owner. */
+export async function withdrawDispute(_prev: DisputeState, formData: FormData): Promise<DisputeState> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('withdraw_dispute', { p_event_id: text(formData, 'eventId') });
+  if (error) return disputeError(error);
+  revalidatePath(`/conversations/${text(formData, 'conversationId')}`);
+  return { status: 'saved' };
+}

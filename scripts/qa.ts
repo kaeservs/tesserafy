@@ -1117,17 +1117,36 @@ async function checkConsoleReads(token: string): Promise<void> {
     record('console reads', true, 'skipped — needs SUPABASE_PUBLISHABLE_KEY');
     return;
   }
+  // The probe's session is a password's alone (aal1). Once operators must use
+  // a second factor, the right answer to it is a refusal — the database, not
+  // the console, is what asks for the code.
+  const { data: settings } = await createServiceClient({
+    url: requireEnv('SUPABASE_URL'),
+    key: requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
+  })
+    .from('app_settings')
+    .select('operator_mfa_required')
+    .maybeSingle();
+  const required = settings?.operator_mfa_required === true;
   for (const [name, body] of [
     ['admin_adoption', {}],
     ['admin_spend_by_week', { p_weeks: 12 }],
     ['admin_activity', { p_limit: 20 }],
   ] as const) {
     const answer = await rpc(name, body);
-    record(
-      `${name} answers an operator`,
-      answer.status === 200 && Array.isArray(answer.body),
-      answer.status === 200 ? `${(answer.body as unknown[]).length} row(s)` : `${answer.status}`,
-    );
+    if (required) {
+      record(
+        `${name} refuses an operator without their second factor`,
+        answer.status >= 400 && (answer.body as { code?: string } | null)?.code === '42501',
+        `${answer.status}`,
+      );
+    } else {
+      record(
+        `${name} answers an operator`,
+        answer.status === 200 && Array.isArray(answer.body),
+        answer.status === 200 ? `${(answer.body as unknown[]).length} row(s)` : `${answer.status}`,
+      );
+    }
   }
   const anonymous = asProbe(process.env['SUPABASE_PUBLISHABLE_KEY'] ?? '');
   const refused = anonymous ? await anonymous('admin_activity', { p_limit: 1 }) : null;

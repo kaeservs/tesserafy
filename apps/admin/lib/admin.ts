@@ -55,7 +55,32 @@ export async function requireAdmin(): Promise<Admin> {
   // it.
   if (!data) redirect('/login?denied=1');
 
+  // Two-step sign-in. Once an operator has an authenticator, every session
+  // asks for its code before the console opens. Without one, the console
+  // opens only while the database does not require it — and when it does,
+  // admin_operator_mfa refuses, which is how this learns so.
+  const { data: level } = await db.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (level?.currentLevel !== 'aal2') {
+    if (level?.nextLevel === 'aal2') redirect('/mfa');
+    const { error } = await db.rpc('admin_operator_mfa');
+    if (error?.code === '42501') redirect('/mfa');
+  }
+
   return { db, userId: auth.user.id, email: auth.user.email ?? 'unknown' };
+}
+
+/**
+ * The signed-in operator, before the second step: for the page that asks for
+ * the code or sets up the authenticator. Membership only — requireAdmin would
+ * send them straight back here.
+ */
+export async function requireOperatorMember(): Promise<{ db: SupabaseClient; email: string }> {
+  const db: SupabaseClient = await createClient();
+  const { data: auth } = await db.auth.getUser();
+  if (!auth.user) redirect('/login');
+  const { data } = await db.from('platform_admins').select('user_id').eq('user_id', auth.user.id).maybeSingle();
+  if (!data) redirect('/login?denied=1');
+  return { db, email: auth.user.email ?? 'unknown' };
 }
 
 /**

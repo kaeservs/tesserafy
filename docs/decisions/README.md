@@ -26,3 +26,4 @@ accepted ADR to change the decision; write a new one that supersedes it.
 | 0014 | Scoring a stored call in large windows; T3 on Sonnet 5 | proposed |
 | 0015 | Each company's tickets go to its own tracker | proposed |
 | 0016 | Each company writes its own scorecards | proposed |
+| 0017 | Operators sign in with two steps, and the database asks | proposed |

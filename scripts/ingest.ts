@@ -12,7 +12,6 @@
  * operator tool and must never be reachable from the web app.
  */
 import { readFileSync } from 'node:fs';
-import { extname } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import {
   both,
@@ -29,8 +28,7 @@ import {
 import { createServiceClient } from '@tesserafy/db';
 import {
   anyRedactions,
-  parseTurns,
-  parseVtt,
+  parseTranscript,
   redactSegments,
   toSegments,
   type ParsedTranscript,
@@ -122,8 +120,7 @@ function requireEnv(name: string): string {
 
 function parseFile(path: string): ParsedTranscript {
   const source = readFileSync(path, 'utf8');
-  // The extension only chooses a parser; both validate what they are given.
-  return extname(path).toLowerCase() === '.json' ? parseTurns(JSON.parse(source)) : parseVtt(source);
+  return parseTranscript(path, source);
 }
 
 async function main(): Promise<void> {

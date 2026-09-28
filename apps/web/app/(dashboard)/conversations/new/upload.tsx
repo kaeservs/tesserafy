@@ -1,5 +1,6 @@
 'use client';
 
+import { TRANSCRIPT_EXTENSIONS } from '@tesserafy/ingest';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
@@ -125,7 +126,7 @@ export function Upload({
           id="transcript"
           name="transcript"
           type="file"
-          accept=".vtt,.json"
+          accept={TRANSCRIPT_EXTENSIONS.join(',')}
           multiple
           required
           disabled={busy}
@@ -135,7 +136,7 @@ export function Upload({
           }}
         />
         <span className="muted" style={{ fontSize: '0.8rem' }}>
-          WebVTT (.vtt) is what Zoom, Meet and Teams export as a transcript. Choose several to import them together.
+          WebVTT (.vtt) from Zoom, Meet or Teams, SubRip (.srt), or a text transcript (.txt) from Otter, Fireflies or a Meet document — with its timestamps. Choose several to import them together.
         </span>
       </div>
 

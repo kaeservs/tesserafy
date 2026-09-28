@@ -9,8 +9,10 @@ import { clock, splitByHighlights } from '@/lib/highlight';
 import { Shortfall } from '@/components/criterion-shortfall';
 import { conversationPipeline, nextCommand, stageOf } from '@/lib/pipeline';
 import { scoreConversation } from '@/lib/scorecard';
+import { talkStats } from '@/lib/talk';
 import { ExtractButton } from '@/components/extract-button';
 import { CallViewers } from '@/components/call-viewers';
+import { CopyMomentLink } from '@/components/copy-moment-link';
 import { DeleteCall } from '@/components/delete-call';
 import { RefreshWhile } from '@/components/refresh-while';
 import { capturedState, type CapturedState } from '@/lib/scoring-status';
@@ -32,6 +34,7 @@ interface SegmentRow {
   id: string;
   speaker: string | null;
   start_ms: number;
+  end_ms: number;
   text: string;
 }
 
@@ -252,7 +255,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
       (from, to) =>
         supabase
           .from('segments')
-          .select('id, speaker, start_ms, text')
+          .select('id, speaker, start_ms, end_ms, text')
           .eq('conversation_id', id)
           .order('start_ms')
           .order('id')
@@ -385,6 +388,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
   }
 
   const startedAt = new Map(segments.map((segment) => [segment.id, segment.start_ms]));
+  const talk = talkStats(segments);
   const { title, occurred_at: occurredAt } = conversation as {
     title: string;
     occurred_at: string | null;
@@ -542,6 +546,44 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
         ) : null}
       </section>
 
+      {talk.speakers.length > 0 ? (
+        <section aria-labelledby="talk-heading" className="card">
+          <h2 id="talk-heading" style={{ marginTop: 0 }}>
+            Who talked
+          </h2>
+          <table className="team">
+            <thead>
+              <tr>
+                <th scope="col">Speaker</th>
+                <th scope="col">Share of the words</th>
+                <th scope="col">Questions</th>
+                <th scope="col">Longest stretch</th>
+              </tr>
+            </thead>
+            <tbody>
+              {talk.speakers.map((speaker) => (
+                <tr key={speaker.speaker ?? ''}>
+                  <td>{speaker.speaker ?? <span className="muted">Not named in the transcript</span>}</td>
+                  <td>
+                    <span className="share-bar" aria-hidden="true">
+                      <span style={{ width: `${Math.round(speaker.share * 100)}%` }} />
+                    </span>{' '}
+                    {Math.round(speaker.share * 100)}%
+                  </td>
+                  <td>{speaker.questions}</td>
+                  <td className="when">
+                    {speaker.longestWords} words{speaker.longestMs >= 1000 ? `, ${duration(speaker.longestMs)}` : ''}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="muted" style={{ marginBottom: 0, fontSize: '0.82rem' }}>
+            Counted from the transcript by words, so it reads the same whatever the format. It is not part of the score.
+          </p>
+        </section>
+      ) : null}
+
       <section aria-labelledby="signals-heading">
         <h2 id="signals-heading">Signals</h2>
         {signals.length === 0 ? (
@@ -602,7 +644,10 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
             {segments.map((segment) => (
               <li key={segment.id} id={`segment-${segment.id}`} className="segment">
                 <div className="muted segment-meta">
-                  {clock(segment.start_ms)} · {segment.speaker ?? 'unknown'}
+                  <a href={`#segment-${segment.id}`} className="moment-time">
+                    {clock(segment.start_ms)}
+                  </a>{' '}
+                  · {segment.speaker ?? 'unknown'} <CopyMomentLink conversationId={id} segmentId={segment.id} />
                 </div>
                 <p>
                   {splitByHighlights(segment.text, rangesBySegment.get(segment.id) ?? []).map(
@@ -649,4 +694,12 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
       {isOwner ? <DeleteCall conversationId={id} /> : null}
     </main>
   );
+}
+
+/** A stretch of speech: "45 s", "3 min 20 s". */
+function duration(ms: number): string {
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 60) return `${seconds} s`;
+  const rest = seconds % 60;
+  return `${Math.floor(seconds / 60)} min${rest > 0 ? ` ${rest} s` : ''}`;
 }

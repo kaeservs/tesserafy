@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { FindInsightsButton } from '@/components/find-insights-button';
 import { readAll } from '@tesserafy/db';
 import { insightPipeline } from '@/lib/insight-pipeline';
+import { themesOverTime, type ThemeTrend } from '@/lib/themes';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -38,6 +39,18 @@ const STATUS: Record<string, string> = {
   proposed: 'waiting for you',
   approved: 'approved',
   dismissed: 'dismissed',
+};
+
+const TREND: Record<ThemeTrend, string> = {
+  rising: '↑ rising',
+  falling: '↓ falling',
+  steady: '→ steady',
+  new: 'new',
+};
+
+const KIND_LABEL: Record<string, string> = {
+  problem: 'Problems raised',
+  feature_request: 'Requests',
 };
 
 const FILTERS = [
@@ -81,16 +94,16 @@ export default async function InsightsPage({
     ),
     readAll(
       (from, to) =>
-        supabase.from('signals').select('id, conversation_id').order('id').range(from, to),
+        supabase.from('signals').select('id, conversation_id, kind').order('id').range(from, to),
       'Could not load insights',
     ),
     readAll<{ insight_id: string; created_at: string }>(
       (from, to) => supabase.from('insight_tickets').select('insight_id, created_at').order('id').range(from, to),
       'Could not load insights',
     ),
-    readAll<{ id: string; account_id: string | null }>(
+    readAll<{ id: string; account_id: string | null; occurred_at: string | null; created_at: string }>(
       (from, to) =>
-        supabase.from('conversations').select('id, account_id').not('account_id', 'is', null).order('id').range(from, to),
+        supabase.from('conversations').select('id, account_id, occurred_at, created_at').order('id').range(from, to),
       'Could not load insights',
     ),
     readAll<{ id: string; name: string }>(
@@ -138,6 +151,30 @@ export default async function InsightsPage({
     tickets: tickets.map((ticket) => ({ insightId: ticket.insight_id, createdAt: ticket.created_at })),
     customersOf,
   });
+  const themes = themesOverTime(
+    {
+      insights,
+      evidence: evidence.map((row) => ({ insightId: row.insight_id, signalId: row.signal_id })),
+      signals: signals.map((row) => ({ id: row.id, conversationId: row.conversation_id, kind: row.kind })),
+      callDate: new Map(calls.map((call) => [call.id, call.occurred_at ?? call.created_at])),
+    },
+    new Date(),
+  );
+  // Themes and the totals each on their own scale: a theme's calls beside every
+  // signal of a kind would flatten the themes into specks.
+  const themePeak = Math.max(1, ...themes.themes.flatMap((theme) => theme.calls));
+  const kindPeak = Math.max(1, ...Object.values(themes.kinds).flat());
+  const bars = (counts: readonly number[], peak: number, label: string) => (
+    <svg viewBox={`0 0 ${counts.length * 10} 24`} width={counts.length * 10} height={24} role="img" aria-label={label}>
+      {counts.map((count, index) =>
+        count === 0 ? null : (
+          <rect key={index} x={index * 10 + 1} y={24 - Math.max(2, (count / peak) * 22)} width={8} height={Math.max(2, (count / peak) * 22)} fill="currentColor" opacity={0.55}>
+            <title>{`Week of ${themes.weeks[index]}: ${count}`}</title>
+          </rect>
+        ),
+      )}
+    </svg>
+  );
   const days = (value: number | null) => (value === null ? '—' : value < 1 ? 'same day' : `${Math.round(value)} day${Math.round(value) === 1 ? '' : 's'}`);
 
   return (
@@ -178,6 +215,54 @@ export default async function InsightsPage({
               ))}
             </p>
           ) : null}
+        </section>
+      ) : null}
+      {status === null && (themes.themes.length > 0 || Object.keys(themes.kinds).length > 0) ? (
+        <section aria-labelledby="themes-heading" className="card">
+          <h2 id="themes-heading" style={{ marginTop: 0 }}>
+            Themes over time
+          </h2>
+          <table className="team">
+            <thead>
+              <tr>
+                <th scope="col">Last 12 weeks</th>
+                <th scope="col">Calls a week</th>
+                <th scope="col">Last 4 weeks</th>
+              </tr>
+            </thead>
+            <tbody>
+              {themes.themes.map((theme) => (
+                <tr key={theme.id}>
+                  <td>
+                    <Link href={`/insights/${theme.id}`}>{theme.title}</Link>
+                  </td>
+                  <td>{bars(theme.calls, themePeak, `${theme.title}, calls a week`)}</td>
+                  <td className="when">
+                    {theme.recent} call{theme.recent === 1 ? '' : 's'}
+                    <span className="muted">
+                      {' · '}
+                      {TREND[theme.trend]}
+                      {theme.trend === 'rising' || theme.trend === 'falling' ? ` from ${theme.previous}` : ''}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {Object.entries(themes.kinds).map(([kind, counts]) => {
+                const recent = counts.slice(-4).reduce((a, b) => a + b, 0);
+                return (
+                  <tr key={kind} className="muted">
+                    <td>{KIND_LABEL[kind] ?? kind}, grouped or not</td>
+                    <td>{bars(counts, kindPeak, `${KIND_LABEL[kind] ?? kind} a week`)}</td>
+                    <td className="when">{recent} in the last 4 weeks</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <p className="muted" style={{ marginBottom: 0, fontSize: '0.82rem' }}>
+            By the week each meeting took place. A new call joins an insight when Look for patterns next runs, so the latest
+            weeks can read low until it has.
+          </p>
         </section>
       ) : null}
       {insights.length > 0 ? (

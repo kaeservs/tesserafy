@@ -38,10 +38,9 @@ import {
   type ExtractableSegment,
 } from '@tesserafy/ai';
 import { createServiceClient } from '@tesserafy/db';
-import { parseTurns, parseVtt, toSegments, type ParsedTranscript } from '@tesserafy/ingest';
+import { parseTranscript, toSegments, TRANSCRIPT_EXTENSIONS, type ParsedTranscript } from '@tesserafy/ingest';
 import type { SupabaseClient } from '@tesserafy/db';
 
-const TRANSCRIPT_EXTENSIONS = new Set(['.vtt', '.json']);
 
 interface Args {
   directory: string;
@@ -142,7 +141,7 @@ function findTranscripts(root: string): string[] {
     for (const entry of readdirSync(directory).sort()) {
       const path = join(directory, entry);
       if (statSync(path).isDirectory()) walk(path);
-      else if (TRANSCRIPT_EXTENSIONS.has(extname(entry).toLowerCase())) found.push(path);
+      else if ((TRANSCRIPT_EXTENSIONS as readonly string[]).includes(extname(entry).toLowerCase())) found.push(path);
     }
   };
   walk(root);
@@ -151,7 +150,7 @@ function findTranscripts(root: string): string[] {
 
 function parseFile(path: string): ParsedTranscript {
   const source = readFileSync(path, 'utf8');
-  return extname(path).toLowerCase() === '.json' ? parseTurns(JSON.parse(source)) : parseVtt(source);
+  return parseTranscript(path, source);
 }
 
 async function importOne(

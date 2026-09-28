@@ -265,18 +265,21 @@ export type Database = {
       app_settings: {
         Row: {
           id: boolean
+          operator_mfa_required: boolean
           signup_open: boolean
           updated_at: string
           updated_by: string | null
         }
         Insert: {
           id?: boolean
+          operator_mfa_required?: boolean
           signup_open?: boolean
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
           id?: boolean
+          operator_mfa_required?: boolean
           signup_open?: boolean
           updated_at?: string
           updated_by?: string | null
@@ -288,19 +291,22 @@ export type Database = {
           actor: string | null
           at: string
           id: string
-          signup_open: boolean
+          mfa_required: boolean | null
+          signup_open: boolean | null
         }
         Insert: {
           actor?: string | null
           at?: string
           id?: string
-          signup_open: boolean
+          mfa_required?: boolean | null
+          signup_open?: boolean | null
         }
         Update: {
           actor?: string | null
           at?: string
           id?: string
-          signup_open?: boolean
+          mfa_required?: boolean | null
+          signup_open?: boolean | null
         }
         Relationships: []
       }
@@ -1788,9 +1794,14 @@ export type Database = {
         }[]
       }
       admin_company_detail: { Args: { p_company_id: string }; Returns: Json }
+      admin_operator_mfa: { Args: never; Returns: Json }
       admin_overview: { Args: never; Returns: Json }
       admin_set_member_role: {
         Args: { p_company_id: string; p_role: string; p_user_id: string }
+        Returns: undefined
+      }
+      admin_set_operator_mfa: {
+        Args: { p_required: boolean }
         Returns: undefined
       }
       admin_set_plan: {

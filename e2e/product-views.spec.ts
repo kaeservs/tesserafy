@@ -53,7 +53,7 @@ test('Meetings filters by score and outcome, and its CSV link keeps the filters'
   const response = await page.request.get((await csv.getAttribute('href'))!);
   expect(response.status()).toBe(200);
   expect(response.headers()['content-type']).toContain('text/csv');
-  expect((await response.text()).split('\r\n')[0]).toContain('date,title,scorecard');
+  expect((await response.text()).split('\r\n')[0]).toContain('date,title,customer,scorecard');
 });
 
 test('Reports shows what goes with a win, and a member cannot open another seller’s page', async ({ page }) => {

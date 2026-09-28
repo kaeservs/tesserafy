@@ -33,7 +33,9 @@ Do not break these without an ADR that supersedes the existing one.
    recorded a reason for opening, creating an account an operator has
    recorded provisioning (ADR 0012), and deleting an account in no company
    that an operator has recorded deleting (ADR 0013). The key never writes a
-   table. Everything an operator reads goes through RLS as them. A reference
+   table. Everything an operator reads goes through RLS as them, and once
+   `operator_mfa_required` is on, `is_platform_admin()` counts an operator
+   only in a session that passed their authenticator code (ADR 0017). A reference
    to an account must cascade, set null, or be a plain id with no foreign key
    (ADR 0013); a pgTAP guard fails any that could block a deletion.
 4. **Every retrieval is tenant-scoped.** Exactly one `retrieve()` in

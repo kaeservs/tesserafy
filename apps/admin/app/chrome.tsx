@@ -46,6 +46,7 @@ export function Chrome({ email, children }: { email: string; children: ReactNode
         <Link href="/history">Access history</Link>
         <Link href="/activity">Activity</Link>
         <Link href="/failures">Failures</Link>
+        <Link href="/security">Security</Link>
         <span className="spacer" />
         <form action={signOut}>
           <button type="submit">Sign out</button>

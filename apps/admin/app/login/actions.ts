@@ -47,7 +47,10 @@ export async function signIn(_prev: LoginState, formData: FormData): Promise<Log
     return { status: 'error' };
   }
 
+  // With an authenticator, the code comes next, every time.
+  const { data: level } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
   // Outside any try/catch: redirect() throws, and catching it would leave an
   // operator staring at a login form while holding a valid session.
-  redirect('/');
+  redirect(level?.nextLevel === 'aal2' && level.currentLevel !== 'aal2' ? '/mfa' : '/');
 }

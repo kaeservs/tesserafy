@@ -86,6 +86,12 @@ export const LIMITS: Record<string, readonly Window[]> = {
     { seconds: 3_600, limit: 8 },
     { seconds: 86_400, limit: 20 },
   ],
+  // Moving a scorecard's older calls onto its newest version: up to ten
+  // re-scores a press, each also charged to the plan as an imported call.
+  'scorecards/move': [
+    { seconds: 3_600, limit: 6 },
+    { seconds: 86_400, limit: 20 },
+  ],
   // A table as CSV: titles, dates and numbers, no transcript. Cheap to make
   // and people download several in a sitting, so looser than the full copy.
   'api/export/csv': [

@@ -82,8 +82,15 @@ function.
   own first. It sends the name and version as one value, so a call is pinned
   to the version it was shown. It used to send only the name, which pinned
   version 1 whatever the picker said.
-- Existing calls are not re-scored when a new version is published. Moving a
-  call to a newer version remains a deliberate act, not a side effect.
+- Existing calls are not re-scored when a new version is published. Moving
+  calls to a newer version is a deliberate act: an owner presses "Move calls
+  to version N" on the scorecard's page, ten at a time, each re-scored from
+  its transcript and charged as an imported call — or changes one call's
+  scorecard under "Edit this call".
+- The overlay asks `/api/criteria/sets` which scorecards the signed-in person
+  may use and remembers the choice, by name, on that computer, so a newer
+  version is picked up without choosing again. It reaches customers with the
+  next desktop release.
 - An operator's account in the web app sees only its own company's sets.
 - A company closed with its own sets keeps them as rows, like the rest of a
   closed company's tombstone. Deleting the company cascades them.

@@ -26,6 +26,7 @@ import {
   type Appearance,
   type Rect,
 } from './appearance';
+import { chooseScorecard, parseScorecards, scorecardName } from './scorecard';
 import { Session, type Store } from './session';
 import { SHORTCUTS, shortcutLabel } from './shortcuts';
 import { createTray, type OverlayTray } from './tray';
@@ -116,7 +117,18 @@ let placed: Rect | null = null;
 
 /** Where the product is. The production app unless told otherwise. */
 const BASE_URL = process.env['TESSERAFY_URL'] ?? 'https://web-beta-khaki-cxdkp6udxk.vercel.app';
+/** The scorecard to fall back on when none has been chosen (see ./scorecard). */
 const ENGAGEMENT = process.env['TESSERAFY_ENGAGEMENT'] ?? 'discovery';
+/** The scorecard chosen on this computer, by name; null until one is. */
+let scorecard: string | null = null;
+const scorecardFile = () => join(app.getPath('userData'), 'scorecard.json');
+async function loadScorecard(): Promise<string | null> {
+  try {
+    return scorecardName((JSON.parse(await readFile(scorecardFile(), 'utf8')) as { name?: unknown }).name);
+  } catch {
+    return null;
+  }
+}
 
 /**
  * The refresh token, encrypted by the operating system and nowhere else.
@@ -268,6 +280,7 @@ void app.whenReady().then(async () => {
   // Before the window exists, so it opens where it was left rather than
   // appearing in the default corner and jumping.
   appearance = await loadAppearance();
+  scorecard = await loadScorecard();
   overlay = createOverlay();
 
   // Global shortcuts (see ./shortcuts). Showing is inactive: the overlay
@@ -392,7 +405,7 @@ void app.whenReady().then(async () => {
   // Who is signed in is overlay:session; the token is never sent here.
   ipcMain.handle('overlay:config', () => ({
     baseUrl: BASE_URL,
-    engagementType: ENGAGEMENT,
+    engagementType: scorecard ?? ENGAGEMENT,
     // As the keys read on this system, and whether they are ours: another app
     // may own them.
     shortcuts: {
@@ -473,10 +486,28 @@ void app.whenReady().then(async () => {
     post(`/api/live/sessions/${conversationId}/events`, body),
   );
 
-  ipcMain.handle('overlay:criteria', async () => {
-    const response = await session.fetch(
-      `/api/criteria?engagement_type=${encodeURIComponent(ENGAGEMENT)}`,
-    );
+  // The scorecards this person may use, and which is chosen: the remembered
+  // one if still offered, else the company's own, else the default.
+  ipcMain.handle('overlay:scorecards', async () => {
+    const response = await session.fetch('/api/criteria/sets');
+    if (!response) return NOT_SIGNED_IN;
+    const sets = response.ok ? parseScorecards(await response.json()) : [];
+    return { sets, chosen: chooseScorecard(sets, scorecard, ENGAGEMENT) };
+  });
+
+  ipcMain.handle('overlay:set-scorecard', (_event, name: unknown) => {
+    const chosen = scorecardName(name);
+    if (!chosen) return scorecard;
+    scorecard = chosen;
+    writeFile(scorecardFile(), JSON.stringify({ name: chosen })).catch(() => undefined);
+    return scorecard;
+  });
+
+  // The newest version of the chosen scorecard; a call pins that version when
+  // it starts, so publishing the next one mid-call changes nothing.
+  ipcMain.handle('overlay:criteria', async (_event, name: unknown) => {
+    const chosen = scorecardName(name) ?? scorecard ?? ENGAGEMENT;
+    const response = await session.fetch(`/api/criteria?engagement_type=${encodeURIComponent(chosen)}`);
     if (!response) return NOT_SIGNED_IN;
     if (!response.ok) {
       return { error: `criteria failed: ${response.status} ${await response.text()}` };

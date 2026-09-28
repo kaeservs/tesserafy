@@ -19,7 +19,7 @@ https://claude.ai/code/artifact/a7cdd883-3bc5-48f5-84da-a0fe6b21f329
 | P5 | Retrieval and insights | One insight with >= 3 evidence items from >= 2 conversations, each citing customer and timestamp. Cross-tenant test still green. | **Done** — one insight in production, 4 signals across 4 conversations; page shows every citation |
 | P6 | Live path, browser first | Measured p50/p95 for utterance -> visible score against the latency budget. | Built — replay and microphone paths both measure against ADR 0010; real STT awaits S2 |
 | P7 | Electron HUD | Overlay over a live Zoom call; scorecard updates; meeting stays visible and clickable; screen-share behaviour matches S1. | Built — overlay listens, detects and scores; screen-share behaviour awaits S1 |
-| P8 | Prepare and Act | An insight moves from approval to a created ticket carrying its evidence citations. No auto-creation anywhere. | Built; **not usable by customers yet** — tickets go to one repository set in the web app's environment (not configured), not to each company's own tracker. Per-company tracker connection is next |
+| P8 | Prepare and Act | An insight moves from approval to a created ticket carrying its evidence citations. No auto-creation anywhere. | Built — each company's owner connects its own GitHub repository and the ticket goes there (ADR 0015). Needs `TRACKER_TOKEN_KEY` in the web app's Vercel environment, then one real ticket to witness the gate |
 | P10 | Transcript import | A signed-in member can add a transcript without a terminal; it parses through the same chunker as `pnpm ingest`. | **Done** — `/conversations/new`; an upload scores itself (T1) within seconds, as the uploader |
 | P9 | Dashboard and history | A past meeting shows a scorecard derived from stored evidence; criteria coverage across every meeting. No score stored anywhere. | **Done** — `/dashboard`, `/reports` (weekly trend, by seller) and each meeting's scorecard, computed on read from `criterion_events` |
 
@@ -99,8 +99,9 @@ What is left cannot be done from a keyboard alone:
   browser vendor.
 - **ADR 0010** — accept, amend or reject the revised ~2 s budget. It changes a
   product promise, so it is not a technical call.
-- **P8** — each company connects its own tracker; then approve an insight and
-  raise a ticket into it.
+- **P8** — set `TRACKER_TOKEN_KEY` in Vercel, connect a private test
+  repository under Settings → Where tickets go, approve an insight and raise a
+  ticket into it (`qa-checklist.md`, P8).
 - **QA** — `pnpm qa` covers what a machine can judge; the rest is in
   `qa-checklist.md`.
 - **Sign-in** — works in any browser now, via the implicit flow, and a

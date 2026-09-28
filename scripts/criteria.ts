@@ -4,7 +4,7 @@
  *   pnpm criteria --list
  *   pnpm criteria --add <file.json>
  *   pnpm criteria --add <file.json> --dry-run
- *   pnpm criteria --show <engagement-type> [--version <n>]
+ *   pnpm criteria --show <engagement-type> [--version <n>] [--company <uuid>]
  *   pnpm criteria --try <file.json> --conversation <uuid>
  *   pnpm criteria --try <file.json> --company <uuid> [--sample 5]
  *
@@ -19,10 +19,12 @@
  * deploy, which is the point of the table." Schema still goes through
  * migrations; a discovery set for renewals does not.
  *
- * Not a browser feature either. criteria_definitions has no write policy on
- * purpose — a criteria set decides what every scorecard in the product means,
- * and a customer editing one mid-quarter silently re-scores their own
- * history.
+ * What this writes are templates: sets with no company, which every company
+ * may use. A company's own sets are published by its owner in the web app,
+ * through `publish_scorecard` (ADR 0016). Neither path edits a published
+ * version — a conversation pins the version it was scored against, so a
+ * change is a new version and history keeps the scorecard it had. A template
+ * cannot take a name some company already uses; the database refuses it.
  *
  * Every set is validated by defineCriteriaSet() before anything is written,
  * so a file with impossible thresholds fails here rather than at load time in
@@ -70,29 +72,41 @@ function requireEnv(name: string): string {
 async function list(db: SupabaseClient): Promise<void> {
   const { data, error } = await db
     .from('criteria_definitions')
-    .select('engagement_type, version, key')
+    .select('company_id, engagement_type, version, key')
     .order('engagement_type')
     .order('version');
   if (error) throw new Error(`Listing criteria failed: ${error.message}`);
 
-  const rows = (data ?? []) as { engagement_type: string; version: number; key: string }[];
+  const rows = (data ?? []) as {
+    company_id: string | null;
+    engagement_type: string;
+    version: number;
+    key: string;
+  }[];
   if (rows.length === 0) {
     console.info('No criteria sets. That means nothing in this product can score anything.');
     return;
   }
 
+  // Templates first, then each company's own, so it is plain which is which.
   const sets = new Map<string, number>();
-  for (const row of rows) {
-    const key = `${row.engagement_type} v${row.version}`;
+  for (const row of [...rows].sort((a, b) => Number(a.company_id !== null) - Number(b.company_id !== null))) {
+    const owner = row.company_id === null ? 'template' : `company ${row.company_id}`;
+    const key = `${`${row.engagement_type} v${row.version}`.padEnd(28)} ${owner}`;
     sets.set(key, (sets.get(key) ?? 0) + 1);
   }
   for (const [name, count] of sets) {
-    console.info(`  ${name.padEnd(28)} ${count} criteria`);
+    console.info(`  ${name}  ${count} criteria`);
   }
 }
 
-async function show(db: SupabaseClient, engagementType: string, version?: number): Promise<void> {
-  const rows = await fetchCriteria(db, engagementType, version);
+async function show(
+  db: SupabaseClient,
+  companyId: string | null,
+  engagementType: string,
+  version?: number,
+): Promise<void> {
+  const rows = await fetchCriteria(db, companyId, engagementType, version);
   console.info(`${rows[0]!.engagement_type} v${rows[0]!.version}\n`);
   for (const row of rows) {
     console.info(
@@ -322,9 +336,24 @@ async function add(db: SupabaseClient, path: string, dryRun: boolean): Promise<v
   const { data: existing, error: existingError } = await db
     .from('criteria_definitions')
     .select('key')
+    .is('company_id', null)
     .eq('engagement_type', validated.engagementType)
     .eq('version', validated.version);
   if (existingError) throw new Error(`Checking for an existing set failed: ${existingError.message}`);
+
+  // The database refuses this too; saying so here says why.
+  const { count: taken } = await db
+    .from('criteria_definitions')
+    .select('key', { count: 'exact', head: true })
+    .not('company_id', 'is', null)
+    .eq('engagement_type', validated.engagementType);
+  if ((taken ?? 0) > 0) {
+    console.error(
+      `criteria: a company already has its own scorecard called "${validated.engagementType}". ` +
+        'A template needs a name no company uses (ADR 0016).',
+    );
+    process.exit(1);
+  }
 
   if ((existing ?? []).length > 0) {
     // Versions are immutable on purpose. A conversation pins the version it
@@ -389,7 +418,7 @@ async function main(): Promise<void> {
   const showType = flag('--show');
   if (showType) {
     const version = flag('--version');
-    await show(db, showType, version ? Number(version) : undefined);
+    await show(db, flag('--company') ?? null, showType, version ? Number(version) : undefined);
     return;
   }
 

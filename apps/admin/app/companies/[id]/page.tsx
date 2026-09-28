@@ -65,10 +65,38 @@ function standing(d: Detail): string {
   return `active, period ends ${s.period_end ? utc(s.period_end) : '—'}`;
 }
 
+interface CriterionRow {
+  engagement_type: string;
+  version: number;
+  key: string;
+  label: string;
+  definition: string;
+  weight: number;
+  created_at: string;
+}
+
+/** Each scorecard's newest version in full, and how many versions it has had. */
+function scorecardsOf(rows: readonly CriterionRow[]) {
+  const byName = new Map<string, { name: string; versions: Set<number>; newest: number; published: string; criteria: CriterionRow[] }>();
+  for (const row of rows) {
+    const seen = byName.get(row.engagement_type) ?? {
+      name: row.engagement_type,
+      versions: new Set<number>(),
+      newest: row.version,
+      published: row.created_at,
+      criteria: [],
+    };
+    seen.versions.add(row.version);
+    if (row.version === seen.newest) seen.criteria.push(row);
+    byName.set(row.engagement_type, seen);
+  }
+  return [...byName.values()];
+}
+
 export default async function CompanyPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const admin = await requireAdmin();
-  const [{ data, error }, { data: people }, { data: roleChanges }] = await Promise.all([
+  const [{ data, error }, { data: people }, { data: roleChanges }, { data: criteria }] = await Promise.all([
     admin.db.rpc('admin_company_detail', { p_company_id: id }),
     // The detail names members by address; changing a role needs their id.
     admin.db.rpc('admin_users'),
@@ -78,7 +106,17 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
       .eq('company_id', id)
       .order('changed_at', { ascending: false })
       .limit(20),
+    // The company's own scorecards (ADR 0016). Read as the operator, through
+    // RLS; the console does not change them — that is the owner's job.
+    admin.db
+      .from('criteria_definitions')
+      .select('engagement_type, version, key, label, definition, weight, position, created_at')
+      .eq('company_id', id)
+      .order('engagement_type')
+      .order('version', { ascending: false })
+      .order('position'),
   ]);
+  const scorecards = scorecardsOf(criteria ?? []);
   if (error?.code === '22023') notFound();
   const idOf = new Map(
     (people ?? []).filter((p) => p.company_id === id).map((p) => [p.email ?? '', p.user_id]),
@@ -218,6 +256,38 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
                 <li key={`${r.email}-${r.created_at}`} className="muted">
                   {r.email} ({r.role}), {utc(r.created_at)} —{' '}
                   {r.resolution === 'added' ? 'added' : r.resolution === 'declined' ? `declined: ${r.note ?? ''}` : 'waiting'}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="card">
+          <h2 style={{ marginTop: 0 }}>Scorecards</h2>
+          {scorecards.length === 0 ? (
+            <p className="muted" style={{ marginBottom: 0 }}>None of its own; it scores with the templates.</p>
+          ) : (
+            <ul style={{ marginBottom: 0 }}>
+              {scorecards.map((card) => (
+                <li key={card.name}>
+                  <details>
+                    <summary>
+                      {card.name} v{card.newest}{' '}
+                      <span className="muted">
+                        · {card.criteria.length} criteria · {card.versions.size} version
+                        {card.versions.size === 1 ? '' : 's'} · {utc(card.published)}
+                      </span>
+                    </summary>
+                    <ol>
+                      {card.criteria.map((row) => (
+                        <li key={row.key}>
+                          <strong>{row.label}</strong> <span className="muted">weight {row.weight}</span>
+                          <br />
+                          <span className="muted">{row.definition}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </details>
                 </li>
               ))}
             </ul>

@@ -72,7 +72,7 @@ export async function scoreUploadedConversation(
   if (windows.length === 0) return { status: 'nothing_to_score' };
   if (windows.length > AUTO_SCORE_MAX_WINDOWS) return { status: 'too_long', windows: windows.length };
 
-  const rows = await fetchCriteria(db, conversation.engagement_type, conversation.criteria_version);
+  const rows = await fetchCriteria(db, conversation.company_id, conversation.engagement_type, conversation.criteria_version);
   const criteria = rows.map((row) => ({ key: row.key, label: row.label, definition: row.definition }));
 
   // Awaited rather than fire-and-forget: this runs inside after(), and a

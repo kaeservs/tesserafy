@@ -12,6 +12,20 @@ export async function myCompany(db: SupabaseClient): Promise<{ name: string; pla
 }
 
 /**
+ * The signed-in person's company id, from their own membership.
+ *
+ * Not from `companies`: an operator reads every company there, and the first
+ * row would be somebody else's. Null for nobody, and for a person in more than
+ * one company — which no one is yet, and which is refused rather than guessed.
+ */
+export async function myCompanyId(db: SupabaseClient, userId?: string): Promise<string | null> {
+  const uid = userId ?? (await db.auth.getUser()).data.user?.id;
+  if (!uid) return null;
+  const { data } = await db.from('company_members').select('company_id').eq('user_id', uid);
+  return data?.length === 1 ? data[0]!.company_id : null;
+}
+
+/**
  * Whether the live scorecard is offered.
  *
  * Only to Tesserafy's own company for now. Live transcription still uses the

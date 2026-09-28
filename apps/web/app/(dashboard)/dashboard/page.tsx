@@ -29,6 +29,7 @@ import { createClient } from '@/lib/supabase/server';
 
 interface ConversationRow {
   id: string;
+  company_id: string;
   title: string;
   occurred_at: string | null;
   engagement_type: string;
@@ -57,7 +58,7 @@ export default async function DashboardPage() {
       (from, to) =>
         supabase
           .from('conversations')
-          .select('id, title, occurred_at, engagement_type, criteria_version')
+          .select('id, company_id, title, occurred_at, engagement_type, criteria_version')
           .order('occurred_at', { ascending: false })
           .order('id')
           .range(from, to),

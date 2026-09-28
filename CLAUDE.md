@@ -206,10 +206,16 @@ meeting content.
   pgvector lives in the `extensions` schema, not `public`. The dimension
   belongs to the embedding model; changing one means changing both, and every
   stored vector with them.
-- Criteria definitions are seed data, not code. A new engagement type is a row,
-  written with `pnpm criteria --add` — an operator with the service role, never
-  a browser. A published version is immutable, because conversations pin the
-  version they were scored against; a change is a new version.
+- Criteria definitions are data, not code. A row with no company is a
+  Tesserafy template, written by an operator with `pnpm criteria --add`; a row
+  with a company is that company's own scorecard, published by its owner in
+  the web app through `publish_scorecard` (ADR 0016). A company's set may not
+  take a template's name, so a conversation's `(engagement_type,
+  criteria_version)` pin stays unambiguous. Every criteria read names its
+  company (`fetchCriteria(db, companyId, …)`), because operators and service
+  scripts can see every company's sets. A published version is immutable,
+  because conversations pin the version they were scored against; a change is
+  a new version.
 
 ## MCP routing
 

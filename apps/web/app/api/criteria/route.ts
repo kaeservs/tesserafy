@@ -1,5 +1,6 @@
 import { fetchCriteria } from '@tesserafy/db';
 import { NextResponse, type NextRequest } from 'next/server';
+import { myCompanyId } from '@/lib/company';
 import { caller } from '@/lib/supabase/caller';
 
 /**
@@ -10,8 +11,8 @@ import { caller } from '@/lib/supabase/caller';
  * is a desktop app holding a key on someone's laptop. It asks the web app,
  * with the same bearer token it uses for detection.
  *
- * Criteria are reference data rather than tenant data, so any signed-in caller
- * may read them; the table's RLS policy says the same thing.
+ * Any signed-in caller may read the templates and their own company's sets
+ * (ADR 0016) — never another company's, even when an operator is asking.
  */
 export const runtime = 'nodejs';
 
@@ -27,6 +28,7 @@ export async function GET(request: NextRequest) {
   try {
     const criteria = await fetchCriteria(
       who.db,
+      await myCompanyId(who.db, who.userId),
       engagementType,
       versionParam ? Number(versionParam) : undefined,
     );

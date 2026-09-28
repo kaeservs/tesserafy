@@ -32,6 +32,8 @@ export interface ConversationScore {
 
 export interface ScorableConversation {
   readonly id: string;
+  /** Whose criteria sets the pin is read among: templates and this company's own. */
+  readonly company_id: string;
   readonly engagement_type: string;
   readonly criteria_version: number;
 }
@@ -87,11 +89,16 @@ export async function scoreConversations(
   const sets = new Map<string, CriteriaSet>();
 
   for (const conversation of conversations) {
-    const setKey = `${conversation.engagement_type}/v${conversation.criteria_version}`;
+    const setKey = `${conversation.company_id}/${conversation.engagement_type}/v${conversation.criteria_version}`;
     let criteriaSet = sets.get(setKey);
     if (!criteriaSet) {
       criteriaSet = toScorecard(
-        await fetchCriteria(db, conversation.engagement_type, conversation.criteria_version),
+        await fetchCriteria(
+          db,
+          conversation.company_id,
+          conversation.engagement_type,
+          conversation.criteria_version,
+        ),
       );
       sets.set(setKey, criteriaSet);
     }

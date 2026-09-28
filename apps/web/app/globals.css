@@ -103,6 +103,7 @@ a {
 
 input,
 select,
+textarea,
 button {
   font: inherit;
   padding: 0.5rem 0.75rem;
@@ -127,7 +128,7 @@ button:disabled {
 
 /* Visible focus is not decoration: this app is read more than it is clicked,
    and reading is done with the keyboard. */
-:where(a, button, input, select):focus-visible {
+:where(a, button, input, select, textarea):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -910,4 +911,49 @@ input[type='search'] {
   color: #6b3d00;
   padding: 0.55rem 1.25rem;
   font-size: 0.9rem;
+}
+
+/* --------------------------------------------------------------------------
+   Scorecard editor
+   -------------------------------------------------------------------------- */
+
+/* One criterion a card, its description full width: the description is the
+   prompt, and a cramped box invites a cramped one. */
+.criterion-edit {
+  margin-bottom: 0.85rem;
+}
+
+.criterion-edit .field {
+  max-width: none;
+}
+
+.criterion-edit textarea {
+  width: 100%;
+  min-height: 4.5rem;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.criterion-edit-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
+.criterion-edit-row .field:first-child {
+  flex: 1 1 16rem;
+}
+
+.criterion-edit-row .field {
+  margin-bottom: 0.5rem;
+}
+
+.problems {
+  padding-left: 1.2rem;
+}
+
+.tried-quote {
+  display: block;
+  font-size: 0.85rem;
 }

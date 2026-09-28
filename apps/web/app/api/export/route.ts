@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
         (from, to) =>
           db
             .from('conversations')
-            .select('id, title, occurred_at, created_at, engagement_type, criteria_version, consent_statement, consent_confirmed_at')
+            .select('id, company_id, title, occurred_at, created_at, engagement_type, criteria_version, consent_statement, consent_confirmed_at')
             .order('occurred_at', { ascending: true })
             .order('id')
             .range(from, to),

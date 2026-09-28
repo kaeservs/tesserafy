@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { fetchCriteriaSets } from '@tesserafy/db';
+import { myCompanyId } from '@/lib/company';
 import { createClient } from '@/lib/supabase/server';
 import { Upload } from './upload';
 
@@ -19,7 +20,12 @@ import { Upload } from './upload';
  */
 export default async function NewConversationPage() {
   const supabase = await createClient();
-  const sets = await fetchCriteriaSets(supabase);
+  // The newest version of each set, the company's own first: a new call is
+  // scored against what the company uses now.
+  const all = await fetchCriteriaSets(supabase, await myCompanyId(supabase));
+  const sets = all
+    .filter((set) => !all.some((other) => other.engagementType === set.engagementType && other.version > set.version))
+    .sort((a, b) => Number(b.own) - Number(a.own));
 
   return (
     <main>

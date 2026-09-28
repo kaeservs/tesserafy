@@ -11,6 +11,7 @@ function parts(overrides: Partial<ExportParts> = {}): ExportParts {
     conversations: [
       {
         id: 'c1',
+        company_id: 'acme',
         title: 'Discovery',
         occurred_at: '2026-09-20T15:00:00Z',
         created_at: '2026-09-21T09:00:00Z',
@@ -21,6 +22,7 @@ function parts(overrides: Partial<ExportParts> = {}): ExportParts {
       },
       {
         id: 'c2',
+        company_id: 'acme',
         title: 'Follow-up',
         occurred_at: null,
         created_at: '2026-09-22T09:00:00Z',

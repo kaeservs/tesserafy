@@ -122,8 +122,12 @@ export async function POST(request: NextRequest) {
     parsedTitle?.trim() ||
     file.name.replace(/\.[^.]+$/, '');
   const occurredAt = (form.get('occurredAt') as string | null)?.trim() || null;
-  const engagementType = (form.get('engagementType') as string | null)?.trim() || 'discovery';
-  const criteriaVersion = Number(form.get('criteriaVersion') ?? 1);
+  // The picker sends "name/version" as one value, so the version is the one
+  // it showed. Separate fields are still accepted from other clients.
+  const [pickedType, pickedVersion] = ((form.get('criteriaSet') as string | null) ?? '').split('/');
+  const engagementType =
+    pickedType?.trim() || (form.get('engagementType') as string | null)?.trim() || 'discovery';
+  const criteriaVersion = Number(pickedVersion || (form.get('criteriaVersion') ?? 1));
 
   // Before anything is written. An identifier that reaches the database has
   // reached the embeddings, the prompts, the ticket bodies and the backups

@@ -22,3 +22,7 @@ accepted ADR to change the decision; write a new one that supersedes it.
 | 0010 | The live latency budget, as measured | proposed |
 | 0011 | Retrieval under the user's session (amends 0004) | proposed |
 | 0012 | The operator console creates accounts (amends invariant 3) | proposed |
+| 0013 | The operator console deletes accounts | proposed |
+| 0014 | Scoring a stored call in large windows; T3 on Sonnet 5 | proposed |
+| 0015 | Each company's tickets go to its own tracker | proposed |
+| 0016 | Each company writes its own scorecards | proposed |

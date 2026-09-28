@@ -1,4 +1,7 @@
+import Link from 'next/link';
 import { readAll } from '@tesserafy/db';
+import { asOutcome, criteriaByOutcome, MIN_DECIDED, percent } from '@/lib/coaching';
+import { engagementLabel } from '@/lib/company';
 import { ScoreTrend } from '@/components/score-trend';
 import { buildReport, WEEKS, type ReportCall, type Seller } from '@/lib/report';
 import { scoreConversations, type ScorableConversation } from '@/lib/scorecard';
@@ -7,9 +10,11 @@ import { createClient } from '@/lib/supabase/server';
 export const metadata = { title: 'Reports · Tesserafy' };
 
 interface Row extends ScorableConversation {
+  title: string;
   occurred_at: string | null;
   created_at: string;
   added_by: string | null;
+  outcome: string | null;
 }
 
 function score(value: number | null): string {
@@ -50,7 +55,7 @@ export default async function ReportsPage() {
       (from, to) =>
         supabase
           .from('conversations')
-          .select('id, company_id, occurred_at, created_at, engagement_type, criteria_version, added_by')
+          .select('id, company_id, title, occurred_at, created_at, engagement_type, criteria_version, added_by, outcome')
           .order('id')
           .range(from, to),
       'Could not load the report',
@@ -76,6 +81,19 @@ export default async function ReportsPage() {
   });
 
   const report = buildReport(calls);
+  // Company-wide, so every member sees it: it ranks criteria, not people.
+  const byOutcome = criteriaByOutcome(
+    conversations.map((c, index) => ({
+      id: c.id,
+      title: c.title,
+      date: calls[index]!.date,
+      addedBy: c.added_by,
+      engagementType: c.engagement_type,
+      outcome: asOutcome(c.outcome),
+      score: calls[index]!.score,
+      criteria: calls[index]!.criteria,
+    })),
+  );
   const email = new Map((team ?? []).map((person) => [person.user_id, person.email]));
   const sellers = isOwner ? report.sellers : report.sellers.filter((s) => s.addedBy === user?.id);
   const anyCalls = report.weeks.some((w) => w.calls > 0);
@@ -131,8 +149,10 @@ export default async function ReportsPage() {
                   <td>
                     {seller.addedBy === null ? (
                       <span className="muted">Unattributed — added before sellers were recorded</span>
+                    ) : email.has(seller.addedBy) ? (
+                      <Link href={`/reports/sellers/${seller.addedBy}`}>{email.get(seller.addedBy)}</Link>
                     ) : (
-                      (email.get(seller.addedBy) ?? <span className="muted">a former member</span>)
+                      <span className="muted">a former member</span>
                     )}
                   </td>
                   <td className="when">
@@ -155,6 +175,61 @@ export default async function ReportsPage() {
           <p className="muted" style={{ marginBottom: 0 }}>
             Owners see each seller&apos;s numbers; you see the company&apos;s trend and your own.
           </p>
+        )}
+      </section>
+
+      <section aria-labelledby="wins-heading" className="card">
+        <h2 id="wins-heading" style={{ marginTop: 0 }}>
+          What goes with a win
+        </h2>
+        {byOutcome.length === 0 ? (
+          <p className="muted" style={{ marginBottom: 0 }}>
+            Mark calls won or lost (Edit this call, on any call) and this shows which criteria are met more
+            often on the calls you win. It needs {MIN_DECIDED} won and {MIN_DECIDED} lost scored calls on a
+            scorecard.
+          </p>
+        ) : (
+          <>
+            {byOutcome.map((comparison) => (
+              <div key={comparison.engagementType}>
+                <h3>
+                  {engagementLabel(comparison.engagementType)}{' '}
+                  <span className="muted" style={{ fontWeight: 400 }}>
+                    · {comparison.won} won, {comparison.lost} lost
+                  </span>
+                </h3>
+                {comparison.enough ? (
+                  <table className="team">
+                    <thead>
+                      <tr>
+                        <th scope="col">Criterion</th>
+                        <th scope="col">Met on won calls</th>
+                        <th scope="col">Met on lost calls</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {comparison.criteria.map((row) => (
+                        <tr key={row.key}>
+                          <td>{row.label}</td>
+                          <td>{percent(row.wonRate)}</td>
+                          <td className="muted">{percent(row.lostRate)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="muted">
+                    Needs {MIN_DECIDED} won and {MIN_DECIDED} lost scored calls to compare.
+                  </p>
+                )}
+              </div>
+            ))}
+            <p className="muted" style={{ marginBottom: 0, fontSize: '0.82rem' }}>
+              Largest difference first. This shows what goes together, not what causes what: a criterion
+              met more often on won calls may be a habit worth coaching, or a sign of a deal that was going
+              well anyway. Open deals and calls with no outcome are left out.
+            </p>
+          </>
         )}
       </section>
     </main>

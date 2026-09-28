@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { clock } from '@/lib/highlight';
 import { createClient } from '@/lib/supabase/server';
 import { Decide } from './decide';
+import { CommentOnInsight, WorkOnInsight } from '@/components/insight-work';
 
 /**
  * One insight, and every quote it rests on.
@@ -47,17 +48,33 @@ export default async function InsightPage({ params }: { params: Promise<{ id: st
 
   const { data: insight } = await supabase
     .from('insights')
-    .select('id, title, summary, created_at, status')
+    .select('id, title, summary, created_at, status, assigned_to')
     .eq('id', id)
     .maybeSingle();
 
   if (!insight) notFound();
 
-  const [{ data: ticket }, { data: tracker }] = await Promise.all([
-    supabase.from('insight_tickets').select('url').eq('insight_id', id).maybeSingle(),
-    // Where a ticket would go; never the token (ADR 0015).
-    supabase.from('company_trackers').select('provider, target').maybeSingle(),
-  ]);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const [{ data: ticket }, { data: tracker }, { data: team }, { data: membership }, { data: comments }, { data: events }, { data: others }, { data: ticketed }] =
+    await Promise.all([
+      supabase.from('insight_tickets').select('url').eq('insight_id', id).maybeSingle(),
+      // Where a ticket would go; never the token (ADR 0015).
+      supabase.from('company_trackers').select('provider, target').maybeSingle(),
+      supabase.rpc('company_team'),
+      supabase.from('company_members').select('role').eq('user_id', user?.id ?? '').limit(1).maybeSingle(),
+      supabase.from('insight_comments').select('id, author, body, created_at').eq('insight_id', id).order('created_at'),
+      supabase.from('insight_events').select('kind, detail, actor, at').eq('insight_id', id).order('at', { ascending: false }),
+      supabase.from('insights').select('id, title').neq('id', id).neq('status', 'dismissed').order('title').limit(200),
+      supabase.from('insight_tickets').select('insight_id'),
+    ]);
+  const isOwner = membership?.role === 'owner';
+  const nameOf = new Map((team ?? []).map((person) => [person.user_id, person.is_you ? 'You' : person.email]));
+  const who = (userId: string | null) => (userId ? (nameOf.get(userId) ?? 'A former member') : 'A former member');
+  // A ticketed insight cannot be folded into another; its ticket would lead nowhere.
+  const hasTicket = new Set((ticketed ?? []).map((row) => row.insight_id));
+  const mergeable = (others ?? []).filter((other) => !hasTicket.has(other.id));
 
   const { data: citations, error: citationsError } = await supabase
     .from('insight_evidence')
@@ -97,10 +114,11 @@ export default async function InsightPage({ params }: { params: Promise<{ id: st
     ),
   );
 
-  const { title, summary, status } = insight as {
+  const { title, summary, status, assigned_to: assignedTo } = insight as {
     title: string;
     summary: string;
     status: string;
+    assigned_to: string | null;
   };
 
   return (
@@ -113,7 +131,17 @@ export default async function InsightPage({ params }: { params: Promise<{ id: st
       <p className="muted">
         {signals.length} signals across {conversationIds.length} meetings ·{' '}
         {STATUS_LABEL[status] ?? status}
+        {assignedTo ? ` · owned by ${who(assignedTo)}` : ''}
       </p>
+      <WorkOnInsight
+        insightId={id}
+        title={title}
+        summary={summary}
+        assignee={assignedTo}
+        team={(team ?? []).map((person) => ({ id: person.user_id, email: person.email }))}
+        others={mergeable}
+        isOwner={isOwner}
+      />
 
       <Decide
         insightId={id}
@@ -161,6 +189,38 @@ export default async function InsightPage({ params }: { params: Promise<{ id: st
           })}
         </ul>
       </section>
+
+      <section aria-labelledby="discussion-heading">
+        <h2 id="discussion-heading">Discussion</h2>
+        {(comments ?? []).length === 0 ? <p className="muted">Nothing said yet.</p> : null}
+        <ul className="notes">
+          {(comments ?? []).map((comment) => (
+            <li key={comment.id} className="note">
+              <p>{comment.body}</p>
+              <div className="muted note-meta">
+                {who(comment.author)}, {new Date(comment.created_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' })} UTC
+              </div>
+            </li>
+          ))}
+        </ul>
+        <CommentOnInsight insightId={id} />
+      </section>
+
+      {(events ?? []).length > 0 ? (
+        <details className="call-history">
+          <summary className="muted">Changes to this insight ({(events ?? []).length})</summary>
+          <ul className="muted">
+            {(events ?? []).map((event, index) => (
+              <li key={`${event.at}-${index}`}>
+                {new Date(event.at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' })} UTC —{' '}
+                {who(event.actor)}{' '}
+                {event.kind === 'renamed' ? `reworded it (${event.detail ?? ''})` : event.kind === 'assigned' ? `assigned it to ${event.detail ?? 'nobody'}` : `merged in ${event.detail ?? 'another insight'}`}
+                .
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
     </main>
   );
 }

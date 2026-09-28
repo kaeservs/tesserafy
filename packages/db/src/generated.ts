@@ -795,6 +795,41 @@ export type Database = {
           },
         ]
       }
+      insight_comments: {
+        Row: {
+          author: string | null
+          body: string
+          company_id: string
+          created_at: string
+          id: string
+          insight_id: string
+        }
+        Insert: {
+          author?: string | null
+          body: string
+          company_id: string
+          created_at?: string
+          id?: string
+          insight_id: string
+        }
+        Update: {
+          author?: string | null
+          body?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          insight_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "insight_comments_company_id_insight_id_fkey"
+            columns: ["company_id", "insight_id"]
+            isOneToOne: false
+            referencedRelation: "insights"
+            referencedColumns: ["company_id", "id"]
+          },
+        ]
+      }
       insight_declines: {
         Row: {
           company_id: string
@@ -830,6 +865,44 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      insight_events: {
+        Row: {
+          actor: string | null
+          at: string
+          company_id: string
+          detail: string | null
+          id: string
+          insight_id: string
+          kind: string
+        }
+        Insert: {
+          actor?: string | null
+          at?: string
+          company_id: string
+          detail?: string | null
+          id?: string
+          insight_id: string
+          kind: string
+        }
+        Update: {
+          actor?: string | null
+          at?: string
+          company_id?: string
+          detail?: string | null
+          id?: string
+          insight_id?: string
+          kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "insight_events_company_id_insight_id_fkey"
+            columns: ["company_id", "insight_id"]
+            isOneToOne: false
+            referencedRelation: "insights"
+            referencedColumns: ["company_id", "id"]
           },
         ]
       }
@@ -915,6 +988,7 @@ export type Database = {
       }
       insights: {
         Row: {
+          assigned_to: string | null
           company_id: string
           created_at: string
           decided_at: string | null
@@ -927,6 +1001,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          assigned_to?: string | null
           company_id: string
           created_at?: string
           decided_at?: string | null
@@ -939,6 +1014,7 @@ export type Database = {
           title: string
         }
         Update: {
+          assigned_to?: string | null
           company_id?: string
           created_at?: string
           decided_at?: string | null
@@ -1884,11 +1960,19 @@ export type Database = {
         }
         Returns: string
       }
+      assign_insight: {
+        Args: { p_insight_id: string; p_user_id?: string }
+        Returns: undefined
+      }
       cancel_plan: { Args: never; Returns: undefined }
       change_plan: { Args: { p_plan: string }; Returns: string }
       close_company: {
         Args: { p_company_id: string; p_confirm_name: string; p_reason: string }
         Returns: Json
+      }
+      comment_insight: {
+        Args: { p_body: string; p_insight_id: string }
+        Returns: string
       }
       company_team: {
         Args: never
@@ -1960,6 +2044,7 @@ export type Database = {
       decide_insight: {
         Args: { p_insight_id: string; p_status: string }
         Returns: {
+          assigned_to: string | null
           company_id: string
           created_at: string
           decided_at: string | null
@@ -2005,6 +2090,10 @@ export type Database = {
           p_title?: string
         }
         Returns: Json
+      }
+      edit_insight: {
+        Args: { p_insight_id: string; p_summary: string; p_title: string }
+        Returns: undefined
       }
       edit_segment_note: {
         Args: { p_body: string; p_note_id: string }
@@ -2077,6 +2166,10 @@ export type Database = {
           start_ms: number
           text: string
         }[]
+      }
+      merge_insights: {
+        Args: { p_keep_id: string; p_merge_id: string }
+        Returns: number
       }
       open_account_deletion: {
         Args: { p_reason: string; p_user_id: string }

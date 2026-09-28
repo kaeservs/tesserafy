@@ -69,8 +69,15 @@ contextBridge.exposeInMainWorld('overlay', {
   ): Promise<{ ok: true; email: string } | { ok: false; message: string }> =>
     ipcRenderer.invoke('overlay:sign-in', identifier, password),
   signOut: (): Promise<{ email: null }> => ipcRenderer.invoke('overlay:sign-out'),
-  criteria: (): Promise<{ criteria?: unknown[]; error?: string }> =>
-    ipcRenderer.invoke('overlay:criteria'),
+  criteria: (engagementType?: string): Promise<{ criteria?: unknown[]; error?: string }> =>
+    ipcRenderer.invoke('overlay:criteria', engagementType),
+  scorecards: (): Promise<{
+    sets?: { engagementType: string; version: number; own: boolean; label: string }[];
+    chosen?: string | null;
+    error?: string;
+  }> => ipcRenderer.invoke('overlay:scorecards'),
+  setScorecard: (engagementType: string): Promise<string | null> =>
+    ipcRenderer.invoke('overlay:set-scorecard', engagementType),
   detect: (body: unknown): Promise<{ events?: unknown[]; error?: string }> =>
     ipcRenderer.invoke('overlay:detect', body),
   suggest: (

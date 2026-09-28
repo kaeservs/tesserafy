@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { fetchCriteria, fetchCriteriaSets } from '@tesserafy/db';
+import { MoveCalls } from '@/components/move-calls';
 import { engagementLabel, myCompanyId } from '@/lib/company';
 import { createClient } from '@/lib/supabase/server';
 
@@ -59,6 +60,7 @@ export default async function ScorecardPage({
     }),
   );
   const callsFor = new Map(counts);
+  const onOlder = versions.slice(1).reduce((sum, set) => sum + (callsFor.get(set.version) ?? 0), 0);
   const totalWeight = criteria.reduce((sum, row) => sum + row.weight, 0);
 
   return (
@@ -135,6 +137,10 @@ export default async function ScorecardPage({
             ))}
           </tbody>
         </table>
+        {/* Kept on the page after the last call moves, so its message stays. */}
+        {isOwner && versions.length > 1 ? (
+          <MoveCalls name={name} newest={versions[0]!.version} onOlder={onOlder} />
+        ) : null}
       </section>
     </main>
   );

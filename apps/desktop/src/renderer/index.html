@@ -144,6 +144,12 @@
                       border-radius: 6px; padding: 6px 8px; user-select: text; }
       .signin .error { color: var(--bad); font-size: 11px; margin: 0; }
       .signin .error:empty { display: none; }
+      .scorecard-pick { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 10px;
+                        color: var(--dim); letter-spacing: 0.04em; text-transform: uppercase; }
+      .scorecard-pick[hidden] { display: none; }
+      .scorecard-pick select { flex: 1; font: inherit; font-size: 12px; text-transform: none; letter-spacing: 0;
+                               color: var(--text); background: var(--field);
+                               border: 1px solid rgba(var(--line), 0.45); border-radius: 6px; padding: 4px 6px; }
       .who { font-size: 10px; color: var(--dim); margin-top: 8px; display: flex; gap: 6px; align-items: center; }
       .who[hidden] { display: none; }
 
@@ -276,6 +282,13 @@
     <label class="consent">
       <input type="checkbox" id="consent" />
       <span>Everyone on this call has been told it is being recorded, transcribed and analysed, and has agreed to it.</span>
+    </label>
+
+    <!-- Which scorecard this call is scored against. Shown when there is a
+         choice; fixed once listening starts, because the call pins it. -->
+    <label class="scorecard-pick" id="scorecardPick" hidden>
+      <span>Scorecard</span>
+      <select id="scorecard"></select>
     </label>
 
     <footer>

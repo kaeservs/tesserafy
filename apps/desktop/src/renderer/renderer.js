@@ -112,8 +112,36 @@ function render() {
   }
 }
 
+/** The scorecard chosen for the next call, by name. */
+let chosenScorecard = null;
+
+async function loadScorecards() {
+  const result = await api.scorecards();
+  const sets = result.sets ?? [];
+  chosenScorecard = result.chosen ?? chosenScorecard;
+  const select = el('scorecard');
+  select.replaceChildren(
+    ...sets.map((set) => {
+      const option = document.createElement('option');
+      option.value = set.engagementType;
+      option.textContent = set.own ? set.label : `${set.label} (template)`;
+      option.selected = set.engagementType === chosenScorecard;
+      return option;
+    }),
+  );
+  el('scorecardPick').hidden = sets.length < 2;
+}
+
+el('scorecard').addEventListener('change', async () => {
+  if (listening) return;
+  chosenScorecard = await api.setScorecard(el('scorecard').value);
+  // Loaded again for the next call; nothing is running to disturb.
+  state = null;
+  void loadCriteria();
+});
+
 async function loadCriteria() {
-  const result = await api.criteria();
+  const result = await api.criteria(chosenScorecard ?? undefined);
   if (result.error) {
     setStatus(result.error);
     return false;
@@ -324,11 +352,13 @@ function startListening() {
     listening = false;
     el('listen').textContent = 'Listen';
     el('consent').disabled = false;
+    el('scorecard').disabled = false;
   };
 
   recognition.start();
   listening = true;
   el('listen').textContent = 'Stop';
+  el('scorecard').disabled = true;
   // Fixed for the length of the call: unticking mid-call would not unrecord
   // what was already said.
   el('consent').disabled = true;
@@ -537,11 +567,12 @@ function showSignedIn(email) {
   el('whoEmail').textContent = email;
   el('password').value = '';
   el('signinError').textContent = '';
-  void loadCriteria();
+  void loadScorecards().then(() => loadCriteria());
 }
 
 function showSignedOut(remembers) {
   signedIn = false;
+  el('scorecardPick').hidden = true;
   el('signin').hidden = false;
   el('who').hidden = true;
   el('listen').disabled = true;

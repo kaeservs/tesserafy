@@ -87,3 +87,17 @@ export {
   type SpendRow,
   type SpendWeek,
 } from './console';
+export {
+  byAttention,
+  cohorts,
+  FAILING_AT,
+  healthFlags,
+  NEAR_LIMIT,
+  NOT_STARTED_AFTER_DAYS,
+  QUIET_AFTER_DAYS,
+  weeklyActive,
+  type ActiveWeek,
+  type Cohort,
+  type HealthFlag,
+  type HealthRow,
+} from './console-health';

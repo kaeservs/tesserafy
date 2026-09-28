@@ -37,6 +37,7 @@ export function Chrome({ email, children }: { email: string; children: ReactNode
       <nav>
         <Link href="/">Overview</Link>
         <Link href="/companies">Companies</Link>
+        <Link href="/health">Health</Link>
         <Link href="/adoption">Adoption</Link>
         <Link href="/spend">Spend</Link>
         <Link href="/people">People</Link>

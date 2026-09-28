@@ -18,6 +18,8 @@ insert into public.platform_admins (user_id, note) values
 -- Operator one has an authenticator; operator two does not, yet.
 insert into auth.mfa_factors (id, user_id, friendly_name, factor_type, status, created_at, updated_at)
 values ('3fa00001-0000-4000-8000-0000000000f1', '3fa00001-0000-4000-8000-000000000001', 'phone', 'totp', 'verified', now(), now());
+-- A customer's row that only the "admins read all" policy would show an operator.
+insert into public.accounts (company_id, name) values ('00000000-0000-4000-8000-00000000000a', 'Acme Robotics');
 
 set local role authenticated;
 
@@ -59,9 +61,9 @@ select set_config('request.jwt.claims',
 select throws_ok($$ select * from public.admin_activity(5) $$, '42501', null,
   'an operator on a password alone is refused by every admin function');
 select is(
-  (select count(*)::integer from public.companies),
+  (select count(*)::integer from public.accounts),
   0,
-  'and the admin policies show them nothing of other companies'
+  'and the admin policies show them nothing of any company'
 );
 select throws_ok($$ select public.admin_set_operator_mfa(false) $$, '42501', null,
   'a password alone cannot switch it off again');
@@ -69,7 +71,7 @@ select throws_ok($$ select public.admin_set_operator_mfa(false) $$, '42501', nul
 select set_config('request.jwt.claims',
   '{"sub":"3fa00001-0000-4000-8000-000000000002","role":"authenticated","aal":"aal2"}', true);
 select lives_ok($$ select * from public.admin_activity(5) $$, 'the same operator with the second step is an operator');
-select ok((select count(*) from public.companies) > 0, 'and reads across companies again');
+select is((select count(*)::integer from public.accounts), 1, 'and reads across companies again');
 select is(
   (select action from public.admin_activity(5) where action like '%two-step%' limit 1),
   'required two-step sign-in',

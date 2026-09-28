@@ -106,8 +106,8 @@ describe('what the caller is told', () => {
   it('describes an hourly window in words', async () => {
     const body = (await tooMany('api/transcripts', 60).json()) as { error: string };
 
-    expect(body.error).toContain('6 an hour');
-    expect(body.error).toContain('10 a day');
+    expect(body.error).toContain('30 an hour');
+    expect(body.error).toContain('100 a day');
   });
 
   it('answers 429 with a Retry-After header', () => {

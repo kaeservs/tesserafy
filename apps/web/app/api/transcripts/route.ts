@@ -104,11 +104,8 @@ export async function POST(request: NextRequest) {
   } catch (cause) {
     // A parse failure names where it failed, which is the difference between
     // "fix line 40" and "try a different file".
-    const detail =
-      cause instanceof TranscriptParseError || cause instanceof Error
-        ? cause.message
-        : 'could not be read';
-    return NextResponse.json({ error: `That transcript ${detail}` }, { status: 422 });
+    const detail = cause instanceof TranscriptParseError || cause instanceof Error ? `: ${cause.message}` : '.';
+    return NextResponse.json({ error: `That transcript could not be read${detail}` }, { status: 422 });
   }
 
   if (segments.length === 0) {
@@ -176,6 +173,22 @@ export async function POST(request: NextRequest) {
   const accountName = (form.get('account') as string | null)?.trim();
   if (accountName) await linkAccount(who.db, conversationId, { name: accountName });
 
+  // A bulk import asks to wait for the score before the answer, so the page
+  // sends the next file only when this one is finished: forty files arriving
+  // together must not start forty scoring passes at once, each with eight
+  // detector calls in flight. A single upload keeps answering at once and
+  // scores after the response, as before.
+  const waitForScore = form.get('wait') === '1' && Boolean(process.env['ANTHROPIC_API_KEY']);
+  let scoring: string | undefined;
+  if (waitForScore) {
+    try {
+      scoring = (await scoreUploadedConversation(who.db, conversationId)).status;
+    } catch (cause) {
+      recordFailure(cause, { db: who.db, source: 'api/transcripts/score', tier: 't1', conversationId });
+      scoring = 'failed';
+    }
+  }
+
   // The caller's own token, for the embedding function. Read before
   // responding, while the request and its cookies are certainly still here.
   const accessToken =
@@ -190,7 +203,7 @@ export async function POST(request: NextRequest) {
   // pretending it did.
   after(async () => {
     await Promise.all([
-      process.env['ANTHROPIC_API_KEY']
+      process.env['ANTHROPIC_API_KEY'] && !waitForScore
         ? scoreUploadedConversation(who.db, conversationId).catch((cause: unknown) => {
             recordFailure(cause, {
               db: who.db,
@@ -215,6 +228,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     conversationId,
     segments: clean.length,
+    ...(scoring ? { scoring } : {}),
     // Reported rather than silent: somebody uploading a transcript should
     // learn that it carried a phone number, not discover it later.
     ...(anyRedactions(counts) ? { redacted: counts } : {}),

@@ -46,6 +46,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     .gt('expires_at', new Date().toISOString());
   const banner = supportBanner(access ?? []);
   const company = await myCompany(supabase);
+  // Unread, for the header. A count only; the page reads the rest.
+  const { count: unread } = await supabase
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .is('read_at', null);
 
   return (
     <>
@@ -67,6 +72,13 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <NavLink href="/settings">Settings</NavLink>
         </nav>
         <form action="/auth/sign-out" method="post" className="toolbar">
+          <Link
+            href="/notifications"
+            className="notifications-link"
+            aria-label={unread ? `Notifications, ${unread} new` : 'Notifications'}
+          >
+            Notifications{unread ? <span className="count">{unread > 99 ? '99+' : unread}</span> : null}
+          </Link>
           <Link href="/account" className="muted">
             {user.email}
           </Link>

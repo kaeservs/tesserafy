@@ -149,6 +149,44 @@ describe('scoring a conversation from stored evidence', () => {
     expect(strict.scorecard.score).toBeLessThan(lenient.scorecard.score);
   });
 
+  it('lets a person’s "it wasn’t met" stand, whatever the detector saw later in the call', async () => {
+    // The correction comes back first and quotes an early moment; the detector
+    // confirmed the criterion again later in the call. Replayed in call order
+    // that later evidence would overturn the correction.
+    events = [
+      {
+        ...evidence('pain_quantified', 'seg1', 1, 10000),
+        kind: 'contradiction',
+        detector: 'person',
+        model: 'person',
+        created_at: '2026-09-23T09:00:00Z',
+      },
+      evidence('pain_quantified', 'seg1', 0.9, 10000),
+      evidence('pain_quantified', 'seg7', 0.9, 300000),
+    ];
+
+    const card = await scoreConversation(db as never, conversation);
+    expect(card.scorecard.criteria.find((c) => c.key === 'pain_quantified')?.status).toBe('contradicted');
+    expect(card.scorecard.score).toBe(0);
+  });
+
+  it('lets a person’s "it was met" confirm, and the later of two corrections decide', async () => {
+    events = [
+      { ...evidence('budget_known', 'seg3', 1, 90000), detector: 'person', model: 'person', created_at: '2026-09-23T09:00:00Z' },
+      {
+        ...evidence('budget_known', 'seg3', 1, 90000),
+        kind: 'contradiction',
+        detector: 'person',
+        model: 'person',
+        created_at: '2026-09-23T08:00:00Z',
+      },
+    ];
+
+    const card = await scoreConversation(db as never, conversation);
+    // The contradiction was made first and the confirmation after it: confirmed.
+    expect(card.scorecard.criteria.find((c) => c.key === 'budget_known')?.status).toBe('confirmed');
+  });
+
   it('replays in conversation order, not in the order rows came back', async () => {
     // Latching makes the final status order-independent; the transitions are
     // the audit trail and are not. "Confirmed at 04:12 by this quote" has to

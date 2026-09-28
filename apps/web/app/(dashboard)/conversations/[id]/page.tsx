@@ -1,5 +1,6 @@
 import { engagementLabel, liveAvailable, myCompany } from '@/lib/company';
 import { EditCall } from '@/components/edit-call';
+import { Corrections, DisputeScore, type Correction } from '@/components/dispute-score';
 import { SegmentNotes, type ShownNote } from '@/components/segment-notes';
 import { OUTCOME_LABEL } from '@/lib/outcome';
 import Link from 'next/link';
@@ -294,10 +295,31 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
     mayEdit ? fetchCriteriaSets(supabase, conversation.company_id) : Promise.resolve([]),
   ]);
   const { data: accountRows } = await supabase.from('accounts').select('id, name').order('name').limit(500);
-  const accountName = (accountRows ?? []).find((row) => row.id === conversation.account_id)?.name ?? null;
-
   const emailOf = new Map((team ?? []).map((person) => [person.user_id, person.is_you ? 'You' : person.email]));
   const nameOf = (userId: string | null) => (userId ? (emailOf.get(userId) ?? 'A former member') : 'A former member');
+  // People's corrections to the score: evidence like any other, with who and why.
+  const { data: correctionRows } = await supabase
+    .from('criterion_events')
+    .select('id, criterion_key, kind, quote, segment_id, reason, recorded_by')
+    .eq('conversation_id', id)
+    .eq('detector', 'person')
+    .order('created_at');
+  const labelOf = new Map(card.criteria.map((criterion) => [criterion.key, criterion.label]));
+  const markedUnmet = new Set(
+    (correctionRows ?? []).filter((row) => row.kind === 'contradiction').map((row) => row.criterion_key),
+  );
+  const corrections: Correction[] = (correctionRows ?? []).map((row) => ({
+    id: row.id,
+    label: labelOf.get(row.criterion_key) ?? row.criterion_key,
+    kind: row.kind === 'contradiction' ? 'contradiction' : 'evidence',
+    quote: row.quote,
+    segmentId: row.segment_id,
+    reason: row.reason ?? '',
+    by: nameOf(row.recorded_by),
+    mayWithdraw: isOwner || (user !== null && row.recorded_by === user.id),
+  }));
+  const accountName = (accountRows ?? []).find((row) => row.id === conversation.account_id)?.name ?? null;
+
   const notesBySegment = new Map<string, ShownNote[]>();
   for (const note of notes) {
     const shown: ShownNote = {
@@ -466,7 +488,13 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
                   <div className="criterion">
                     <span>
                       {criterion.label}
-                      <Shortfall shortfall={criterion.shortfall} />
+                      {/* A person's "it wasn't met" is a verdict, and later evidence
+                          does not overturn it; "one more mention" would be untrue. */}
+                      {criterion.status === 'contradicted' && markedUnmet.has(criterion.key) ? (
+                        <span className="shortfall"> marked not met — see Corrections</span>
+                      ) : (
+                        <Shortfall shortfall={criterion.shortfall} />
+                      )}
                     </span>
                     <span className={`state state-${criterion.status}`}>{criterion.status}</span>
                   </div>
@@ -494,6 +522,24 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
             </p>
           </>
         )}
+        <Corrections conversationId={id} corrections={corrections} />
+        {mayEdit && segments.length > 0 ? (
+          <DisputeScore
+            conversationId={id}
+            criteria={card.criteria.map((criterion) => ({
+              key: criterion.key,
+              label: criterion.label,
+              status: criterion.status,
+              claims: criterion.evidence.map((recorded) => ({ segmentId: recorded.span.segmentId, quote: recorded.span.quote })),
+            }))}
+            moments={segments.map((segment) => ({
+              id: segment.id,
+              at: clock(segment.start_ms),
+              speaker: segment.speaker ?? 'unknown',
+              text: segment.text,
+            }))}
+          />
+        ) : null}
       </section>
 
       <section aria-labelledby="signals-heading">

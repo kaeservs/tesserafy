@@ -99,10 +99,20 @@ export async function fetchCriterionEvents(
     return [{ ...rest, start_ms: segment.start_ms, end_ms: segment.end_ms }];
   });
 
+  // A person's correction ("this score is wrong") is a verdict on the whole
+  // call, made after it — not an observation at the moment it quotes. Replayed
+  // in call order it would be overturned by any detector evidence later in the
+  // call, which is the engine's rule for a live call and the wrong one here.
+  // So corrections replay after every detector's evidence, in the order they
+  // were made.
+  const byPerson = (row: { detector: string }) => (row.detector === 'person' ? 1 : 0);
   return rows.sort(
     (a, b) =>
+      byPerson(a) - byPerson(b) ||
+      (byPerson(a) === 1 ? a.created_at.localeCompare(b.created_at) : 0) ||
       a.start_ms - b.start_ms ||
       a.quote_start - b.quote_start ||
-      a.criterion_key.localeCompare(b.criterion_key),
+      a.criterion_key.localeCompare(b.criterion_key) ||
+      a.kind.localeCompare(b.kind),
   );
 }

@@ -4,6 +4,7 @@ import { loadCoachingCalls } from '@/lib/coaching-data';
 import { csvFilename, csvResponse, toCsv } from '@/lib/csv';
 import { allowance, tooMany } from '@/lib/rate-limit';
 import { buildReport } from '@/lib/report';
+import { filterCalls, parseReportFilters } from '@/lib/report-filters';
 import { caller } from '@/lib/supabase/caller';
 
 /**
@@ -41,9 +42,12 @@ export async function GET(request: NextRequest) {
   ]);
   const isOwner = membership?.role === 'owner';
   const filename = csvFilename(company?.name ?? 'company', table);
+  // The page's filters, so a download is what was on screen.
+  const filters = parseReportFilters(Object.fromEntries(request.nextUrl.searchParams.entries()), { isOwner });
+  const selected = filterCalls(calls, filters, who.userId);
 
   if (table === 'wins') {
-    const rows = criteriaByOutcome(calls).flatMap((comparison) =>
+    const rows = criteriaByOutcome(selected).flatMap((comparison) =>
       comparison.criteria.map((criterion) => [
         comparison.engagementType,
         criterion.label,
@@ -60,7 +64,9 @@ export async function GET(request: NextRequest) {
   }
 
   const report = buildReport(
-    calls.map((call) => ({ date: call.date, addedBy: call.addedBy, score: call.score, criteria: [...call.criteria] })),
+    selected.map((call) => ({ date: call.date, addedBy: call.addedBy, score: call.score, criteria: [...call.criteria] })),
+    new Date(),
+    filters.weeks,
   );
 
   if (table === 'weeks') {

@@ -1,21 +1,15 @@
 import Link from 'next/link';
-import { readAll } from '@tesserafy/db';
-import { asOutcome, criteriaByOutcome, MIN_DECIDED, percent } from '@/lib/coaching';
+import { criteriaByOutcome, MIN_DECIDED, percent } from '@/lib/coaching';
+import { loadCoachingCalls } from '@/lib/coaching-data';
+import { criteriaTrend } from '@/lib/criteria-trend';
+import { filterCalls, parseReportFilters, RANGES, reportQuery } from '@/lib/report-filters';
 import { engagementLabel } from '@/lib/company';
 import { ScoreTrend } from '@/components/score-trend';
-import { buildReport, WEEKS, type ReportCall, type Seller } from '@/lib/report';
-import { scoreConversations, type ScorableConversation } from '@/lib/scorecard';
+import { buildReport, type Seller } from '@/lib/report';
 import { createClient } from '@/lib/supabase/server';
 
 export const metadata = { title: 'Reports · Tesserafy' };
 
-interface Row extends ScorableConversation {
-  title: string;
-  occurred_at: string | null;
-  created_at: string;
-  added_by: string | null;
-  outcome: string | null;
-}
 
 function score(value: number | null): string {
   return value === null ? '—' : String(Math.round(value));
@@ -43,68 +37,108 @@ function change(seller: Seller): string {
  * A call belongs to the account that added it. Calls added before that was
  * recorded are "unattributed" rather than guessed at.
  */
-export default async function ReportsPage() {
+export default async function ReportsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: membership }, conversations, { data: team }] = await Promise.all([
+  const [{ data: membership }, all, { data: team }, { data: accountRows }] = await Promise.all([
     supabase.from('company_members').select('role').eq('user_id', user?.id ?? '').limit(1).maybeSingle(),
-    readAll<Row>(
-      (from, to) =>
-        supabase
-          .from('conversations')
-          .select('id, company_id, title, occurred_at, created_at, engagement_type, criteria_version, added_by, outcome')
-          .order('id')
-          .range(from, to),
-      'Could not load the report',
-    ),
+    loadCoachingCalls(supabase),
     supabase.rpc('company_team'),
+    supabase.from('accounts').select('id, name').order('name').limit(500),
   ]);
   const isOwner = membership?.role === 'owner';
+  const filters = parseReportFilters(params, { isOwner });
+  // One list of calls for every table on the page, and for its CSVs.
+  const selected = filterCalls(all, filters, user?.id ?? null);
+  const now = new Date();
 
-  const scores = await scoreConversations(supabase, conversations);
-  const calls: ReportCall[] = conversations.map((c) => {
-    const card = scores.get(c.id)?.scorecard;
-    const heard = card?.criteria.some((criterion) => criterion.status !== 'unobserved') ?? false;
-    return {
-      date: c.occurred_at ?? c.created_at,
-      addedBy: c.added_by,
-      score: card && heard ? card.score : null,
-      criteria: (card?.criteria ?? []).map((criterion) => ({
-        key: criterion.key,
-        label: criterion.label,
-        status: criterion.status,
-      })),
-    };
-  });
-
-  const report = buildReport(calls);
-  // Company-wide, so every member sees it: it ranks criteria, not people.
-  const byOutcome = criteriaByOutcome(
-    conversations.map((c, index) => ({
-      id: c.id,
-      title: c.title,
-      date: calls[index]!.date,
-      addedBy: c.added_by,
-      engagementType: c.engagement_type,
-      outcome: asOutcome(c.outcome),
-      score: calls[index]!.score,
-      criteria: calls[index]!.criteria,
-    })),
+  const report = buildReport(
+    selected.map((call) => ({ date: call.date, addedBy: call.addedBy, score: call.score, criteria: [...call.criteria] })),
+    now,
+    filters.weeks,
   );
+  // Company-wide unless filtered, so every member sees it: it ranks criteria, not people.
+  const byOutcome = criteriaByOutcome(selected);
+  const trends = criteriaTrend(selected, now, filters.weeks);
   const email = new Map((team ?? []).map((person) => [person.user_id, person.email]));
   const sellers = isOwner ? report.sellers : report.sellers.filter((s) => s.addedBy === user?.id);
   const anyCalls = report.weeks.some((w) => w.calls > 0);
+  const types = [...new Set(all.map((call) => call.engagementType))].sort();
+  const csv = (table: string) => `/api/export/reports?${reportQuery(filters, { table })}`;
 
   return (
     <main>
       <h1>Reports</h1>
+      <form method="get" action="/reports" className="filters" aria-label="What to report on">
+        <div className="field">
+          <label htmlFor="weeks">Period</label>
+          <select id="weeks" name="weeks" defaultValue={String(filters.weeks)}>
+            {Object.entries(RANGES).map(([weeks, label]) => (
+              <option key={weeks} value={weeks}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+        {types.length > 1 ? (
+          <div className="field">
+            <label htmlFor="type">Scorecard</label>
+            <select id="type" name="type" defaultValue={filters.type ?? ''}>
+              <option value="">Any</option>
+              {types.map((type) => (
+                <option key={type} value={type}>
+                  {engagementLabel(type)}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
+        {(accountRows ?? []).length > 0 ? (
+          <div className="field">
+            <label htmlFor="account">Customer</label>
+            <select id="account" name="account" defaultValue={filters.account ?? ''}>
+              <option value="">Any</option>
+              {(accountRows ?? []).map((row) => (
+                <option key={row.id} value={row.id}>
+                  {row.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
+        <div className="field">
+          <label htmlFor="seller">Seller</label>
+          <select id="seller" name="seller" defaultValue={filters.seller ?? ''}>
+            <option value="">Everyone</option>
+            <option value="mine">Only my calls</option>
+            {isOwner
+              ? (team ?? [])
+                  .filter((person) => !person.is_you)
+                  .map((person) => (
+                    <option key={person.user_id} value={person.user_id}>
+                      {person.email}
+                    </option>
+                  ))
+              : null}
+          </select>
+        </div>
+        <div className="toolbar filter-actions">
+          <button type="submit">Show</button>
+          {reportQuery(filters) ? <Link href="/reports">Clear</Link> : null}
+        </div>
+      </form>
       <p className="muted">
-        The last {WEEKS} weeks, by the week each meeting took place. Scores are worked out from the
-        quoted evidence on each call; a call where nothing has been heard yet is left out of the
-        averages rather than counted as zero.
+        {RANGES[filters.weeks]}, by the week each meeting took place{selected.length < all.length ? `, ${selected.length} of ${all.length} calls` : ''}.
+        Scores are worked out from the quoted evidence on each call; a call where nothing has been heard yet is left out
+        of the averages rather than counted as zero.
       </p>
 
       <section aria-labelledby="trend-heading" className="card">
@@ -120,10 +154,10 @@ export default async function ReportsPage() {
             </p>
           </>
         ) : (
-          <p className="muted" style={{ marginBottom: 0 }}>No calls in the last {WEEKS} weeks yet.</p>
+          <p className="muted" style={{ marginBottom: 0 }}>No calls in this period.</p>
         )}
         <p className="muted" style={{ marginBottom: 0, fontSize: '0.82rem' }}>
-          <a href="/api/export/reports?table=weeks" download>
+          <a href={csv('weeks')} download>
             Download as CSV
           </a>
         </p>
@@ -183,11 +217,73 @@ export default async function ReportsPage() {
         )}
         {sellers.length > 0 ? (
           <p className="muted" style={{ marginBottom: 0, fontSize: '0.82rem' }}>
-            <a href="/api/export/reports?table=sellers" download>
+            <a href={csv('sellers')} download>
               Download as CSV
             </a>
           </p>
         ) : null}
+      </section>
+
+      <section aria-labelledby="criteria-trend-heading" className="card">
+        <h2 id="criteria-trend-heading" style={{ marginTop: 0 }}>
+          Criteria over time
+        </h2>
+        {trends.length === 0 ? (
+          <p className="muted" style={{ marginBottom: 0 }}>No scored calls in this period.</p>
+        ) : (
+          <>
+            <table className="team">
+              <thead>
+                <tr>
+                  <th scope="col">Criterion</th>
+                  <th scope="col">Week by week</th>
+                  <th scope="col">Last 4 weeks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trends.map((trend) => {
+                  const recent = trend.points.slice(-4).filter((point) => point.rate !== null);
+                  const recentRate =
+                    recent.length === 0
+                      ? null
+                      : recent.reduce((sum, point) => sum + point.rate! * point.calls, 0) / recent.reduce((sum, point) => sum + point.calls, 0);
+                  return (
+                    <tr key={`${trend.engagementType}/${trend.key}`}>
+                      <td>
+                        {trend.label}
+                        {types.length > 1 ? <span className="muted"> · {engagementLabel(trend.engagementType)}</span> : null}
+                      </td>
+                      <td>
+                        <svg viewBox={`0 0 ${trend.points.length * 10} 24`} width={Math.max(80, trend.points.length * 10)} height={24} role="img" aria-label={`${trend.label}, week by week`}>
+                          {trend.points.map((point, index) =>
+                            point.rate === null ? null : (
+                              <rect key={point.week} x={index * 10 + 1} y={24 - Math.max(1, point.rate * 22)} width={8} height={Math.max(1, point.rate * 22)} fill="currentColor" opacity={0.55}>
+                                <title>{`${point.week}: ${Math.round(point.rate * 100)}% of ${point.calls} call${point.calls === 1 ? '' : 's'}`}</title>
+                              </rect>
+                            ),
+                          )}
+                        </svg>
+                      </td>
+                      <td className="when">
+                        {recentRate === null ? '—' : percent(recentRate)}
+                        {trend.change !== null ? (
+                          <span className="muted">
+                            {' '}
+                            {trend.change > 0 ? '↑' : trend.change < 0 ? '↓' : '→'} {Math.abs(trend.change)} pts on the 4 before
+                          </span>
+                        ) : null}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <p className="muted" style={{ marginBottom: 0, fontSize: '0.82rem' }}>
+              Each bar is the share of that week&apos;s scored calls that met the criterion; hover one for the numbers. A week
+              with no calls has no bar rather than a zero.
+            </p>
+          </>
+        )}
       </section>
 
       <section aria-labelledby="wins-heading" className="card">
@@ -240,7 +336,7 @@ export default async function ReportsPage() {
               Largest difference first. This shows what goes together, not what causes what: a criterion
               met more often on won calls may be a habit worth coaching, or a sign of a deal that was going
               well anyway. Open deals and calls with no outcome are left out.{' '}
-              <a href="/api/export/reports?table=wins" download>
+              <a href={csv('wins')} download>
                 Download as CSV
               </a>
             </p>

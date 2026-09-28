@@ -56,7 +56,7 @@ export interface LoadSignalsOptions {
    *
    * The default is what stops a second run writing the same finding twice.
    * Clustering is deterministic over unchanged data, so loading every signal
-   * again produces the same cluster, pays for the same Opus call, and leaves
+   * again produces the same cluster, pays for the same T3 call, and leaves
    * a person two near-identical insights to approve — the duplicate-ticket
    * failure, with a model call attached.
    *

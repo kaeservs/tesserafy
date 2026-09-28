@@ -3,6 +3,10 @@
     python -m harness.spike_s3 datasets/v1/criteria-windows.jsonl \
         --criteria datasets/criteria/discovery-v1.json \
         [--model claude-haiku-4-5] [--repeat 2] [--dry-run]
+        [--stride N [--window W]] [--max-tokens N]
+
+--stride scores each transcript through the product's own windowing instead of
+as one window (ADR 0014 compared them this way).
 
 Three questions, one run:
 
@@ -37,7 +41,15 @@ REPO_ROOT = EVAL_ROOT.parent.parent
 TSX = str(REPO_ROOT / "node_modules" / ".bin" / "tsx")
 
 
-def detect(transcript: Path, criteria: Path, model: str | None, compact: bool = False) -> dict:
+def detect(
+    transcript: Path,
+    criteria: Path,
+    model: str | None,
+    compact: bool = False,
+    stride: int | None = None,
+    max_tokens: int | None = None,
+    window: int | None = None,
+) -> dict:
     # tsx directly, not through pnpm: pnpm intercepts unknown flags such as
     # --model before they reach the script, and forwards a literal "--".
     command = [TSX, "scripts/detect.ts", str(transcript), "--criteria", str(criteria)]
@@ -45,6 +57,12 @@ def detect(transcript: Path, criteria: Path, model: str | None, compact: bool = 
         command += ["--model", model]
     if compact:
         command += ["--compact"]
+    if stride is not None:
+        command += ["--stride", str(stride)]
+    if max_tokens is not None:
+        command += ["--max-tokens", str(max_tokens)]
+    if window is not None:
+        command += ["--window", str(window)]
 
     result = subprocess.run(
         command, cwd=REPO_ROOT, capture_output=True, text=True, shell=sys.platform == "win32"
@@ -87,6 +105,14 @@ def main() -> int:
     parser.add_argument("--repeat", type=int, default=1, help="calls per window; >1 exercises the cache")
     parser.add_argument("--compact", action="store_true", help="terser output shape (S3 latency experiment)")
     parser.add_argument("--dry-run", action="store_true", help="validate labels, call nothing")
+    parser.add_argument(
+        "--stride",
+        type=int,
+        default=None,
+        help="score each transcript as the product does, in rolling windows at this stride",
+    )
+    parser.add_argument("--max-tokens", type=int, default=None, help="detector output cap per call")
+    parser.add_argument("--window", type=int, default=None, help="with --stride: utterances per window")
     args = parser.parse_args()
 
     criteria_path = (EVAL_ROOT / args.criteria).resolve()
@@ -109,7 +135,15 @@ def main() -> int:
             if args.dry_run:
                 payload = segments_only(transcript)
             else:
-                payload = detect(transcript, criteria_path, args.model, args.compact)
+                payload = detect(
+                    transcript,
+                    criteria_path,
+                    args.model,
+                    args.compact,
+                    args.stride,
+                    args.max_tokens,
+                    args.window,
+                )
                 usage = payload["usage"]
                 latencies.append(usage["durationMs"])
                 cache_reads.append(usage["cacheReadInputTokens"])

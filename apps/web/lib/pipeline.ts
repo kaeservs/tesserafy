@@ -82,7 +82,7 @@ export function stageOf(state: PipelineState | undefined): PipelineStage {
   const searchable = state.embedded >= state.segments;
   // Finding nothing is a finished state, not a pending one. A check-in where
   // the customer says everything is fine has no signals and never will, and
-  // flagging it forever would also re-extract it on Opus forever.
+  // flagging it forever would also re-extract it on T3 forever.
   const extracted = state.signals > 0 || state.extractionRuns > 0;
   if (extracted && searchable) return 'processed';
 

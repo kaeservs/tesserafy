@@ -18,8 +18,14 @@ the number would measure something no customer ever sees.
     # exactly one span of one segment.
     python -m harness.run datasets/v1/discovery-calls.jsonl --dry-run
 
-    # Measure. Calls claude-opus-5 once per conversation; needs ANTHROPIC_API_KEY.
+    # Measure. Calls the T3 model (claude-sonnet-5) once per conversation;
+    # needs ANTHROPIC_API_KEY. --model <id> compares another model.
     python -m harness.run datasets/v1/discovery-calls.jsonl
+
+    # Criterion detection. Without --stride each call is one window; with
+    # --stride N [--window W] it is scored through the product's windowing.
+    python -m harness.spike_s3 datasets/v1/criteria-windows.jsonl \
+        --criteria datasets/criteria/discovery-v1.json --stride 46
 
     # The matching rule's own tests.
     python -m unittest discover -s tests -t .

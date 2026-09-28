@@ -82,8 +82,10 @@ export { embedConversation } from './retrieval/embed-conversation';
 export { locate } from './tiers/evidence';
 export {
   scanWindows,
+  SCORE_MAX_TOKENS,
   SCORE_STRIDE,
   SCORE_WINDOW_SIZE,
+  windowCount,
   windowsOf,
   type DetectedEvent,
   type ScanOptions,

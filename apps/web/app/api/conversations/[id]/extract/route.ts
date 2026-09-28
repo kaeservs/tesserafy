@@ -12,7 +12,7 @@ import { caller } from '@/lib/supabase/caller';
  * an upload; this is something a person asked for and is waiting on, so the
  * answer — how many signals, or that there were none — comes back in the
  * response rather than appearing later from nowhere. An hour-long call is a
- * single Opus request, well inside the budget below.
+ * single T3 request, well inside the budget below.
  *
  * See lib/extract-conversation.ts for why this runs only when asked, and runs
  * as the customer.

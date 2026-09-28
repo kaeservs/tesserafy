@@ -7,18 +7,17 @@
  *   pnpm score --company <uuid> --dry-run  detect, print, write nothing
  *
  * This is the pass that gives a past meeting a scorecard. It runs T1 over the
- * stored segments in the same rolling windows the live path uses, and writes
- * the resulting DetectorEvents to `criterion_events`. It does not write a
- * score: the score is computed on read by packages/scoring, from these rows
+ * stored segments in windows of up to 48 utterances (the same `windowsOf` an
+ * upload uses — see SCORE_WINDOW_SIZE for why they are large), and writes the
+ * resulting DetectorEvents to `criterion_events`. It does not write a score:
+ * the score is computed on read by packages/scoring, from these rows
  * (invariant 1).
  *
- * Windows overlap, and that is deliberate rather than tolerated. A criterion
- * is often established across two utterances — a complaint in one, its cost in
- * the next — and a detector that only ever saw disjoint windows would miss
- * exactly the evidence the corroboration threshold exists to reward. Latching
- * (invariant 2) plus the uniqueness constraint on (conversation, criterion,
- * kind, segment, offsets) makes the repeats free: the same span observed twice
- * is stored once and would not double-count if it were not.
+ * Neighbouring windows share two utterances, deliberately. A criterion is
+ * often established across two utterances — a complaint in one, its cost in
+ * the next — and windows that met edge to edge would split that pair at a
+ * boundary. Latching (invariant 2) plus the uniqueness constraint on
+ * (conversation, criterion, kind, segment, offsets) makes the repeats free.
  *
  * It costs money. Every window is a Haiku call, so the count is printed before
  * anything is sent and --dry-run exists to see it without paying for it.

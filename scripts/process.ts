@@ -14,7 +14,7 @@
  * never become an insight, because insights are clustered from signals
  * through a vector search and it had neither.
  *
- * Deliberately not automatic. T3 is Opus and an insight is a claim about a
+ * Deliberately not automatic. T3 is a paid model call and an insight is a claim about a
  * customer; spending that, and making that, without a person asking is what
  * "no auto-creation anywhere" rules out. It prints the bill first and
  * --dry-run pays none of it.
@@ -64,7 +64,7 @@ interface ConversationRow {
  * Conversations extraction has not yet answered for.
  *
  * "No signals" is not the question. A check-in where the customer says
- * everything is fine has none and never will, and re-running Opus over it on
+ * everything is fine has none and never will, and re-running T3 over it on
  * every pass to reconfirm a zero is pure waste — which is exactly what this
  * script did until it learned to ask whether the pass had *run*.
  *
@@ -135,7 +135,7 @@ async function main(): Promise<void> {
     : await unextracted(db, conversations, force);
 
   // The whole plan before any of it is paid for: how many vectors, how many
-  // extractions. Embedding is local and free; extraction is Opus and is not.
+  // extractions. Embedding is local and free; extraction is T3 and is not.
   const plan: { conversation: ConversationRow; pending: number; extract: boolean }[] = [];
   for (const conversation of conversations) {
     const companyId = toCompanyId(conversation.company_id);
@@ -154,7 +154,7 @@ async function main(): Promise<void> {
   const extractions = plan.filter((entry) => entry.extract).length;
   console.info(
     `${plan.length} conversation(s): ${vectors} segment(s) to embed locally, ` +
-      `${extractions} T3 extraction(s) on Opus.`,
+      `${extractions} T3 extraction(s).`,
   );
   for (const entry of plan) {
     console.info(

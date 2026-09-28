@@ -6,7 +6,7 @@ import { useState } from 'react';
 /**
  * "Find insights in this call."
  *
- * The only place a customer spends Opus, so it says what it does before it
+ * The only place a customer spends T3, so it says what it does before it
  * does it, and it cannot be pressed twice: the button disables on the first
  * press, the route refuses a second run, and the database refuses a second set
  * of signals from the same detector. Three locks for one decision, because a

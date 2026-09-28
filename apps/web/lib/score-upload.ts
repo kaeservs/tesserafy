@@ -22,18 +22,21 @@ import { fetchCriteria, type SupabaseClient } from '@tesserafy/db';
  * pass: signals and insights are claims about a customer, and they still wait
  * for a person to ask.
  *
- * Measured against production before choosing the numbers below: a T1 call is
- * a median of $0.0019 and 1.95 s, 3.0 s at p90.
+ * A window is 48 utterances (see SCORE_WINDOW_SIZE for why and what it was
+ * measured against). One took ~16 s and ~$0.011 at 47 utterances of dense
+ * evidence; an hour-long meeting of ~500 utterances is ~11 windows. The
+ * previous three-utterance window made that meeting ~500 calls, ~190 s and up
+ * to ~$0.95.
  */
 
 /**
- * The largest call scored automatically, in windows — about one per utterance,
- * so roughly an hour-long meeting. At the concurrency below and p90 latency
- * that is ~190 s, inside the route's 300 s budget; worst case about $0.95.
- * Longer calls are not scored partially: a scorecard over the first hour of a
- * three-hour meeting would look complete and be wrong.
+ * The largest call scored automatically, in windows: ~1,840 utterances,
+ * roughly a three-hour meeting. At the concurrency below that is five rounds
+ * of ~20 s, inside the route's 300 s budget; worst case about $0.45. Longer
+ * calls are not scored partially: a scorecard over the first part of a meeting
+ * would look complete and be wrong.
  */
-export const AUTO_SCORE_MAX_WINDOWS = 500;
+export const AUTO_SCORE_MAX_WINDOWS = 40;
 
 /** Detector calls in flight at once. */
 const CONCURRENCY = 8;

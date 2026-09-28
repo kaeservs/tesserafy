@@ -19,7 +19,7 @@ import { publicSupabaseEnv } from './env';
  * "Look for patterns across your calls", as the customer.
  *
  * The same three steps `pnpm insights` runs — group signals whose evidence
- * says the same thing across calls, have Opus write each group up, store it
+ * says the same thing across calls, have T3 write each group up, store it
  * as a proposed insight — but under the customer's own session, which ADR 0011
  * made possible: the vector search refuses any company they are not a member
  * of, and `record_insight` refuses any signal from another company.
@@ -27,7 +27,7 @@ import { publicSupabaseEnv } from './env';
  * Nothing it produces is published. Every insight lands as proposed and waits
  * for a person to approve it, which is also the answer to the embedding
  * model's known weakness — it sometimes groups unrelated requests by phrasing
- * alone, and a reviewer rejects that in a minute. Opus gets a say first:
+ * alone, and a reviewer rejects that in a minute. T3 gets a say first:
  * synthesis declines a group that is similar words rather than one finding.
  *
  * Signals already cited by an insight are left out, as the operator script
@@ -35,7 +35,7 @@ import { publicSupabaseEnv } from './env';
  */
 
 /**
- * Groups written up per press. Each is one Opus call; this bounds a single
+ * Groups written up per press. Each is one T3 call; this bounds a single
  * press at a handful of them however much has piled up, and the next press
  * picks up where this one stopped because cited signals are skipped.
  */
@@ -48,7 +48,7 @@ export interface FindOutcome {
   readonly declined: number;
   /** Groups found beyond the per-press limit, left for the next press. */
   readonly remaining: number;
-  /** Groups already judged not to be one finding, and not sent to Opus again. */
+  /** Groups already judged not to be one finding, and not sent to T3 again. */
   readonly alreadyDeclined: number;
 }
 
@@ -82,7 +82,7 @@ export async function findInsights(
     embedder: createSupabaseEmbedder({ url: publicSupabaseEnv().url, token: accessToken }),
   });
 
-  // A group Opus already judged is not one finding is not paid for twice.
+  // A group T3 already judged is not one finding is not paid for twice.
   const declinedBefore = await loadDeclined(companyId, db);
   const groups = clustered.filter(
     (group) => !declinedBefore.has(groupSignature(group.signals.map((signal) => signal.id))),

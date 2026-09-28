@@ -52,7 +52,7 @@ describe('stageOf', () => {
   it('treats extraction that found nothing as finished', () => {
     // The bug this fixes. A check-in where the customer says everything is
     // fine has no signals and never will; flagging it forever also means
-    // re-running Opus over it forever to reconfirm a zero.
+    // re-running T3 over it forever to reconfirm a zero.
     expect(
       stageOf(state({ segments: 5, criterionRows: 2, signals: 0, embedded: 5, extractionRuns: 1 })),
     ).toBe('processed');

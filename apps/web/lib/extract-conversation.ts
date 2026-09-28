@@ -8,7 +8,7 @@ import { windowCount } from './scoring-status';
  * Extraction, when a customer asks for it.
  *
  * `scripts/process.ts` records that extraction is deliberately not automatic:
- * it is Opus, and what it produces are claims about a customer. The owner kept
+ * it is a paid T3 model call, and what it produces are claims about a customer. The owner kept
  * that principle and moved who asks — a person still decides to spend it, but
  * the person is now the customer, pressing "Find insights in this call",
  * rather than an operator with a terminal.
@@ -46,7 +46,7 @@ export async function extractConversation(
   // One run per call. A T3 usage row for this conversation is what the
   // pipeline already counts as "extraction ran", including a run that found
   // nothing — and a call where the customer said nothing worth recording must
-  // not be re-extracted on Opus every time somebody presses the button.
+  // not be re-extracted on T3 every time somebody presses the button.
   const { count: runs, error: runsError } = await db
     .from('model_usage')
     .select('id', { count: 'exact', head: true })

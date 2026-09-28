@@ -1032,6 +1032,84 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          access_request_id: string | null
+          actor: string | null
+          company_id: string
+          conversation_id: string | null
+          created_at: string
+          id: string
+          insight_id: string | null
+          kind: string
+          note_id: string | null
+          read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          access_request_id?: string | null
+          actor?: string | null
+          company_id: string
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          insight_id?: string | null
+          kind: string
+          note_id?: string | null
+          read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          access_request_id?: string | null
+          actor?: string | null
+          company_id?: string
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          insight_id?: string | null
+          kind?: string
+          note_id?: string | null
+          read_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_access_request_id_fkey"
+            columns: ["access_request_id"]
+            isOneToOne: false
+            referencedRelation: "access_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_insight_id_fkey"
+            columns: ["insight_id"]
+            isOneToOne: false
+            referencedRelation: "insights"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "segment_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plans: {
         Row: {
           calls: number | null
@@ -1871,6 +1949,7 @@ export type Database = {
         }
         Returns: string
       }
+      mark_notifications_read: { Args: { p_ids?: string[] }; Returns: number }
       match_segments: {
         Args: {
           p_company_id: string

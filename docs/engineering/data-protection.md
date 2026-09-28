@@ -212,6 +212,10 @@ refuses to display a claim it cannot evidence, and once the evidence is gone
 the claim is exactly that. An insight supported by several conversations keeps
 working with fewer citations, as it always did.
 
+Notifications hold references, never copies — the page reads a call's title
+or a note's words when it is opened — and every reference cascades, so
+erasing a call, a note or an insight erases the notifications about it too.
+
 What goes: the conversation, its segments, **their embeddings** — the copy
 people forget, since a 768-dimension vector of a sentence is still derived
 from that sentence — its signals, their quotes, its criterion events, the

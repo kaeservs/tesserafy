@@ -1079,3 +1079,31 @@ input[type='search'] {
   margin-top: 1.5rem;
   font-size: 0.85rem;
 }
+
+/* --------------------------------------------------------------------------
+   Notifications
+   -------------------------------------------------------------------------- */
+
+.notifications-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.notifications-link .count {
+  min-width: 1.25rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--bg, #fff);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+  text-align: center;
+}
+
+.signal.unread {
+  border-left: 3px solid var(--accent);
+}

@@ -18,7 +18,13 @@ import { CONSENT_STATEMENTS } from '@/lib/consent';
  * meeting that could never reach an insight would be worse than one that
  * explains the next step.
  */
-export function Upload({ sets }: { sets: { engagementType: string; version: number; own: boolean }[] }) {
+export function Upload({
+  sets,
+  accounts,
+}: {
+  sets: { engagementType: string; version: number; own: boolean }[];
+  accounts: string[];
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +111,16 @@ export function Upload({ sets }: { sets: { engagementType: string; version: numb
           </select>
         </div>
       )}
+
+      <div className="field">
+        <label htmlFor="account">Who the call was with (optional)</label>
+        <input id="account" name="account" list="account-names" maxLength={120} placeholder="Acme Robotics" disabled={busy} />
+        <datalist id="account-names">
+          {accounts.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
+      </div>
 
       {/* Required, and the words are the ones stored with the call. */}
       <div className="field consent">

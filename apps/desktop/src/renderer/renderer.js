@@ -112,6 +112,81 @@ function render() {
   }
 }
 
+/** The customer this call is with, if anyone said. Chosen per call, never remembered. */
+let chosenAccount = null;
+
+async function loadAccounts() {
+  const result = await api.accounts();
+  const accounts = result.accounts ?? [];
+  const select = el('account');
+  const none = document.createElement('option');
+  none.value = '';
+  none.textContent = 'Not said';
+  select.replaceChildren(
+    none,
+    ...accounts.map((account) => {
+      const option = document.createElement('option');
+      option.value = account.id;
+      option.textContent = account.name;
+      return option;
+    }),
+  );
+  chosenAccount = null;
+  el('brief').hidden = true;
+  el('accountPick').hidden = accounts.length === 0;
+}
+
+const OUTCOME = { won: 'Won', lost: 'Lost', open: 'Still open' };
+const SAID = { problem: 'Problem', feature_request: 'Asked for' };
+
+function line(text, className) {
+  const p = document.createElement('p');
+  p.textContent = text;
+  if (className) p.className = className;
+  return p;
+}
+
+async function showBrief(id) {
+  const brief = el('brief');
+  if (!id) {
+    brief.hidden = true;
+    return;
+  }
+  const result = await api.brief(id);
+  if (result.error || id !== chosenAccount) {
+    brief.hidden = true;
+    return;
+  }
+  const parts = [];
+  const standing = [
+    `${result.calls} call${result.calls === 1 ? '' : 's'} before`,
+    result.outcome ? OUTCOME[result.outcome] ?? result.outcome : null,
+  ].filter(Boolean);
+  parts.push(line(standing.join(' · '), 'dim'));
+  if (result.last) {
+    const when = new Date(result.last.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    parts.push(line(`Last: ${result.last.title}, ${when}${result.last.score === null ? '' : ` — scored ${result.last.score}`}`));
+  }
+  if ((result.said ?? []).length > 0) {
+    const list = document.createElement('ul');
+    for (const item of result.said) {
+      const li = document.createElement('li');
+      li.textContent = `${SAID[item.kind] ?? item.kind}: ${item.summary}${item.quote ? ` — “${item.quote}”` : ''}`;
+      list.append(li);
+    }
+    parts.push(list);
+  }
+  for (const note of result.notes ?? []) parts.push(line(`Note: ${note}`, 'dim'));
+  brief.replaceChildren(...parts);
+  brief.hidden = false;
+}
+
+el('account').addEventListener('change', () => {
+  if (listening) return;
+  chosenAccount = el('account').value || null;
+  void showBrief(chosenAccount);
+});
+
 /** The scorecard chosen for the next call, by name. */
 let chosenScorecard = null;
 
@@ -181,6 +256,7 @@ async function startSession() {
     title: `Live call — ${when}`,
     engagementType: state?.criteriaSet?.engagementType ?? 'discovery',
     criteriaVersion: state?.criteriaSet?.version ?? 1,
+    ...(chosenAccount ? { accountId: chosenAccount } : {}),
     // Only reachable with the box ticked; the server refuses without it, and
     // a refusal leaves the call running unsaved rather than stopping it.
     consent: el('consent').checked,
@@ -353,12 +429,16 @@ function startListening() {
     el('listen').textContent = 'Listen';
     el('consent').disabled = false;
     el('scorecard').disabled = false;
+    el('account').disabled = false;
   };
 
   recognition.start();
   listening = true;
   el('listen').textContent = 'Stop';
   el('scorecard').disabled = true;
+  el('account').disabled = true;
+  // The brief was for walking in; the scorecard is for the call.
+  el('brief').hidden = true;
   // Fixed for the length of the call: unticking mid-call would not unrecord
   // what was already said.
   el('consent').disabled = true;
@@ -568,11 +648,14 @@ function showSignedIn(email) {
   el('password').value = '';
   el('signinError').textContent = '';
   void loadScorecards().then(() => loadCriteria());
+  void loadAccounts();
 }
 
 function showSignedOut(remembers) {
   signedIn = false;
   el('scorecardPick').hidden = true;
+  el('accountPick').hidden = true;
+  el('brief').hidden = true;
   el('signin').hidden = false;
   el('who').hidden = true;
   el('listen').disabled = true;

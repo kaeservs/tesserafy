@@ -78,6 +78,19 @@ contextBridge.exposeInMainWorld('overlay', {
   }> => ipcRenderer.invoke('overlay:scorecards'),
   setScorecard: (engagementType: string): Promise<string | null> =>
     ipcRenderer.invoke('overlay:set-scorecard', engagementType),
+  accounts: (): Promise<{ accounts?: { id: string; name: string }[]; error?: string }> =>
+    ipcRenderer.invoke('overlay:accounts'),
+  brief: (
+    id: string,
+  ): Promise<{
+    name?: string;
+    calls?: number;
+    outcome?: string | null;
+    last?: { title: string; date: string; score: number | null } | null;
+    said?: { kind: string; summary: string; quote: string | null }[];
+    notes?: string[];
+    error?: string;
+  }> => ipcRenderer.invoke('overlay:brief', id),
   detect: (body: unknown): Promise<{ events?: unknown[]; error?: string }> =>
     ipcRenderer.invoke('overlay:detect', body),
   suggest: (

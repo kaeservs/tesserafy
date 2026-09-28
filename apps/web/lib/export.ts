@@ -27,6 +27,7 @@ export interface ConversationRow {
   consent_statement: string | null;
   consent_confirmed_at: string | null;
   outcome: string | null;
+  account_id?: string | null;
 }
 
 export interface NoteRow {
@@ -134,6 +135,8 @@ export interface ExportParts {
   edits: EditRow[];
   /** User id to address, for naming who wrote a note or made a change. */
   people: ReadonlyMap<string, string>;
+  /** Account id to the customer's name. */
+  accounts?: ReadonlyMap<string, string>;
   scores: ReadonlyMap<string, ComputedScore>;
 }
 
@@ -183,6 +186,7 @@ export function assembleExport(parts: ExportParts) {
         engagement_type: conversation.engagement_type,
         criteria_version: conversation.criteria_version,
         outcome: conversation.outcome,
+        customer: conversation.account_id ? (parts.accounts?.get(conversation.account_id) ?? null) : null,
         recording_consent:
           conversation.consent_statement && conversation.consent_confirmed_at
             ? { statement: conversation.consent_statement, confirmed_at: conversation.consent_confirmed_at }

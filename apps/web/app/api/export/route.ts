@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
         (from, to) =>
           db
             .from('conversations')
-            .select('id, company_id, title, occurred_at, created_at, engagement_type, criteria_version, consent_statement, consent_confirmed_at, outcome')
+            .select('id, company_id, title, occurred_at, created_at, engagement_type, criteria_version, consent_statement, consent_confirmed_at, outcome, account_id')
             .order('occurred_at', { ascending: true })
             .order('id')
             .range(from, to),
@@ -187,6 +187,7 @@ export async function GET(request: NextRequest) {
       notes,
       edits,
       people: new Map((team.data ?? []).map((person) => [person.user_id, person.email])),
+      accounts: new Map(((await db.from('accounts').select('id, name')).data ?? []).map((row) => [row.id, row.name])),
       scores,
     });
 

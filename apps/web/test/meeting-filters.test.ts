@@ -29,6 +29,7 @@ describe('parseFilters', () => {
       q: '',
       seller: null,
       type: null,
+      account: null,
       from: null,
       to: null,
       band: null,

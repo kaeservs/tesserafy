@@ -26,6 +26,7 @@ export default async function NewConversationPage() {
   const sets = all
     .filter((set) => !all.some((other) => other.engagementType === set.engagementType && other.version > set.version))
     .sort((a, b) => Number(b.own) - Number(a.own));
+  const { data: accounts } = await supabase.from('accounts').select('name').order('name').limit(500);
 
   return (
     <main>
@@ -38,7 +39,7 @@ export default async function NewConversationPage() {
         in it are masked before anything is stored.
       </p>
 
-      <Upload sets={sets} />
+      <Upload sets={sets} accounts={(accounts ?? []).map((account) => account.name)} />
 
       <section aria-labelledby="after-heading">
         <h2 id="after-heading">What happens next</h2>

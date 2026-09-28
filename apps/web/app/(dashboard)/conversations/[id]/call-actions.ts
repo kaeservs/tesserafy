@@ -36,7 +36,7 @@ export async function editCall(_prev: EditState, formData: FormData): Promise<Ed
   const supabase = await createClient();
   const { data: current } = await supabase
     .from('conversations')
-    .select('title, occurred_at, engagement_type, criteria_version, outcome')
+    .select('title, occurred_at, engagement_type, criteria_version, outcome, account_id')
     .eq('id', id)
     .maybeSingle();
   if (!current) return { status: 'error', message: 'That call could not be found.' };
@@ -45,6 +45,13 @@ export async function editCall(_prev: EditState, formData: FormData): Promise<Ed
   const date = text(formData, 'date');
   const [type, version] = text(formData, 'scorecard').split('/');
   const outcome = text(formData, 'outcome') || 'unknown';
+  const accountName = text(formData, 'account');
+  let accountId: string | null = null;
+  if (accountName) {
+    const { data: found, error: accountError } = await supabase.rpc('save_account', { p_name: accountName });
+    if (accountError) return { status: 'error', message: accountError.message.replace(/^save_account: /, '') };
+    accountId = found;
+  }
 
   if (date && !DAY.test(date)) return { status: 'error', message: 'That is not a date.' };
   const currentDay = current.occurred_at?.slice(0, 10) ?? '';
@@ -74,6 +81,8 @@ export async function editCall(_prev: EditState, formData: FormData): Promise<Ed
       : {}),
     ...(newScorecard ? { p_engagement_type: type, p_criteria_version: Number(version) } : {}),
     ...(outcome !== (current.outcome ?? 'unknown') ? { p_outcome: outcome } : {}),
+    ...(accountId && accountId !== current.account_id ? { p_account_id: accountId } : {}),
+    ...(!accountId && current.account_id ? { p_clear_account: true } : {}),
   });
   if (error) {
     if (spent) await refund(supabase, spent);

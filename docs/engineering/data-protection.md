@@ -76,7 +76,8 @@ currently configurable per tenant.
 
 Settings → *Take a copy of your data* gives a company's owner one JSON file
 with every call's transcript, the evidence behind its score, the signals and
-insights read from it, the team, and the erasure log. It is the customer's own
+insights read from it, its outcome, the notes people left on it and every
+correction made to it, the team, and the erasure log. It is the customer's own
 data going to the customer, which is why it is last here — but it is also the
 whole company leaving in one file, so it is owners only, rate limited to three
 an hour, and recorded in `company_exports` before a single row is read; a
@@ -205,8 +206,9 @@ working with fewer citations, as it always did.
 
 What goes: the conversation, its segments, **their embeddings** — the copy
 people forget, since a 768-dimension vector of a sentence is still derived
-from that sentence — its signals, their quotes, its criterion events, and any
-insight left unevidenced. What stays: the cost telemetry, with its link to the
+from that sentence — its signals, their quotes, its criterion events, the
+notes colleagues left on its moments, the log of corrections to it (which
+holds old titles), and any insight left unevidenced. What stays: the cost telemetry, with its link to the
 conversation nulled. The money was spent and cannot be reconstructed later; an
 opaque id pointing at nothing is a thread worth cutting.
 

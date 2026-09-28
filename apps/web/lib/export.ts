@@ -26,6 +26,26 @@ export interface ConversationRow {
   criteria_version: number;
   consent_statement: string | null;
   consent_confirmed_at: string | null;
+  outcome: string | null;
+}
+
+export interface NoteRow {
+  conversation_id: string;
+  segment_id: string;
+  author: string | null;
+  body: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EditRow {
+  conversation_id: string;
+  field: string;
+  old_value: string | null;
+  new_value: string | null;
+  evidence_removed: number;
+  actor: string | null;
+  at: string;
 }
 
 export interface SegmentRow {
@@ -110,6 +130,10 @@ export interface ExportParts {
   insights: InsightRow[];
   insightEvidence: InsightEvidenceRow[];
   erasures: ErasureRow[];
+  notes: NoteRow[];
+  edits: EditRow[];
+  /** User id to address, for naming who wrote a note or made a change. */
+  people: ReadonlyMap<string, string>;
   scores: ReadonlyMap<string, ComputedScore>;
 }
 
@@ -130,6 +154,9 @@ export function assembleExport(parts: ExportParts) {
   const signalsBy = group(parts.signals, (row) => row.conversation_id);
   const evidenceBy = group(parts.signalEvidence, (row) => row.signal_id);
   const citedBy = group(parts.insightEvidence, (row) => row.insight_id);
+  const notesBy = group(parts.notes, (row) => row.conversation_id);
+  const editsBy = group(parts.edits, (row) => row.conversation_id);
+  const who = (id: string | null) => (id ? (parts.people.get(id) ?? 'a former member') : 'a former member');
 
   return {
     format: EXPORT_FORMAT,
@@ -155,6 +182,7 @@ export function assembleExport(parts: ExportParts) {
         imported_at: conversation.created_at,
         engagement_type: conversation.engagement_type,
         criteria_version: conversation.criteria_version,
+        outcome: conversation.outcome,
         recording_consent:
           conversation.consent_statement && conversation.consent_confirmed_at
             ? { statement: conversation.consent_statement, confirmed_at: conversation.consent_confirmed_at }
@@ -180,6 +208,21 @@ export function assembleExport(parts: ExportParts) {
           detector: event.detector,
           model: event.model,
           recorded_at: event.created_at,
+        })),
+        notes: (notesBy.get(conversation.id) ?? []).map((note) => ({
+          segment_id: note.segment_id,
+          author: who(note.author),
+          body: note.body,
+          written_at: note.created_at,
+          edited_at: note.updated_at === note.created_at ? null : note.updated_at,
+        })),
+        history: (editsBy.get(conversation.id) ?? []).map((edit) => ({
+          field: edit.field,
+          from: edit.old_value,
+          to: edit.new_value,
+          evidence_removed: edit.evidence_removed,
+          by: who(edit.actor),
+          at: edit.at,
         })),
         signals: (signalsBy.get(conversation.id) ?? []).map((signal) => ({
           id: signal.id,

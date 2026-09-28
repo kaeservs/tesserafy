@@ -394,6 +394,50 @@ export type Database = {
           },
         ]
       }
+      conversation_edits: {
+        Row: {
+          actor: string | null
+          at: string
+          company_id: string
+          conversation_id: string
+          evidence_removed: number
+          field: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+        }
+        Insert: {
+          actor?: string | null
+          at?: string
+          company_id: string
+          conversation_id: string
+          evidence_removed?: number
+          field: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+        }
+        Update: {
+          actor?: string | null
+          at?: string
+          company_id?: string
+          conversation_id?: string
+          evidence_removed?: number
+          field?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_edits_company_id_conversation_id_fkey"
+            columns: ["company_id", "conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["company_id", "id"]
+          },
+        ]
+      }
       conversation_views: {
         Row: {
           company_id: string
@@ -448,6 +492,9 @@ export type Database = {
           engagement_type: string
           id: string
           occurred_at: string | null
+          outcome: string | null
+          outcome_set_at: string | null
+          outcome_set_by: string | null
           source_key: string | null
           title: string
         }
@@ -462,6 +509,9 @@ export type Database = {
           engagement_type?: string
           id?: string
           occurred_at?: string | null
+          outcome?: string | null
+          outcome_set_at?: string | null
+          outcome_set_by?: string | null
           source_key?: string | null
           title: string
         }
@@ -476,6 +526,9 @@ export type Database = {
           engagement_type?: string
           id?: string
           occurred_at?: string | null
+          outcome?: string | null
+          outcome_set_at?: string | null
+          outcome_set_by?: string | null
           source_key?: string | null
           title?: string
         }
@@ -1071,6 +1124,54 @@ export type Database = {
           },
         ]
       }
+      segment_notes: {
+        Row: {
+          author: string | null
+          body: string
+          company_id: string
+          conversation_id: string
+          created_at: string
+          id: string
+          segment_id: string
+          updated_at: string
+        }
+        Insert: {
+          author?: string | null
+          body: string
+          company_id: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          segment_id: string
+          updated_at?: string
+        }
+        Update: {
+          author?: string | null
+          body?: string
+          company_id?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          segment_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "segment_notes_company_id_conversation_id_fkey"
+            columns: ["company_id", "conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "segment_notes_company_id_segment_id_fkey"
+            columns: ["company_id", "segment_id"]
+            isOneToOne: false
+            referencedRelation: "segments"
+            referencedColumns: ["company_id", "id"]
+          },
+        ]
+      }
       segments: {
         Row: {
           company_id: string
@@ -1484,6 +1585,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_segment_note: {
+        Args: { p_body: string; p_segment_id: string }
+        Returns: string
+      }
       admin_access_requests: {
         Args: never
         Returns: {
@@ -1642,7 +1747,24 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      delete_segment_note: { Args: { p_note_id: string }; Returns: undefined }
       disconnect_tracker: { Args: never; Returns: undefined }
+      edit_conversation: {
+        Args: {
+          p_clear_date?: boolean
+          p_conversation_id: string
+          p_criteria_version?: number
+          p_engagement_type?: string
+          p_occurred_at?: string
+          p_outcome?: string
+          p_title?: string
+        }
+        Returns: Json
+      }
+      edit_segment_note: {
+        Args: { p_body: string; p_note_id: string }
+        Returns: undefined
+      }
       embed_stored_segments: {
         Args: { p_company_id: string; p_model: string; p_rows: Json }
         Returns: number

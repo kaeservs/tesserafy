@@ -1,4 +1,7 @@
 import { engagementLabel, liveAvailable, myCompany } from '@/lib/company';
+import { EditCall } from '@/components/edit-call';
+import { SegmentNotes, type ShownNote } from '@/components/segment-notes';
+import { OUTCOME_LABEL } from '@/lib/outcome';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { clock, splitByHighlights } from '@/lib/highlight';
@@ -10,7 +13,7 @@ import { CallViewers } from '@/components/call-viewers';
 import { DeleteCall } from '@/components/delete-call';
 import { RefreshWhile } from '@/components/refresh-while';
 import { capturedState, type CapturedState } from '@/lib/scoring-status';
-import { batches, readAll } from '@tesserafy/db';
+import { batches, fetchCriteriaSets, readAll } from '@tesserafy/db';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -29,6 +32,35 @@ interface SegmentRow {
   speaker: string | null;
   start_ms: number;
   text: string;
+}
+
+interface NoteRow {
+  id: string;
+  segment_id: string;
+  author: string | null;
+  body: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface EditRow {
+  field: string;
+  old_value: string | null;
+  new_value: string | null;
+  evidence_removed: number;
+  actor: string | null;
+  at: string;
+}
+
+const FIELD_LABEL: Record<string, string> = {
+  title: 'title',
+  occurred_at: 'date',
+  scorecard: 'scorecard',
+  outcome: 'outcome',
+};
+
+function stamp(iso: string): string {
+  return new Date(iso).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }) + ' UTC';
 }
 
 interface SignalRow {
@@ -151,7 +183,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
   const { data: conversation } = await supabase
     .from('conversations')
     .select(
-      'id, company_id, title, occurred_at, created_at, engagement_type, criteria_version, consent_statement, consent_confirmed_by, consent_confirmed_at',
+      'id, company_id, title, occurred_at, created_at, engagement_type, criteria_version, consent_statement, consent_confirmed_by, consent_confirmed_at, added_by, outcome',
     )
     .eq('id', id)
     .maybeSingle();
@@ -186,6 +218,9 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
     .eq('role', 'owner')
     .limit(1);
   const isOwner = (ownership ?? []).length > 0;
+  // edit_conversation's own rule, asked here only so the form is not offered
+  // to someone it would refuse.
+  const mayEdit = isOwner || (user !== null && conversation.added_by === user.id);
 
   const { data: viewerRows } = isOwner
     ? await supabase.rpc('conversation_viewers', { p_conversation_id: id })
@@ -211,7 +246,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
   const foundNothing = extracted && (pipeline?.signals ?? 0) === 0;
   const observed = card.criteria.some((criterion) => criterion.status !== 'unobserved');
 
-  const [segments, signals] = await Promise.all([
+  const [segments, signals, notes, edits, { data: team }, sets] = await Promise.all([
     readAll<SegmentRow>(
       (from, to) =>
         supabase
@@ -233,7 +268,64 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
           .range(from, to),
       'Could not load the conversation',
     ),
+    readAll<NoteRow>(
+      (from, to) =>
+        supabase
+          .from('segment_notes')
+          .select('id, segment_id, author, body, created_at, updated_at')
+          .eq('conversation_id', id)
+          .order('created_at')
+          .order('id')
+          .range(from, to),
+      'Could not load the notes',
+    ),
+    readAll<EditRow>(
+      (from, to) =>
+        supabase
+          .from('conversation_edits')
+          .select('field, old_value, new_value, evidence_removed, actor, at')
+          .eq('conversation_id', id)
+          .order('at', { ascending: false })
+          .order('id')
+          .range(from, to),
+      'Could not load the call history',
+    ),
+    supabase.rpc('company_team'),
+    mayEdit ? fetchCriteriaSets(supabase, conversation.company_id) : Promise.resolve([]),
   ]);
+
+  const emailOf = new Map((team ?? []).map((person) => [person.user_id, person.is_you ? 'You' : person.email]));
+  const nameOf = (userId: string | null) => (userId ? (emailOf.get(userId) ?? 'A former member') : 'A former member');
+  const notesBySegment = new Map<string, ShownNote[]>();
+  for (const note of notes) {
+    const shown: ShownNote = {
+      id: note.id,
+      body: note.body,
+      author: nameOf(note.author),
+      when: stamp(note.created_at),
+      edited: note.updated_at !== note.created_at,
+      mine: user !== null && note.author === user.id,
+      removable: isOwner || (user !== null && note.author === user.id),
+    };
+    notesBySegment.set(note.segment_id, [...(notesBySegment.get(note.segment_id) ?? []), shown]);
+  }
+  // The newest version of each set, and the call's own pin whatever its age,
+  // so the form never silently proposes a different one.
+  const pinned = `${conversation.engagement_type}/${conversation.criteria_version}`;
+  const scorecards = [
+    ...sets
+      .filter((set) => !sets.some((other) => other.engagementType === set.engagementType && other.version > set.version))
+      .map((set) => ({
+        value: `${set.engagementType}/${set.version}`,
+        label: `${engagementLabel(set.engagementType)}${set.own ? '' : ' (template)'}, version ${set.version}`,
+      })),
+  ];
+  if (mayEdit && !scorecards.some((choice) => choice.value === pinned)) {
+    scorecards.unshift({
+      value: pinned,
+      label: `${engagementLabel(conversation.engagement_type)}, version ${conversation.criteria_version} (current)`,
+    });
+  }
 
   // Evidence is fetched separately rather than embedded: signal_evidence
   // reaches signals through a composite (company_id, signal_id) key, which
@@ -290,7 +382,23 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
         {segments.length} transcript line{segments.length === 1 ? '' : 's'} · {signals.length} signal
         {signals.length === 1 ? '' : 's'} ·{' '}
         {engagementLabel(scored.engagementType)}
+        {conversation.outcome ? (
+          <>
+            {' · '}
+            <span className={`stage outcome-${conversation.outcome}`}>{OUTCOME_LABEL[conversation.outcome]}</span>
+          </>
+        ) : null}
       </p>
+      {mayEdit ? (
+        <EditCall
+          conversationId={id}
+          title={title}
+          date={occurredAt?.slice(0, 10) ?? ''}
+          scorecard={pinned}
+          outcome={conversation.outcome ?? 'unknown'}
+          scorecards={scorecards}
+        />
+      ) : null}
       <ConsentRecord
         statement={conversation.consent_statement}
         confirmedAt={conversation.consent_confirmed_at}
@@ -411,6 +519,24 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
         )}
       </section>
 
+      {notes.length > 0 ? (
+        <section aria-labelledby="notes-heading">
+          <h2 id="notes-heading">Notes ({notes.length})</h2>
+          <ul className="evidence">
+            {notes.map((note) => (
+              <li key={note.id}>
+                <a href={`#segment-${note.segment_id}`}>
+                  {note.body.length > 140 ? `${note.body.slice(0, 140)}…` : note.body}{' '}
+                  <span className="muted">
+                    {nameOf(note.author)}, at {clock(startedAt.get(note.segment_id) ?? 0)}
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       <section aria-labelledby="transcript-heading">
         <h2 id="transcript-heading">Transcript</h2>
         {segments.length === 0 ? (
@@ -432,11 +558,37 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
                       ),
                   )}
                 </p>
+                <SegmentNotes
+                  conversationId={id}
+                  segmentId={segment.id}
+                  notes={notesBySegment.get(segment.id) ?? []}
+                />
               </li>
             ))}
           </ol>
         )}
       </section>
+      {edits.length > 0 ? (
+        <details className="call-history">
+          <summary className="muted">Changes to this call ({edits.length})</summary>
+          <ul className="muted">
+            {edits.map((edit) => (
+              <li key={`${edit.at}-${edit.field}`}>
+                {stamp(edit.at)} — {nameOf(edit.actor)} changed the {FIELD_LABEL[edit.field] ?? edit.field}
+                {edit.field === 'occurred_at'
+                  ? ` to ${edit.new_value ? edit.new_value.slice(0, 10) : 'none'}`
+                  : edit.field === 'outcome'
+                    ? ` to ${edit.new_value ? (OUTCOME_LABEL[edit.new_value] ?? edit.new_value) : 'not said'}`
+                    : ` from “${edit.old_value ?? ''}” to “${edit.new_value ?? ''}”`}
+                {edit.evidence_removed > 0
+                  ? `, removing ${edit.evidence_removed} piece${edit.evidence_removed === 1 ? '' : 's'} of evidence scored against the old one`
+                  : ''}
+                .
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
       {isOwner ? <CallViewers viewers={viewers} /> : null}
       {isOwner ? <DeleteCall conversationId={id} /> : null}
     </main>

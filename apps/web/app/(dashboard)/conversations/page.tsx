@@ -9,6 +9,7 @@ import {
   applyFilters,
   BANDS,
   hrefWith,
+  OUTCOMES,
   isFiltered,
   likePattern,
   PAGE_SIZE,
@@ -16,6 +17,7 @@ import {
   SORTS,
 } from '@/lib/meeting-filters';
 import { createClient } from '@/lib/supabase/server';
+import { OUTCOME_LABEL } from '@/lib/outcome';
 
 /**
  * Every meeting, with how it scored — searchable, filterable, a page at a time.
@@ -43,6 +45,7 @@ interface ConversationRow {
   occurred_at: string | null;
   created_at: string;
   added_by: string | null;
+  outcome: string | null;
   engagement_type: string;
   criteria_version: number;
 }
@@ -97,10 +100,12 @@ export default async function ConversationsPage({
   const conversations = await readAll<ConversationRow>((from, to) => {
     let query = supabase
       .from('conversations')
-      .select('id, company_id, title, occurred_at, created_at, added_by, engagement_type, criteria_version');
+      .select('id, company_id, title, occurred_at, created_at, added_by, outcome, engagement_type, criteria_version');
     if (filters.q) query = query.ilike('title', likePattern(filters.q));
     if (sellerId) query = query.eq('added_by', sellerId);
     if (filters.type) query = query.eq('engagement_type', filters.type);
+    if (filters.outcome === 'none') query = query.is('outcome', null);
+    else if (filters.outcome) query = query.eq('outcome', filters.outcome);
     return query.order('occurred_at', { ascending: false }).order('id').range(from, to);
   }, 'Could not load conversations');
   const [scores, pipeline] = await Promise.all([
@@ -188,6 +193,17 @@ export default async function ConversationsPage({
             </select>
           </div>
           <div className="field">
+            <label htmlFor="outcome">Outcome</label>
+            <select id="outcome" name="outcome" defaultValue={filters.outcome ?? ''}>
+              <option value="">Any</option>
+              {Object.entries(OUTCOMES).map(([outcome, label]) => (
+                <option key={outcome} value={outcome}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
             <label htmlFor="sort">Sort</label>
             <select id="sort" name="sort" defaultValue={filters.sort}>
               {Object.entries(SORTS).map(([sort, label]) => (
@@ -240,6 +256,9 @@ export default async function ConversationsPage({
                 <span className="meeting-meta">
                   {when(conversation.occurred_at)} · {engagementLabel(conversation.engagement_type)}
                   {isOwner && conversation.added_by ? ` · ${emailOf.get(conversation.added_by) ?? 'former member'}` : ''}
+                  {conversation.outcome ? (
+                    <span className={`stage outcome-${conversation.outcome}`}>{OUTCOME_LABEL[conversation.outcome]}</span>
+                  ) : null}
                   {/* One word for how far this call has got. An imported
                       transcript arrives finished; a live one does not, and
                       looked identical to a finished call that scored badly. */}

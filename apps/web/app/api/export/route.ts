@@ -7,7 +7,9 @@ import {
   type ComputedScore,
   type ConversationRow,
   type CriterionEventRow,
+  type EditRow,
   type ErasureRow,
+  type NoteRow,
   type InsightEvidenceRow,
   type InsightRow,
   type SegmentRow,
@@ -64,6 +66,8 @@ export async function GET(request: NextRequest) {
       insights,
       insightEvidence,
       erasures,
+      notes,
+      edits,
     ] = await Promise.all([
       db.auth.getUser(),
       db.from('companies').select('name').limit(1).single(),
@@ -72,7 +76,7 @@ export async function GET(request: NextRequest) {
         (from, to) =>
           db
             .from('conversations')
-            .select('id, company_id, title, occurred_at, created_at, engagement_type, criteria_version, consent_statement, consent_confirmed_at')
+            .select('id, company_id, title, occurred_at, created_at, engagement_type, criteria_version, consent_statement, consent_confirmed_at, outcome')
             .order('occurred_at', { ascending: true })
             .order('id')
             .range(from, to),
@@ -124,6 +128,26 @@ export async function GET(request: NextRequest) {
             .range(from, to),
         'Exporting the erasure log',
       ),
+      readAll<NoteRow>(
+        (from, to) =>
+          db
+            .from('segment_notes')
+            .select('conversation_id, segment_id, author, body, created_at, updated_at')
+            .order('created_at')
+            .order('id')
+            .range(from, to),
+        'Exporting notes',
+      ),
+      readAll<EditRow>(
+        (from, to) =>
+          db
+            .from('conversation_edits')
+            .select('conversation_id, field, old_value, new_value, evidence_removed, actor, at')
+            .order('at')
+            .order('id')
+            .range(from, to),
+        'Exporting call history',
+      ),
     ]);
 
     if (company.error) throw new Error(`Exporting the company failed: ${company.error.message}`);
@@ -160,6 +184,9 @@ export async function GET(request: NextRequest) {
       insights,
       insightEvidence,
       erasures,
+      notes,
+      edits,
+      people: new Map((team.data ?? []).map((person) => [person.user_id, person.email])),
       scores,
     });
 

@@ -32,6 +32,7 @@ describe('parseFilters', () => {
       from: null,
       to: null,
       band: null,
+      outcome: null,
       sort: 'newest',
       page: 1,
     });
@@ -44,6 +45,7 @@ describe('parseFilters', () => {
       type: 'Demo!',
       from: 'last week',
       score: 'great',
+      outcome: 'maybe',
       sort: 'random',
       page: '-3',
     });
@@ -58,10 +60,19 @@ describe('parseFilters', () => {
       from: '2026-09-01',
       to: '2026-09-30',
       score: 'low',
+      outcome: 'won',
       sort: 'lowest',
       page: '2',
     });
-    expect(parsed).toMatchObject({ q: 'Acme', seller: 'mine', type: 'product-demo', band: 'low', sort: 'lowest', page: 2 });
+    expect(parsed).toMatchObject({
+      q: 'Acme',
+      seller: 'mine',
+      type: 'product-demo',
+      band: 'low',
+      outcome: 'won',
+      sort: 'lowest',
+      page: 2,
+    });
     expect(isFiltered(parsed)).toBe(true);
   });
 });

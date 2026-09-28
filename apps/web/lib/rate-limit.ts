@@ -73,11 +73,13 @@ export const LIMITS: Record<string, readonly Window[]> = {
     { seconds: 86_400, limit: 10 },
   ],
   // An upload scores itself: up to 40 windows (~$0.45) for the longest call
-  // taken on, ~$0.12 for an hour. Ten a day bounds one account at about $4.50
-  // a day, which is a busy week of real meetings, not a runaway.
+  // taken on, ~$0.12 for an hour. These were ten a day before plans existed;
+  // now the plan's monthly allowance is what bounds spend, and this only has
+  // to stop a runaway — while letting a brand import a folder of old calls in
+  // one sitting.
   'api/transcripts': [
-    { seconds: 3_600, limit: 6 },
-    { seconds: 86_400, limit: 10 },
+    { seconds: 3_600, limit: 30 },
+    { seconds: 86_400, limit: 100 },
   ],
   // Trying a draft scorecard: up to 15 T1 windows (~$0.17) per press, charged
   // as one imported call. Drafting is iterative, so more than an upload, but

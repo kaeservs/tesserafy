@@ -16,10 +16,13 @@ export function Decide({
   insightId,
   status,
   ticketUrl,
+  trackerTarget,
 }: {
   insightId: string;
   status: string;
   ticketUrl: string | null;
+  /** The company's GitHub repository, or null when none is connected. */
+  trackerTarget: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -65,10 +68,17 @@ export function Decide({
         </>
       )}
 
-      {status === 'approved' && !raised && (
+      {status === 'approved' && !raised && trackerTarget && (
         <button type="button" onClick={() => void raise()} disabled={raising}>
-          {raising ? 'Creating…' : 'Create ticket'}
+          {raising ? 'Creating…' : `Create ticket in ${trackerTarget}`}
         </button>
+      )}
+
+      {status === 'approved' && !raised && !trackerTarget && (
+        <span className="muted">
+          To turn this into a ticket, an owner connects your tracker under{' '}
+          <a href="/settings#tracker-heading">Settings → Where tickets go</a>.
+        </span>
       )}
 
       {status === 'dismissed' && <span className="muted">Dismissed</span>}

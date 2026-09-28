@@ -42,6 +42,15 @@ close the residue at the cost of making every ticket unreadable without a
 login. Not taken: a ticket nobody can evaluate gets ignored, and an ignored
 insight is the failure mode this product exists to prevent.
 
+**Whose tracker.** A ticket goes to the tracker of the company whose customers
+said it, connected by that company's owner (ADR 0015), never to a repository
+of ours. The token that lets us write there is a secret of theirs: it is
+sealed by the web server with a key only the server holds, bound to the
+company, stored only in sealed form, never selectable by a customer, and
+forgotten when the company is closed. The owner is asked for a token scoped to
+one repository with Issues read and write, so a stolen or misused token can do
+no more than raise issues there.
+
 ### 2. Audio, to a browser vendor
 
 The live path uses `webkitSpeechRecognition`, so the customer's voice is

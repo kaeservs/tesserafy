@@ -52,11 +52,11 @@ export default async function InsightPage({ params }: { params: Promise<{ id: st
 
   if (!insight) notFound();
 
-  const { data: ticket } = await supabase
-    .from('insight_tickets')
-    .select('url')
-    .eq('insight_id', id)
-    .maybeSingle();
+  const [{ data: ticket }, { data: tracker }] = await Promise.all([
+    supabase.from('insight_tickets').select('url').eq('insight_id', id).maybeSingle(),
+    // Where a ticket would go; never the token (ADR 0015).
+    supabase.from('company_trackers').select('target').maybeSingle(),
+  ]);
 
   const { data: citations, error: citationsError } = await supabase
     .from('insight_evidence')
@@ -118,6 +118,7 @@ export default async function InsightPage({ params }: { params: Promise<{ id: st
         insightId={id}
         status={status}
         ticketUrl={(ticket)?.url ?? null}
+        trackerTarget={tracker?.target ?? null}
       />
 
       <section aria-labelledby="evidence-heading">

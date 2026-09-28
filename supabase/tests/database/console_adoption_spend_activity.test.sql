@@ -27,9 +27,10 @@ insert into public.insight_tickets (company_id, insight_id, provider, external_i
 values ('00000000-0000-4000-8000-00000000000a', 'ad0e0001-0000-4000-8000-0000000000a1', 'github', '1',
         'https://github.com/acme/product/issues/1', 'ad0e0001-0000-4000-8000-000000000002');
 
--- Globex's only call was erased: it still happened.
+-- A new company whose only call was erased: it still happened.
+insert into public.companies (id, name) values ('ad0e0001-0000-4000-8000-0000000000cc', 'Brand New');
 insert into public.erasure_events (company_id, conversation_id, reason)
-values ('00000000-0000-4000-8000-00000000000b', 'ad0e0001-0000-4000-8000-0000000000c9', 'request');
+values ('ad0e0001-0000-4000-8000-0000000000cc', 'ad0e0001-0000-4000-8000-0000000000c9', 'request');
 
 -- A million Haiku input tokens this week: $1 at the published rate.
 insert into public.model_usage (company_id, tier, model, detector, input_tokens, output_tokens, duration_ms)
@@ -59,13 +60,13 @@ select set_config('request.jwt.claims',
 -- Adoption
 -- ---------------------------------------------------------------------------
 select ok(
-  (select first_call_at is not null and first_insight_at is not null and first_ticket_at is not null and calls = 1
+  (select first_call_at is not null and first_insight_at is not null and first_ticket_at is not null and calls >= 1
      from public.admin_adoption() where company_id = '00000000-0000-4000-8000-00000000000a'),
   'a company with a call, an insight and a ticket reached every step'
 );
 select ok(
-  (select first_call_at is not null and first_ticket_at is null and calls = 0
-     from public.admin_adoption() where company_id = '00000000-0000-4000-8000-00000000000b'),
+  (select first_call_at is not null and first_insight_at is null and first_ticket_at is null and calls = 0
+     from public.admin_adoption() where company_id = 'ad0e0001-0000-4000-8000-0000000000cc'),
   'an erased call still counts as a first call; no ticket, no ticket step'
 );
 

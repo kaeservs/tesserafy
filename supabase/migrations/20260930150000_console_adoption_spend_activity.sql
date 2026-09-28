@@ -159,10 +159,11 @@ begin
   end if;
 
   return query
-  select x.at, coalesce(a.email, 'a deleted account'), x.action, x.subject, x.detail
+  -- auth.users.email is varchar; the declared columns are text.
+  select x.at, coalesce(a.email, 'a deleted account')::text, x.action::text, x.subject::text, x.detail::text
   from (
     select s.created_at as at, s.admin_user_id as actor, 'opened an account' as action,
-           coalesce(u.email, 'a deleted account') as subject, s.reason as detail
+           coalesce(u.email, 'a deleted account')::text as subject, s.reason as detail
       from public.support_access s left join auth.users u on u.id = s.subject_user_id
     union all
     select p.created_at, p.admin_user_id, 'provisioned an account', p.email,

@@ -46,3 +46,8 @@ export class TranscriptParseError extends Error {
     this.line = line;
   }
 }
+
+/** A file saved by Windows tools often starts with a byte-order mark; it is not text. */
+export function withoutBom(source: string): string {
+  return source.charCodeAt(0) === 0xfeff ? source.slice(1) : source;
+}

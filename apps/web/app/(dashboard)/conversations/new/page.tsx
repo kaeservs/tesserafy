@@ -35,8 +35,9 @@ export default async function NewConversationPage() {
       </p>
       <h1>Import a transcript</h1>
       <p className="muted">
-        A WebVTT file from Zoom, Meet or Teams, or turns as JSON. Email addresses and phone numbers
-        in it are masked before anything is stored.
+        A transcript with timestamps: WebVTT from Zoom, Meet or Teams, SubRip, a text export from Otter,
+        Fireflies or a Meet document, or turns as JSON. Email addresses and phone numbers in it are masked
+        before anything is stored.
       </p>
 
       <Upload sets={sets} accounts={(accounts ?? []).map((account) => account.name)} />

@@ -20,7 +20,6 @@
  * harness grades by span overlap and a DetectorEvent carries only the quote.
  */
 import { readFileSync } from 'node:fs';
-import { extname } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import {
   detectCriteria,
@@ -32,7 +31,7 @@ import {
   type CriterionPrompt,
   type DetectableSegment,
 } from '@tesserafy/ai';
-import { parseTurns, parseVtt, toSegments, type ParsedTranscript } from '@tesserafy/ingest';
+import { parseTranscript, toSegments, type ParsedTranscript } from '@tesserafy/ingest';
 
 const [file, ...rest] = process.argv.slice(2);
 if (!file) {
@@ -63,7 +62,7 @@ const windowSize = windowFlag === undefined ? undefined : Number(windowFlag);
 
 function parseFile(path: string): ParsedTranscript {
   const source = readFileSync(path, 'utf8');
-  return extname(path).toLowerCase() === '.json' ? parseTurns(JSON.parse(source)) : parseVtt(source);
+  return parseTranscript(path, source);
 }
 
 /**

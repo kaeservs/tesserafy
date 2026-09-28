@@ -7,7 +7,7 @@
  * read here, because a transcript whose speakers are lost is a transcript that
  * cannot tell a customer's words from a salesperson's.
  */
-import { TranscriptParseError, type ParsedTranscript, type Turn } from '../types';
+import { TranscriptParseError, withoutBom, type ParsedTranscript, type Turn } from '../types';
 
 const TIMING = /^(.+?)\s+-->\s+(.+?)(?:\s+.*)?$/;
 const VOICE_SPAN = /^<v(?:\.[^\s>]+)*\s+([^>]*)>([\s\S]*?)(?:<\/v>)?$/;
@@ -23,13 +23,25 @@ export function parseVtt(source: string): ParsedTranscript {
   if (!lines[0]?.startsWith('WEBVTT')) {
     throw new TranscriptParseError('Not a WebVTT file: it must start with WEBVTT', 1);
   }
+  return readCues(lines, 1, 'WebVTT');
+}
 
+/**
+ * SubRip (.srt), which some recorders and captioning tools export instead: the
+ * same cues without the header, numbered, with a comma before the
+ * milliseconds. The cue reader already takes both.
+ */
+export function parseSrt(source: string): ParsedTranscript {
+  return readCues(withoutBom(source).split(/\r\n|\r|\n/), 0, 'SubRip');
+}
+
+function readCues(lines: readonly string[], from: number, format: string): ParsedTranscript {
   let title: string | null = null;
   const turns: Turn[] = [];
 
   // A cue is: an optional identifier line, a timing line, then payload lines
   // until a blank line. NOTE and STYLE blocks are skipped whole.
-  for (let i = 1; i < lines.length; i++) {
+  for (let i = from; i < lines.length; i++) {
     const line = lines[i]?.trim() ?? '';
     if (line.length === 0) continue;
 
@@ -70,7 +82,7 @@ export function parseVtt(source: string): ParsedTranscript {
   }
 
   if (turns.length === 0) {
-    throw new TranscriptParseError('WebVTT file contains no cues');
+    throw new TranscriptParseError(`${format} file contains no cues`);
   }
 
   return { title, turns };

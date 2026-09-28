@@ -15,10 +15,9 @@
  * harness can parse it directly.
  */
 import { readFileSync } from 'node:fs';
-import { extname } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import { extractSignals, type ExtractableSegment } from '@tesserafy/ai';
-import { parseTurns, parseVtt, toSegments, type ParsedTranscript } from '@tesserafy/ingest';
+import { parseTranscript, toSegments, type ParsedTranscript } from '@tesserafy/ingest';
 
 const [file, ...rest] = process.argv.slice(2);
 if (!file) {
@@ -33,7 +32,7 @@ const model = modelIndex === -1 ? undefined : rest[modelIndex + 1];
 
 function parseFile(path: string): ParsedTranscript {
   const source = readFileSync(path, 'utf8');
-  return extname(path).toLowerCase() === '.json' ? parseTurns(JSON.parse(source)) : parseVtt(source);
+  return parseTranscript(path, source);
 }
 
 async function main(): Promise<void> {

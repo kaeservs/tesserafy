@@ -1,7 +1,6 @@
 import {
   anyRedactions,
-  parseTurns,
-  parseVtt,
+  parseTranscript,
   redactSegments,
   toSegments,
   TranscriptParseError,
@@ -93,12 +92,11 @@ export async function POST(request: NextRequest) {
   }
 
   const source = await file.text();
-  const json = file.name.toLowerCase().endsWith('.json');
 
   let segments;
   let parsedTitle: string | null;
   try {
-    const parsed = json ? parseTurns(JSON.parse(source)) : parseVtt(source);
+    const parsed = parseTranscript(file.name, source);
     parsedTitle = parsed.title;
     segments = toSegments(parsed.turns);
   } catch (cause) {

@@ -289,6 +289,50 @@ table.team td.when {
   letter-spacing: 0.02em;
 }
 
+.segment-meta .moment-time {
+  color: inherit;
+  text-decoration: none;
+}
+
+.segment-meta .moment-time:hover {
+  text-decoration: underline;
+}
+
+/* Offered on the line you are pointing at, not on every line at once. */
+.segment .moment-link {
+  font-size: 0.75rem;
+  margin-left: 0.4rem;
+  opacity: 0;
+}
+
+.segment:hover .moment-link,
+.segment:target .moment-link,
+.segment .moment-link:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .segment .moment-link {
+    opacity: 1;
+  }
+}
+
+.share-bar {
+  display: inline-block;
+  vertical-align: middle;
+  width: 5rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  overflow: hidden;
+}
+
+.share-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
 .segment p {
   margin: 0.2rem 0 0;
 }

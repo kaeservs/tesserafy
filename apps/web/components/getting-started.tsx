@@ -15,8 +15,8 @@ export function GettingStarted() {
       <h2 style={{ marginTop: 0 }}>Getting started</h2>
       <ol>
         <li>
-          <Link href="/conversations/new">Import a transcript</Link> — a WebVTT file from Zoom,
-          Meet or Teams. It is scored against your criteria and indexed for search on its own,
+          <Link href="/conversations/new">Import a transcript</Link> — the transcript Zoom, Meet
+          or Teams exports, or a text export from Otter or Fireflies. It is scored against your criteria and indexed for search on its own,
           usually within a couple of minutes.
         </li>
         <li>

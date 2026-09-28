@@ -69,6 +69,12 @@ export default async function NotificationsPage() {
             <li key={row.id} className={`signal${row.read_at === null ? ' unread' : ''}`}>
               <div>
                 {row.read_at === null ? <span className="stage stage-proposed">new</span> : null}{' '}
+                {row.kind === 'insight_assigned' && row.insights ? (
+                  <>
+                    {who(row.actor, 'Someone')} gave you an insight to own:{' '}
+                    <Link href={`/insights/${row.insight_id}`}>{row.insights.title}</Link>
+                  </>
+                ) : null}
                 {row.kind === 'insight_proposed' && row.insights ? (
                   <>
                     A new insight is waiting for you:{' '}

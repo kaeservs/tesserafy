@@ -90,6 +90,10 @@ the company's plan allowance. No step needs a terminal.
 Operators see what failed in production on the console's Failures page, with
 the same judgement as the scheduled `pnpm health` alarm.
 
+Calls say which customer they were with, and each customer has a page and a
+brief the overlay shows before a call. Everyone has a "This week" page — the
+weekly email this product will send once it can send email.
+
 Each company can write its own scorecards (ADR 0016): an owner drafts one,
 tries it on recent calls without saving anything, and publishes a version.
 Imports can be scored against it. Tesserafy's sets remain as templates

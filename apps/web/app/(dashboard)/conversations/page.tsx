@@ -3,17 +3,15 @@ import Link from 'next/link';
 import { GettingStarted } from '@/components/getting-started';
 import { ScorecardStrip } from '@/components/scorecard-strip';
 import { conversationPipeline, stageOf } from '@/lib/pipeline';
-import { scoreConversations } from '@/lib/scorecard';
-import { fetchCriteriaSets, readAll } from '@tesserafy/db';
+import { fetchCriteriaSets } from '@tesserafy/db';
+import { findMeetings } from '@/lib/meetings';
 import {
   applyFilters,
   BANDS,
   hrefWith,
   OUTCOMES,
   isFiltered,
-  likePattern,
   PAGE_SIZE,
-  parseFilters,
   SORTS,
 } from '@/lib/meeting-filters';
 import { createClient } from '@/lib/supabase/server';
@@ -37,18 +35,6 @@ import { OUTCOME_LABEL } from '@/lib/outcome';
  * can pick any seller; a member can pick only their own calls, the same line
  * Reports draws.
  */
-
-interface ConversationRow {
-  id: string;
-  company_id: string;
-  title: string;
-  occurred_at: string | null;
-  created_at: string;
-  added_by: string | null;
-  outcome: string | null;
-  engagement_type: string;
-  criteria_version: number;
-}
 
 function when(occurredAt: string | null): string {
   if (!occurredAt) return 'no date';
@@ -89,40 +75,15 @@ export default async function ConversationsPage({
   ]);
   const isOwner = membership?.role === 'owner';
 
-  const asked = parseFilters(params);
-  // A member's seller filter is themselves or nothing.
-  const filters =
-    asked.seller && asked.seller !== 'mine' && !isOwner ? { ...asked, seller: 'mine' } : asked;
-  const sellerId = filters.seller === 'mine' ? (user?.id ?? '') : filters.seller;
-
-  // Every call that passes the stored-column filters, not the first thousand.
-  // See readAll.
-  const conversations = await readAll<ConversationRow>((from, to) => {
-    let query = supabase
-      .from('conversations')
-      .select('id, company_id, title, occurred_at, created_at, added_by, outcome, engagement_type, criteria_version');
-    if (filters.q) query = query.ilike('title', likePattern(filters.q));
-    if (sellerId) query = query.eq('added_by', sellerId);
-    if (filters.type) query = query.eq('engagement_type', filters.type);
-    if (filters.outcome === 'none') query = query.is('outcome', null);
-    else if (filters.outcome) query = query.eq('outcome', filters.outcome);
-    return query.order('occurred_at', { ascending: false }).order('id').range(from, to);
-  }, 'Could not load conversations');
-  const [scores, pipeline] = await Promise.all([
-    scoreConversations(supabase, conversations),
+  const [{ filters, meetings }, pipeline] = await Promise.all([
+    findMeetings(supabase, params, { userId: user?.id ?? null, isOwner }),
     conversationPipeline(supabase),
   ]);
-
-  const scored = conversations.map((conversation) => {
-    const card = scores.get(conversation.id);
-    const observed = card?.scorecard.criteria.some((c) => c.status !== 'unobserved') ?? false;
-    return { ...conversation, card, score: card && observed ? card.scorecard.score : null };
-  });
-  const shown = applyFilters(scored, filters);
+  const shown = applyFilters(meetings, filters);
   const filtered = isFiltered(filters);
   const emailOf = new Map((team ?? []).map((person) => [person.user_id, person.email]));
   const types = [...new Set(sets.map((set) => set.engagementType))];
-  const total = everything ?? conversations.length;
+  const total = everything ?? meetings.length;
 
   return (
     <main className="wide">
@@ -216,6 +177,10 @@ export default async function ConversationsPage({
           <div className="toolbar filter-actions">
             <button type="submit">Show</button>
             {filtered || filters.sort !== 'newest' ? <Link href="/conversations">Clear</Link> : null}
+            {/* A download, not a page: a plain anchor, so Next does not try to route it. */}
+            <a href={hrefWith(filters, { page: 1 }, '/api/export/meetings')} download>
+              Download CSV
+            </a>
           </div>
         </form>
       ) : null}

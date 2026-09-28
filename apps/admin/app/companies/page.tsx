@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { COMPANY_SORTS, findCompanies, type CompanySort } from '@tesserafy/db';
 import { requireAdmin } from '@/lib/admin';
 import { listCompanies } from '@/lib/companies';
 import { utc } from '@/lib/time';
@@ -45,8 +46,23 @@ interface Subscription {
   scheduled_plan: string | null;
 }
 
-export default async function Companies({ searchParams }: { searchParams: Promise<{ closed?: string }> }) {
-  const { closed } = await searchParams;
+const SORT_LABEL: Record<CompanySort, string> = {
+  name: 'Name',
+  plan: 'Plan',
+  people: 'People',
+  calls: 'Calls',
+  last: 'Last call',
+  failures: 'Failures 24h',
+  spend: 'Spend 30d',
+};
+
+export default async function Companies({
+  searchParams,
+}: {
+  searchParams: Promise<{ closed?: string; q?: string; sort?: string; reverse?: string }>;
+}) {
+  const { closed, q, sort: askedSort, reverse } = await searchParams;
+  const sort: CompanySort = COMPANY_SORTS.includes(askedSort as CompanySort) ? (askedSort as CompanySort) : 'name';
   const admin = await requireAdmin();
   const [{ companies: all, error }, { data: settings }, { data: subscriptions }] = await Promise.all([
     listCompanies(admin.db),
@@ -57,7 +73,26 @@ export default async function Companies({ searchParams }: { searchParams: Promis
   // Closed companies are the record of what was erased, not work to do;
   // listed only when asked for.
   const closedCount = all.filter((c) => c.closedAt).length;
-  const companies = closed === '1' ? all : all.filter((c) => !c.closedAt);
+  const shown = closed === '1' ? all : all.filter((c) => !c.closedAt);
+  const companies = findCompanies(shown, q ?? '', sort, reverse === '1');
+  // A column heading re-sorts by it; the same heading again reverses.
+  const sortHref = (by: CompanySort) => {
+    const params = new URLSearchParams();
+    if (closed === '1') params.set('closed', '1');
+    if (q) params.set('q', q);
+    if (by !== 'name') params.set('sort', by);
+    if (by === sort && reverse !== '1') params.set('reverse', '1');
+    const query = params.toString();
+    return query ? `/companies?${query}` : '/companies';
+  };
+  const heading = (by: CompanySort, className?: string) => (
+    <th className={className}>
+      <Link className="link" href={sortHref(by)}>
+        {SORT_LABEL[by]}
+        {by === sort ? (reverse === '1' ? ' ↑' : ' ↓') : ''}
+      </Link>
+    </th>
+  );
 
   return (
     <Chrome email={admin.email}>
@@ -74,7 +109,23 @@ export default async function Companies({ searchParams }: { searchParams: Promis
 
       {error ? <p className="tag open">{error}</p> : null}
 
+      <form method="get" className="row" style={{ alignItems: 'end', marginBottom: '0.5rem' }}>
+        {closed === '1' ? <input type="hidden" name="closed" value="1" /> : null}
+        {sort !== 'name' ? <input type="hidden" name="sort" value={sort} /> : null}
+        <label>
+          Find a company
+          <input name="q" type="search" defaultValue={q ?? ''} placeholder="Name" />
+        </label>
+        <button type="submit">Search</button>
+        {q ? (
+          <Link className="link" href={closed === '1' ? '/companies?closed=1' : '/companies'}>
+            Clear
+          </Link>
+        ) : null}
+      </form>
+
       <p className="muted">
+        {q ? `${companies.length} match “${q}”. ` : ''}
         {closed === '1' ? (
           <a className="link" href="/companies">
             Hide the {closedCount} closed
@@ -89,14 +140,14 @@ export default async function Companies({ searchParams }: { searchParams: Promis
       <table>
         <thead>
           <tr>
-            <th>Company</th>
-            <th>Plan</th>
-            <th className="num">People</th>
-            <th className="num">Calls</th>
+            {heading('name')}
+            {heading('plan')}
+            {heading('people', 'num')}
+            {heading('calls', 'num')}
             <th className="num">Segments</th>
-            <th>Last call</th>
-            <th className="num">Failures 24h</th>
-            <th className="num">Spend 30d</th>
+            {heading('last')}
+            {heading('failures', 'num')}
+            {heading('spend', 'num')}
             <th className="num">Retention</th>
           </tr>
         </thead>
@@ -140,7 +191,9 @@ export default async function Companies({ searchParams }: { searchParams: Promis
         </tbody>
       </table>
 
-      {companies.length === 0 && !error ? <p className="muted">No companies yet.</p> : null}
+      {companies.length === 0 && !error ? (
+        <p className="muted">{q ? 'No company matches that.' : 'No companies yet.'}</p>
+      ) : null}
     </Chrome>
   );
 }

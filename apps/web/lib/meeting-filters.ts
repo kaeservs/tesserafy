@@ -126,11 +126,11 @@ export interface MeetingPage<T> {
 }
 
 /**
- * Dates, band, sort and the page, over meetings already narrowed in SQL.
- * Unscored meetings sort last whichever way scores are sorted: a call nobody
- * scored is neither the best nor the worst.
+ * Dates, band and sort, over meetings already narrowed in SQL: every match,
+ * for the CSV. Unscored meetings sort last whichever way scores are sorted: a
+ * call nobody scored is neither the best nor the worst.
  */
-export function applyFilters<T extends FilterableMeeting>(meetings: readonly T[], filters: MeetingFilters): MeetingPage<T> {
+export function filterAndSort<T extends FilterableMeeting>(meetings: readonly T[], filters: MeetingFilters): T[] {
   const kept = meetings.filter((meeting) => {
     const day = dayOf(meeting);
     if (filters.from && day < filters.from) return false;
@@ -154,8 +154,12 @@ export function applyFilters<T extends FilterableMeeting>(meetings: readonly T[]
     lowest: byScore(1),
     title: (a, b) => a.title.localeCompare(b.title, 'en', { sensitivity: 'base' }) || byDate(a, b),
   };
-  const sorted = [...kept].sort(order[filters.sort]);
+  return [...kept].sort(order[filters.sort]);
+}
 
+/** The same, a page at a time, for the list. A page past the end shows the last. */
+export function applyFilters<T extends FilterableMeeting>(meetings: readonly T[], filters: MeetingFilters): MeetingPage<T> {
+  const sorted = filterAndSort(meetings, filters);
   const pages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const page = Math.min(filters.page, pages);
   return {
@@ -166,8 +170,12 @@ export function applyFilters<T extends FilterableMeeting>(meetings: readonly T[]
   };
 }
 
-/** The same filters as a query string, with some changed: for page links. */
-export function hrefWith(filters: MeetingFilters, change: Partial<MeetingFilters>): string {
+/** The same filters as a query string, with some changed: for page links and the CSV. */
+export function hrefWith(
+  filters: MeetingFilters,
+  change: Partial<MeetingFilters>,
+  path = '/conversations',
+): string {
   const next = { ...filters, ...change };
   const params = new URLSearchParams();
   if (next.q) params.set('q', next.q);
@@ -180,5 +188,5 @@ export function hrefWith(filters: MeetingFilters, change: Partial<MeetingFilters
   if (next.sort !== 'newest') params.set('sort', next.sort);
   if (next.page > 1) params.set('page', String(next.page));
   const query = params.toString();
-  return query ? `/conversations?${query}` : '/conversations';
+  return query ? `${path}?${query}` : path;
 }

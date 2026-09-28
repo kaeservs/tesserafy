@@ -73,3 +73,17 @@ export {
   type FailureGroup,
   type FailureRow,
 } from './health';
+export {
+  adoptionCohort,
+  adoptionFunnel,
+  adoptionStage,
+  COMPANY_SORTS,
+  findCompanies,
+  spendByDetector,
+  spendByWeek,
+  type AdoptionRow,
+  type CompanySort,
+  type FunnelStep,
+  type SpendRow,
+  type SpendWeek,
+} from './console';

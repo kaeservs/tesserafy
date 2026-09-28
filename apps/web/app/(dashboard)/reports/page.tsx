@@ -122,6 +122,11 @@ export default async function ReportsPage() {
         ) : (
           <p className="muted" style={{ marginBottom: 0 }}>No calls in the last {WEEKS} weeks yet.</p>
         )}
+        <p className="muted" style={{ marginBottom: 0, fontSize: '0.82rem' }}>
+          <a href="/api/export/reports?table=weeks" download>
+            Download as CSV
+          </a>
+        </p>
       </section>
 
       <section aria-labelledby="sellers-heading" className="card">
@@ -176,6 +181,13 @@ export default async function ReportsPage() {
             Owners see each seller&apos;s numbers; you see the company&apos;s trend and your own.
           </p>
         )}
+        {sellers.length > 0 ? (
+          <p className="muted" style={{ marginBottom: 0, fontSize: '0.82rem' }}>
+            <a href="/api/export/reports?table=sellers" download>
+              Download as CSV
+            </a>
+          </p>
+        ) : null}
       </section>
 
       <section aria-labelledby="wins-heading" className="card">
@@ -227,7 +239,10 @@ export default async function ReportsPage() {
             <p className="muted" style={{ marginBottom: 0, fontSize: '0.82rem' }}>
               Largest difference first. This shows what goes together, not what causes what: a criterion
               met more often on won calls may be a habit worth coaching, or a sign of a deal that was going
-              well anyway. Open deals and calls with no outcome are left out.
+              well anyway. Open deals and calls with no outcome are left out.{' '}
+              <a href="/api/export/reports?table=wins" download>
+                Download as CSV
+              </a>
             </p>
           </>
         )}

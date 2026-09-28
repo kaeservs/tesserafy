@@ -97,8 +97,10 @@ export default async function OverviewPage() {
     ),
     o.failures_24h > 0 && (
       <li key="failures">
-        {o.failures_24h} failure{o.failures_24h === 1 ? '' : 's'} recorded in the last 24 hours — run{' '}
-        <code>pnpm health</code>
+        <Link className="link" href="/failures">
+          {o.failures_24h} failure{o.failures_24h === 1 ? '' : 's'}
+        </Link>{' '}
+        recorded in the last 24 hours
       </li>
     ),
   ].filter(Boolean);

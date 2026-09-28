@@ -16,6 +16,14 @@
 export const PAGE_SIZE = 25;
 
 export type ScoreBand = 'unscored' | 'low' | 'mid' | 'high';
+export type OutcomeFilter = 'won' | 'lost' | 'open' | 'none';
+
+export const OUTCOMES: Record<OutcomeFilter, string> = {
+  won: 'Won',
+  lost: 'Lost',
+  open: 'Still open',
+  none: 'Not said',
+};
 export type MeetingSort = 'newest' | 'oldest' | 'highest' | 'lowest' | 'title';
 
 export const BANDS: Record<ScoreBand, string> = {
@@ -42,6 +50,8 @@ export interface MeetingFilters {
   readonly from: string | null;
   readonly to: string | null;
   readonly band: ScoreBand | null;
+  /** Stored, so filtered in SQL. */
+  readonly outcome: OutcomeFilter | null;
   readonly sort: MeetingSort;
   readonly page: number;
 }
@@ -57,6 +67,7 @@ function one(value: string | string[] | undefined): string {
 export function parseFilters(params: Record<string, string | string[] | undefined>): MeetingFilters {
   const seller = one(params['seller']);
   const band = one(params['score']);
+  const outcome = one(params['outcome']);
   const sort = one(params['sort']);
   const page = Number.parseInt(one(params['page']), 10);
   const from = one(params['from']);
@@ -69,6 +80,7 @@ export function parseFilters(params: Record<string, string | string[] | undefine
     from: DAY.test(from) ? from : null,
     to: DAY.test(to) ? to : null,
     band: band in BANDS ? (band as ScoreBand) : null,
+    outcome: outcome in OUTCOMES ? (outcome as OutcomeFilter) : null,
     sort: sort in SORTS ? (sort as MeetingSort) : 'newest',
     page: Number.isFinite(page) && page > 1 ? page : 1,
   };
@@ -76,7 +88,9 @@ export function parseFilters(params: Record<string, string | string[] | undefine
 
 /** Whether anything narrows the list, so the page can say "none match" rather than "none yet". */
 export function isFiltered(filters: MeetingFilters): boolean {
-  return Boolean(filters.q || filters.seller || filters.type || filters.from || filters.to || filters.band);
+  return Boolean(
+    filters.q || filters.seller || filters.type || filters.from || filters.to || filters.band || filters.outcome,
+  );
 }
 
 /** For `ilike`: the search is for the words typed, not a pattern. */
@@ -162,6 +176,7 @@ export function hrefWith(filters: MeetingFilters, change: Partial<MeetingFilters
   if (next.from) params.set('from', next.from);
   if (next.to) params.set('to', next.to);
   if (next.band) params.set('score', next.band);
+  if (next.outcome) params.set('outcome', next.outcome);
   if (next.sort !== 'newest') params.set('sort', next.sort);
   if (next.page > 1) params.set('page', String(next.page));
   const query = params.toString();

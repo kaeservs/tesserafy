@@ -19,6 +19,7 @@ function parts(overrides: Partial<ExportParts> = {}): ExportParts {
         criteria_version: 1,
         consent_statement: 'Everyone agreed.',
         consent_confirmed_at: '2026-09-21T09:00:00Z',
+        outcome: 'won',
       },
       {
         id: 'c2',
@@ -30,6 +31,7 @@ function parts(overrides: Partial<ExportParts> = {}): ExportParts {
         criteria_version: 1,
         consent_statement: null,
         consent_confirmed_at: null,
+        outcome: null,
       },
     ],
     segments: [
@@ -81,6 +83,36 @@ function parts(overrides: Partial<ExportParts> = {}): ExportParts {
         signals_removed: 2,
       },
     ],
+    notes: [
+      {
+        conversation_id: 'c1',
+        segment_id: 's2',
+        author: 'u1',
+        body: 'Ask what a Friday costs.',
+        created_at: '2026-09-22T09:00:00Z',
+        updated_at: '2026-09-22T09:00:00Z',
+      },
+      {
+        conversation_id: 'c1',
+        segment_id: 's1',
+        author: 'u-gone',
+        body: 'Good opener.',
+        created_at: '2026-09-22T10:00:00Z',
+        updated_at: '2026-09-23T10:00:00Z',
+      },
+    ],
+    edits: [
+      {
+        conversation_id: 'c1',
+        field: 'outcome',
+        old_value: null,
+        new_value: 'won',
+        evidence_removed: 0,
+        actor: 'u1',
+        at: '2026-09-24T09:00:00Z',
+      },
+    ],
+    people: new Map([['u1', 'owner@acme.test']]),
     scores: new Map([
       ['c1', { score: 39.6, criteria: [{ key: 'pain_quantified', label: 'Pain quantified', status: 'confirmed' }] }],
     ]),
@@ -121,6 +153,21 @@ describe('assembleExport', () => {
       confirmed_at: '2026-09-21T09:00:00Z',
     });
     expect(out.conversations[1]?.recording_consent).toBeNull();
+  });
+
+  it('carries each call’s outcome, notes and history, naming people by address', () => {
+    const out = assembleExport(parts());
+    const [c1, c2] = out.conversations;
+    expect(c1?.outcome).toBe('won');
+    expect(c2?.outcome).toBeNull();
+    expect(c1?.notes).toEqual([
+      { segment_id: 's2', author: 'owner@acme.test', body: 'Ask what a Friday costs.', written_at: '2026-09-22T09:00:00Z', edited_at: null },
+      { segment_id: 's1', author: 'a former member', body: 'Good opener.', written_at: '2026-09-22T10:00:00Z', edited_at: '2026-09-23T10:00:00Z' },
+    ]);
+    expect(c1?.history).toEqual([
+      { field: 'outcome', from: null, to: 'won', evidence_removed: 0, by: 'owner@acme.test', at: '2026-09-24T09:00:00Z' },
+    ]);
+    expect(c2?.notes).toEqual([]);
   });
 
   it('lists what each insight cites, across calls', () => {

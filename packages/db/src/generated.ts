@@ -1771,6 +1771,13 @@ export type Database = {
           subject: string
         }[]
       }
+      admin_activity_weeks: {
+        Args: { p_weeks?: number }
+        Returns: {
+          company_id: string
+          week: string
+        }[]
+      }
       admin_adoption: {
         Args: never
         Returns: {
@@ -1803,6 +1810,30 @@ export type Database = {
         }[]
       }
       admin_company_detail: { Args: { p_company_id: string }; Returns: Json }
+      admin_company_health: {
+        Args: never
+        Returns: {
+          calls_30d: number
+          calls_7d: number
+          calls_limit: number
+          calls_used: number
+          closed_at: string
+          company_id: string
+          created_at: string
+          extractions_limit: number
+          extractions_used: number
+          failures_7d: number
+          last_call_at: string
+          last_view_at: string
+          live_limit_seconds: number
+          live_used_seconds: number
+          members: number
+          name: string
+          period_end: string
+          plan: string
+          views_7d: number
+        }[]
+      }
       admin_operator_mfa: { Args: never; Returns: Json }
       admin_overview: { Args: never; Returns: Json }
       admin_set_member_role: {

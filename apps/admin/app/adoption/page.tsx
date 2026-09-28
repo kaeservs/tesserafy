@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { adoptionCohort, adoptionFunnel, adoptionStage, type AdoptionRow } from '@tesserafy/db';
+import { adoptionCohort, adoptionFunnel, adoptionStage, cohorts, weeklyActive, type AdoptionRow } from '@tesserafy/db';
 import { requireAdmin } from '@/lib/admin';
 import { ago, utc } from '@/lib/time';
 import { Chrome } from '../chrome';
@@ -24,7 +24,10 @@ function days(value: number | null): string {
 export default async function Adoption({ searchParams }: { searchParams: Promise<{ all?: string }> }) {
   const { all } = await searchParams;
   const admin = await requireAdmin();
-  const { data, error } = await admin.db.rpc('admin_adoption');
+  const [{ data, error }, { data: weeks }] = await Promise.all([
+    admin.db.rpc('admin_adoption'),
+    admin.db.rpc('admin_activity_weeks', { p_weeks: 12 }),
+  ]);
   const rows: AdoptionRow[] = (data ?? []).map((row) => ({
     companyId: row.company_id,
     name: row.name,
@@ -41,6 +44,16 @@ export default async function Adoption({ searchParams }: { searchParams: Promise
   const everything = all === '1';
   const cohort = adoptionCohort(rows, { includeClosed: everything, includeInternal: everything });
   const funnel = adoptionFunnel(cohort);
+  // Coming back: the same companies as the funnel, active meaning they added
+  // or opened a call that week.
+  const inCohort = new Set(cohort.map((row) => row.companyId));
+  const activity = (weeks ?? [])
+    .filter((row) => inCohort.has(row.company_id))
+    .map((row) => ({ companyId: row.company_id, week: row.week }));
+  const now = new Date();
+  const active = weeklyActive(activity, cohort, now, 12);
+  const retention = cohorts(activity, cohort, now, 8).slice(0, 12);
+  const peak = Math.max(1, ...active.map((week) => week.existing));
 
   return (
     <Chrome email={admin.email}>
@@ -74,6 +87,62 @@ export default async function Adoption({ searchParams }: { searchParams: Promise
               <td style={{ width: '30%' }}>
                 <div style={{ background: 'currentColor', opacity: 0.35, height: '0.6rem', width: `${step.share * 100}%` }} />
               </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <h2>Coming back</h2>
+      <p className="muted">
+        A company is active in a week if someone in it added or opened a call. Support sessions do not count.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Week of</th>
+            <th className="num">Active</th>
+            <th className="num">Existing</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {active.map((week) => (
+            <tr key={week.week}>
+              <td>{week.week}</td>
+              <td className="num">{week.active}</td>
+              <td className="num muted">{week.existing}</td>
+              <td style={{ width: '35%' }}>
+                <div style={{ background: 'currentColor', opacity: 0.35, height: '0.6rem', width: `${(week.active / peak) * 100}%` }} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <h3>By the week they started</h3>
+      <p className="muted">Of the companies made each week, the share active in each week after it.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Started</th>
+            <th className="num">Companies</th>
+            {Array.from({ length: 8 }, (_, index) => (
+              <th key={index} className="num">
+                +{index + 1}w
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {retention.map((row) => (
+            <tr key={row.week}>
+              <td>{row.week}</td>
+              <td className="num">{row.size}</td>
+              {row.retained.map((share, index) => (
+                <td key={index} className="num">
+                  {share === null ? '' : `${Math.round(share * 100)}%`}
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>

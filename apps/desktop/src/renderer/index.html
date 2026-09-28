@@ -150,6 +150,13 @@
       .scorecard-pick select { flex: 1; font: inherit; font-size: 12px; text-transform: none; letter-spacing: 0;
                                color: var(--text); background: var(--field);
                                border: 1px solid rgba(var(--line), 0.45); border-radius: 6px; padding: 4px 6px; }
+      .brief { margin-top: 8px; padding: 8px 10px; border-radius: 8px; font-size: 11px; line-height: 1.4;
+               border: 1px solid rgba(var(--line), 0.35); background: rgba(var(--line), 0.08); }
+      .brief[hidden] { display: none; }
+      .brief p { margin: 0 0 4px; }
+      .brief .dim { color: var(--dim); }
+      .brief ul { margin: 4px 0 0; padding-left: 14px; }
+      .brief li { margin-bottom: 3px; }
       .who { font-size: 10px; color: var(--dim); margin-top: 8px; display: flex; gap: 6px; align-items: center; }
       .who[hidden] { display: none; }
 
@@ -286,6 +293,15 @@
 
     <!-- Which scorecard this call is scored against. Shown when there is a
          choice; fixed once listening starts, because the call pins it. -->
+    <!-- Who the call is with, and what to know walking in. The brief is
+         built with textContent: it carries customers' words and colleagues'
+         notes, which must never be read as markup. -->
+    <label class="scorecard-pick" id="accountPick" hidden>
+      <span>Customer</span>
+      <select id="account"></select>
+    </label>
+    <section class="brief" id="brief" aria-label="Before this call" hidden></section>
+
     <label class="scorecard-pick" id="scorecardPick" hidden>
       <span>Scorecard</span>
       <select id="scorecard"></select>

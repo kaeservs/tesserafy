@@ -495,6 +495,21 @@ void app.whenReady().then(async () => {
     return { sets, chosen: chooseScorecard(sets, scorecard, ENGAGEMENT) };
   });
 
+  // Who the call is with: the company's accounts, and a brief on the one chosen.
+  // Not remembered — every call is with somebody different.
+  ipcMain.handle('overlay:accounts', async () => {
+    const response = await session.fetch('/api/accounts');
+    if (!response) return NOT_SIGNED_IN;
+    return response.ok ? response.json() : { error: `accounts failed: ${response.status}` };
+  });
+
+  ipcMain.handle('overlay:brief', async (_event, id: unknown) => {
+    if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/i.test(id)) return { error: 'not an account' };
+    const response = await session.fetch(`/api/accounts/${id}/brief`);
+    if (!response) return NOT_SIGNED_IN;
+    return response.ok ? response.json() : { error: `brief failed: ${response.status}` };
+  });
+
   ipcMain.handle('overlay:set-scorecard', (_event, name: unknown) => {
     const chosen = scorecardName(name);
     if (!chosen) return scorecard;

@@ -67,12 +67,14 @@ export default async function ConversationsPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const [{ data: membership }, { data: team }, sets, { count: everything }] = await Promise.all([
+  const [{ data: membership }, { data: team }, sets, { count: everything }, { data: accountRows }] = await Promise.all([
     supabase.from('company_members').select('role').eq('user_id', user?.id ?? '').limit(1).maybeSingle(),
     supabase.rpc('company_team'),
     myCompanyId(supabase, user?.id).then((companyId) => fetchCriteriaSets(supabase, companyId)),
     supabase.from('conversations').select('id', { count: 'exact', head: true }),
+    supabase.from('accounts').select('id, name').order('name').limit(500),
   ]);
+  const accountOf = new Map((accountRows ?? []).map((row) => [row.id, row.name]));
   const isOwner = membership?.role === 'owner';
 
   const [{ filters, meetings }, pipeline] = await Promise.all([
@@ -123,6 +125,19 @@ export default async function ConversationsPage({
                 : null}
             </select>
           </div>
+          {(accountRows ?? []).length > 0 ? (
+            <div className="field">
+              <label htmlFor="account">Customer</label>
+              <select id="account" name="account" defaultValue={filters.account ?? ''}>
+                <option value="">Any</option>
+                {(accountRows ?? []).map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {row.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           <div className="field">
             <label htmlFor="type">Scorecard</label>
             <select id="type" name="type" defaultValue={filters.type ?? ''}>
@@ -220,6 +235,7 @@ export default async function ConversationsPage({
                 </Link>
                 <span className="meeting-meta">
                   {when(conversation.occurred_at)} · {engagementLabel(conversation.engagement_type)}
+                  {conversation.account_id && accountOf.has(conversation.account_id) ? ` · ${accountOf.get(conversation.account_id)}` : ''}
                   {isOwner && conversation.added_by ? ` · ${emailOf.get(conversation.added_by) ?? 'former member'}` : ''}
                   {conversation.outcome ? (
                     <span className={`stage outcome-${conversation.outcome}`}>{OUTCOME_LABEL[conversation.outcome]}</span>

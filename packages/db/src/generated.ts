@@ -227,6 +227,41 @@ export type Database = {
           },
         ]
       }
+      accounts: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          domain: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          domain?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          domain?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       app_settings: {
         Row: {
           id: boolean
@@ -503,6 +538,7 @@ export type Database = {
       }
       conversations: {
         Row: {
+          account_id: string | null
           added_by: string | null
           company_id: string
           consent_confirmed_at: string | null
@@ -520,6 +556,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          account_id?: string | null
           added_by?: string | null
           company_id: string
           consent_confirmed_at?: string | null
@@ -537,6 +574,7 @@ export type Database = {
           title: string
         }
         Update: {
+          account_id?: string | null
           added_by?: string | null
           company_id?: string
           consent_confirmed_at?: string | null
@@ -554,6 +592,13 @@ export type Database = {
           title?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "conversations_account_fk"
+            columns: ["company_id", "account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["company_id", "id"]
+          },
           {
             foreignKeyName: "conversations_company_id_fkey"
             columns: ["company_id"]
@@ -1882,10 +1927,13 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      delete_account: { Args: { p_account_id: string }; Returns: undefined }
       delete_segment_note: { Args: { p_note_id: string }; Returns: undefined }
       disconnect_tracker: { Args: never; Returns: undefined }
       edit_conversation: {
         Args: {
+          p_account_id?: string
+          p_clear_account?: boolean
           p_clear_date?: boolean
           p_conversation_id: string
           p_criteria_version?: number
@@ -2145,6 +2193,10 @@ export type Database = {
         Returns: undefined
       }
       remove_company_member: { Args: { p_user_id: string }; Returns: undefined }
+      rename_account: {
+        Args: { p_account_id: string; p_domain?: string; p_name: string }
+        Returns: undefined
+      }
       request_account_deletion: {
         Args: { p_confirm_email: string }
         Returns: {
@@ -2172,6 +2224,10 @@ export type Database = {
       }
       retention_preview: { Args: { p_days: number }; Returns: number }
       roll_subscription_periods: { Args: never; Returns: number }
+      save_account: {
+        Args: { p_domain?: string; p_name: string }
+        Returns: string
+      }
       search_segments: {
         Args: { p_limit?: number; p_query: string }
         Returns: {

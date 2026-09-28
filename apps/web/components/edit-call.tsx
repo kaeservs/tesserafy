@@ -24,6 +24,8 @@ export function EditCall({
   scorecard,
   outcome,
   scorecards,
+  account,
+  accounts,
 }: {
   conversationId: string;
   title: string;
@@ -31,6 +33,8 @@ export function EditCall({
   scorecard: string;
   outcome: string;
   scorecards: readonly ScorecardChoice[];
+  account: string;
+  accounts: readonly string[];
 }) {
   const [state, save, saving] = useActionState(editCall, START);
   const [chosen, setChosen] = useState(scorecard);
@@ -47,6 +51,15 @@ export function EditCall({
         <div className="field">
           <label htmlFor="edit-date">Date of the call</label>
           <input id="edit-date" name="date" type="date" defaultValue={date} />
+        </div>
+        <div className="field">
+          <label htmlFor="edit-account">Who it was with</label>
+          <input id="edit-account" name="account" list="edit-account-names" defaultValue={account} maxLength={120} placeholder="Acme Robotics" />
+          <datalist id="edit-account-names">
+            {accounts.map((name) => (
+              <option key={name} value={name} />
+            ))}
+          </datalist>
         </div>
         <div className="field">
           <label htmlFor="edit-outcome">How the deal stood after it</label>

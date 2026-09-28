@@ -10,6 +10,7 @@ export interface MeetingRow {
   created_at: string;
   added_by: string | null;
   outcome: string | null;
+  account_id: string | null;
   engagement_type: string;
   criteria_version: number;
 }
@@ -42,10 +43,11 @@ export async function findMeetings(
   const rows = await readAll<MeetingRow>((from, to) => {
     let query = db
       .from('conversations')
-      .select('id, company_id, title, occurred_at, created_at, added_by, outcome, engagement_type, criteria_version');
+      .select('id, company_id, title, occurred_at, created_at, added_by, outcome, account_id, engagement_type, criteria_version');
     if (filters.q) query = query.ilike('title', likePattern(filters.q));
     if (sellerId) query = query.eq('added_by', sellerId);
     if (filters.type) query = query.eq('engagement_type', filters.type);
+    if (filters.account) query = query.eq('account_id', filters.account);
     if (filters.outcome === 'none') query = query.is('outcome', null);
     else if (filters.outcome) query = query.eq('outcome', filters.outcome);
     return query.order('occurred_at', { ascending: false }).order('id').range(from, to);

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { linkAccount } from '@/lib/account-link';
 import { CONSENT_REQUIRED, CONSENT_STATEMENTS, consentConfirmed } from '@/lib/consent';
 import { caller } from '@/lib/supabase/caller';
 
@@ -22,6 +23,8 @@ interface StartBody {
   title?: string;
   engagementType?: string;
   criteriaVersion?: number;
+  /** The customer this call is with, from the overlay's picker. */
+  accountId?: string;
   companyId?: string;
   /** That everyone on the call was told it is being recorded and agreed. */
   consent?: boolean;
@@ -69,6 +72,10 @@ export async function POST(request: NextRequest) {
     // problem the caller can fix, not a server fault.
     const status = error.code === '42501' ? 403 : error.code === '22023' ? 400 : 502;
     return NextResponse.json({ error: error.message }, { status });
+  }
+
+  if (typeof body.accountId === 'string' && /^[0-9a-f-]{36}$/i.test(body.accountId)) {
+    await linkAccount(who.db, data, { id: body.accountId });
   }
 
   return NextResponse.json({ conversationId: data });

@@ -13,6 +13,7 @@ import { planExhausted, refund, spend } from '@/lib/plan';
 import { allowance, tooMany } from '@/lib/rate-limit';
 import { embedUploadedConversation } from '@/lib/embed-upload';
 import { scoreUploadedConversation } from '@/lib/score-upload';
+import { linkAccount } from '@/lib/account-link';
 import { caller } from '@/lib/supabase/caller';
 
 /**
@@ -170,6 +171,10 @@ export async function POST(request: NextRequest) {
   }
 
   const conversationId = data;
+
+  // Who the call was with, when the form said.
+  const accountName = (form.get('account') as string | null)?.trim();
+  if (accountName) await linkAccount(who.db, conversationId, { name: accountName });
 
   // The caller's own token, for the embedding function. Read before
   // responding, while the request and its cookies are certainly still here.

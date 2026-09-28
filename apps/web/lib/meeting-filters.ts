@@ -46,6 +46,8 @@ export interface MeetingFilters {
   /** A user id, or 'mine'. Owners may pick anyone; members only themselves. */
   readonly seller: string | null;
   readonly type: string | null;
+  /** An account id: calls with that customer. Stored, so filtered in SQL. */
+  readonly account: string | null;
   /** YYYY-MM-DD, inclusive, on the meeting's date (or its import date). */
   readonly from: string | null;
   readonly to: string | null;
@@ -73,10 +75,12 @@ export function parseFilters(params: Record<string, string | string[] | undefine
   const from = one(params['from']);
   const to = one(params['to']);
   const type = one(params['type']);
+  const account = one(params['account']);
   return {
     q: one(params['q']).slice(0, 100),
     seller: seller === 'mine' || UUID.test(seller) ? seller : null,
     type: /^[a-z][a-z0-9_-]{0,39}$/.test(type) ? type : null,
+    account: UUID.test(account) ? account : null,
     from: DAY.test(from) ? from : null,
     to: DAY.test(to) ? to : null,
     band: band in BANDS ? (band as ScoreBand) : null,
@@ -89,7 +93,14 @@ export function parseFilters(params: Record<string, string | string[] | undefine
 /** Whether anything narrows the list, so the page can say "none match" rather than "none yet". */
 export function isFiltered(filters: MeetingFilters): boolean {
   return Boolean(
-    filters.q || filters.seller || filters.type || filters.from || filters.to || filters.band || filters.outcome,
+    filters.q ||
+      filters.seller ||
+      filters.type ||
+      filters.account ||
+      filters.from ||
+      filters.to ||
+      filters.band ||
+      filters.outcome,
   );
 }
 
@@ -181,6 +192,7 @@ export function hrefWith(
   if (next.q) params.set('q', next.q);
   if (next.seller) params.set('seller', next.seller);
   if (next.type) params.set('type', next.type);
+  if (next.account) params.set('account', next.account);
   if (next.from) params.set('from', next.from);
   if (next.to) params.set('to', next.to);
   if (next.band) params.set('score', next.band);

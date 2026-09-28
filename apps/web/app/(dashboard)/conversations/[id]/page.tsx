@@ -183,7 +183,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
   const { data: conversation } = await supabase
     .from('conversations')
     .select(
-      'id, company_id, title, occurred_at, created_at, engagement_type, criteria_version, consent_statement, consent_confirmed_by, consent_confirmed_at, added_by, outcome',
+      'id, company_id, title, occurred_at, created_at, engagement_type, criteria_version, consent_statement, consent_confirmed_by, consent_confirmed_at, added_by, outcome, account_id',
     )
     .eq('id', id)
     .maybeSingle();
@@ -293,6 +293,8 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
     supabase.rpc('company_team'),
     mayEdit ? fetchCriteriaSets(supabase, conversation.company_id) : Promise.resolve([]),
   ]);
+  const { data: accountRows } = await supabase.from('accounts').select('id, name').order('name').limit(500);
+  const accountName = (accountRows ?? []).find((row) => row.id === conversation.account_id)?.name ?? null;
 
   const emailOf = new Map((team ?? []).map((person) => [person.user_id, person.is_you ? 'You' : person.email]));
   const nameOf = (userId: string | null) => (userId ? (emailOf.get(userId) ?? 'A former member') : 'A former member');
@@ -382,6 +384,12 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
         {segments.length} transcript line{segments.length === 1 ? '' : 's'} · {signals.length} signal
         {signals.length === 1 ? '' : 's'} ·{' '}
         {engagementLabel(scored.engagementType)}
+        {accountName ? (
+          <>
+            {' · with '}
+            <Link href={`/accounts/${conversation.account_id}`}>{accountName}</Link>
+          </>
+        ) : null}
         {conversation.outcome ? (
           <>
             {' · '}
@@ -397,6 +405,8 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
           scorecard={pinned}
           outcome={conversation.outcome ?? 'unknown'}
           scorecards={scorecards}
+          account={accountName ?? ''}
+          accounts={(accountRows ?? []).map((row) => row.name)}
         />
       ) : null}
       <ConsentRecord

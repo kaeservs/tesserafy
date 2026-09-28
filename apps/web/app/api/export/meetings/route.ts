@@ -22,11 +22,13 @@ export async function GET(request: NextRequest) {
   const limit = await allowance(who.db, 'api/export/csv');
   if (!limit.allowed) return tooMany('api/export/csv', limit.retryAfterSeconds);
 
-  const [{ data: membership }, { data: team }, { data: company }] = await Promise.all([
+  const [{ data: membership }, { data: team }, { data: company }, { data: accountRows }] = await Promise.all([
     who.db.from('company_members').select('role').eq('user_id', who.userId).limit(1).maybeSingle(),
     who.db.rpc('company_team'),
     who.db.from('companies').select('name').limit(1).maybeSingle(),
+    who.db.from('accounts').select('id, name'),
   ]);
+  const accountOf = new Map((accountRows ?? []).map((row) => [row.id, row.name]));
   const isOwner = membership?.role === 'owner';
   const params = Object.fromEntries(request.nextUrl.searchParams.entries());
   const { filters, meetings } = await findMeetings(who.db, params, { userId: who.userId, isOwner });
@@ -37,6 +39,7 @@ export async function GET(request: NextRequest) {
   const header = [
     'date',
     'title',
+    'customer',
     'scorecard',
     'scorecard_version',
     'outcome',
@@ -53,6 +56,7 @@ export async function GET(request: NextRequest) {
       return [
         (meeting.occurred_at ?? meeting.created_at).slice(0, 10),
         meeting.title,
+        meeting.account_id ? (accountOf.get(meeting.account_id) ?? null) : null,
         meeting.engagement_type,
         meeting.criteria_version,
         meeting.outcome,

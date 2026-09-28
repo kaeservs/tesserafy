@@ -64,6 +64,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <span className="brand">Tesserafy</span>
           <NavLink href="/dashboard">Dashboard</NavLink>
           <NavLink href="/conversations">Meetings</NavLink>
+          <NavLink href="/accounts">Accounts</NavLink>
           <NavLink href="/insights">Insights</NavLink>
           <NavLink href="/reports">Reports</NavLink>
           <NavLink href="/scorecards">Scorecards</NavLink>

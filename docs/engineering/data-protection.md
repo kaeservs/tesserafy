@@ -212,6 +212,13 @@ refuses to display a claim it cannot evidence, and once the evidence is gone
 the claim is exactly that. An insight supported by several conversations keeps
 working with fewer citations, as it always did.
 
+Customer accounts are the names (and, optionally, web domains) of the
+companies a brand's calls are with: business data, but their customers'. An
+erased call leaves its account, which may have other calls; deleting an
+account unlinks its calls without touching them; closing a company deletes
+its accounts, as it does its tracker. The company export names each call's
+customer.
+
 Notifications hold references, never copies — the page reads a call's title
 or a note's words when it is opened — and every reference cascades, so
 erasing a call, a note or an insight erases the notifications about it too.

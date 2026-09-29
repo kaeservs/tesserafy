@@ -73,6 +73,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <NavLink href="/insights">Insights</NavLink>
           <NavLink href="/reports">Reports</NavLink>
           <NavLink href="/examples">Examples</NavLink>
+          <NavLink href="/coaching">Coaching</NavLink>
           <NavLink href="/scorecards">Scorecards</NavLink>
           <NavLink href="/search">Search</NavLink>
           {liveAvailable(company?.plan) ? <NavLink href="/live/mic">Live</NavLink> : null}

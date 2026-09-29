@@ -1175,6 +1175,24 @@ async function checkWorkingWithACall(baseUrl: string, token: string, conversatio
   const badLink = await rpc('save_call_prep', { p_person_name: 'QA probe', p_linkedin_url: 'https://example.com/in/qa' });
   record('a call prep takes only a LinkedIn profile address', code(badLink) === '22023', code(badLink));
 
+  // Coaching, on the probe's own call and to itself: assigned, done, withdrawn.
+  const assigned = await rpc('assign_coaching', {
+    p_assigned_to: uploader,
+    p_conversation_id: conversationId,
+    p_segment_id: segment.id,
+    p_note: 'QA probe',
+  });
+  const assignmentId = typeof assigned.body === 'string' ? assigned.body : null;
+  const completed = assignmentId ? await rpc('complete_coaching', { p_assignment_id: assignmentId, p_reply: 'QA probe' }) : null;
+  const withdrawn = assignmentId ? await rpc('withdraw_coaching', { p_assignment_id: assignmentId }) : null;
+  record(
+    membership?.role === 'owner' ? 'an owner assigns a moment for coaching; it is done, and withdrawn' : 'a member cannot assign coaching',
+    membership?.role === 'owner'
+      ? assigned.status === 200 && (completed?.status ?? 500) < 300 && (withdrawn?.status ?? 500) < 300
+      : code(assigned) === '42501',
+    `${assigned.status}${completed ? `, ${completed.status}` : ''}${withdrawn ? `, ${withdrawn.status}` : ''}`,
+  );
+
   const empty = await rpc('send_feedback', { p_body: '   ' });
   record('feedback with nothing in it is refused', code(empty) === '22023', code(empty));
 

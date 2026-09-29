@@ -15,6 +15,7 @@ interface Row {
   conversations: { title: string } | null;
   segment_notes: { body: string; segment_id: string } | null;
   access_requests: { email: string; resolution: string | null; resolution_note: string | null } | null;
+  coaching_assignments: { note: string | null; segment_id: string | null } | null;
 }
 
 function when(iso: string): string {
@@ -40,7 +41,7 @@ export default async function NotificationsPage() {
     supabase
       .from('notifications')
       .select(
-        'id, kind, created_at, read_at, actor, insight_id, conversation_id, insights(title), conversations(title), segment_notes(body, segment_id), access_requests(email, resolution, resolution_note)',
+        'id, kind, created_at, read_at, actor, insight_id, conversation_id, insights(title), conversations(title), segment_notes(body, segment_id), access_requests(email, resolution, resolution_note), coaching_assignments(note, segment_id)',
       )
       .order('created_at', { ascending: false })
       .limit(100),
@@ -80,6 +81,22 @@ export default async function NotificationsPage() {
                     A new insight is waiting for you:{' '}
                     <Link href={`/insights/${row.insight_id}`}>{row.insights.title}</Link>
                     <span className="muted"> — found {who(row.actor, 'by Tesserafy')}</span>
+                  </>
+                ) : null}
+                {row.kind === 'coaching_assigned' && row.conversations ? (
+                  <>
+                    {who(row.actor, 'Someone')} asked you to listen to{' '}
+                    <Link
+                      href={`/conversations/${row.conversation_id}${row.coaching_assignments?.segment_id ? `#segment-${row.coaching_assignments.segment_id}` : ''}`}
+                    >
+                      {row.conversations.title}
+                    </Link>
+                    {row.coaching_assignments?.note ? (
+                      <>
+                        : <q>{excerpt(row.coaching_assignments.note)}</q>
+                      </>
+                    ) : null}{' '}
+                    <Link href="/coaching">Coaching</Link>
                   </>
                 ) : null}
                 {row.kind === 'note_on_your_call' && row.segment_notes && row.conversations ? (

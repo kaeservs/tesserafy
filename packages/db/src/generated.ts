@@ -376,6 +376,70 @@ export type Database = {
           },
         ]
       }
+      coaching_assignments: {
+        Row: {
+          assigned_by: string | null
+          assigned_to: string
+          company_id: string
+          conversation_id: string
+          created_at: string
+          done_at: string | null
+          id: string
+          note: string | null
+          reply: string | null
+          segment_id: string | null
+          status: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          assigned_to: string
+          company_id: string
+          conversation_id: string
+          created_at?: string
+          done_at?: string | null
+          id?: string
+          note?: string | null
+          reply?: string | null
+          segment_id?: string | null
+          status?: string
+        }
+        Update: {
+          assigned_by?: string | null
+          assigned_to?: string
+          company_id?: string
+          conversation_id?: string
+          created_at?: string
+          done_at?: string | null
+          id?: string
+          note?: string | null
+          reply?: string | null
+          segment_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coaching_assignments_company_id_conversation_id_fkey"
+            columns: ["company_id", "conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "coaching_assignments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coaching_assignments_company_id_segment_id_fkey"
+            columns: ["company_id", "segment_id"]
+            isOneToOne: false
+            referencedRelation: "segments"
+            referencedColumns: ["company_id", "id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           closed_at: string | null
@@ -1381,6 +1445,7 @@ export type Database = {
         Row: {
           access_request_id: string | null
           actor: string | null
+          coaching_id: string | null
           company_id: string
           conversation_id: string | null
           created_at: string
@@ -1394,6 +1459,7 @@ export type Database = {
         Insert: {
           access_request_id?: string | null
           actor?: string | null
+          coaching_id?: string | null
           company_id: string
           conversation_id?: string | null
           created_at?: string
@@ -1407,6 +1473,7 @@ export type Database = {
         Update: {
           access_request_id?: string | null
           actor?: string | null
+          coaching_id?: string | null
           company_id?: string
           conversation_id?: string | null
           created_at?: string
@@ -1423,6 +1490,13 @@ export type Database = {
             columns: ["access_request_id"]
             isOneToOne: false
             referencedRelation: "access_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_coaching_id_fkey"
+            columns: ["coaching_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_assignments"
             referencedColumns: ["id"]
           },
           {
@@ -2214,6 +2288,15 @@ export type Database = {
         }
         Returns: string
       }
+      assign_coaching: {
+        Args: {
+          p_assigned_to: string
+          p_conversation_id: string
+          p_note?: string
+          p_segment_id?: string
+        }
+        Returns: string
+      }
       assign_insight: {
         Args: { p_insight_id: string; p_user_id?: string }
         Returns: undefined
@@ -2260,6 +2343,10 @@ export type Database = {
       complete_account_provisioning: {
         Args: { p_id: string; p_new_account: boolean; p_user_id: string }
         Returns: string
+      }
+      complete_coaching: {
+        Args: { p_assignment_id: string; p_reply?: string }
+        Returns: undefined
       }
       connect_tracker: {
         Args: {
@@ -2764,6 +2851,10 @@ export type Database = {
           target: string
           token_ciphertext: string
         }[]
+      }
+      withdraw_coaching: {
+        Args: { p_assignment_id: string }
+        Returns: undefined
       }
       withdraw_dispute: { Args: { p_event_id: string }; Returns: undefined }
     }

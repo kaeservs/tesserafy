@@ -27,7 +27,7 @@ test('the member pages fit a phone and pass an accessibility scan', async ({ pag
   await page.goto('/conversations');
   const call = await page.locator('main a[href^="/conversations/"]:not([href$="/new"])').first().getAttribute('href');
 
-  const pages = ['/dashboard', '/conversations', call ?? '/conversations', '/insights', '/reports', '/reports?weeks=52', '/examples', '/scorecards', '/settings', '/feedback'];
+  const pages = ['/dashboard', '/conversations', call ?? '/conversations', '/insights', '/reports', '/reports?weeks=52', '/examples', '/scorecards', '/settings', '/feedback', '/prep', '/coaching'];
   const problems: string[] = [];
   for (const path of pages) {
     await page.goto(path);

@@ -98,6 +98,19 @@ describe('homeAgenda', () => {
     expect(items[1]!.kind).toBe('decide');
   });
 
+  it('puts coaching waiting on you before insights, linking to the moment', () => {
+    const items = homeAgenda({
+      coaching: [{ id: 'k1', callTitle: 'Acme: discovery', conversationId: 'c1', segmentId: 's9', from: 'owner@acme.test' }],
+      assignedToYou: [{ id: 'i1', title: 'Exports are slow' }],
+      waitingForDecision: 0,
+      customers: [],
+      goals: [],
+      themes: [],
+    });
+    expect(items[0]).toEqual({ kind: 'coaching', text: 'Listen to Acme: discovery, from owner@acme.test', href: '/conversations/c1#segment-s9' });
+    expect(items[1]!.kind).toBe('assigned');
+  });
+
   it('is empty when nothing needs anyone', () => {
     expect(homeAgenda({ assignedToYou: [], waitingForDecision: 0, customers: [], goals: [], themes: [theme('t', 'steady', 1, 1)] })).toEqual([]);
   });

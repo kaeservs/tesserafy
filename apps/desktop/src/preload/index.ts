@@ -89,6 +89,13 @@ contextBridge.exposeInMainWorld('overlay', {
     last?: { title: string; date: string; score: number | null } | null;
     said?: { kind: string; summary: string; quote: string | null }[];
     notes?: string[];
+    /** The prep for the call about to happen, when someone wrote one. */
+    prep?: {
+      person: string;
+      callAt: string | null;
+      openWith: string | null;
+      questions: { key: string; label: string; ask: string }[];
+    } | null;
     error?: string;
   }> => ipcRenderer.invoke('overlay:brief', id),
   detect: (body: unknown): Promise<{ events?: unknown[]; error?: string }> =>

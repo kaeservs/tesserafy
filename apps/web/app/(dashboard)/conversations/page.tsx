@@ -1,3 +1,5 @@
+import { BulkBar } from '@/components/bulk-bar';
+import { BULK_FORM } from '@/lib/bulk';
 import { engagementLabel, myCompanyId, sampleCallOffered } from '@/lib/company';
 import Link from 'next/link';
 import { GettingStarted } from '@/components/getting-started';
@@ -222,14 +224,30 @@ export default async function ConversationsPage({
           <GettingStarted offerSample={await sampleCallOffered(supabase)} />
         </div>
       ) : (
+        <>
+        {/* Acting on several at once: only for calls this person may change. */}
+        {shown.items.some((conversation) => isOwner || conversation.added_by === user?.id) ? (
+          <BulkBar accounts={accountRows ?? []} mayDelete={isOwner} />
+        ) : null}
         <ul className="meetings" style={{ marginTop: '1.5rem' }}>
           {shown.items.map((conversation) => {
             const card = conversation.card;
+            const mayChange = isOwner || conversation.added_by === user?.id;
             const observed = conversation.score !== null;
             const stage = stageOf(pipeline.get(conversation.id));
 
             return (
-              <li key={conversation.id} className="meeting">
+              <li key={conversation.id} className={`meeting${mayChange ? ' selectable' : ''}`}>
+                {mayChange ? (
+                  <input
+                    type="checkbox"
+                    name="ids"
+                    value={conversation.id}
+                    form={BULK_FORM}
+                    className="meeting-pick"
+                    aria-label={`Choose ${conversation.title}`}
+                  />
+                ) : null}
                 <Link href={`/conversations/${conversation.id}`} className="meeting-title">
                   {conversation.title}
                 </Link>
@@ -262,6 +280,7 @@ export default async function ConversationsPage({
             );
           })}
         </ul>
+        </>
       )}
 
       {shown.pages > 1 ? (

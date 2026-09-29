@@ -89,6 +89,15 @@ test('Prepare opens with a form that asks for the profile, not for LinkedIn acce
   await expect(page.getByRole('button', { name: 'Prepare' })).toBeDisabled();
 });
 
+test('Coaching opens for a member, with what is assigned to them', async ({ page }) => {
+  await signIn(page);
+  await page.getByRole('link', { name: 'Coaching' }).click();
+  await page.waitForURL((url) => url.pathname === '/coaching');
+  await expect(page.getByRole('heading', { name: 'For you' })).toBeVisible();
+  // A member sees only their own; the team's is an owner's.
+  await expect(page.getByRole('heading', { name: 'Assigned across the team' })).toHaveCount(0);
+});
+
 test('Examples and Themes over time open for a member', async ({ page }) => {
   await signIn(page);
   await page.getByRole('link', { name: 'Examples' }).click();

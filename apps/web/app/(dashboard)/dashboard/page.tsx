@@ -34,6 +34,7 @@ import { createClient } from '@/lib/supabase/server';
 
 const KIND_LABEL: Record<AgendaItem['kind'], string> = {
   prep: 'Call',
+  coaching: 'Coaching',
   assigned: 'Yours',
   decide: 'Decide',
   customer: 'Customer',
@@ -142,7 +143,25 @@ export default async function DashboardPage() {
     .order('call_at')
     .limit(10);
   const accountName = new Map(accounts.map((account) => [account.id, account.name]));
+  // Coaching waiting on you.
+  const { data: coachingRows } = await supabase
+    .from('coaching_assignments')
+    .select('id, conversation_id, segment_id, assigned_by')
+    .eq('assigned_to', user?.id ?? '')
+    .eq('status', 'open')
+    .order('created_at', { ascending: false })
+    .limit(20);
+  const titleOfCall = new Map(rows.map((row) => [row.id, row.title]));
+  const { data: teamRows } = (coachingRows ?? []).length > 0 ? await supabase.rpc('company_team') : { data: [] };
+  const emailOf = new Map((teamRows ?? []).map((person) => [person.user_id, person.email]));
   const agenda = homeAgenda({
+    coaching: (coachingRows ?? []).map((row) => ({
+      id: row.id,
+      callTitle: titleOfCall.get(row.conversation_id) ?? 'a call',
+      conversationId: row.conversation_id,
+      segmentId: row.segment_id,
+      from: row.assigned_by ? (emailOf.get(row.assigned_by) ?? null) : null,
+    })),
     preps: (prepRows ?? []).map((row) => ({
       id: row.id,
       personName: row.person_name,

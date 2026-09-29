@@ -14,6 +14,7 @@ import { sideShares, speakerKey, talkStats } from '@/lib/talk';
 import { ExtractButton } from '@/components/extract-button';
 import { CallViewers } from '@/components/call-viewers';
 import { CopyMomentLink } from '@/components/copy-moment-link';
+import { AssignCoaching } from '@/components/coaching-forms';
 import { OurSpeaker } from '@/components/our-speaker';
 import { SaveExample } from '@/components/save-example';
 import { DeleteCall } from '@/components/delete-call';
@@ -748,6 +749,16 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
             ))}
           </ul>
         </details>
+      ) : null}
+      {isOwner ? (
+        <AssignCoaching
+          conversationId={id}
+          people={(team ?? []).map((person) => ({ id: person.user_id, label: person.is_you ? `${person.email} (you)` : person.email }))}
+          moments={segments.map((segment) => ({
+            id: segment.id,
+            label: `${clock(segment.start_ms)} ${segment.speaker ?? 'unknown'}: ${segment.text.length > 60 ? `${segment.text.slice(0, 60)}…` : segment.text}`,
+          }))}
+        />
       ) : null}
       {isOwner ? <CallViewers viewers={viewers} /> : null}
       {isOwner ? <DeleteCall conversationId={id} /> : null}

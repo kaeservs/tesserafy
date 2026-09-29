@@ -86,3 +86,21 @@ export async function writePrepBrief(db: SupabaseClient, prepId: string, client:
   if (error) throw new Error(`Storing the brief failed: ${error.message}`);
   return { status: 'written', brief };
 }
+
+const HOUR = 3_600_000;
+
+/**
+ * Which prep the overlay shows for a customer: the one for the call nearest
+ * now — from twelve hours ago to a week ahead, the call being joined — or,
+ * with none in that window, the newest written. Only preps with a brief.
+ */
+export function pickPrep<T extends { call_at: string | null; created_at: string; brief: unknown }>(preps: readonly T[], now: Date): T | null {
+  const written = preps.filter((prep) => prep.brief !== null);
+  const soon = written
+    .filter((prep) => prep.call_at !== null)
+    .map((prep) => ({ prep, delta: Date.parse(prep.call_at!) - now.getTime() }))
+    .filter(({ delta }) => delta >= -12 * HOUR && delta <= 7 * 24 * HOUR)
+    .sort((a, b) => Math.abs(a.delta) - Math.abs(b.delta));
+  if (soon[0]) return soon[0].prep;
+  return [...written].sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ?? null;
+}

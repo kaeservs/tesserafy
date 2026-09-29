@@ -157,6 +157,13 @@
       .brief .dim { color: var(--dim); }
       .brief ul { margin: 4px 0 0; padding-left: 14px; }
       .brief li { margin-bottom: 3px; }
+      .brief .prep { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(var(--line), 0.3); }
+      .to-ask { margin-top: 8px; font-size: 11px; line-height: 1.35; }
+      .to-ask[hidden] { display: none; }
+      .to-ask h2 { margin: 0 0 4px; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); }
+      .to-ask ol { margin: 0; padding-left: 16px; }
+      .to-ask li { margin-bottom: 3px; }
+      .to-ask li.done { color: var(--dim); text-decoration: line-through; }
       .who { font-size: 10px; color: var(--dim); margin-top: 8px; display: flex; gap: 6px; align-items: center; }
       .who[hidden] { display: none; }
 
@@ -205,6 +212,10 @@
     </header>
 
     <ul id="criteria" aria-live="polite"></ul>
+
+    <!-- The prep's questions, kept on screen through the call. One is struck
+         through when the scorecard confirms the criterion it was asked for. -->
+    <section class="to-ask" id="toAsk" aria-label="To ask" hidden></section>
 
     <!-- How the overlay looks and where it sits: saved on this computer only.
          Every choice applies as it is made; there is nothing to save. -->

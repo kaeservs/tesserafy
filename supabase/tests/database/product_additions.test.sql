@@ -5,7 +5,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(34);
+select plan(37);
 
 insert into auth.users (id, email, aud, role) values
   ('9a0d0001-0000-4000-8000-000000000001', 'owner@acme.test', 'authenticated', 'authenticated'),
@@ -148,6 +148,19 @@ select ok(
   (select count(*) from public.admin_company_margin(30)) >= 2,
   'an operator sees every company''s cost against its price'
 );
+
+-- ---------------------------------------------------------------------------
+-- An operator reads none of it across companies — only feedback
+-- ---------------------------------------------------------------------------
+reset role;
+insert into public.accounts (company_id, name) values ('00000000-0000-4000-8000-00000000000a', 'Acme Robotics');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"9a0d0001-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select public.set_criterion_goal('discovery', 'budget_indicated', 0.6);
+select set_config('request.jwt.claims', '{"sub":"9a0d0001-0000-4000-8000-000000000005","role":"authenticated"}', true);
+select is((select count(*)::int from public.our_speakers), 0, 'an operator does not read a company''s speaker names');
+select is((select count(*)::int from public.accounts), 0, 'nor its customers');
+select is((select count(*)::int from public.criterion_goals), 0, 'nor its goals');
 
 -- ---------------------------------------------------------------------------
 -- A closed company forgets its people's names

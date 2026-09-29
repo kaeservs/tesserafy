@@ -19,9 +19,14 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Pro
   // Only a path in this app; anything else is dropped rather than recorded.
   const page = from && /^\/[A-Za-z0-9/_\-[\]]*$/.test(from) && from.length <= 200 ? from : null;
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  // Only what you sent: an operator can read everyone's, and this is not the console.
   const { data: sent } = await supabase
     .from('feedback')
     .select('id, body, page, status, created_at')
+    .eq('sent_by', user?.id ?? '')
     .order('created_at', { ascending: false })
     .limit(50);
 

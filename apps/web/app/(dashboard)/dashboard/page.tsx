@@ -2,8 +2,13 @@ import { engagementLabel } from '@/lib/company';
 import Link from 'next/link';
 import { GettingStarted } from '@/components/getting-started';
 import { ScorecardStrip } from '@/components/scorecard-strip';
+import { listAccounts } from '@/lib/accounts';
+import { accountsNeedingAttention } from '@/lib/accounts-attention';
+import { coachingCallsFrom, loadScoredCalls } from '@/lib/coaching-data';
 import { coverageBySet as coverageForSets } from '@/lib/coverage';
-import { scoreConversations } from '@/lib/scorecard';
+import { goalStandings, homeAgenda, type AgendaItem } from '@/lib/home';
+import { speakerKey, talkBySeller } from '@/lib/talk';
+import { themesOverTime } from '@/lib/themes';
 import { readAll } from '@tesserafy/db';
 import { createClient } from '@/lib/supabase/server';
 
@@ -27,14 +32,13 @@ import { createClient } from '@/lib/supabase/server';
  * decides, which is the P0 gate made visible on the busiest page in the app.
  */
 
-interface ConversationRow {
-  id: string;
-  company_id: string;
-  title: string;
-  occurred_at: string | null;
-  engagement_type: string;
-  criteria_version: number;
-}
+const KIND_LABEL: Record<AgendaItem['kind'], string> = {
+  assigned: 'Yours',
+  decide: 'Decide',
+  customer: 'Customer',
+  goal: 'Goal',
+  theme: 'Theme',
+};
 
 /** Enough to be worth scanning; the meetings page has the rest. */
 const RECENT = 12;
@@ -50,34 +54,40 @@ function when(occurredAt: string | null): string {
 
 export default async function DashboardPage() {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const now = new Date();
 
-  // Every row, not the first thousand (see readAll), and signals as a count
-  // rather than a list: the page only ever showed how many.
-  const [conversations, signalCount, insights] = await Promise.all([
-    readAll<ConversationRow>(
-      (from, to) =>
-        supabase
-          .from('conversations')
-          .select('id, company_id, title, occurred_at, engagement_type, criteria_version')
-          .order('occurred_at', { ascending: false })
-          .order('id')
-          .range(from, to),
-      'Could not load the dashboard',
-    ),
-    supabase
-      .from('signals')
-      .select('id', { count: 'exact', head: true })
-      .then(({ count, error }) => {
-        if (error) throw new Error(`Could not load the dashboard: ${error.message}`);
-        return count ?? 0;
-      }),
-    readAll(
-      (from, to) => supabase.from('insights').select('id, status').order('id').range(from, to),
-      'Could not load the dashboard',
-    ),
-  ]);
-
-  const scores = await scoreConversations(supabase, conversations);
+  // Every row, not the first thousand (see readAll). The calls are fetched and
+  // scored once, for the meetings, the coverage and the agenda alike.
+  const [{ rows, scores }, signals, insights, evidence, accounts, { data: membership }, { data: goalRows }, { data: ourRows }] =
+    await Promise.all([
+      loadScoredCalls(supabase),
+      readAll<{ id: string; conversation_id: string; kind: string }>(
+        (from, to) => supabase.from('signals').select('id, conversation_id, kind').order('id').range(from, to),
+        'Could not load the dashboard',
+      ),
+      readAll<{ id: string; title: string; status: string; assigned_to: string | null }>(
+        (from, to) => supabase.from('insights').select('id, title, status, assigned_to').order('id').range(from, to),
+        'Could not load the dashboard',
+      ),
+      readAll<{ insight_id: string; signal_id: string }>(
+        (from, to) => supabase.from('insight_evidence').select('insight_id, signal_id').order('id').range(from, to),
+        'Could not load the dashboard',
+      ),
+      listAccounts(supabase),
+      supabase.from('company_members').select('role').eq('user_id', user?.id ?? '').limit(1).maybeSingle(),
+      supabase.from('criterion_goals').select('engagement_type, criterion_key, target'),
+      supabase.from('our_speakers').select('name'),
+    ]);
+  // Newest first, a call with no meeting date by when it was added.
+  const conversations = [...rows].sort((a, b) =>
+    (b.occurred_at ?? b.created_at).localeCompare(a.occurred_at ?? a.created_at),
+  );
+  const calls = coachingCallsFrom(rows, scores);
+  const isOwner = membership?.role === 'owner';
+  const signalCount = signals.length;
 
   // A meeting nobody has run `pnpm score` over has no events, which is a
   // different thing from a meeting that scored zero. Saying so is the whole
@@ -94,6 +104,53 @@ export default async function DashboardPage() {
           scored.reduce((sum, c) => sum + (scores.get(c.id)?.scorecard.score ?? 0), 0) /
             scored.length,
         );
+
+  // What needs you: each part from the same rules as the page that owns it.
+  const newestCall = new Map<string, { date: string; score: number | null }>();
+  for (const call of calls) {
+    if (!call.accountId) continue;
+    const seen = newestCall.get(call.accountId);
+    if (!seen || call.date > seen.date) newestCall.set(call.accountId, { date: call.date, score: call.score });
+  }
+  const customers = accountsNeedingAttention(
+    accounts.map((account) => ({ ...account, lastScore: newestCall.get(account.id)?.score ?? null })),
+    now,
+  );
+  const themes = themesOverTime(
+    {
+      insights,
+      evidence: evidence.map((row) => ({ insightId: row.insight_id, signalId: row.signal_id })),
+      signals: signals.map((row) => ({ id: row.id, conversationId: row.conversation_id, kind: row.kind })),
+      callDate: new Map(rows.map((row) => [row.id, row.occurred_at ?? row.created_at])),
+    },
+    now,
+  ).themes;
+  // An owner is measured on the team's calls; a member on their own.
+  const measured = isOwner ? calls : calls.filter((call) => call.addedBy === user?.id);
+  const goals = goalStandings(
+    measured,
+    (goalRows ?? []).map((row) => ({ engagementType: row.engagement_type, key: row.criterion_key, target: Number(row.target) })),
+    now,
+  );
+  const agenda = homeAgenda({
+    assignedToYou: insights.filter((insight) => insight.assigned_to === user?.id && insight.status !== 'dismissed'),
+    waitingForDecision: insights.filter((insight) => insight.status === 'proposed').length,
+    customers,
+    goals,
+    themes,
+  });
+
+  // Your side's share of the talking on your own calls, once names are marked.
+  const ours = new Set((ourRows ?? []).map((row) => speakerKey(row.name)));
+  const since = new Date(now.getTime() - 28 * 86_400_000).toISOString();
+  const { data: talkRows } = ours.size > 0 && user ? await supabase.rpc('conversation_talk', { p_since: since }) : { data: [] };
+  const talked = user
+    ? talkBySeller(
+        (talkRows ?? []).map((row) => ({ conversationId: row.conversation_id, speaker: row.speaker, words: Number(row.words) })),
+        ours,
+        new Map(rows.map((row) => [row.id, row.added_by])),
+      ).get(user.id)
+    : undefined;
 
   const coverageBySet = coverageForSets(scored, scores);
 
@@ -138,7 +195,37 @@ export default async function DashboardPage() {
             insights{insights.length > 0 && `, ${approved} approved`}
           </span>
         </div>
+        {talked ? (
+          <div className="card">
+            <span className="stat-value">{Math.round(talked.share * 100)}%</span>
+            <span className="stat-label">
+              of the talking was your side&apos;s, on your {talked.calls} call{talked.calls === 1 ? '' : 's'} in four weeks
+            </span>
+          </div>
+        ) : null}
       </div>
+
+      {conversations.length > 0 ? (
+        <section aria-labelledby="agenda-heading" className="card" style={{ marginTop: '1.5rem' }}>
+          <h2 id="agenda-heading" style={{ marginTop: 0 }}>
+            Needs you
+          </h2>
+          {agenda.length === 0 ? (
+            <p className="muted" style={{ marginBottom: 0 }}>
+              Nothing today: no insight waiting on you, no customer gone quiet, no goal missed, no theme climbing.
+            </p>
+          ) : (
+            <ul className="agenda">
+              {agenda.map((item) => (
+                <li key={`${item.kind}-${item.href}-${item.text}`}>
+                  <span className={`agenda-kind agenda-${item.kind}`}>{KIND_LABEL[item.kind]}</span>
+                  <Link href={item.href}>{item.text}</Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
 
       <div className="split" style={{ marginTop: '2rem' }}>
         <section aria-labelledby="recent-heading">

@@ -1334,3 +1334,39 @@ input[type='search'] {
 .table-scroll > table {
   min-width: 100%;
 }
+
+/* --------------------------------------------------------------------------
+   Meetings: several at once
+   -------------------------------------------------------------------------- */
+
+.bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 1rem;
+  position: sticky;
+  top: 4rem;
+  z-index: 5;
+}
+
+/* On a phone the bar is three rows tall; stuck to the top it would hide the list it acts on. */
+@media (max-width: 720px) {
+  .bulk-bar {
+    position: static;
+  }
+}
+
+.meeting.selectable {
+  position: relative;
+  padding-left: 2.4rem;
+}
+
+.meeting-pick {
+  position: absolute;
+  left: 0.9rem;
+  top: 1.1rem;
+  width: 1.05rem;
+  height: 1.05rem;
+}
+

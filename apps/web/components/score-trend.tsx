@@ -36,6 +36,7 @@ export function ScoreTrend({ weeks }: { weeks: Week[] }) {
     }
   });
   if (run.length) runs.push(run);
+  const labelEvery = Math.max(2, Math.ceil(weeks.length / 12));
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Average score by week" className="trend">
@@ -63,7 +64,9 @@ export function ScoreTrend({ weeks }: { weeks: Week[] }) {
       )}
       {weeks.map((w, i) => (
         <g key={`l-${w.start}`}>
-          {i % 2 === weeks.length % 2 || i === weeks.length - 1 ? (
+          {/* Counted back from the newest week, which is always labelled, at a
+              spacing that keeps about a dozen labels whatever the period. */}
+          {(weeks.length - 1 - i) % labelEvery === 0 ? (
             <text x={x(i)} y={H - 24} textAnchor="middle" className="trend-axis">
               {label(w.start)}
             </text>

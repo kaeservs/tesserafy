@@ -186,7 +186,9 @@ export default async function ReportsPage({
         </h2>
         {sellers.length === 0 ? (
           <p className="muted" style={{ marginBottom: 0 }}>
-            {isOwner ? 'No calls in the last twelve weeks.' : 'You have not added a call in the last twelve weeks.'}
+            {isOwner
+              ? `No calls in the ${RANGES[filters.weeks].toLowerCase()}.`
+              : `You have not added a call in the ${RANGES[filters.weeks].toLowerCase()}.`}
           </p>
         ) : (
           <table className="team">

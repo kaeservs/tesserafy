@@ -1,3 +1,4 @@
+import { TableScroll } from '@/components/table-scroll';
 import Link from 'next/link';
 import { fetchCriteriaSets, type CriteriaSetSummary } from '@tesserafy/db';
 import { engagementLabel, myCompanyId } from '@/lib/company';
@@ -30,32 +31,34 @@ function newest(sets: readonly CriteriaSetSummary[]): (CriteriaSetSummary & { ve
 
 function SetTable({ sets, caption }: { sets: (CriteriaSetSummary & { versions: number })[]; caption: string }) {
   return (
-    <table className="team">
-      <caption className="visually-hidden">{caption}</caption>
-      <thead>
-        <tr>
-          <th scope="col">Scorecard</th>
-          <th scope="col">Version</th>
-          <th scope="col">Criteria</th>
-          <th scope="col">Published</th>
-        </tr>
-      </thead>
-      <tbody>
-        {sets.map((set) => (
-          <tr key={set.engagementType}>
-            <td>
-              <Link href={`/scorecards/${set.engagementType}`}>{engagementLabel(set.engagementType)}</Link>
-            </td>
-            <td>
-              {set.version}
-              {set.versions > 1 ? <span className="muted"> of {set.versions}</span> : null}
-            </td>
-            <td>{set.criteria}</td>
-            <td>{day(set.publishedAt)}</td>
+    <TableScroll label="Scorecards">
+      <table className="team">
+        <caption className="visually-hidden">{caption}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Scorecard</th>
+            <th scope="col">Version</th>
+            <th scope="col">Criteria</th>
+            <th scope="col">Published</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {sets.map((set) => (
+            <tr key={set.engagementType}>
+              <td>
+                <Link href={`/scorecards/${set.engagementType}`}>{engagementLabel(set.engagementType)}</Link>
+              </td>
+              <td>
+                {set.version}
+                {set.versions > 1 ? <span className="muted"> of {set.versions}</span> : null}
+              </td>
+              <td>{set.criteria}</td>
+              <td>{day(set.publishedAt)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </TableScroll>
   );
 }
 

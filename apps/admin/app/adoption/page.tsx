@@ -67,7 +67,7 @@ export default async function Adoption({ searchParams }: { searchParams: Promise
       </p>
       {error ? <p className="tag open">{error.message}</p> : null}
 
-      <table>
+      <table tabIndex={0}>
         <thead>
           <tr>
             <th>Step</th>
@@ -96,7 +96,7 @@ export default async function Adoption({ searchParams }: { searchParams: Promise
       <p className="muted">
         A company is active in a week if someone in it added or opened a call. Support sessions do not count.
       </p>
-      <table>
+      <table tabIndex={0}>
         <thead>
           <tr>
             <th>Week of</th>
@@ -121,7 +121,7 @@ export default async function Adoption({ searchParams }: { searchParams: Promise
 
       <h3>By the week they started</h3>
       <p className="muted">Of the companies made each week, the share active in each week after it.</p>
-      <table>
+      <table tabIndex={0}>
         <thead>
           <tr>
             <th>Started</th>
@@ -149,7 +149,7 @@ export default async function Adoption({ searchParams }: { searchParams: Promise
       </table>
 
       <h2>Companies</h2>
-      <table>
+      <table tabIndex={0}>
         <thead>
           <tr>
             <th>Company</th>

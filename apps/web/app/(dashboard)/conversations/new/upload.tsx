@@ -1,5 +1,6 @@
 'use client';
 
+import { TableScroll } from '@/components/table-scroll';
 import { TRANSCRIPT_EXTENSIONS } from '@tesserafy/ingest';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -206,33 +207,35 @@ export function Upload({
       {error && <p role="alert">{error}</p>}
 
       {queue.length > 0 ? (
-        <table className="team" style={{ marginTop: '1rem' }} aria-live="polite">
-          <thead>
-            <tr>
-              <th scope="col">File</th>
-              <th scope="col">Where it got to</th>
-            </tr>
-          </thead>
-          <tbody>
-            {queue.map((item, index) => (
-              <tr key={`${item.name}-${index}`}>
-                <td>{item.name}</td>
-                <td>
-                  {item.status.state === 'waiting' ? <span className="muted">waiting</span> : null}
-                  {item.status.state === 'working' ? 'importing and scoring…' : null}
-                  {item.status.state === 'done' ? (
-                    <>
-                      <Link href={`/conversations/${item.status.conversationId}`}>imported</Link>
-                      <span className="muted"> · {SCORING[item.status.scoring] ?? item.status.scoring}</span>
-                    </>
-                  ) : null}
-                  {item.status.state === 'failed' ? <span role="alert">{item.status.message}</span> : null}
-                  {item.status.state === 'skipped' ? <span className="muted">{item.status.message}</span> : null}
-                </td>
+        <TableScroll label="Imports">
+          <table className="team" style={{ marginTop: '1rem' }} aria-live="polite">
+            <thead>
+              <tr>
+                <th scope="col">File</th>
+                <th scope="col">Where it got to</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {queue.map((item, index) => (
+                <tr key={`${item.name}-${index}`}>
+                  <td>{item.name}</td>
+                  <td>
+                    {item.status.state === 'waiting' ? <span className="muted">waiting</span> : null}
+                    {item.status.state === 'working' ? 'importing and scoring…' : null}
+                    {item.status.state === 'done' ? (
+                      <>
+                        <Link href={`/conversations/${item.status.conversationId}`}>imported</Link>
+                        <span className="muted"> · {SCORING[item.status.scoring] ?? item.status.scoring}</span>
+                      </>
+                    ) : null}
+                    {item.status.state === 'failed' ? <span role="alert">{item.status.message}</span> : null}
+                    {item.status.state === 'skipped' ? <span className="muted">{item.status.message}</span> : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableScroll>
       ) : null}
       {!busy && queue.length > 0 && done > 0 ? (
         <p>

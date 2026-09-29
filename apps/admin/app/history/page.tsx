@@ -44,7 +44,7 @@ export default async function History() {
 
       {error ? <p className="tag open">{error.message}</p> : null}
 
-      <table>
+      <table tabIndex={0}>
         <thead>
           <tr>
             <th>Opened</th>

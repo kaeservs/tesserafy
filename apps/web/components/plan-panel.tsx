@@ -1,5 +1,6 @@
 'use client';
 
+import { TableScroll } from '@/components/table-scroll';
 import { useActionState } from 'react';
 import { planAction, type PlanActionState } from '@/app/(dashboard)/settings/plan-actions';
 
@@ -95,27 +96,29 @@ export function PlanPanel({
       <p>
         <strong>{standing(overview)}</strong>
       </p>
-      <table className="team">
-        <thead>
-          <tr>
-            <th>This period</th>
-            <th>Used</th>
-          </tr>
-        </thead>
-        <tbody>
-          {overview.meters.map((meter) => (
-            <tr key={meter.meter}>
-              <td>
-                {METER_LABEL[meter.meter] ?? meter.meter}
-                {meter.meter === 'live_seconds' && !liveAvailable ? (
-                  <span className="muted"> — live scorecards are coming soon</span>
-                ) : null}
-              </td>
-              <td className="muted when">{usage(meter)}</td>
+      <TableScroll label="Plan allowance">
+        <table className="team">
+          <thead>
+            <tr>
+              <th>This period</th>
+              <th>Used</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {overview.meters.map((meter) => (
+              <tr key={meter.meter}>
+                <td>
+                  {METER_LABEL[meter.meter] ?? meter.meter}
+                  {meter.meter === 'live_seconds' && !liveAvailable ? (
+                    <span className="muted"> — live scorecards are coming soon</span>
+                  ) : null}
+                </td>
+                <td className="muted when">{usage(meter)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableScroll>
 
       {isOwner && !granted ? (
         <div className="plan-choices">

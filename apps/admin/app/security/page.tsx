@@ -59,7 +59,7 @@ export default async function Security() {
             )}
           </section>
 
-          <table>
+          <table tabIndex={0}>
             <thead>
               <tr>
                 <th>Operator</th>

@@ -16,6 +16,9 @@
   --muted: #9aa3b2;
   --warn: #d9534f;
   --warn-dim: #3a1f1f;
+  /* The warning as text: --warn itself is too dark to read on --warn-dim or --bg. */
+  --warn-text: #ff8c85;
+  --link: #8ab4f8;
   --ok: #4c9a6a;
   --radius: 6px;
 }
@@ -39,17 +42,19 @@ body {
   font-size: 0.82rem;
   letter-spacing: 0.02em;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.25rem 1rem;
 }
 
 .band strong {
-  color: var(--warn);
+  color: var(--warn-text);
 }
 
 nav {
   display: flex;
-  gap: 1.25rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
   padding: 0.85rem 1.25rem;
   border-bottom: 1px solid var(--line);
   align-items: center;
@@ -141,7 +146,7 @@ tbody tr:hover {
 
 .tag.open {
   border-color: var(--warn);
-  color: var(--warn);
+  color: var(--warn-text);
   background: var(--warn-dim);
 }
 
@@ -187,7 +192,7 @@ button:hover {
 
 button.danger {
   border-color: var(--warn);
-  color: var(--warn);
+  color: var(--warn-text);
 }
 
 button:disabled {
@@ -222,6 +227,25 @@ code {
 
 a.link {
   color: #7aa2f7;
+}
+
+/* Links in the page itself, which otherwise take the browser's dark blue — unreadable on this background. */
+main a {
+  color: var(--link);
+}
+
+/* A table wider than a phone scrolls inside itself rather than pushing the page sideways. */
+@media (max-width: 720px) {
+  main table {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
+/* Each table is focusable so a keyboard can scroll one on a phone; show where focus is. */
+main table:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
 }
 
 /* The overview's figures: four across where there is room. */

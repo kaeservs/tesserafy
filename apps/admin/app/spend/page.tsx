@@ -63,7 +63,7 @@ export default async function Spend() {
       </p>
       {error ? <p className="tag open">{error.message}</p> : null}
 
-      <table>
+      <table tabIndex={0}>
         <thead>
           <tr>
             <th>Week of</th>
@@ -97,7 +97,7 @@ export default async function Spend() {
       </table>
 
       <h2>By what spent it</h2>
-      <table>
+      <table tabIndex={0}>
         <thead>
           <tr>
             <th>Detector</th>
@@ -127,7 +127,7 @@ export default async function Spend() {
         costing more than it pays is marked; a plan that is not sold has no price to compare.
       </p>
       {marginError ? <p className="tag open">{marginError.message}</p> : null}
-      <table>
+      <table tabIndex={0}>
         <thead>
           <tr>
             <th>Company</th>

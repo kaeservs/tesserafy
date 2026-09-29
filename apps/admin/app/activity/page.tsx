@@ -64,7 +64,7 @@ export default async function Activity({ searchParams }: { searchParams: Promise
         <button type="submit">Show</button>
       </form>
 
-      <table>
+      <table tabIndex={0}>
         <thead>
           <tr>
             <th>When</th>

@@ -1262,3 +1262,25 @@ input[type='search'] {
   border-left: 3px solid var(--accent);
   font-size: 0.9rem;
 }
+
+/* --------------------------------------------------------------------------
+   Wide tables on a narrow screen: the table scrolls, the page does not.
+   -------------------------------------------------------------------------- */
+
+.table-scroll {
+  /* Positioned, so a visually hidden label inside (absolutely positioned) is
+     clipped by this box instead of widening the page. */
+  position: relative;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-scroll:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.table-scroll > table {
+  min-width: 100%;
+}

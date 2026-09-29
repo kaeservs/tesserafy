@@ -163,7 +163,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
       <div className="detail-grid">
         <section className="card">
           <h2 style={{ marginTop: 0 }}>This period</h2>
-          <table>
+          <table tabIndex={0}>
             <tbody>
               {d.usage.map((m) => (
                 <tr key={m.meter}>
@@ -192,7 +192,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
           {d.members.length === 0 ? (
             <p className="muted" style={{ marginBottom: 0 }}>Nobody.</p>
           ) : (
-            <table>
+            <table tabIndex={0}>
               <tbody>
                 {d.members.map((m) => (
                   <tr key={m.email}>

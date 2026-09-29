@@ -94,7 +94,7 @@ export default async function People({
 
       {error ? <p className="tag open">{error.message}</p> : null}
 
-      <table>
+      <table tabIndex={0}>
         <thead>
           <tr>
             <th>Email</th>
@@ -146,7 +146,7 @@ export default async function People({
           <p className="muted">
             Who deleted an account, when and why. The address is not kept, only a fingerprint of it.
           </p>
-          <table>
+          <table tabIndex={0}>
             <thead>
               <tr>
                 <th>When</th>

@@ -85,7 +85,7 @@ export default async function Health({ searchParams }: { searchParams: Promise<{
         ))}
       </p>
 
-      <table>
+      <table tabIndex={0}>
         <thead>
           <tr>
             <th>Company</th>

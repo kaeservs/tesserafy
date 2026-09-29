@@ -1,3 +1,4 @@
+import { TableScroll } from '@/components/table-scroll';
 import Link from 'next/link';
 import { criteriaByOutcome, MIN_DECIDED, percent } from '@/lib/coaching';
 import { loadCoachingCalls } from '@/lib/coaching-data';
@@ -191,54 +192,56 @@ export default async function ReportsPage({
               : `You have not added a call in the ${RANGES[filters.weeks].toLowerCase()}.`}
           </p>
         ) : (
-          <table className="team">
-            <thead>
-              <tr>
-                <th>{isOwner ? 'Seller' : 'You'}</th>
-                <th>Calls</th>
-                <th>Average</th>
-                <th>Last 4 weeks</th>
-                <th>Talked</th>
-                <th>Most often missed</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sellers.map((seller) => (
-                <tr key={seller.addedBy ?? 'unattributed'}>
-                  <td>
-                    {seller.addedBy === null ? (
-                      <span className="muted">Unattributed — added before sellers were recorded</span>
-                    ) : email.has(seller.addedBy) ? (
-                      <Link href={`/reports/sellers/${seller.addedBy}`}>{email.get(seller.addedBy)}</Link>
-                    ) : (
-                      <span className="muted">a former member</span>
-                    )}
-                  </td>
-                  <td className="when">
-                    {seller.calls}
-                    {seller.scored < seller.calls ? <span className="muted"> ({seller.scored} scored)</span> : null}
-                  </td>
-                  <td>{score(seller.average)}</td>
-                  <td className="muted when">{change(seller)}</td>
-                  <td className="when">
-                    {seller.addedBy !== null && talk.has(seller.addedBy) ? (
-                      <>
-                        {Math.round(talk.get(seller.addedBy)!.share * 100)}%
-                        <span className="muted"> of {talk.get(seller.addedBy)!.calls}</span>
-                      </>
-                    ) : (
-                      <span className="muted">—</span>
-                    )}
-                  </td>
-                  <td className="muted">
-                    {seller.mostMissed
-                      ? `${seller.mostMissed.label} — confirmed on ${Math.round(seller.mostMissed.confirmedRate * 100)}%`
-                      : 'needs three scored calls'}
-                  </td>
+          <TableScroll label="By seller">
+            <table className="team">
+              <thead>
+                <tr>
+                  <th>{isOwner ? 'Seller' : 'You'}</th>
+                  <th>Calls</th>
+                  <th>Average</th>
+                  <th>Last 4 weeks</th>
+                  <th>Talked</th>
+                  <th>Most often missed</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {sellers.map((seller) => (
+                  <tr key={seller.addedBy ?? 'unattributed'}>
+                    <td>
+                      {seller.addedBy === null ? (
+                        <span className="muted">Unattributed — added before sellers were recorded</span>
+                      ) : email.has(seller.addedBy) ? (
+                        <Link href={`/reports/sellers/${seller.addedBy}`}>{email.get(seller.addedBy)}</Link>
+                      ) : (
+                        <span className="muted">a former member</span>
+                      )}
+                    </td>
+                    <td className="when">
+                      {seller.calls}
+                      {seller.scored < seller.calls ? <span className="muted"> ({seller.scored} scored)</span> : null}
+                    </td>
+                    <td>{score(seller.average)}</td>
+                    <td className="muted when">{change(seller)}</td>
+                    <td className="when">
+                      {seller.addedBy !== null && talk.has(seller.addedBy) ? (
+                        <>
+                          {Math.round(talk.get(seller.addedBy)!.share * 100)}%
+                          <span className="muted"> of {talk.get(seller.addedBy)!.calls}</span>
+                        </>
+                      ) : (
+                        <span className="muted">—</span>
+                      )}
+                    </td>
+                    <td className="muted">
+                      {seller.mostMissed
+                        ? `${seller.mostMissed.label} — confirmed on ${Math.round(seller.mostMissed.confirmedRate * 100)}%`
+                        : 'needs three scored calls'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableScroll>
         )}
         {sellers.length > 0 ? (
           <p className="muted" style={{ fontSize: '0.82rem' }}>
@@ -269,72 +272,74 @@ export default async function ReportsPage({
           <p className="muted" style={{ marginBottom: 0 }}>No scored calls in this period.</p>
         ) : (
           <>
-            <table className="team">
-              <thead>
-                <tr>
-                  <th scope="col">Criterion</th>
-                  <th scope="col">Week by week</th>
-                  <th scope="col">Last 4 weeks</th>
-                  <th scope="col">Goal</th>
-                </tr>
-              </thead>
-              <tbody>
-                {trends.map((trend) => {
-                  const recent = trend.points.slice(-4).filter((point) => point.rate !== null);
-                  const recentRate =
-                    recent.length === 0
-                      ? null
-                      : recent.reduce((sum, point) => sum + point.rate! * point.calls, 0) / recent.reduce((sum, point) => sum + point.calls, 0);
-                  return (
-                    <tr key={`${trend.engagementType}/${trend.key}`}>
-                      <td>
-                        {trend.label}
-                        {types.length > 1 ? <span className="muted"> · {engagementLabel(trend.engagementType)}</span> : null}
-                      </td>
-                      <td>
-                        <svg viewBox={`0 0 ${trend.points.length * 10} 24`} width={Math.max(80, trend.points.length * 10)} height={24} role="img" aria-label={`${trend.label}, week by week`}>
-                          {trend.points.map((point, index) =>
-                            point.rate === null ? null : (
-                              <rect key={point.week} x={index * 10 + 1} y={24 - Math.max(1, point.rate * 22)} width={8} height={Math.max(1, point.rate * 22)} fill="currentColor" opacity={0.55}>
-                                <title>{`${point.week}: ${Math.round(point.rate * 100)}% of ${point.calls} call${point.calls === 1 ? '' : 's'}`}</title>
-                              </rect>
-                            ),
+            <TableScroll label="Criteria over time">
+              <table className="team">
+                <thead>
+                  <tr>
+                    <th scope="col">Criterion</th>
+                    <th scope="col">Week by week</th>
+                    <th scope="col">Last 4 weeks</th>
+                    <th scope="col">Goal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {trends.map((trend) => {
+                    const recent = trend.points.slice(-4).filter((point) => point.rate !== null);
+                    const recentRate =
+                      recent.length === 0
+                        ? null
+                        : recent.reduce((sum, point) => sum + point.rate! * point.calls, 0) / recent.reduce((sum, point) => sum + point.calls, 0);
+                    return (
+                      <tr key={`${trend.engagementType}/${trend.key}`}>
+                        <td>
+                          {trend.label}
+                          {types.length > 1 ? <span className="muted"> · {engagementLabel(trend.engagementType)}</span> : null}
+                        </td>
+                        <td>
+                          <svg viewBox={`0 0 ${trend.points.length * 10} 24`} width={Math.max(80, trend.points.length * 10)} height={24} role="img" aria-label={`${trend.label}, week by week`}>
+                            {trend.points.map((point, index) =>
+                              point.rate === null ? null : (
+                                <rect key={point.week} x={index * 10 + 1} y={24 - Math.max(1, point.rate * 22)} width={8} height={Math.max(1, point.rate * 22)} fill="currentColor" opacity={0.55}>
+                                  <title>{`${point.week}: ${Math.round(point.rate * 100)}% of ${point.calls} call${point.calls === 1 ? '' : 's'}`}</title>
+                                </rect>
+                              ),
+                            )}
+                          </svg>
+                        </td>
+                        <td className="when">
+                          {recentRate === null ? '—' : percent(recentRate)}
+                          {trend.change !== null ? (
+                            <span className="muted">
+                              {' '}
+                              {trend.change > 0 ? '↑' : trend.change < 0 ? '↓' : '→'} {Math.abs(trend.change)} pts on the 4 before
+                            </span>
+                          ) : null}
+                        </td>
+                        <td className="when">
+                          {isOwner ? (
+                            <GoalForm
+                              engagementType={trend.engagementType}
+                              criterionKey={trend.key}
+                              label={trend.label}
+                              target={goalOf.get(`${trend.engagementType}/${trend.key}`) ?? null}
+                            />
+                          ) : goalOf.has(`${trend.engagementType}/${trend.key}`) ? (
+                            percent(goalOf.get(`${trend.engagementType}/${trend.key}`)!)
+                          ) : (
+                            <span className="muted">—</span>
                           )}
-                        </svg>
-                      </td>
-                      <td className="when">
-                        {recentRate === null ? '—' : percent(recentRate)}
-                        {trend.change !== null ? (
-                          <span className="muted">
-                            {' '}
-                            {trend.change > 0 ? '↑' : trend.change < 0 ? '↓' : '→'} {Math.abs(trend.change)} pts on the 4 before
-                          </span>
-                        ) : null}
-                      </td>
-                      <td className="when">
-                        {isOwner ? (
-                          <GoalForm
-                            engagementType={trend.engagementType}
-                            criterionKey={trend.key}
-                            label={trend.label}
-                            target={goalOf.get(`${trend.engagementType}/${trend.key}`) ?? null}
-                          />
-                        ) : goalOf.has(`${trend.engagementType}/${trend.key}`) ? (
-                          percent(goalOf.get(`${trend.engagementType}/${trend.key}`)!)
-                        ) : (
-                          <span className="muted">—</span>
-                        )}
-                        {goalOf.has(`${trend.engagementType}/${trend.key}`) && recentRate !== null ? (
-                          <span className={recentRate >= goalOf.get(`${trend.engagementType}/${trend.key}`)! ? 'muted' : 'shortfall'}>
-                            {recentRate >= goalOf.get(`${trend.engagementType}/${trend.key}`)! ? ' met' : ' below'}
-                          </span>
-                        ) : null}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                          {goalOf.has(`${trend.engagementType}/${trend.key}`) && recentRate !== null ? (
+                            <span className={recentRate >= goalOf.get(`${trend.engagementType}/${trend.key}`)! ? 'muted' : 'shortfall'}>
+                              {recentRate >= goalOf.get(`${trend.engagementType}/${trend.key}`)! ? ' met' : ' below'}
+                            </span>
+                          ) : null}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </TableScroll>
             <p className="muted" style={{ marginBottom: 0, fontSize: '0.82rem' }}>
               Each bar is the share of that week&apos;s scored calls that met the criterion; hover one for the numbers. A week
               with no calls has no bar rather than a zero. {isOwner ? 'A goal is the share of calls you want it met on; the last four weeks are measured against it. ' : ''}
@@ -365,24 +370,26 @@ export default async function ReportsPage({
                   </span>
                 </h3>
                 {comparison.enough ? (
-                  <table className="team">
-                    <thead>
-                      <tr>
-                        <th scope="col">Criterion</th>
-                        <th scope="col">Met on won calls</th>
-                        <th scope="col">Met on lost calls</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {comparison.criteria.map((row) => (
-                        <tr key={row.key}>
-                          <td>{row.label}</td>
-                          <td>{percent(row.wonRate)}</td>
-                          <td className="muted">{percent(row.lostRate)}</td>
+                  <TableScroll label="What goes with a win">
+                    <table className="team">
+                      <thead>
+                        <tr>
+                          <th scope="col">Criterion</th>
+                          <th scope="col">Met on won calls</th>
+                          <th scope="col">Met on lost calls</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {comparison.criteria.map((row) => (
+                          <tr key={row.key}>
+                            <td>{row.label}</td>
+                            <td>{percent(row.wonRate)}</td>
+                            <td className="muted">{percent(row.lostRate)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </TableScroll>
                 ) : (
                   <p className="muted">
                     Needs {MIN_DECIDED} won and {MIN_DECIDED} lost scored calls to compare.

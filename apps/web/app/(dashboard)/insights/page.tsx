@@ -1,3 +1,4 @@
+import { TableScroll } from '@/components/table-scroll';
 import Link from 'next/link';
 import { FindInsightsButton } from '@/components/find-insights-button';
 import { readAll } from '@tesserafy/db';
@@ -222,43 +223,45 @@ export default async function InsightsPage({
           <h2 id="themes-heading" style={{ marginTop: 0 }}>
             Themes over time
           </h2>
-          <table className="team">
-            <thead>
-              <tr>
-                <th scope="col">Last 12 weeks</th>
-                <th scope="col">Calls a week</th>
-                <th scope="col">Last 4 weeks</th>
-              </tr>
-            </thead>
-            <tbody>
-              {themes.themes.map((theme) => (
-                <tr key={theme.id}>
-                  <td>
-                    <Link href={`/insights/${theme.id}`}>{theme.title}</Link>
-                  </td>
-                  <td>{bars(theme.calls, themePeak, `${theme.title}, calls a week`)}</td>
-                  <td className="when">
-                    {theme.recent} call{theme.recent === 1 ? '' : 's'}
-                    <span className="muted">
-                      {' · '}
-                      {TREND[theme.trend]}
-                      {theme.trend === 'rising' || theme.trend === 'falling' ? ` from ${theme.previous}` : ''}
-                    </span>
-                  </td>
+          <TableScroll label="Themes over time">
+            <table className="team">
+              <thead>
+                <tr>
+                  <th scope="col">Last 12 weeks</th>
+                  <th scope="col">Calls a week</th>
+                  <th scope="col">Last 4 weeks</th>
                 </tr>
-              ))}
-              {Object.entries(themes.kinds).map(([kind, counts]) => {
-                const recent = counts.slice(-4).reduce((a, b) => a + b, 0);
-                return (
-                  <tr key={kind} className="muted">
-                    <td>{KIND_LABEL[kind] ?? kind}, grouped or not</td>
-                    <td>{bars(counts, kindPeak, `${KIND_LABEL[kind] ?? kind} a week`)}</td>
-                    <td className="when">{recent} in the last 4 weeks</td>
+              </thead>
+              <tbody>
+                {themes.themes.map((theme) => (
+                  <tr key={theme.id}>
+                    <td>
+                      <Link href={`/insights/${theme.id}`}>{theme.title}</Link>
+                    </td>
+                    <td>{bars(theme.calls, themePeak, `${theme.title}, calls a week`)}</td>
+                    <td className="when">
+                      {theme.recent} call{theme.recent === 1 ? '' : 's'}
+                      <span className="muted">
+                        {' · '}
+                        {TREND[theme.trend]}
+                        {theme.trend === 'rising' || theme.trend === 'falling' ? ` from ${theme.previous}` : ''}
+                      </span>
+                    </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                ))}
+                {Object.entries(themes.kinds).map(([kind, counts]) => {
+                  const recent = counts.slice(-4).reduce((a, b) => a + b, 0);
+                  return (
+                    <tr key={kind} className="muted">
+                      <td>{KIND_LABEL[kind] ?? kind}, grouped or not</td>
+                      <td>{bars(counts, kindPeak, `${KIND_LABEL[kind] ?? kind} a week`)}</td>
+                      <td className="when">{recent} in the last 4 weeks</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </TableScroll>
           <p className="muted" style={{ marginBottom: 0, fontSize: '0.82rem' }}>
             By the week each meeting took place. A new call joins an insight when Look for patterns next runs, so the latest
             weeks can read low until it has.

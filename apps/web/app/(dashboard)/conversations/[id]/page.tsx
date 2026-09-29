@@ -1,3 +1,4 @@
+import { TableScroll } from '@/components/table-scroll';
 import { engagementLabel, liveAvailable, myCompany } from '@/lib/company';
 import { EditCall } from '@/components/edit-call';
 import { Corrections, DisputeScore, type Correction } from '@/components/dispute-score';
@@ -588,46 +589,48 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
               marked once counts on every call.
             </p>
           )}
-          <table className="team">
-            <thead>
-              <tr>
-                <th scope="col">Speaker</th>
-                <th scope="col">Share of the words</th>
-                <th scope="col">Questions</th>
-                <th scope="col">Longest stretch</th>
-                <th scope="col">
-                  <span className="visually-hidden">Your side</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {talk.speakers.map((speaker) => (
-                <tr key={speaker.speaker ?? ''}>
-                  <td>
-                    {speaker.speaker ?? <span className="muted">Not named in the transcript</span>}
-                    {speaker.speaker !== null && ours.has(speakerKey(speaker.speaker)) ? (
-                      <span className="stage stage-approved"> yours</span>
-                    ) : null}
-                  </td>
-                  <td>
-                    <span className="share-bar" aria-hidden="true">
-                      <span style={{ width: `${Math.round(speaker.share * 100)}%` }} />
-                    </span>{' '}
-                    {Math.round(speaker.share * 100)}%
-                  </td>
-                  <td>{speaker.questions}</td>
-                  <td className="when">
-                    {speaker.longestWords} words{speaker.longestMs >= 1000 ? `, ${duration(speaker.longestMs)}` : ''}
-                  </td>
-                  <td>
-                    {speaker.speaker !== null ? (
-                      <OurSpeaker conversationId={id} speaker={speaker.speaker} ours={ours.has(speakerKey(speaker.speaker))} />
-                    ) : null}
-                  </td>
+          <TableScroll label="Who talked">
+            <table className="team">
+              <thead>
+                <tr>
+                  <th scope="col">Speaker</th>
+                  <th scope="col">Share of the words</th>
+                  <th scope="col">Questions</th>
+                  <th scope="col">Longest stretch</th>
+                  <th scope="col">
+                    <span className="visually-hidden">Your side</span>
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {talk.speakers.map((speaker) => (
+                  <tr key={speaker.speaker ?? ''}>
+                    <td>
+                      {speaker.speaker ?? <span className="muted">Not named in the transcript</span>}
+                      {speaker.speaker !== null && ours.has(speakerKey(speaker.speaker)) ? (
+                        <span className="stage stage-approved"> yours</span>
+                      ) : null}
+                    </td>
+                    <td>
+                      <span className="share-bar" aria-hidden="true">
+                        <span style={{ width: `${Math.round(speaker.share * 100)}%` }} />
+                      </span>{' '}
+                      {Math.round(speaker.share * 100)}%
+                    </td>
+                    <td>{speaker.questions}</td>
+                    <td className="when">
+                      {speaker.longestWords} words{speaker.longestMs >= 1000 ? `, ${duration(speaker.longestMs)}` : ''}
+                    </td>
+                    <td>
+                      {speaker.speaker !== null ? (
+                        <OurSpeaker conversationId={id} speaker={speaker.speaker} ours={ours.has(speakerKey(speaker.speaker))} />
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableScroll>
           <p className="muted" style={{ marginBottom: 0, fontSize: '0.82rem' }}>
             Counted from the transcript by words, so it reads the same whatever the format. It is not part of the score.
           </p>

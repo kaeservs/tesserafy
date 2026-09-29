@@ -1170,6 +1170,11 @@ async function checkWorkingWithACall(baseUrl: string, token: string, conversatio
     await db.rpc('erase_conversation', { p_conversation_id: untimedBody.conversationId, p_reason: 'operator' });
   }
 
+  // A call prep's LinkedIn field is a profile address or nothing: checked by
+  // the database, so a prep can never carry a link somewhere else.
+  const badLink = await rpc('save_call_prep', { p_person_name: 'QA probe', p_linkedin_url: 'https://example.com/in/qa' });
+  record('a call prep takes only a LinkedIn profile address', code(badLink) === '22023', code(badLink));
+
   const empty = await rpc('send_feedback', { p_body: '   ' });
   record('feedback with nothing in it is refused', code(empty) === '22023', code(empty));
 

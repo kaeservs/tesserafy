@@ -20,7 +20,7 @@ describe('describeRefusal', () => {
 
   it('on Pro there is nothing to upgrade to, only a date', () => {
     expect(describeRefusal(refusal({ plan: 'pro', limit: 25, meter: 'extractions' }))).toBe(
-      'Your Pro plan includes 25 “Find insights in this call” runs a month, and they have all been used. It resets on 25 October.',
+      'Your Pro plan includes 25 “Find insights” or call preps a month, and they have all been used. It resets on 25 October.',
     );
   });
 

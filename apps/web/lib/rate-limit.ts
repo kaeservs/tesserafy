@@ -65,6 +65,12 @@ export const LIMITS: Record<string, readonly Window[]> = {
     { seconds: 3_600, limit: 10 },
     { seconds: 86_400, limit: 20 },
   ],
+  // One Sonnet brief per press (lib/prep.ts), a short prompt: a seller preparing
+  // a day's calls, and rewriting one or two, fits well inside these.
+  'api/preps': [
+    { seconds: 3_600, limit: 10 },
+    { seconds: 86_400, limit: 30 },
+  ],
   // Up to five Sonnet write-ups per press (lib/find-insights.ts). Three presses
   // an hour and ten a day bound one account at fifty write-ups a day, and
   // cited signals are skipped, so repeated presses find less, not the same.

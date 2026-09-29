@@ -43,3 +43,15 @@ export function engagementLabel(type: string): string {
   const words = type.replace(/[_-]+/g, ' ').trim();
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
+
+/**
+ * Whether the signed-in person's company can still import the sample call:
+ * it has not had it yet. Deleting the sample does not bring the offer back
+ * (import_sample_call keeps the date it was taken), so this reads the same.
+ */
+export async function sampleCallOffered(db: SupabaseClient): Promise<boolean> {
+  const companyId = await myCompanyId(db);
+  if (!companyId) return false;
+  const { data } = await db.from('companies').select('sample_imported_at').eq('id', companyId).maybeSingle();
+  return data !== null && data.sample_imported_at === null;
+}

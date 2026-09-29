@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { SampleCallButton } from '@/components/sample-call-button';
 
 /**
  * What an empty company does first.
@@ -9,10 +10,17 @@ import Link from 'next/link';
  * say which parts happen by themselves — so nobody waits on a step that is
  * already running, or presses for one that needs no pressing.
  */
-export function GettingStarted() {
+export function GettingStarted({ offerSample = false }: { offerSample?: boolean }) {
   return (
     <div className="card">
       <h2 style={{ marginTop: 0 }}>Getting started</h2>
+      {offerSample ? (
+        <>
+          <p>No transcript to hand yet? See what a scored call looks like first.</p>
+          <SampleCallButton />
+          <p className="muted" style={{ marginBottom: 0 }}>Then, with your own calls:</p>
+        </>
+      ) : null}
       <ol>
         <li>
           <Link href="/conversations/new">Import a transcript</Link> — the transcript Zoom, Meet

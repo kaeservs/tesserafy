@@ -321,6 +321,7 @@ export type Database = {
           name: string
           plan: string
           retention_days: number | null
+          sample_imported_at: string | null
         }
         Insert: {
           closed_at?: string | null
@@ -332,6 +333,7 @@ export type Database = {
           name: string
           plan?: string
           retention_days?: number | null
+          sample_imported_at?: string | null
         }
         Update: {
           closed_at?: string | null
@@ -343,6 +345,7 @@ export type Database = {
           name?: string
           plan?: string
           retention_days?: number | null
+          sample_imported_at?: string | null
         }
         Relationships: [
           {
@@ -554,6 +557,7 @@ export type Database = {
           criteria_version: number
           engagement_type: string
           id: string
+          is_sample: boolean
           occurred_at: string | null
           outcome: string | null
           outcome_set_at: string | null
@@ -572,6 +576,7 @@ export type Database = {
           criteria_version?: number
           engagement_type?: string
           id?: string
+          is_sample?: boolean
           occurred_at?: string | null
           outcome?: string | null
           outcome_set_at?: string | null
@@ -590,6 +595,7 @@ export type Database = {
           criteria_version?: number
           engagement_type?: string
           id?: string
+          is_sample?: boolean
           occurred_at?: string | null
           outcome?: string | null
           outcome_set_at?: string | null
@@ -2326,6 +2332,10 @@ export type Database = {
           p_segments: Json
           p_title: string
         }
+        Returns: string
+      }
+      import_sample_call: {
+        Args: { p_segments: Json; p_title: string }
         Returns: string
       }
       ingest_transcript: {

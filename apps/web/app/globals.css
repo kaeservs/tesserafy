@@ -1245,3 +1245,20 @@ input[type='search'] {
   color: var(--muted);
 }
 
+
+/* --------------------------------------------------------------------------
+   The sample call
+   -------------------------------------------------------------------------- */
+
+.sample-call {
+  margin: 0.5rem 0 0.75rem;
+}
+
+.sample-call button {
+  margin-right: 0.5rem;
+}
+
+.sample-note {
+  border-left: 3px solid var(--accent);
+  font-size: 0.9rem;
+}

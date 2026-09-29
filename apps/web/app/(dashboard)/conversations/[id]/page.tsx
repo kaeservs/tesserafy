@@ -189,7 +189,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
   const { data: conversation } = await supabase
     .from('conversations')
     .select(
-      'id, company_id, title, occurred_at, created_at, engagement_type, criteria_version, consent_statement, consent_confirmed_by, consent_confirmed_at, added_by, outcome, account_id',
+      'id, company_id, title, occurred_at, created_at, engagement_type, criteria_version, consent_statement, consent_confirmed_by, consent_confirmed_at, added_by, outcome, account_id, is_sample',
     )
     .eq('id', id)
     .maybeSingle();
@@ -416,6 +416,13 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
         <Link href="/conversations">← Meetings</Link>
       </p>
       <h1>{title}</h1>
+      {conversation.is_sample ? (
+        <p className="card sample-note">
+          This is Tesserafy&apos;s sample call: invented, and nobody was recorded. It is scored exactly as your own calls
+          will be — open a quote to see the words behind a criterion, or notice what was never asked. Delete it at the
+          bottom of the page whenever you like; it is not counted against your plan.
+        </p>
+      ) : null}
       {internal ? (
         <p className="muted">
           <Link href={`/live/${id}`}>Replay as a live scorecard →</Link>
@@ -451,11 +458,14 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
           accounts={(accountRows ?? []).map((row) => row.name)}
         />
       ) : null}
-      <ConsentRecord
-        statement={conversation.consent_statement}
-        confirmedAt={conversation.consent_confirmed_at}
-        byYou={Boolean(user && conversation.consent_confirmed_by === user.id)}
-      />
+      {/* The sample's note says what it is; "consent confirmed by you" would not be true of it. */}
+      {conversation.is_sample ? null : (
+        <ConsentRecord
+          statement={conversation.consent_statement}
+          confirmedAt={conversation.consent_confirmed_at}
+          byYou={Boolean(user && conversation.consent_confirmed_by === user.id)}
+        />
+      )}
 
       {/*
         Where this call has got to, and what would move it on.

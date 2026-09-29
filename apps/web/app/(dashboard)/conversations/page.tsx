@@ -1,4 +1,4 @@
-import { engagementLabel, myCompanyId } from '@/lib/company';
+import { engagementLabel, myCompanyId, sampleCallOffered } from '@/lib/company';
 import Link from 'next/link';
 import { GettingStarted } from '@/components/getting-started';
 import { ScorecardStrip } from '@/components/scorecard-strip';
@@ -219,7 +219,7 @@ export default async function ConversationsPage({
 
       {total === 0 ? (
         <div style={{ marginTop: '1.5rem' }}>
-          <GettingStarted />
+          <GettingStarted offerSample={await sampleCallOffered(supabase)} />
         </div>
       ) : (
         <ul className="meetings" style={{ marginTop: '1.5rem' }}>

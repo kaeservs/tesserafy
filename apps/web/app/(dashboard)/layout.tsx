@@ -67,6 +67,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <NavLink href="/week">This week</NavLink>
           <NavLink href="/conversations">Meetings</NavLink>
           <NavLink href="/accounts">Accounts</NavLink>
+          <NavLink href="/prep">Prepare</NavLink>
           <NavLink href="/insights">Insights</NavLink>
           <NavLink href="/reports">Reports</NavLink>
           <NavLink href="/examples">Examples</NavLink>

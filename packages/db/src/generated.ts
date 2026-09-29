@@ -310,6 +310,72 @@ export type Database = {
         }
         Relationships: []
       }
+      call_preps: {
+        Row: {
+          account_id: string | null
+          brief: Json | null
+          brief_at: string | null
+          brief_model: string | null
+          call_at: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          engagement_type: string
+          id: string
+          linkedin_url: string | null
+          person_name: string
+          person_title: string | null
+          profile_text: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          brief?: Json | null
+          brief_at?: string | null
+          brief_model?: string | null
+          call_at?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          engagement_type?: string
+          id?: string
+          linkedin_url?: string | null
+          person_name: string
+          person_title?: string | null
+          profile_text?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          brief?: Json | null
+          brief_at?: string | null
+          brief_model?: string | null
+          call_at?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          engagement_type?: string
+          id?: string
+          linkedin_url?: string | null
+          person_name?: string
+          person_title?: string | null
+          profile_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_preps_company_id_account_id_fkey"
+            columns: ["company_id", "account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "call_preps_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           closed_at: string | null
@@ -2261,6 +2327,7 @@ export type Database = {
         }
       }
       delete_account: { Args: { p_account_id: string }; Returns: undefined }
+      delete_call_prep: { Args: { p_prep_id: string }; Returns: undefined }
       delete_segment_note: { Args: { p_note_id: string }; Returns: undefined }
       disconnect_tracker: { Args: never; Returns: undefined }
       dispute_criterion: {
@@ -2585,6 +2652,19 @@ export type Database = {
         Args: { p_domain?: string; p_name: string }
         Returns: string
       }
+      save_call_prep: {
+        Args: {
+          p_account_id?: string
+          p_call_at?: string
+          p_engagement_type?: string
+          p_linkedin_url?: string
+          p_person_name: string
+          p_person_title?: string
+          p_prep_id?: string
+          p_profile_text?: string
+        }
+        Returns: string
+      }
       save_moment: {
         Args: { p_criterion_key: string; p_note?: string; p_segment_id: string }
         Returns: string
@@ -2614,6 +2694,10 @@ export type Database = {
       send_feedback: {
         Args: { p_body: string; p_page?: string }
         Returns: string
+      }
+      set_call_prep_brief: {
+        Args: { p_brief: Json; p_model: string; p_prep_id: string }
+        Returns: undefined
       }
       set_criterion_goal: {
         Args: {

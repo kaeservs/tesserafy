@@ -29,7 +29,7 @@ export interface CatalogPlan {
 
 const METER_LABEL: Record<string, string> = {
   calls: 'Imported calls',
-  extractions: 'Find insights in a call',
+  extractions: 'Find insights in a call, or prepare for one',
   pattern_runs: 'Look for patterns',
   live_seconds: 'Live minutes',
 };

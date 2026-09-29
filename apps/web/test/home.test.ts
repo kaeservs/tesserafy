@@ -85,6 +85,19 @@ describe('homeAgenda', () => {
     expect(items[3]).toEqual({ kind: 'customer', text: 'and 2 more customers need attention', href: '/accounts' });
   });
 
+  it('puts calls prepared for first, saying whether their brief is ready', () => {
+    const items = homeAgenda({
+      preps: [{ id: 'p1', personName: 'Tom Okafor', customer: 'Harbor & Pine', callAt: '2026-10-01T14:00:00Z', hasBrief: true }],
+      assignedToYou: [],
+      waitingForDecision: 1,
+      customers: [],
+      goals: [],
+      themes: [],
+    });
+    expect(items[0]).toEqual({ kind: 'prep', text: 'Call with Tom Okafor (Harbor & Pine), Thu 14:00 UTC: brief ready', href: '/prep/p1' });
+    expect(items[1]!.kind).toBe('decide');
+  });
+
   it('is empty when nothing needs anyone', () => {
     expect(homeAgenda({ assignedToYou: [], waitingForDecision: 0, customers: [], goals: [], themes: [theme('t', 'steady', 1, 1)] })).toEqual([]);
   });

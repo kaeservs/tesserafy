@@ -67,7 +67,7 @@ export async function refund(db: SupabaseClient, spent: Spent): Promise<void> {
 
 const NOUN: Record<Meter, [string, string]> = {
   calls: ['imported call', 'imported calls'],
-  extractions: ['“Find insights in this call”', '“Find insights in this call” runs'],
+  extractions: ['“Find insights” or call prep', '“Find insights” or call preps'],
   pattern_runs: ['“Look for patterns” run', '“Look for patterns” runs'],
   live_seconds: ['live minute', 'live minutes'],
 };

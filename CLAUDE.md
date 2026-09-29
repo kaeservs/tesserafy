@@ -55,7 +55,7 @@ Do not break these without an ADR that supersedes the existing one.
 | T0 | Chunking, endpointing, redaction | none — pure TS |
 | T1 | Criterion detectors: live on the last 3 utterances (<= 700 ms); a stored call in 48-utterance windows | `claude-haiku-4-5` |
 | T2 | Live suggestions (<= 3.5 s) | `claude-sonnet-5` |
-| T3 | Post-call extraction and synthesis | `claude-sonnet-5` (ADR 0014) |
+| T3 | Post-call extraction and synthesis; a call prep's brief | `claude-sonnet-5` (ADR 0014) |
 | — | Embeddings | `gte-small` in a Supabase Edge Function, 384-dim |
 
 Cost is decided by the number of calls before the price of the model. A

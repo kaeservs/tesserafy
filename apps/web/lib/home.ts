@@ -54,12 +54,14 @@ export function goalStandings(calls: readonly CoachingCall[], goals: readonly Go
 }
 
 export interface AgendaItem {
-  readonly kind: 'assigned' | 'decide' | 'customer' | 'goal' | 'theme';
+  readonly kind: 'prep' | 'assigned' | 'decide' | 'customer' | 'goal' | 'theme';
   readonly text: string;
   readonly href: string;
 }
 
 export interface AgendaInput {
+  /** Calls prepared for in the next few days, soonest first. */
+  readonly preps?: readonly { id: string; personName: string; customer: string | null; callAt: string; hasBrief: boolean }[];
   readonly assignedToYou: readonly { id: string; title: string }[];
   readonly waitingForDecision: number;
   readonly customers: readonly {
@@ -83,6 +85,20 @@ function percent(share: number): string {
 
 export function homeAgenda(input: AgendaInput): AgendaItem[] {
   const items: AgendaItem[] = [];
+
+  for (const prep of input.preps ?? []) {
+    const when = new Date(prep.callAt).toLocaleString('en-GB', {
+      weekday: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'UTC',
+    });
+    items.push({
+      kind: 'prep',
+      text: `Call with ${prep.personName}${prep.customer ? ` (${prep.customer})` : ''}, ${when} UTC: ${prep.hasBrief ? 'brief ready' : 'no brief yet'}`,
+      href: `/prep/${prep.id}`,
+    });
+  }
 
   for (const insight of input.assignedToYou.slice(0, SHOWN)) {
     items.push({ kind: 'assigned', text: `Assigned to you: ${insight.title}`, href: `/insights/${insight.id}` });

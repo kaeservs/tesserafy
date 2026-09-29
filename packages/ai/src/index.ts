@@ -47,6 +47,15 @@ export {
   type ExtractOptions,
 } from './tiers/t3-extract';
 export {
+  prepareBrief,
+  resolvePrep,
+  T3_PREP_DETECTOR,
+  type PrepBrief,
+  type PrepInput,
+  type PrepOptions,
+  type PrepResult,
+} from './tiers/t3-prep';
+export {
   resolveSignals,
   type ClaimedSignal,
   type QuotableSegment,

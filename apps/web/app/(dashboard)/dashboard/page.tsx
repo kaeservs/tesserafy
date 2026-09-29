@@ -33,6 +33,7 @@ import { createClient } from '@/lib/supabase/server';
  */
 
 const KIND_LABEL: Record<AgendaItem['kind'], string> = {
+  prep: 'Call',
   assigned: 'Yours',
   decide: 'Decide',
   customer: 'Customer',
@@ -132,7 +133,23 @@ export default async function DashboardPage() {
     (goalRows ?? []).map((row) => ({ engagementType: row.engagement_type, key: row.criterion_key, target: Number(row.target) })),
     now,
   );
+  // Calls someone prepared for in the next three days.
+  const { data: prepRows } = await supabase
+    .from('call_preps')
+    .select('id, person_name, account_id, call_at, brief')
+    .gte('call_at', now.toISOString())
+    .lte('call_at', new Date(now.getTime() + 3 * 86_400_000).toISOString())
+    .order('call_at')
+    .limit(10);
+  const accountName = new Map(accounts.map((account) => [account.id, account.name]));
   const agenda = homeAgenda({
+    preps: (prepRows ?? []).map((row) => ({
+      id: row.id,
+      personName: row.person_name,
+      customer: row.account_id ? (accountName.get(row.account_id) ?? null) : null,
+      callAt: row.call_at ?? now.toISOString(),
+      hasBrief: row.brief !== null,
+    })),
     assignedToYou: insights.filter((insight) => insight.assigned_to === user?.id && insight.status !== 'dismissed'),
     waitingForDecision: insights.filter((insight) => insight.status === 'proposed').length,
     customers,

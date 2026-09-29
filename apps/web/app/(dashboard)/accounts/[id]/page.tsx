@@ -89,6 +89,9 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
           </>
         ) : null}
       </p>
+      <p>
+        <Link href={`/prep?account=${account.id}`}>Prepare for the next call with {account.name} →</Link>
+      </p>
       <ManageAccount
         accountId={account.id}
         name={account.name}

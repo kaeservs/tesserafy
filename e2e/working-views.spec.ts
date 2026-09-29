@@ -79,6 +79,16 @@ test('the dashboard opens on what needs you', async ({ page }) => {
   expect((await agenda.locator('ul.agenda a').count()) > 0 || (await agenda.getByText(/^Nothing today/).count()) > 0).toBe(true);
 });
 
+test('Prepare opens with a form that asks for the profile, not for LinkedIn access', async ({ page }) => {
+  await signIn(page);
+  await page.getByRole('link', { name: 'Prepare' }).click();
+  await page.waitForURL((url) => url.pathname === '/prep');
+  await expect(page.getByLabel('Who is the call with?')).toBeVisible();
+  await expect(page.getByLabel('Their LinkedIn profile (optional)')).toBeVisible();
+  await expect(page.getByLabel('What their profile says (optional)')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Prepare' })).toBeDisabled();
+});
+
 test('Examples and Themes over time open for a member', async ({ page }) => {
   await signIn(page);
   await page.getByRole('link', { name: 'Examples' }).click();

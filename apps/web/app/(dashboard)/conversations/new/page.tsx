@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { fetchCriteriaSets } from '@tesserafy/db';
-import { myCompanyId } from '@/lib/company';
+import { myCompanyId, sampleCallOffered } from '@/lib/company';
+import { SampleCallButton } from '@/components/sample-call-button';
 import { createClient } from '@/lib/supabase/server';
 import { Upload } from './upload';
 
@@ -27,6 +28,7 @@ export default async function NewConversationPage() {
     .filter((set) => !all.some((other) => other.engagementType === set.engagementType && other.version > set.version))
     .sort((a, b) => Number(b.own) - Number(a.own));
   const { data: accounts } = await supabase.from('accounts').select('name').order('name').limit(500);
+  const offerSample = await sampleCallOffered(supabase);
 
   return (
     <main>
@@ -39,6 +41,12 @@ export default async function NewConversationPage() {
         Fireflies or a Meet document, or turns as JSON. Email addresses and phone numbers in it are masked
         before anything is stored.
       </p>
+      {offerSample ? (
+        <div className="card">
+          <p style={{ marginTop: 0 }}>No transcript to hand? See what a scored call looks like first.</p>
+          <SampleCallButton />
+        </div>
+      ) : null}
 
       <Upload sets={sets} accounts={(accounts ?? []).map((account) => account.name)} />
 

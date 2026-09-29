@@ -1172,6 +1172,21 @@ async function checkWorkingWithACall(baseUrl: string, token: string, conversatio
 
   const empty = await rpc('send_feedback', { p_body: '   ' });
   record('feedback with nothing in it is refused', code(empty) === '22023', code(empty));
+
+  // The sample call is one per company, ever. The probe's company takes its
+  // one on the first run after the feature ships, which is erased here at
+  // once; every run after meets the refusal. Either answer is the route
+  // working; anything else is not.
+  const sample = await fetch(new URL('/api/sample-call', baseUrl), { method: 'POST', headers: { authorization: `Bearer ${token}` } });
+  const sampleBody = (await sample.json()) as { conversationId?: string; error?: string };
+  if (sampleBody.conversationId) {
+    await db.rpc('erase_conversation', { p_conversation_id: sampleBody.conversationId, p_reason: 'operator' });
+  }
+  record(
+    'the sample call is offered once per company',
+    (sample.status === 200 && Boolean(sampleBody.conversationId)) || sample.status === 409,
+    sample.status === 200 ? 'imported, and erased' : `${sample.status} ${sampleBody.error ?? ''}`.trim(),
+  );
 }
 
 /**

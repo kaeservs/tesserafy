@@ -137,7 +137,7 @@ export default async function Companies({
         )}
       </p>
 
-      <table>
+      <table tabIndex={0}>
         <thead>
           <tr>
             {heading('name')}

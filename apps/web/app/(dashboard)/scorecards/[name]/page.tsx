@@ -1,3 +1,4 @@
+import { TableScroll } from '@/components/table-scroll';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { fetchCriteria, fetchCriteriaSets } from '@tesserafy/db';
@@ -111,32 +112,34 @@ export default async function ScorecardPage({
 
       <section aria-labelledby="versions-heading">
         <h2 id="versions-heading">Versions</h2>
-        <table className="team">
-          <thead>
-            <tr>
-              <th scope="col">Version</th>
-              <th scope="col">Criteria</th>
-              <th scope="col">Published</th>
-              <th scope="col">Calls scored with it</th>
-            </tr>
-          </thead>
-          <tbody>
-            {versions.map((set) => (
-              <tr key={set.version}>
-                <td>
-                  {set.version === chosen.version ? (
-                    <strong>{set.version}</strong>
-                  ) : (
-                    <Link href={`/scorecards/${encodeURIComponent(name)}?version=${set.version}`}>{set.version}</Link>
-                  )}
-                </td>
-                <td>{set.criteria}</td>
-                <td className="when">{day(set.publishedAt)}</td>
-                <td>{callsFor.get(set.version) ?? 0}</td>
+        <TableScroll label="Criteria">
+          <table className="team">
+            <thead>
+              <tr>
+                <th scope="col">Version</th>
+                <th scope="col">Criteria</th>
+                <th scope="col">Published</th>
+                <th scope="col">Calls scored with it</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {versions.map((set) => (
+                <tr key={set.version}>
+                  <td>
+                    {set.version === chosen.version ? (
+                      <strong>{set.version}</strong>
+                    ) : (
+                      <Link href={`/scorecards/${encodeURIComponent(name)}?version=${set.version}`}>{set.version}</Link>
+                    )}
+                  </td>
+                  <td>{set.criteria}</td>
+                  <td className="when">{day(set.publishedAt)}</td>
+                  <td>{callsFor.get(set.version) ?? 0}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableScroll>
         {/* Kept on the page after the last call moves, so its message stays. */}
         {isOwner && versions.length > 1 ? (
           <MoveCalls name={name} newest={versions[0]!.version} onOlder={onOlder} />

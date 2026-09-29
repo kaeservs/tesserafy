@@ -130,7 +130,7 @@ export default async function OverviewPage() {
 
       <section className="card">
         <h2 style={{ marginTop: 0 }}>Companies by plan</h2>
-        <table>
+        <table tabIndex={0}>
           <tbody>
             {PLAN_ORDER.filter((plan) => (o.companies.by_plan[plan] ?? 0) > 0).map((plan) => (
               <tr key={plan}>

@@ -1,3 +1,4 @@
+import { TableScroll } from '@/components/table-scroll';
 import Link from 'next/link';
 import { AddAccount } from '@/components/account-forms';
 import { listAccounts } from '@/lib/accounts';
@@ -78,35 +79,37 @@ export default async function AccountsPage() {
           None yet. Say who a call was with when you import it, or under Edit this call on any call.
         </p>
       ) : (
-        <table className="team">
-          <thead>
-            <tr>
-              <th scope="col">Customer</th>
-              <th scope="col">Calls</th>
-              <th scope="col">Last call</th>
-              <th scope="col">Where it stands</th>
-            </tr>
-          </thead>
-          <tbody>
-            {accounts.map((account) => (
-              <tr key={account.id}>
-                <td>
-                  <Link href={`/accounts/${account.id}`}>{account.name}</Link>
-                  {account.domain ? <span className="muted"> · {account.domain}</span> : null}
-                </td>
-                <td>{account.calls}</td>
-                <td className="when">{account.lastCallAt ? day(account.lastCallAt) : <span className="muted">none yet</span>}</td>
-                <td>
-                  {account.latestOutcome ? (
-                    <span className={`stage outcome-${account.latestOutcome}`}>{OUTCOME_LABEL[account.latestOutcome]}</span>
-                  ) : (
-                    <span className="muted">not said</span>
-                  )}
-                </td>
+        <TableScroll label="Accounts">
+          <table className="team">
+            <thead>
+              <tr>
+                <th scope="col">Customer</th>
+                <th scope="col">Calls</th>
+                <th scope="col">Last call</th>
+                <th scope="col">Where it stands</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {accounts.map((account) => (
+                <tr key={account.id}>
+                  <td>
+                    <Link href={`/accounts/${account.id}`}>{account.name}</Link>
+                    {account.domain ? <span className="muted"> · {account.domain}</span> : null}
+                  </td>
+                  <td>{account.calls}</td>
+                  <td className="when">{account.lastCallAt ? day(account.lastCallAt) : <span className="muted">none yet</span>}</td>
+                  <td>
+                    {account.latestOutcome ? (
+                      <span className={`stage outcome-${account.latestOutcome}`}>{OUTCOME_LABEL[account.latestOutcome]}</span>
+                    ) : (
+                      <span className="muted">not said</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableScroll>
       )}
     </main>
   );

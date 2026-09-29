@@ -1,3 +1,4 @@
+import { TableScroll } from '@/components/table-scroll';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { batches, readAll } from '@tesserafy/db';
@@ -148,41 +149,43 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
           </p>
         ) : (
           <>
-            <table className="team">
-              <thead>
-                <tr>
-                  <th scope="col">Criterion</th>
-                  <th scope="col">{person.is_you ? 'You' : 'Them'}</th>
-                  <th scope="col">Company</th>
-                  <th scope="col">Calls</th>
-                  <th scope="col">Goal</th>
-                </tr>
-              </thead>
-              <tbody>
-                {profile.criteria.map((row) => (
-                  <tr key={`${row.engagementType}/${row.key}`}>
-                    <td>
-                      {row.label} <span className="muted">· {engagementLabel(row.engagementType)}</span>
-                    </td>
-                    <td>{percent(row.rate)}</td>
-                    <td className="muted">{percent(row.companyRate)}</td>
-                    <td className="muted">{row.calls}</td>
-                    <td>
-                      {goalOf.has(`${row.engagementType}/${row.key}`) ? (
-                        <>
-                          {percent(goalOf.get(`${row.engagementType}/${row.key}`)!)}
-                          <span className={row.rate >= goalOf.get(`${row.engagementType}/${row.key}`)! ? 'muted' : 'shortfall'}>
-                            {row.rate >= goalOf.get(`${row.engagementType}/${row.key}`)! ? ' met' : ' below'}
-                          </span>
-                        </>
-                      ) : (
-                        <span className="muted">—</span>
-                      )}
-                    </td>
+            <TableScroll label="Criteria against the company">
+              <table className="team">
+                <thead>
+                  <tr>
+                    <th scope="col">Criterion</th>
+                    <th scope="col">{person.is_you ? 'You' : 'Them'}</th>
+                    <th scope="col">Company</th>
+                    <th scope="col">Calls</th>
+                    <th scope="col">Goal</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {profile.criteria.map((row) => (
+                    <tr key={`${row.engagementType}/${row.key}`}>
+                      <td>
+                        {row.label} <span className="muted">· {engagementLabel(row.engagementType)}</span>
+                      </td>
+                      <td>{percent(row.rate)}</td>
+                      <td className="muted">{percent(row.companyRate)}</td>
+                      <td className="muted">{row.calls}</td>
+                      <td>
+                        {goalOf.has(`${row.engagementType}/${row.key}`) ? (
+                          <>
+                            {percent(goalOf.get(`${row.engagementType}/${row.key}`)!)}
+                            <span className={row.rate >= goalOf.get(`${row.engagementType}/${row.key}`)! ? 'muted' : 'shortfall'}>
+                              {row.rate >= goalOf.get(`${row.engagementType}/${row.key}`)! ? ' met' : ' below'}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="muted">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableScroll>
             <p className="muted" style={{ fontSize: '0.82rem' }}>
               How often each criterion was met on scored calls, weakest against the company first.
             </p>

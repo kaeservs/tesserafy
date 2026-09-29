@@ -1,3 +1,5 @@
+import { TableScroll } from '@/components/table-scroll';
+
 /**
  * Who has opened this call, for its company's owner.
  *
@@ -30,29 +32,31 @@ export function CallViewers({ viewers }: { viewers: Viewer[] }) {
             ({viewers.length} {viewers.length === 1 ? 'person' : 'people'})
           </span>
         </summary>
-        <table className="team" style={{ marginTop: '0.75rem' }}>
-          <thead>
-            <tr>
-              <th>Person</th>
-              <th>Last opened</th>
-              <th>Visits</th>
-            </tr>
-          </thead>
-          <tbody>
-            {viewers.map((viewer) => (
-              <tr key={viewer.email}>
-                <td>
-                  {viewer.email}
-                  {viewer.duringSupport ? (
-                    <span className="muted"> — includes visits during a Tesserafy support session</span>
-                  ) : null}
-                </td>
-                <td className="muted when">{when(viewer.lastViewedAt)}</td>
-                <td className="muted">{viewer.views}</td>
+        <TableScroll label="Who has opened this call">
+          <table className="team" style={{ marginTop: '0.75rem' }}>
+            <thead>
+              <tr>
+                <th>Person</th>
+                <th>Last opened</th>
+                <th>Visits</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {viewers.map((viewer) => (
+                <tr key={viewer.email}>
+                  <td>
+                    {viewer.email}
+                    {viewer.duringSupport ? (
+                      <span className="muted"> — includes visits during a Tesserafy support session</span>
+                    ) : null}
+                  </td>
+                  <td className="muted when">{when(viewer.lastViewedAt)}</td>
+                  <td className="muted">{viewer.views}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableScroll>
         <p className="muted" style={{ marginBottom: 0 }}>
           Opening this page is recorded, once per person every ten minutes. Search results and
           insight quotes are not. Only owners can see this.

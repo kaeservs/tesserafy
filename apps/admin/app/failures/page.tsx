@@ -97,7 +97,7 @@ export default async function Failures({ searchParams }: { searchParams: Promise
       </section>
 
       {groups.length > 0 ? (
-        <table>
+        <table tabIndex={0}>
           <thead>
             <tr>
               <th />

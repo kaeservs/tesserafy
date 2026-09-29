@@ -1,5 +1,6 @@
 'use client';
 
+import { TableScroll } from '@/components/table-scroll';
 import { useActionState, useState } from 'react';
 import { publishScorecard, type PublishState } from '@/app/(dashboard)/scorecards/actions';
 import {
@@ -277,36 +278,38 @@ export function ScorecardEditor({ start, templates }: { start: EditorStart; temp
                 wording does.
               </p>
             ) : null}
-            <table className="team">
-              <thead>
-                <tr>
-                  <th scope="col">Criterion</th>
-                  <th scope="col">Met in</th>
-                  <th scope="col">What it heard</th>
-                </tr>
-              </thead>
-              <tbody>
-                {summary.map((row) => (
-                  <tr key={row.key}>
-                    <td>{row.label}</td>
-                    <td className="when">
-                      {row.met} of {trial.calls.length}
-                      {row.partly > 0 ? <span className="muted"> ({row.partly} partly)</span> : null}
-                    </td>
-                    <td>
-                      {row.example ? (
-                        <q className="tried-quote">{row.example}</q>
-                      ) : (
-                        <span className="muted">
-                          Nothing. The description may not match how people say it — or these calls did not
-                          do it.
-                        </span>
-                      )}
-                    </td>
+            <TableScroll label="Criteria">
+              <table className="team">
+                <thead>
+                  <tr>
+                    <th scope="col">Criterion</th>
+                    <th scope="col">Met in</th>
+                    <th scope="col">What it heard</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {summary.map((row) => (
+                    <tr key={row.key}>
+                      <td>{row.label}</td>
+                      <td className="when">
+                        {row.met} of {trial.calls.length}
+                        {row.partly > 0 ? <span className="muted"> ({row.partly} partly)</span> : null}
+                      </td>
+                      <td>
+                        {row.example ? (
+                          <q className="tried-quote">{row.example}</q>
+                        ) : (
+                          <span className="muted">
+                            Nothing. The description may not match how people say it — or these calls did not
+                            do it.
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableScroll>
             <h3>By call</h3>
             <ul>
               {trial.calls.map((call) => (

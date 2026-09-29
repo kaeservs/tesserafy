@@ -1,3 +1,4 @@
+import { TableScroll } from '@/components/table-scroll';
 import { ChangeRole } from '@/components/change-role';
 import { PlanPanel, type CatalogPlan, type PlanOverview } from '@/components/plan-panel';
 import { liveAvailable } from '@/lib/company';
@@ -145,44 +146,46 @@ export default async function SettingsPage() {
         <h2 id="team-heading" style={{ marginTop: 0 }}>
           Who has access
         </h2>
-        <table className="team">
-          <thead>
-            <tr>
-              <th>Person</th>
-              <th>Role</th>
-              <th>Joined</th>
-              <th>Last signed in</th>
-              {isOwner ? <th aria-label="Actions" /> : null}
-            </tr>
-          </thead>
-          <tbody>
-            {(team ?? []).map((person) => (
-              <tr key={person.user_id}>
-                <td>
-                  {person.email}
-                  {person.is_you ? <span className="muted"> (you)</span> : null}
-                </td>
-                <td>{person.role}</td>
-                <td className="muted when">{day(person.joined_at)}</td>
-                <td className="muted when">
-                  {person.last_sign_in_at ? day(person.last_sign_in_at) : 'never'}
-                </td>
-                {isOwner ? (
-                  <td>
-                    <div className="toolbar" style={{ flexWrap: 'wrap' }}>
-                      {person.role === 'member' ? (
-                        <ChangeRole userId={person.user_id} email={person.email} to="owner" isYou={person.is_you} />
-                      ) : owners > 1 ? (
-                        <ChangeRole userId={person.user_id} email={person.email} to="member" isYou={person.is_you} />
-                      ) : null}
-                      {person.is_you ? null : <RemoveMember userId={person.user_id} email={person.email} />}
-                    </div>
-                  </td>
-                ) : null}
+        <TableScroll label="Team">
+          <table className="team">
+            <thead>
+              <tr>
+                <th>Person</th>
+                <th>Role</th>
+                <th>Joined</th>
+                <th>Last signed in</th>
+                {isOwner ? <th aria-label="Actions" /> : null}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {(team ?? []).map((person) => (
+                <tr key={person.user_id}>
+                  <td>
+                    {person.email}
+                    {person.is_you ? <span className="muted"> (you)</span> : null}
+                  </td>
+                  <td>{person.role}</td>
+                  <td className="muted when">{day(person.joined_at)}</td>
+                  <td className="muted when">
+                    {person.last_sign_in_at ? day(person.last_sign_in_at) : 'never'}
+                  </td>
+                  {isOwner ? (
+                    <td>
+                      <div className="toolbar" style={{ flexWrap: 'wrap' }}>
+                        {person.role === 'member' ? (
+                          <ChangeRole userId={person.user_id} email={person.email} to="owner" isYou={person.is_you} />
+                        ) : owners > 1 ? (
+                          <ChangeRole userId={person.user_id} email={person.email} to="member" isYou={person.is_you} />
+                        ) : null}
+                        {person.is_you ? null : <RemoveMember userId={person.user_id} email={person.email} />}
+                      </div>
+                    </td>
+                  ) : null}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableScroll>
         <p className="muted">
           Anyone removed loses access to every call at once; their account stays, with nothing in
           it.

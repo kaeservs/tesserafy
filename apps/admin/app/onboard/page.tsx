@@ -67,7 +67,7 @@ export default async function Onboard() {
 
       <h2>Recent</h2>
       {error ? <p className="tag open">{error.message}</p> : null}
-      <table>
+      <table tabIndex={0}>
         <thead>
           <tr>
             <th>When</th>

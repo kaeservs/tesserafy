@@ -65,7 +65,7 @@ export function DeleteForm({ candidates, defaultReason }: { candidates: Candidat
         state.status === 'done' ? null : <p className="muted">No account here can be deleted.</p>
       ) : (
         <form action={action} className="card">
-          <table>
+          <table tabIndex={0}>
             <thead>
               <tr>
                 <th />

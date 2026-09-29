@@ -16,6 +16,7 @@
  * password through once, to the main process, and keeps nothing.
  */
 import { apply, defineCriteriaSet, initialState, score } from '@tesserafy/scoring';
+import { questionsToAsk } from './to-ask';
 
 const api = window.overlay;
 const WINDOW_SIZE = 3;
@@ -93,6 +94,8 @@ function render() {
     })
     .join('');
 
+  renderToAsk(card);
+
   const sorted = [...latencies].sort((a, b) => a - b);
   const p50 = sorted.length ? sorted[Math.floor(sorted.length / 2)] : null;
   setStatus(`${confirmed}/${card.criteria.length} confirmed${p50 ? ` · ${p50} ms p50` : ''}`);
@@ -114,6 +117,8 @@ function render() {
 
 /** The customer this call is with, if anyone said. Chosen per call, never remembered. */
 let chosenAccount = null;
+/** The prep's questions for this customer's call, each naming its criterion. */
+let preparedQuestions = [];
 
 async function loadAccounts() {
   const result = await api.accounts();
@@ -132,7 +137,9 @@ async function loadAccounts() {
     }),
   );
   chosenAccount = null;
+  preparedQuestions = [];
   el('brief').hidden = true;
+  el('toAsk').hidden = true;
   el('accountPick').hidden = accounts.length === 0;
 }
 
@@ -148,6 +155,7 @@ function line(text, className) {
 
 async function showBrief(id) {
   const brief = el('brief');
+  preparedQuestions = [];
   if (!id) {
     brief.hidden = true;
     return;
@@ -157,6 +165,7 @@ async function showBrief(id) {
     brief.hidden = true;
     return;
   }
+  preparedQuestions = result.prep?.questions ?? [];
   const parts = [];
   const standing = [
     `${result.calls} call${result.calls === 1 ? '' : 's'} before`,
@@ -177,6 +186,22 @@ async function showBrief(id) {
     parts.push(list);
   }
   for (const note of result.notes ?? []) parts.push(line(`Note: ${note}`, 'dim'));
+  if (result.prep) {
+    const prep = document.createElement('div');
+    prep.className = 'prep';
+    prep.append(line(`Prepared for ${result.prep.person}`, 'dim'));
+    if (result.prep.openWith) prep.append(line(`Open with: ${result.prep.openWith}`));
+    if (result.prep.questions.length > 0) {
+      const list = document.createElement('ul');
+      for (const question of result.prep.questions) {
+        const li = document.createElement('li');
+        li.textContent = `Ask: ${question.ask}`;
+        list.append(li);
+      }
+      prep.append(list);
+    }
+    parts.push(prep);
+  }
   brief.replaceChildren(...parts);
   brief.hidden = false;
 }
@@ -437,8 +462,10 @@ function startListening() {
   el('listen').textContent = 'Stop';
   el('scorecard').disabled = true;
   el('account').disabled = true;
-  // The brief was for walking in; the scorecard is for the call.
+  // The brief was for walking in; the scorecard is for the call, with the
+  // prep's questions beside it.
   el('brief').hidden = true;
+  render();
   // Fixed for the length of the call: unticking mid-call would not unrecord
   // what was already said.
   el('consent').disabled = true;
@@ -651,11 +678,39 @@ function showSignedIn(email) {
   void loadAccounts();
 }
 
+/**
+ * The prep's questions during the call, each struck through once the live
+ * scorecard confirms the criterion it was asked for. A question is a
+ * reminder, not a score: whether it was met is the scorecard's to say.
+ */
+function renderToAsk(card) {
+  const section = el('toAsk');
+  if (!listening || preparedQuestions.length === 0) {
+    section.hidden = true;
+    return;
+  }
+  const heading = document.createElement('h2');
+  heading.textContent = 'To ask';
+  const list = document.createElement('ol');
+  for (const question of questionsToAsk(preparedQuestions, card.criteria)) {
+    const li = document.createElement('li');
+    li.textContent = question.ask;
+    if (question.done) {
+      li.className = 'done';
+      li.title = `${question.label}: confirmed`;
+    }
+    list.append(li);
+  }
+  section.replaceChildren(heading, list);
+  section.hidden = false;
+}
+
 function showSignedOut(remembers) {
   signedIn = false;
   el('scorecardPick').hidden = true;
   el('accountPick').hidden = true;
   el('brief').hidden = true;
+  el('toAsk').hidden = true;
   el('signin').hidden = false;
   el('who').hidden = true;
   el('listen').disabled = true;

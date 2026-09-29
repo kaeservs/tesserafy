@@ -815,6 +815,7 @@ async function checkImport(baseUrl: string, token: string): Promise<void> {
     );
 
     await checkCallWorkflow(baseUrl, token, conversationId);
+    await checkWorkingWithACall(baseUrl, token, conversationId);
   } finally {
     if (conversationId) {
       const { error } = await createServiceClient({
@@ -1062,6 +1063,118 @@ async function checkCallWorkflow(baseUrl: string, token: string, conversationId:
 }
 
 /**
+ * What came after the call workflow, on the same probe and undone before it
+ * is erased: a person's correction to the score, a line saved as an example,
+ * a speaker marked as one of ours and the talk counted, an owner's goal, the
+ * Reports CSV honouring its period, a text transcript's parser refusing a file
+ * with no times, and feedback refusing an empty message. None of it spends an
+ * allowance, and nothing is left behind: what is not removed here goes with
+ * the probe's erasure.
+ */
+async function checkWorkingWithACall(baseUrl: string, token: string, conversationId: string): Promise<void> {
+  const rpc = asProbe(token);
+  if (!rpc) {
+    record('working with a call', true, 'skipped — needs SUPABASE_PUBLISHABLE_KEY');
+    return;
+  }
+  const db = createServiceClient({ url: requireEnv('SUPABASE_URL'), key: requireEnv('SUPABASE_SERVICE_ROLE_KEY') });
+  const { data: segment } = await db
+    .from('segments')
+    .select('id, text')
+    .eq('conversation_id', conversationId)
+    .ilike('text', '%90 minutes%')
+    .limit(1)
+    .maybeSingle();
+  if (!segment) {
+    record('working with a call', false, 'the probe has no line saying 90 minutes');
+    return;
+  }
+  const code = (answer: { status: number; body: unknown }) =>
+    (answer.body as { code?: string } | null)?.code ?? `${answer.status}`;
+
+  const disputed = await rpc('dispute_criterion', {
+    p_conversation_id: conversationId,
+    p_criterion_key: 'pain_quantified',
+    p_kind: 'evidence',
+    p_segment_id: segment.id,
+    p_quote: '90 minutes',
+    p_reason: 'QA probe: the cost is stated.',
+  });
+  const eventId = typeof disputed.body === 'string' ? disputed.body : null;
+  record('a person can correct the score, quoting the words', disputed.status === 200 && eventId !== null, code(disputed));
+  if (eventId) {
+    const withdrawn = await rpc('withdraw_dispute', { p_event_id: eventId });
+    record('and withdraw the correction', withdrawn.status < 300, `${withdrawn.status}`);
+  }
+
+  const saved = await rpc('save_moment', { p_segment_id: segment.id, p_criterion_key: 'pain_quantified', p_note: 'QA probe' });
+  const momentId = typeof saved.body === 'string' ? saved.body : null;
+  record('a line can be saved as an example of a criterion', saved.status === 200 && momentId !== null, code(saved));
+  if (momentId) {
+    const removed = await rpc('remove_moment', { p_moment_id: momentId });
+    record('and taken out again', removed.status < 300, `${removed.status}`);
+  }
+  const offCard = await rpc('save_moment', { p_segment_id: segment.id, p_criterion_key: 'qa_not_a_criterion' });
+  record('but only as an example of a criterion on the call', code(offCard) === '22023', code(offCard));
+
+  const talk = await rpc('conversation_talk', { p_since: '2000-01-01T00:00:00Z' });
+  const words = Array.isArray(talk.body)
+    ? (talk.body as { conversation_id: string; words: number }[])
+        .filter((row) => row.conversation_id === conversationId)
+        .reduce((sum, row) => sum + Number(row.words), 0)
+    : 0;
+  record('who talked is counted from the transcript', talk.status === 200 && words > 0, `${words} word(s)`);
+  const marked = await rpc('set_our_speaker', { p_name: 'QA probe speaker', p_ours: true });
+  const { count: kept } = await db.from('our_speakers').select('name', { count: 'exact', head: true }).eq('name', 'QA probe speaker');
+  const unmarked = await rpc('set_our_speaker', { p_name: 'QA probe speaker', p_ours: false });
+  const { count: left } = await db.from('our_speakers').select('name', { count: 'exact', head: true }).eq('name', 'QA probe speaker');
+  record(
+    'a speaker can be marked as one of ours, and unmarked',
+    marked.status < 300 && unmarked.status < 300 && kept === 1 && left === 0,
+    `${kept ?? 0} then ${left ?? 0}`,
+  );
+
+  const uploader = (JSON.parse(Buffer.from(token.split('.')[1] ?? '', 'base64url').toString()) as { sub?: string }).sub ?? '';
+  const { data: membership } = await db.from('company_members').select('role').eq('user_id', uploader).limit(1).maybeSingle();
+  const goal = await rpc('set_criterion_goal', { p_engagement_type: 'discovery', p_criterion_key: 'pain_quantified', p_target: 0.5 });
+  if (membership?.role === 'owner') {
+    const cleared = await rpc('set_criterion_goal', { p_engagement_type: 'discovery', p_criterion_key: 'pain_quantified', p_target: null });
+    record('an owner sets a goal for a criterion, and clears it', goal.status < 300 && cleared.status < 300, `${goal.status}, ${cleared.status}`);
+  } else {
+    record('a member cannot set a goal', code(goal) === '42501', code(goal));
+  }
+
+  for (const weeks of [4, 26]) {
+    const csv = await fetch(new URL(`/api/export/reports?weeks=${weeks}&table=weeks`, baseUrl), {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    const rows = csv.ok ? (await csv.text()).split('\r\n').filter(Boolean).length - 1 : 0;
+    record(`the Reports CSV covers the period asked for (${weeks} weeks)`, csv.ok && rows === weeks, csv.ok ? `${rows} week(s)` : `${csv.status}`);
+  }
+
+  const form = new FormData();
+  form.set('transcript', new File([`Ada: Hello${NEWLINE}Grace: Hi`], 'qa-probe.txt', { type: 'text/plain' }));
+  form.set('consent', 'on');
+  const untimed = await fetch(new URL('/api/transcripts', baseUrl), {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}` },
+    body: form,
+  });
+  const untimedBody = (await untimed.json()) as { error?: string; conversationId?: string };
+  record(
+    'a text transcript without times is refused, before anything is stored or charged',
+    untimed.status === 422 && /No timestamps/.test(untimedBody.error ?? '') && !untimedBody.conversationId,
+    `${untimed.status}`,
+  );
+  if (untimedBody.conversationId) {
+    await db.rpc('erase_conversation', { p_conversation_id: untimedBody.conversationId, p_reason: 'operator' });
+  }
+
+  const empty = await rpc('send_feedback', { p_body: '   ' });
+  record('feedback with nothing in it is refused', code(empty) === '22023', code(empty));
+}
+
+/**
  * Scorecards, as the probe account, spending nothing: the picker's list, and
  * the two refusals that keep a company's set from being ambiguous or broken
  * — a template's name, and a draft the engine could not score, refused by the
@@ -1132,6 +1245,8 @@ async function checkConsoleReads(token: string): Promise<void> {
     ['admin_adoption', {}],
     ['admin_spend_by_week', { p_weeks: 12 }],
     ['admin_activity', { p_limit: 20 }],
+    ['admin_company_margin', { p_days: 30 }],
+    ['admin_company_health', {}],
   ] as const) {
     const answer = await rpc(name, body);
     if (required) {

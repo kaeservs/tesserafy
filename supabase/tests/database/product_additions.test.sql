@@ -154,7 +154,7 @@ select ok(
 -- ---------------------------------------------------------------------------
 reset role;
 select set_config('request.jwt.claims', '', true);
-update public.companies set closed_at = now() where id = '00000000-0000-4000-8000-00000000000a';
+update public.companies set closed_at = now(), closed_reason = 'test' where id = '00000000-0000-4000-8000-00000000000a';
 select is(
   (select count(*)::int from public.our_speakers where company_id = '00000000-0000-4000-8000-00000000000a'),
   0, 'closing a company forgets which speakers were its own'

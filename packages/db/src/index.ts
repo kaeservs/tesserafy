@@ -60,7 +60,9 @@ export function createTokenClient({
 export {
   fetchCriteria,
   fetchCriteriaSets,
+  fetchCriterionLabels,
   type CriteriaSetSummary,
+  type CriterionLabel,
   type CriterionRow,
 } from './queries/criteria';
 export { fetchCriterionEvents, type CriterionEventRow } from './queries/criterion-events';

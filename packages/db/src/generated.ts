@@ -745,6 +745,41 @@ export type Database = {
           },
         ]
       }
+      criterion_goals: {
+        Row: {
+          company_id: string
+          criterion_key: string
+          engagement_type: string
+          set_by: string | null
+          target: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          criterion_key: string
+          engagement_type: string
+          set_by?: string | null
+          target: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          criterion_key?: string
+          engagement_type?: string
+          set_by?: string | null
+          target?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "criterion_goals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       erasure_events: {
         Row: {
           company_id: string
@@ -788,6 +823,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "erasure_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedback: {
+        Row: {
+          body: string
+          company_id: string
+          created_at: string
+          handled_at: string | null
+          handled_by: string | null
+          id: string
+          page: string | null
+          sent_by: string | null
+          status: string
+        }
+        Insert: {
+          body: string
+          company_id: string
+          created_at?: string
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          page?: string | null
+          sent_by?: string | null
+          status?: string
+        }
+        Update: {
+          body?: string
+          company_id?: string
+          created_at?: string
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          page?: string | null
+          sent_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
@@ -1168,6 +1247,64 @@ export type Database = {
           },
         ]
       }
+      moments: {
+        Row: {
+          company_id: string
+          conversation_id: string
+          created_at: string
+          criterion_key: string
+          engagement_type: string
+          id: string
+          note: string | null
+          saved_by: string | null
+          segment_id: string
+        }
+        Insert: {
+          company_id: string
+          conversation_id: string
+          created_at?: string
+          criterion_key: string
+          engagement_type: string
+          id?: string
+          note?: string | null
+          saved_by?: string | null
+          segment_id: string
+        }
+        Update: {
+          company_id?: string
+          conversation_id?: string
+          created_at?: string
+          criterion_key?: string
+          engagement_type?: string
+          id?: string
+          note?: string | null
+          saved_by?: string | null
+          segment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moments_company_id_conversation_id_fkey"
+            columns: ["company_id", "conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "moments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "moments_company_id_segment_id_fkey"
+            columns: ["company_id", "segment_id"]
+            isOneToOne: false
+            referencedRelation: "segments"
+            referencedColumns: ["company_id", "id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           access_request_id: string | null
@@ -1242,6 +1379,35 @@ export type Database = {
             columns: ["note_id"]
             isOneToOne: false
             referencedRelation: "segment_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      our_speakers: {
+        Row: {
+          added_by: string | null
+          company_id: string
+          created_at: string
+          name: string
+        }
+        Insert: {
+          added_by?: string | null
+          company_id: string
+          created_at?: string
+          name: string
+        }
+        Update: {
+          added_by?: string | null
+          company_id?: string
+          created_at?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "our_speakers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -1910,8 +2076,24 @@ export type Database = {
           views_7d: number
         }[]
       }
+      admin_company_margin: {
+        Args: { p_days?: number }
+        Returns: {
+          closed_at: string
+          company_id: string
+          model_calls: number
+          name: string
+          plan: string
+          price_usd_cents: number
+          usd: number
+        }[]
+      }
       admin_operator_mfa: { Args: never; Returns: Json }
       admin_overview: { Args: never; Returns: Json }
+      admin_set_feedback_status: {
+        Args: { p_feedback_id: string; p_status: string }
+        Returns: undefined
+      }
       admin_set_member_role: {
         Args: { p_company_id: string; p_role: string; p_user_id: string }
         Returns: undefined
@@ -2029,6 +2211,15 @@ export type Database = {
           extraction_runs: number
           segments: number
           signals: number
+        }[]
+      }
+      conversation_talk: {
+        Args: { p_since: string }
+        Returns: {
+          conversation_id: string
+          questions: number
+          speaker: string
+          words: number
         }[]
       }
       conversation_viewers: {
@@ -2348,6 +2539,7 @@ export type Database = {
         Returns: undefined
       }
       remove_company_member: { Args: { p_user_id: string }; Returns: undefined }
+      remove_moment: { Args: { p_moment_id: string }; Returns: undefined }
       rename_account: {
         Args: { p_account_id: string; p_domain?: string; p_name: string }
         Returns: undefined
@@ -2383,6 +2575,10 @@ export type Database = {
         Args: { p_domain?: string; p_name: string }
         Returns: string
       }
+      save_moment: {
+        Args: { p_criterion_key: string; p_note?: string; p_segment_id: string }
+        Returns: string
+      }
       search_segments: {
         Args: { p_limit?: number; p_query: string }
         Returns: {
@@ -2405,8 +2601,24 @@ export type Database = {
           text: string
         }[]
       }
+      send_feedback: {
+        Args: { p_body: string; p_page?: string }
+        Returns: string
+      }
+      set_criterion_goal: {
+        Args: {
+          p_criterion_key: string
+          p_engagement_type: string
+          p_target: number
+        }
+        Returns: undefined
+      }
       set_member_role: {
         Args: { p_role: string; p_user_id: string }
+        Returns: undefined
+      }
+      set_our_speaker: {
+        Args: { p_name: string; p_ours: boolean }
         Returns: undefined
       }
       set_retention: { Args: { p_days: number }; Returns: number }

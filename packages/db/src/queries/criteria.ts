@@ -152,3 +152,40 @@ export async function fetchCriteriaSets(
 
   return [...counts.values()];
 }
+
+export interface CriterionLabel {
+  readonly engagementType: string;
+  readonly key: string;
+  readonly label: string;
+  /** Display order, from the newest version that has it. */
+  readonly position: number;
+}
+
+/**
+ * Every criterion a company may be scored on, by scorecard and key, named as
+ * the newest version names it — for pages that list criteria across versions
+ * (goals, examples), which pool by key as the rates beside them do.
+ */
+export async function fetchCriterionLabels(db: SupabaseClient, companyId: string | null): Promise<CriterionLabel[]> {
+  const { data, error } = await scoped(
+    db.from('criteria_definitions').select('engagement_type, version, key, label, position'),
+    companyId,
+  )
+    .order('engagement_type')
+    .order('version', { ascending: false });
+
+  if (error) {
+    throw new Error(`Listing criteria failed: ${error.message}`, { cause: error });
+  }
+
+  const labels = new Map<string, CriterionLabel>();
+  for (const row of (data ?? []) as { engagement_type: string; version: number; key: string; label: string; position: number }[]) {
+    const id = `${row.engagement_type}/${row.key}`;
+    if (!labels.has(id)) {
+      labels.set(id, { engagementType: row.engagement_type, key: row.key, label: row.label, position: row.position });
+    }
+  }
+  return [...labels.values()].sort(
+    (a, b) => a.engagementType.localeCompare(b.engagementType) || a.position - b.position,
+  );
+}

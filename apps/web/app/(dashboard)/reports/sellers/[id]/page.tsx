@@ -6,6 +6,7 @@ import { loadCoachingCalls } from '@/lib/coaching-data';
 import { engagementLabel } from '@/lib/company';
 import { clock } from '@/lib/highlight';
 import { OUTCOME_LABEL } from '@/lib/outcome';
+import { speakerKey, talkBySeller } from '@/lib/talk';
 import { createClient } from '@/lib/supabase/server';
 
 export const metadata = { title: 'Seller · Tesserafy' };
@@ -48,7 +49,13 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
   const person = (team ?? []).find((member) => member.user_id === id);
   if (!person || (!isOwner && id !== user?.id)) notFound();
 
-  const calls = await loadCoachingCalls(supabase);
+  const [calls, { data: goalRows }, { data: ourRows }] = await Promise.all([
+    loadCoachingCalls(supabase),
+    supabase.from('criterion_goals').select('engagement_type, criterion_key, target'),
+    supabase.from('our_speakers').select('name'),
+  ]);
+  const goalOf = new Map((goalRows ?? []).map((row) => [`${row.engagement_type}/${row.criterion_key}`, Number(row.target)]));
+  const ours = new Set((ourRows ?? []).map((row) => speakerKey(row.name)));
   const profile = sellerProfile(calls, id);
   const theirs = calls
     .filter((call) => call.addedBy === id)
@@ -81,6 +88,15 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
   const startOf = new Map((noteSegments ?? []).map((segment) => [segment.id, segment.start_ms]));
   const titleOf = new Map(theirs.map((call) => [call.id, call.title]));
   const decided = profile.outcomes.won + profile.outcomes.lost;
+  const { data: talkRows } = ours.size > 0 ? await supabase.rpc('conversation_talk', { p_since: '1970-01-01T00:00:00Z' }) : { data: [] };
+  const theirIds = new Set(theirs.map((call) => call.id));
+  const talked = talkBySeller(
+    (talkRows ?? [])
+      .filter((row) => theirIds.has(row.conversation_id))
+      .map((row) => ({ conversationId: row.conversation_id, speaker: row.speaker, words: Number(row.words) })),
+    ours,
+    new Map(theirs.map((call) => [call.id, call.addedBy])),
+  ).get(id);
 
   return (
     <main>
@@ -110,6 +126,14 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
               : `won, of ${decided} decided · company ${profile.companyWinRate === null ? '—' : percent(profile.companyWinRate)}`}
           </span>
         </div>
+        {talked ? (
+          <div className="card">
+            <span className="stat-value">{percent(talked.share)}</span>
+            <span className="stat-label">
+              of the talking was {person.is_you ? 'your' : 'their'} side&apos;s, over {talked.calls} call{talked.calls === 1 ? '' : 's'}
+            </span>
+          </div>
+        ) : null}
       </div>
       <p className="muted">
         {profile.outcomes.won} won · {profile.outcomes.lost} lost · {profile.outcomes.open} still open ·{' '}
@@ -131,6 +155,7 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
                   <th scope="col">{person.is_you ? 'You' : 'Them'}</th>
                   <th scope="col">Company</th>
                   <th scope="col">Calls</th>
+                  <th scope="col">Goal</th>
                 </tr>
               </thead>
               <tbody>
@@ -142,6 +167,18 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
                     <td>{percent(row.rate)}</td>
                     <td className="muted">{percent(row.companyRate)}</td>
                     <td className="muted">{row.calls}</td>
+                    <td>
+                      {goalOf.has(`${row.engagementType}/${row.key}`) ? (
+                        <>
+                          {percent(goalOf.get(`${row.engagementType}/${row.key}`)!)}
+                          <span className={row.rate >= goalOf.get(`${row.engagementType}/${row.key}`)! ? 'muted' : 'shortfall'}>
+                            {row.rate >= goalOf.get(`${row.engagementType}/${row.key}`)! ? ' met' : ' below'}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="muted">—</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

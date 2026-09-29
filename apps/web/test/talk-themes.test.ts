@@ -4,7 +4,7 @@
  * and a dismissed insight is not a theme.
  */
 import { describe, expect, it } from 'vitest';
-import { countQuestions, talkStats } from '@/lib/talk';
+import { countQuestions, sideShares, speakerKey, talkBySeller, talkStats } from '@/lib/talk';
 import { themesOverTime, trendOf } from '@/lib/themes';
 
 const seg = (speaker: string | null, start: number, end: number, text: string) => ({ speaker, start_ms: start, end_ms: end, text });
@@ -41,6 +41,33 @@ describe('talkStats', () => {
 
   it('counts "?!" and "??" as one question', () => {
     expect(countQuestions('Really?! Why?? And then?')).toBe(3);
+  });
+});
+
+describe('your side against the customer', () => {
+  const ours = new Set([speakerKey('Dana  Whitfield')]);
+
+  it('splits the words once a name is marked, whatever its case or spacing', () => {
+    expect(sideShares([{ speaker: 'dana whitfield', words: 30 }, { speaker: 'Priya', words: 70 }], ours)).toEqual({ ours: 0.3, theirs: 0.7 });
+  });
+
+  it('has no split until both sides spoke', () => {
+    expect(sideShares([{ speaker: 'Priya', words: 70 }], ours)).toBeNull();
+    expect(sideShares([{ speaker: 'Dana Whitfield', words: 70 }], ours)).toBeNull();
+    expect(sideShares([{ speaker: 'Priya', words: 70 }, { speaker: null, words: 5 }], new Set())).toBeNull();
+  });
+
+  it('averages each seller over their calls, not over their words', () => {
+    const rows = [
+      { conversationId: 'c1', speaker: 'Dana Whitfield', words: 10 },
+      { conversationId: 'c1', speaker: 'Priya', words: 90 },
+      { conversationId: 'c2', speaker: 'Dana Whitfield', words: 500 },
+      { conversationId: 'c2', speaker: 'Priya', words: 500 },
+      { conversationId: 'c3', speaker: 'Priya', words: 40 },
+    ];
+    const bySeller = talkBySeller(rows, ours, new Map([['c1', 'u1'], ['c2', 'u1'], ['c3', 'u1']]));
+    expect(bySeller.get('u1')!.calls).toBe(2);
+    expect(bySeller.get('u1')!.share).toBeCloseTo(0.3);
   });
 });
 

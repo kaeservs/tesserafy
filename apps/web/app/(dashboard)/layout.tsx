@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { NavLink } from '@/components/nav-link';
+import { SiteMenu } from '@/components/site-menu';
 import { supportBanner } from '@/lib/support-banner';
 import { createClient } from '@/lib/supabase/server';
 
@@ -61,8 +62,9 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         </div>
       ) : null}
       <header className="app-header">
+        <span className="brand">Tesserafy</span>
+        <SiteMenu unread={unread ?? 0}>
         <nav className="nav" aria-label="Sections">
-          <span className="brand">Tesserafy</span>
           <NavLink href="/dashboard">Dashboard</NavLink>
           <NavLink href="/week">This week</NavLink>
           <NavLink href="/conversations">Meetings</NavLink>
@@ -90,6 +92,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           </Link>
           <button type="submit">Sign out</button>
         </form>
+        </SiteMenu>
       </header>
       {children}
     </>

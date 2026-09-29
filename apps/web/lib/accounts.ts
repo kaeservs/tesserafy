@@ -29,9 +29,12 @@ export interface BriefCall {
   readonly outcome: Outcome | null;
   readonly score: number | null;
   readonly engagementType: string;
+  /** Each criterion's state on this call, for what has been established with the customer. */
+  readonly criteria: readonly { key: string; label: string; status: string }[];
 }
 
 export interface BriefSignal {
+  readonly id: string;
   readonly kind: string;
   readonly summary: string;
   readonly conversationId: string;
@@ -138,6 +141,7 @@ export async function accountBrief(db: SupabaseClient, accountId: string): Promi
       outcome: asOutcome(row.outcome),
       score: card && heard ? card.score : null,
       engagementType: row.engagement_type,
+      criteria: (card?.criteria ?? []).map((criterion) => ({ key: criterion.key, label: criterion.label, status: criterion.status })),
     };
   });
   const ids = rows.map((row) => row.id);
@@ -202,6 +206,7 @@ export async function accountBrief(db: SupabaseClient, accountId: string): Promi
     signals: signals
       .sort((a, b) => (order.get(a.conversation_id) ?? 0) - (order.get(b.conversation_id) ?? 0))
       .map((signal) => ({
+        id: signal.id,
         kind: signal.kind,
         summary: signal.summary,
         conversationId: signal.conversation_id,

@@ -6,6 +6,8 @@ import { filterCalls, parseReportFilters, RANGES, reportQuery } from '@/lib/repo
 import { engagementLabel } from '@/lib/company';
 import { ScoreTrend } from '@/components/score-trend';
 import { buildReport, type Seller } from '@/lib/report';
+import { speakerKey, talkBySeller } from '@/lib/talk';
+import { GoalForm } from '@/components/goal-form';
 import { createClient } from '@/lib/supabase/server';
 
 export const metadata = { title: 'Reports · Tesserafy' };
@@ -48,14 +50,18 @@ export default async function ReportsPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: membership }, all, { data: team }, { data: accountRows }] = await Promise.all([
+  const [{ data: membership }, all, { data: team }, { data: accountRows }, { data: goalRows }, { data: ourRows }] = await Promise.all([
     supabase.from('company_members').select('role').eq('user_id', user?.id ?? '').limit(1).maybeSingle(),
     loadCoachingCalls(supabase),
     supabase.rpc('company_team'),
     supabase.from('accounts').select('id, name').order('name').limit(500),
+    supabase.from('criterion_goals').select('engagement_type, criterion_key, target'),
+    supabase.from('our_speakers').select('name'),
   ]);
   const isOwner = membership?.role === 'owner';
   const filters = parseReportFilters(params, { isOwner });
+  const goalOf = new Map((goalRows ?? []).map((row) => [`${row.engagement_type}/${row.criterion_key}`, Number(row.target)]));
+  const ours = new Set((ourRows ?? []).map((row) => speakerKey(row.name)));
   // One list of calls for every table on the page, and for its CSVs.
   const selected = filterCalls(all, filters, user?.id ?? null);
   const now = new Date();
@@ -68,6 +74,17 @@ export default async function ReportsPage({
   // Company-wide unless filtered, so every member sees it: it ranks criteria, not people.
   const byOutcome = criteriaByOutcome(selected);
   const trends = criteriaTrend(selected, now, filters.weeks);
+  // Who talked, per seller: only once someone has marked whose people are whose.
+  const since = new Date(now.getTime() - filters.weeks * 7 * 86_400_000).toISOString();
+  const { data: talkRows } = ours.size > 0 ? await supabase.rpc('conversation_talk', { p_since: since }) : { data: [] };
+  const selectedIds = new Set(selected.map((call) => call.id));
+  const talk = talkBySeller(
+    (talkRows ?? [])
+      .filter((row) => selectedIds.has(row.conversation_id))
+      .map((row) => ({ conversationId: row.conversation_id, speaker: row.speaker, words: Number(row.words) })),
+    ours,
+    new Map(selected.map((call) => [call.id, call.addedBy])),
+  );
   const email = new Map((team ?? []).map((person) => [person.user_id, person.email]));
   const sellers = isOwner ? report.sellers : report.sellers.filter((s) => s.addedBy === user?.id);
   const anyCalls = report.weeks.some((w) => w.calls > 0);
@@ -179,6 +196,7 @@ export default async function ReportsPage({
                 <th>Calls</th>
                 <th>Average</th>
                 <th>Last 4 weeks</th>
+                <th>Talked</th>
                 <th>Most often missed</th>
               </tr>
             </thead>
@@ -200,6 +218,16 @@ export default async function ReportsPage({
                   </td>
                   <td>{score(seller.average)}</td>
                   <td className="muted when">{change(seller)}</td>
+                  <td className="when">
+                    {seller.addedBy !== null && talk.has(seller.addedBy) ? (
+                      <>
+                        {Math.round(talk.get(seller.addedBy)!.share * 100)}%
+                        <span className="muted"> of {talk.get(seller.addedBy)!.calls}</span>
+                      </>
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
+                  </td>
                   <td className="muted">
                     {seller.mostMissed
                       ? `${seller.mostMissed.label} — confirmed on ${Math.round(seller.mostMissed.confirmedRate * 100)}%`
@@ -210,6 +238,13 @@ export default async function ReportsPage({
             </tbody>
           </table>
         )}
+        {sellers.length > 0 ? (
+          <p className="muted" style={{ fontSize: '0.82rem' }}>
+            {ours.size === 0
+              ? 'Talked — your side’s share of the words — appears once someone marks who is one of yours under Who talked on a call.'
+              : 'Talked is your side’s share of the words, averaged over the calls where both sides are marked.'}
+          </p>
+        ) : null}
         {isOwner ? null : (
           <p className="muted" style={{ marginBottom: 0 }}>
             Owners see each seller&apos;s numbers; you see the company&apos;s trend and your own.
@@ -238,6 +273,7 @@ export default async function ReportsPage({
                   <th scope="col">Criterion</th>
                   <th scope="col">Week by week</th>
                   <th scope="col">Last 4 weeks</th>
+                  <th scope="col">Goal</th>
                 </tr>
               </thead>
               <tbody>
@@ -273,6 +309,25 @@ export default async function ReportsPage({
                           </span>
                         ) : null}
                       </td>
+                      <td className="when">
+                        {isOwner ? (
+                          <GoalForm
+                            engagementType={trend.engagementType}
+                            criterionKey={trend.key}
+                            label={trend.label}
+                            target={goalOf.get(`${trend.engagementType}/${trend.key}`) ?? null}
+                          />
+                        ) : goalOf.has(`${trend.engagementType}/${trend.key}`) ? (
+                          percent(goalOf.get(`${trend.engagementType}/${trend.key}`)!)
+                        ) : (
+                          <span className="muted">—</span>
+                        )}
+                        {goalOf.has(`${trend.engagementType}/${trend.key}`) && recentRate !== null ? (
+                          <span className={recentRate >= goalOf.get(`${trend.engagementType}/${trend.key}`)! ? 'muted' : 'shortfall'}>
+                            {recentRate >= goalOf.get(`${trend.engagementType}/${trend.key}`)! ? ' met' : ' below'}
+                          </span>
+                        ) : null}
+                      </td>
                     </tr>
                   );
                 })}
@@ -280,7 +335,8 @@ export default async function ReportsPage({
             </table>
             <p className="muted" style={{ marginBottom: 0, fontSize: '0.82rem' }}>
               Each bar is the share of that week&apos;s scored calls that met the criterion; hover one for the numbers. A week
-              with no calls has no bar rather than a zero.
+              with no calls has no bar rather than a zero. {isOwner ? 'A goal is the share of calls you want it met on; the last four weeks are measured against it. ' : ''}
+              <Link href="/examples">Examples</Link> shows what meeting each one sounds like on your calls.
             </p>
           </>
         )}

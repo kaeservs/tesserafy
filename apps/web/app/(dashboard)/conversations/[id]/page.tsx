@@ -9,10 +9,12 @@ import { clock, splitByHighlights } from '@/lib/highlight';
 import { Shortfall } from '@/components/criterion-shortfall';
 import { conversationPipeline, nextCommand, stageOf } from '@/lib/pipeline';
 import { scoreConversation } from '@/lib/scorecard';
-import { talkStats } from '@/lib/talk';
+import { sideShares, speakerKey, talkStats } from '@/lib/talk';
 import { ExtractButton } from '@/components/extract-button';
 import { CallViewers } from '@/components/call-viewers';
 import { CopyMomentLink } from '@/components/copy-moment-link';
+import { OurSpeaker } from '@/components/our-speaker';
+import { SaveExample } from '@/components/save-example';
 import { DeleteCall } from '@/components/delete-call';
 import { RefreshWhile } from '@/components/refresh-while';
 import { capturedState, type CapturedState } from '@/lib/scoring-status';
@@ -322,6 +324,19 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
     mayWithdraw: isOwner || (user !== null && row.recorded_by === user.id),
   }));
   const accountName = (accountRows ?? []).find((row) => row.id === conversation.account_id)?.name ?? null;
+  // Which speakers are this company's own people, and which lines are already examples.
+  const [{ data: ourRows }, { data: momentRows }] = await Promise.all([
+    supabase.from('our_speakers').select('name'),
+    supabase.from('moments').select('segment_id, criterion_key').eq('conversation_id', id),
+  ]);
+  const ours = new Set((ourRows ?? []).map((row) => speakerKey(row.name)));
+  const examplesOf = new Map<string, string[]>();
+  for (const moment of momentRows ?? []) {
+    const list = examplesOf.get(moment.segment_id) ?? [];
+    list.push(labelOf.get(moment.criterion_key) ?? moment.criterion_key);
+    examplesOf.set(moment.segment_id, list);
+  }
+  const criterionOptions = card.criteria.map((criterion) => ({ key: criterion.key, label: criterion.label }));
 
   const notesBySegment = new Map<string, ShownNote[]>();
   for (const note of notes) {
@@ -389,6 +404,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
 
   const startedAt = new Map(segments.map((segment) => [segment.id, segment.start_ms]));
   const talk = talkStats(segments);
+  const split = sideShares(talk.speakers, ours);
   const { title, occurred_at: occurredAt } = conversation as {
     title: string;
     occurred_at: string | null;
@@ -551,6 +567,17 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
           <h2 id="talk-heading" style={{ marginTop: 0 }}>
             Who talked
           </h2>
+          {split ? (
+            <p>
+              Your side talked <strong>{Math.round(split.ours * 100)}%</strong> of the time, the customer{' '}
+              {Math.round(split.theirs * 100)}%.
+            </p>
+          ) : (
+            <p className="muted">
+              Mark who is one of yours and this shows your side against the customer&apos;s, here and on Reports. A name
+              marked once counts on every call.
+            </p>
+          )}
           <table className="team">
             <thead>
               <tr>
@@ -558,12 +585,20 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
                 <th scope="col">Share of the words</th>
                 <th scope="col">Questions</th>
                 <th scope="col">Longest stretch</th>
+                <th scope="col">
+                  <span className="visually-hidden">Your side</span>
+                </th>
               </tr>
             </thead>
             <tbody>
               {talk.speakers.map((speaker) => (
                 <tr key={speaker.speaker ?? ''}>
-                  <td>{speaker.speaker ?? <span className="muted">Not named in the transcript</span>}</td>
+                  <td>
+                    {speaker.speaker ?? <span className="muted">Not named in the transcript</span>}
+                    {speaker.speaker !== null && ours.has(speakerKey(speaker.speaker)) ? (
+                      <span className="stage stage-approved"> yours</span>
+                    ) : null}
+                  </td>
                   <td>
                     <span className="share-bar" aria-hidden="true">
                       <span style={{ width: `${Math.round(speaker.share * 100)}%` }} />
@@ -573,6 +608,11 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
                   <td>{speaker.questions}</td>
                   <td className="when">
                     {speaker.longestWords} words{speaker.longestMs >= 1000 ? `, ${duration(speaker.longestMs)}` : ''}
+                  </td>
+                  <td>
+                    {speaker.speaker !== null ? (
+                      <OurSpeaker conversationId={id} speaker={speaker.speaker} ours={ours.has(speakerKey(speaker.speaker))} />
+                    ) : null}
                   </td>
                 </tr>
               ))}
@@ -663,6 +703,12 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
                   conversationId={id}
                   segmentId={segment.id}
                   notes={notesBySegment.get(segment.id) ?? []}
+                />
+                <SaveExample
+                  conversationId={id}
+                  segmentId={segment.id}
+                  criteria={criterionOptions}
+                  savedAs={examplesOf.get(segment.id) ?? []}
                 />
               </li>
             ))}

@@ -86,3 +86,56 @@ export function talkStats(segments: readonly TalkSegment[]): TalkStats {
       .sort((a, b) => b.words - a.words || (a.speaker ?? '').localeCompare(b.speaker ?? '')),
   };
 }
+
+/** Speaker names compare without case or extra spaces, as the database stores them. */
+export function speakerKey(name: string): string {
+  return name.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/**
+ * Your side against everyone else, once someone has said which names are
+ * yours. Null until the call has words on both sides — a call where nobody is
+ * marked, or only one side spoke, has no split to show.
+ */
+export function sideShares(
+  speakers: readonly { speaker: string | null; words: number }[],
+  ours: ReadonlySet<string>,
+): { ours: number; theirs: number } | null {
+  let mine = 0;
+  let total = 0;
+  for (const entry of speakers) {
+    total += entry.words;
+    if (entry.speaker !== null && ours.has(speakerKey(entry.speaker))) mine += entry.words;
+  }
+  if (mine === 0 || mine === total) return null;
+  return { ours: mine / total, theirs: 1 - mine / total };
+}
+
+/**
+ * Each seller's share of the talking on their calls: the mean, over the calls
+ * they added that have both sides marked, of their side's share. A mean of
+ * calls rather than of words, so one long call does not speak for the rest.
+ */
+export function talkBySeller(
+  rows: readonly { conversationId: string; speaker: string | null; words: number }[],
+  ours: ReadonlySet<string>,
+  addedBy: ReadonlyMap<string, string | null>,
+): Map<string, { calls: number; share: number }> {
+  const byCall = new Map<string, { speaker: string | null; words: number }[]>();
+  for (const row of rows) {
+    const list = byCall.get(row.conversationId) ?? [];
+    list.push({ speaker: row.speaker, words: row.words });
+    byCall.set(row.conversationId, list);
+  }
+  const sums = new Map<string, { calls: number; total: number }>();
+  for (const [conversationId, speakers] of byCall) {
+    const seller = addedBy.get(conversationId);
+    const split = sideShares(speakers, ours);
+    if (!seller || !split) continue;
+    const entry = sums.get(seller) ?? { calls: 0, total: 0 };
+    entry.calls += 1;
+    entry.total += split.ours;
+    sums.set(seller, entry);
+  }
+  return new Map([...sums].map(([seller, entry]) => [seller, { calls: entry.calls, share: entry.total / entry.calls }]));
+}

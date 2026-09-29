@@ -1183,3 +1183,35 @@ input[type='search'] {
 .corrections h3 {
   margin-bottom: 0.25rem;
 }
+
+/* --------------------------------------------------------------------------
+   Examples, goals
+   -------------------------------------------------------------------------- */
+
+.save-example {
+  font-size: 0.8rem;
+  margin-top: 0.2rem;
+}
+
+.save-example form {
+  margin-top: 0.4rem;
+  max-width: 28rem;
+}
+
+.example-quote {
+  margin: 0.4rem 0;
+  padding-left: 0.75rem;
+  border-left: 3px solid var(--accent);
+}
+
+.example-quote footer {
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.goal-form input {
+  width: 3.2rem;
+  padding: 0.15rem 0.3rem;
+  font-size: 0.85rem;
+}
+

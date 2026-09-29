@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { spendByDetector, spendByWeek, type SpendRow } from '@tesserafy/db';
 import { requireAdmin } from '@/lib/admin';
 import { Chrome } from '../chrome';
@@ -13,6 +14,7 @@ import { Chrome } from '../chrome';
 export const dynamic = 'force-dynamic';
 
 const WEEKS = 12;
+const MARGIN_DAYS = 30;
 const TIERS = ['t1', 't2', 't3'] as const;
 const TIER_LABEL: Record<string, string> = { t1: 'T1 scoring', t2: 'T2 suggestions', t3: 'T3 extraction' };
 
@@ -35,6 +37,22 @@ export default async function Spend() {
   const peak = Math.max(0.01, ...weeks.map((week) => week.usd));
   const total = weeks.reduce((sum, week) => sum + week.usd, 0);
   const detectors = spendByDetector(rows);
+  // Cost against price: what each company's AI use cost over the last
+  // MARGIN_DAYS, beside what its plan charges a month. Closed companies with
+  // nothing spent are left out.
+  const { data: marginRows, error: marginError } = await admin.db.rpc('admin_company_margin', { p_days: MARGIN_DAYS });
+  const margins = (marginRows ?? [])
+    .map((row) => ({
+      companyId: row.company_id,
+      name: row.name,
+      plan: row.plan,
+      // Null for plans that are not sold: trial, pilot, internal.
+      price: (row.price_usd_cents as number | null) === null ? null : row.price_usd_cents / 100,
+      closed: (row.closed_at as string | null) !== null,
+      calls: Number(row.model_calls),
+      usd: Number(row.usd),
+    }))
+    .filter((row) => !row.closed || row.usd > 0);
 
   return (
     <Chrome email={admin.email}>
@@ -102,6 +120,48 @@ export default async function Spend() {
         </tbody>
       </table>
       {detectors.length === 0 && !error ? <p className="muted">Nothing spent in this window.</p> : null}
+
+      <h2>Cost against price, last {MARGIN_DAYS} days</h2>
+      <p className="muted">
+        Each company&apos;s estimated AI cost over the last {MARGIN_DAYS} days beside its plan&apos;s monthly price. A company
+        costing more than it pays is marked; a plan that is not sold has no price to compare.
+      </p>
+      {marginError ? <p className="tag open">{marginError.message}</p> : null}
+      <table>
+        <thead>
+          <tr>
+            <th>Company</th>
+            <th>Plan</th>
+            <th className="num">Price a month</th>
+            <th className="num">AI cost</th>
+            <th className="num">Of the price</th>
+            <th className="num">Model calls</th>
+          </tr>
+        </thead>
+        <tbody>
+          {margins.map((row) => (
+            <tr key={row.companyId}>
+              <td>
+                <Link href={`/companies/${row.companyId}`}>{row.name}</Link>
+                {row.closed ? <span className="muted"> (closed)</span> : null}
+              </td>
+              <td className="muted">{row.plan}</td>
+              <td className="num">{row.price === null ? <span className="muted">not sold</span> : usd(row.price)}</td>
+              <td className="num">{usd(row.usd)}</td>
+              <td className="num">
+                {row.price === null ? (
+                  <span className="muted">—</span>
+                ) : row.usd > row.price ? (
+                  <span className="tag open">{Math.round((row.usd / row.price) * 100)}%</span>
+                ) : (
+                  `${Math.round((row.usd / row.price) * 100)}%`
+                )}
+              </td>
+              <td className="num muted">{row.calls}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </Chrome>
   );
 }

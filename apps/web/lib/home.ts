@@ -123,7 +123,7 @@ export function homeAgenda(input: AgendaInput): AgendaItem[] {
       kind: 'theme',
       text:
         theme.trend === 'new'
-          ? `New theme: ${theme.title}, in ${theme.recent} call${theme.recent === 1 ? '' : 's'} in four weeks`
+          ? `New theme: ${theme.title}, ${theme.recent} call${theme.recent === 1 ? '' : 's'} in four weeks`
           : `Rising: ${theme.title}, ${theme.recent} calls in four weeks against ${theme.previous} before`,
       href: `/insights/${theme.id}`,
     });

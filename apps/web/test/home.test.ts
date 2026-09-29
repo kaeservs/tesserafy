@@ -67,7 +67,7 @@ describe('homeAgenda', () => {
       ['customer', 'Acme: deal open, no call since 31 Aug', '/accounts/a1'],
       ['goal', 'Budget indicated met on 20% of 5 calls, against a goal of 60%', '/reports'],
       ['theme', 'Rising: Theme t1, 4 calls in four weeks against 1 before', '/insights/t1'],
-      ['theme', 'New theme: Theme t3, in 2 calls in four weeks', '/insights/t3'],
+      ['theme', 'New theme: Theme t3, 2 calls in four weeks', '/insights/t3'],
     ]);
   });
 

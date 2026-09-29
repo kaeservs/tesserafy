@@ -70,6 +70,15 @@ test('a call says who talked, and every line can be linked to and saved as an ex
   expect(await page.evaluate(() => document.querySelector(':target')?.classList.contains('segment') ?? false)).toBe(true);
 });
 
+test('the dashboard opens on what needs you', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/dashboard');
+  const agenda = page.locator('section:has(#agenda-heading)');
+  await expect(agenda.getByRole('heading', { name: 'Needs you' })).toBeVisible();
+  // Either a list of links to act on, or a sentence saying there is nothing.
+  expect((await agenda.locator('ul.agenda a').count()) > 0 || (await agenda.getByText(/^Nothing today/).count()) > 0).toBe(true);
+});
+
 test('Examples and Themes over time open for a member', async ({ page }) => {
   await signIn(page);
   await page.getByRole('link', { name: 'Examples' }).click();

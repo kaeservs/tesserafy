@@ -5,7 +5,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(37);
+select plan(39);
 
 insert into auth.users (id, email, aud, role) values
   ('9a0d0001-0000-4000-8000-000000000001', 'owner@acme.test', 'authenticated', 'authenticated'),
@@ -144,6 +144,15 @@ select set_config('request.jwt.claims', '{"sub":"9a0d0001-0000-4000-8000-0000000
 select throws_ok($$ select * from public.admin_company_margin(30) $$, '42501', null, 'a customer cannot see what anyone costs');
 
 select set_config('request.jwt.claims', '{"sub":"9a0d0001-0000-4000-8000-000000000005","role":"authenticated"}', true);
+select ok(
+  (select count(*) from public.admin_feature_adoption(90)) >= 2,
+  'an operator sees which features each company uses, as counts'
+);
+select is(
+  (select examples + goals + feedback from public.admin_feature_adoption(90) where company_id = '00000000-0000-4000-8000-00000000000a'),
+  1::bigint,
+  'counting what the company did: its feedback, with the example removed and the goal cleared'
+);
 select ok(
   (select count(*) from public.admin_company_margin(30)) >= 2,
   'an operator sees every company''s cost against its price'

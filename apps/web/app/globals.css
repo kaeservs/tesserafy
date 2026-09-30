@@ -1371,6 +1371,22 @@ input[type='search'] {
 }
 
 /* --------------------------------------------------------------------------
+   Team heatmap: the cell's shade is its rate, and the rate is always written in
+   it too, so colour is never the only way to read it.
+   -------------------------------------------------------------------------- */
+
+.heatmap td.heat {
+  text-align: center;
+  background: color-mix(in srgb, var(--accent) calc(var(--heat, 0%) * 0.45), transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.heatmap th[scope='row'] {
+  font-weight: 500;
+  text-align: left;
+}
+
+/* --------------------------------------------------------------------------
    Call types and AI guidance
    -------------------------------------------------------------------------- */
 

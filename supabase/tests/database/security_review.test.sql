@@ -158,7 +158,7 @@ insert into public.ai_guidance (company_id, feature, kind, body)
 values ('00000000-0000-4000-8000-00000000000a', 'action_items', 'instruction', 'Say who owns each step.');
 insert into public.scorecard_purposes (company_id, engagement_type, purpose)
 values ('00000000-0000-4000-8000-00000000000a', 'discovery', 'sales');
-update public.companies set closed_at = now() where id = '00000000-0000-4000-8000-00000000000a';
+update public.companies set closed_at = now(), closed_reason = 'test' where id = '00000000-0000-4000-8000-00000000000a';
 select is(
   (select count(*)::int from public.ai_guidance where company_id = '00000000-0000-4000-8000-00000000000a')
   + (select count(*)::int from public.scorecard_purposes where company_id = '00000000-0000-4000-8000-00000000000a'),

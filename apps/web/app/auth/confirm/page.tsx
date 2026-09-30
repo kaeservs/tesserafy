@@ -19,10 +19,36 @@ import { createClient } from '@/lib/supabase/browser';
  * else — and a sign-in that only works if you open your mail in the right
  * browser is not a sign-in. Custom SMTP plus a token_hash link is better than
  * both; this is what works without it.
+ *
+ * A link can be made by anyone from their own session, and any page forwards
+ * a fragment here (catch-session), so a link could sign someone into an
+ * account that is not theirs — their next upload landing in a stranger's
+ * company. Someone already signed in as another account is asked first, and
+ * the address a link signs in as is always shown. The token_hash link, once
+ * email is ours, removes the fragment altogether.
  */
+
+/** Who a sign-in link is for, read from its access token. Nothing is trusted from it. */
+function subjectOf(accessToken: string): { id: string | null; email: string | null } {
+  try {
+    const part = accessToken.split('.')[1] ?? '';
+    const json = atob(part.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(part.length / 4) * 4, '='));
+    const claims = JSON.parse(json) as { sub?: unknown; email?: unknown };
+    return {
+      id: typeof claims.sub === 'string' ? claims.sub : null,
+      email: typeof claims.email === 'string' ? claims.email : null,
+    };
+  } catch {
+    return { id: null, email: null };
+  }
+}
 export default function ConfirmPage() {
   const router = useRouter();
   const [failure, setFailure] = useState<string | null>(null);
+  const [linkFor, setLinkFor] = useState<string | null>(null);
+  // Signed in as someone else: who, and the go-ahead to switch.
+  const [already, setAlready] = useState<string | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
 
   useEffect(() => {
     const result = parseAuthFragment(window.location.hash);
@@ -36,8 +62,18 @@ export default function ConfirmPage() {
       return;
     }
 
+    const subject = subjectOf(result.session.accessToken);
+    setLinkFor(subject.email);
     const supabase = createClient();
-    void supabase.auth
+    void (async () => {
+      if (!confirmed) {
+        const { data } = await supabase.auth.getUser();
+        if (data.user && data.user.id !== subject.id) {
+          setAlready(data.user.email ?? 'another account');
+          return;
+        }
+      }
+      await supabase.auth
       .setSession({
         access_token: result.session.accessToken,
         refresh_token: result.session.refreshToken,
@@ -54,7 +90,8 @@ export default function ConfirmPage() {
         // without one the person could only sign in again by email.
         router.replace(result.session.invited ? '/account?invited=1' : '/conversations');
       });
-  }, [router]);
+    })();
+  }, [router, confirmed]);
 
   // In an effect, not in the render body. Navigating while rendering updates
   // the router mid-render, which React warns about and, under Strict Mode,
@@ -63,10 +100,30 @@ export default function ConfirmPage() {
     if (failure) router.replace(`/login?error=${encodeURIComponent(failure)}`);
   }, [failure, router]);
 
+  if (already && !confirmed) {
+    return (
+      <main>
+        <h1>Switch accounts?</h1>
+        <p>
+          You are signed in as <strong>{already}</strong>. This link signs in as <strong>{linkFor ?? 'a different account'}</strong>.
+        </p>
+        <p className="muted">If you did not ask for this link, stay where you are.</p>
+        <div className="toolbar">
+          <button type="button" onClick={() => router.replace('/conversations')}>
+            Stay as {already}
+          </button>
+          <button type="button" onClick={() => setConfirmed(true)}>
+            Switch to {linkFor ?? 'the other account'}
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main>
       <h1>{failure ? 'That link did not work' : 'Signing you in…'}</h1>
-      <p className="muted">{failure ? 'Taking you back to sign in…' : 'One moment.'}</p>
+      <p className="muted">{failure ? 'Taking you back to sign in…' : linkFor ? `As ${linkFor}. One moment.` : 'One moment.'}</p>
     </main>
   );
 }

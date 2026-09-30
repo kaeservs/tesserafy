@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { LIVE_LIMITS, redactLive } from '@/lib/live-input';
 import { caller } from '@/lib/supabase/caller';
 
 /**
@@ -37,9 +38,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: 'body must be JSON' }, { status: 400 });
   }
 
-  const text = (body.text ?? '').trim();
-  if (text.length === 0) {
-    return NextResponse.json({ error: 'text is required' }, { status: 400 });
+  // Redacted before it is stored, as an imported transcript is; the detector
+  // is sent the same redaction, so its quotes are found here again.
+  const text = redactLive((body.text ?? '').trim());
+  if (text.length === 0 || text.length > LIVE_LIMITS.text) {
+    return NextResponse.json({ error: 'text is one utterance' }, { status: 400 });
+  }
+  if (typeof body.speaker === 'string' && body.speaker.length > LIVE_LIMITS.speaker) {
+    return NextResponse.json({ error: 'speaker is a name' }, { status: 400 });
   }
 
   const { data, error } = await who.db.rpc('append_live_segment', {

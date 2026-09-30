@@ -36,12 +36,16 @@ function Reject({ prepId, section, index, text }: { prepId: string; section: 'ab
   );
 }
 
-/** A point with where it came from: the pasted profile, or a source's link. */
+/**
+ * A point with where it came from: the pasted profile, or a source's link —
+ * only ever a web address. A brief is stored as its author's JSON, and a link
+ * of any other scheme is not one this page will render.
+ */
 function Point({ item, reject }: { item: PrepPoint; reject: ReactNode }) {
   return (
     <li>
       {item.point} <span className="muted">— “{item.quote}”</span>
-      {'url' in item.source ? (
+      {'url' in item.source && /^https?:\/\//i.test(item.source.url) ? (
         <>
           {' '}
           <a href={item.source.url} target="_blank" rel="noopener noreferrer" className="source-link">

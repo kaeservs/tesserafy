@@ -50,7 +50,6 @@ export function OpenSession({ subjectId, email }: { subjectId: string; email: st
   return (
     <form action={action} className="row">
       <input type="hidden" name="subjectId" value={subjectId} />
-      <input type="hidden" name="email" value={email} />
       <div>
         <label htmlFor={`reason-${subjectId}`}>Reason</label>
         <input

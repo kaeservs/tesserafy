@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { linkAccount } from '@/lib/account-link';
 import { CONSENT_REQUIRED, CONSENT_STATEMENTS, consentConfirmed } from '@/lib/consent';
+import { liveAllowedFor } from '@/lib/live-input';
 import { caller } from '@/lib/supabase/caller';
 
 /**
@@ -51,8 +52,11 @@ export async function POST(request: NextRequest) {
   }
 
   const title = (body.title ?? '').trim();
-  if (title.length === 0) {
+  if (title.length === 0 || title.length > 200) {
     return NextResponse.json({ error: 'a title is required' }, { status: 400 });
+  }
+  if (!(await liveAllowedFor(who.db, who.userId))) {
+    return NextResponse.json({ error: 'Live is not on your plan.' }, { status: 403 });
   }
 
   const { data, error } = await who.db.rpc('start_live_conversation', {

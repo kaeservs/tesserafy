@@ -67,6 +67,25 @@ export function readBrief(value: unknown): PrepBrief | null {
   };
 }
 
+/**
+ * Whether this person may rewrite this prep's brief: its author, or an owner
+ * of its company (private.may_change_prep). Asked before anything is spent —
+ * the database refuses the write anyway, but only after the model and the web
+ * research have run and been paid for.
+ */
+export async function mayChangePrep(db: SupabaseClient, userId: string, prepId: string): Promise<'ok' | 'not_found' | 'forbidden'> {
+  const { data: prep } = await db.from('call_preps').select('company_id, created_by').eq('id', prepId).maybeSingle();
+  if (!prep) return 'not_found';
+  if (prep.created_by === userId) return 'ok';
+  const { data: member } = await db
+    .from('company_members')
+    .select('role')
+    .eq('company_id', prep.company_id)
+    .eq('user_id', userId)
+    .maybeSingle();
+  return member?.role === 'owner' ? 'ok' : 'forbidden';
+}
+
 export type WriteOutcome = { status: 'written'; brief: PrepBrief; researchErrors: readonly string[] } | { status: 'not_found' };
 
 /**

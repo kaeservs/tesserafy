@@ -11,6 +11,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { caller } from '@/lib/supabase/caller';
 import { liveGuidance } from '@/lib/live-guidance';
 import { liveSeconds, planExhausted, refund, spend } from '@/lib/plan';
+import { liveAllowedFor, liveCriteria, liveWindow } from '@/lib/live-input';
 import { allowance, tooMany } from '@/lib/rate-limit';
 
 /**
@@ -60,12 +61,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'body must be JSON' }, { status: 400 });
   }
 
-  const { criteria, window, variant } = body;
-  if (!Array.isArray(criteria) || criteria.length === 0) {
-    return NextResponse.json({ error: 'criteria must be a non-empty array' }, { status: 400 });
+  // Bounded, and the window redacted, before anything reaches a model
+  // (lib/live-input).
+  const criteria = liveCriteria<CriterionPrompt>(body.criteria);
+  if (!criteria) {
+    return NextResponse.json({ error: "criteria must be a scorecard's criteria" }, { status: 400 });
   }
-  if (!Array.isArray(window) || window.length === 0) {
-    return NextResponse.json({ error: 'window must be a non-empty array' }, { status: 400 });
+  const window = liveWindow<DetectableSegment>(body.window);
+  if (!window) {
+    return NextResponse.json({ error: 'window must be the last few utterances' }, { status: 400 });
+  }
+  const { variant } = body;
+  if (!(await liveAllowedFor(who.db, who.userId))) {
+    return NextResponse.json({ error: 'Live is not on your plan.' }, { status: 403 });
   }
 
   const receivedAt = Date.now();

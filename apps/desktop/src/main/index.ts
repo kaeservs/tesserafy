@@ -14,7 +14,7 @@
  * toggle it, and the label is deliberately loud so a screenshot of the share
  * settles the question without anyone squinting.
  */
-import { app, BrowserWindow, globalShortcut, ipcMain, net, safeStorage, screen, shell } from 'electron';
+import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, net, safeStorage, screen, shell } from 'electron';
 import { readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
@@ -202,6 +202,25 @@ function place(window: BrowserWindow): void {
   window.setBounds(placed);
   window.webContents.setZoomFactor(zoom);
   appearance = { ...appearance, position: { ...appearance.position, x: placed.x, y: placed.y } };
+}
+
+/**
+ * The display the overlay is on, as a JPEG no wider than 1600 px: enough to
+ * read a slide or a spreadsheet, small enough to send quickly. Null when the
+ * system will not give one (macOS without screen-recording permission).
+ */
+async function captureScreen(): Promise<{ mediaType: 'image/jpeg'; data: string } | null> {
+  const display = overlay ? screen.getDisplayMatching(overlay.getBounds()) : screen.getPrimaryDisplay();
+  const scale = Math.min(1, 1600 / display.size.width);
+  const thumbnailSize = { width: Math.round(display.size.width * scale), height: Math.round(display.size.height * scale) };
+  try {
+    const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize });
+    const source = sources.find((candidate) => candidate.display_id === String(display.id)) ?? sources[0];
+    if (!source || source.thumbnail.isEmpty()) return null;
+    return { mediaType: 'image/jpeg', data: source.thumbnail.toJPEG(75).toString('base64') };
+  } catch {
+    return null;
+  }
 }
 
 /** One press of a move shortcut: a step that way, kept on its display, and kept there. */
@@ -531,7 +550,16 @@ void app.whenReady().then(async () => {
 
   // The overlay's buttons and ask box (/api/assist): Assist, What should I
   // say?, Follow-up questions, Recap, or a typed question.
-  ipcMain.handle('overlay:assist', async (_event, body: unknown) => post('/api/assist', body));
+  // With the screen: one screenshot, taken here when the seller pressed for
+  // it, of the display the overlay is on, and sent with this question alone.
+  // The page never holds it, it is never written to disk, and the overlay is
+  // not in it (content protection keeps it out of every capture).
+  ipcMain.handle('overlay:assist', async (_event, body: unknown, withScreen: unknown) => {
+    if (withScreen !== true || !body || typeof body !== 'object') return post('/api/assist', body);
+    const shot = await captureScreen();
+    if (!shot) return { error: 'The screen could not be captured. On a Mac, allow screen recording for Tesserafy.' };
+    return post('/api/assist', { ...(body as Record<string, unknown>), screen: shot });
+  });
 
   ipcMain.handle('overlay:live-start', async (_event, body: unknown) =>
     post('/api/live/sessions', body),

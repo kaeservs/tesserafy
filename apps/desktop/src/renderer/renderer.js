@@ -211,6 +211,9 @@ async function loadSetup() {
   }
   setup = result;
   if (result.appearance) showAppearance(result.appearance);
+  // Offered only where the company allows it (Settings, in the dashboard).
+  el('screenToggle').hidden = result.screen !== true;
+  if (result.screen !== true) setScreen(false);
   chosenScorecard = result.engagementType ?? null;
   chosenAccount = result.account?.id ?? null;
   el('nextCall').textContent = result.prep
@@ -520,12 +523,22 @@ const ASSIST_TITLE = {
   ask: 'Answer',
 };
 let assistSeq = 0;
+let withScreen = false;
+
+function setScreen(on) {
+  withScreen = on;
+  el('screenToggle').setAttribute('aria-pressed', String(on));
+}
+el('screenToggle').addEventListener('click', () => setScreen(!withScreen));
 
 async function runAssist(mode, question) {
   if (!signedIn) return;
   const seq = ++assistSeq;
+  // One screenshot per press: the toggle switches itself off once used.
+  const screenshot = withScreen;
+  setScreen(false);
   el('answer').hidden = false;
-  el('answerTitle').textContent = `${ASSIST_TITLE[mode]} · thinking…`;
+  el('answerTitle').textContent = `${ASSIST_TITLE[mode]}${screenshot ? ' · with your screen' : ''} · thinking…`;
   el('answerPoints').replaceChildren();
   const result = await api.assist({
     mode,
@@ -534,7 +547,7 @@ async function runAssist(mode, question) {
     criteria: state ? score(state).criteria.map((c) => ({ key: c.key, label: c.label, status: c.status })) : [],
     ...(setup?.prep ? { prepId: setup.prep.id } : {}),
     engagementType: chosenScorecard ?? state?.criteriaSet?.engagementType ?? 'discovery',
-  });
+  }, screenshot);
   if (seq !== assistSeq) return;
   if (result.error) {
     el('answerTitle').textContent = `${ASSIST_TITLE[mode]} · ${result.error}`;
@@ -557,7 +570,11 @@ async function runAssist(mode, question) {
         quote.className = 'quote';
         // From the company's knowledge, the document says where; from the
         // call, the quote is the customer's own words.
-        quote.textContent = point.document ? `“${point.quote}” — ${point.document}` : `“${point.quote}”`;
+        quote.textContent = point.fromScreen
+          ? `“${point.quote}” — on your screen`
+          : point.document
+            ? `“${point.quote}” — ${point.document}`
+            : `“${point.quote}”`;
         li.append(quote);
       }
       return li;

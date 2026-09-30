@@ -1,4 +1,5 @@
 import { redact } from '@tesserafy/ingest';
+import type { ScreenImage } from '@tesserafy/ai';
 import type { SupabaseClient } from '@tesserafy/db';
 import { liveAvailable, myCompanyId } from './company';
 
@@ -117,4 +118,20 @@ export async function liveAllowedFor(db: SupabaseClient, userId: string): Promis
   const plan = data?.plan ?? null;
   planCache.set(userId, { plan, at: Date.now() });
   return liveAvailable(plan ?? undefined);
+}
+
+/** About 1.5 MB decoded: a full-HD JPEG is a few hundred kilobytes. */
+const SCREEN_MAX_BASE64 = 2_000_000;
+
+/** A screenshot as sent: a JPEG or PNG by its first bytes, not by what it says it is. */
+export function readScreen(value: unknown): ScreenImage | null | 'invalid' {
+  if (value === undefined || value === null) return null;
+  const screen = value as { mediaType?: unknown; data?: unknown };
+  if (typeof screen.data !== 'string' || screen.data.length === 0 || screen.data.length > SCREEN_MAX_BASE64) return 'invalid';
+  const head = Buffer.from(screen.data.slice(0, 16), 'base64');
+  const jpeg = head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
+  const png = head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47;
+  if (screen.mediaType === 'image/jpeg' && jpeg) return { mediaType: 'image/jpeg', data: screen.data };
+  if (screen.mediaType === 'image/png' && png) return { mediaType: 'image/png', data: screen.data };
+  return 'invalid';
 }

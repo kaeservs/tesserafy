@@ -270,6 +270,9 @@
       </div>
       <form class="ask" id="askForm">
         <input id="askInput" maxlength="500" autocomplete="off" placeholder="Ask about the call" aria-label="Ask about the call" />
+        <!-- Ask about your screen: pressed, the next answer sees one
+             screenshot of this display; it switches itself off after. -->
+        <button type="button" id="screenToggle" aria-pressed="false" title="Include a screenshot of this screen with the next question" hidden>Screen</button>
         <button type="submit" id="askButton">Ask</button>
       </form>
     </section>

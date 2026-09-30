@@ -621,6 +621,7 @@ export type Database = {
           plan: string
           retention_days: number | null
           sample_imported_at: string | null
+          screen_assist: boolean
         }
         Insert: {
           closed_at?: string | null
@@ -634,6 +635,7 @@ export type Database = {
           plan?: string
           retention_days?: number | null
           sample_imported_at?: string | null
+          screen_assist?: boolean
         }
         Update: {
           closed_at?: string | null
@@ -647,6 +649,7 @@ export type Database = {
           plan?: string
           retention_days?: number | null
           sample_imported_at?: string | null
+          screen_assist?: boolean
         }
         Relationships: [
           {
@@ -3235,6 +3238,7 @@ export type Database = {
       }
       set_overlay_look: { Args: { p_look: Json }; Returns: Json }
       set_retention: { Args: { p_days: number }; Returns: number }
+      set_screen_assist: { Args: { p_allowed: boolean }; Returns: boolean }
       signup_is_open: { Args: never; Returns: boolean }
       start_live_conversation: {
         Args: {

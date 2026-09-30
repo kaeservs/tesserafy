@@ -159,6 +159,7 @@ export {
   type AssistPoint,
   type AssistResult,
   type KnowledgePassage,
+  type ScreenImage,
 } from './tiers/t2-assist';
 export {
   isEmpty as guidanceIsEmpty,

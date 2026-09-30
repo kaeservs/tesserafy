@@ -4,7 +4,7 @@
  * criteria are a scorecard's, not a prompt of any size.
  */
 import { describe, expect, it } from 'vitest';
-import { LIVE_LIMITS, liveCriteria, liveScorecard, liveWindow, redactLive } from '../lib/live-input';
+import { LIVE_LIMITS, liveCriteria, liveScorecard, liveWindow, readScreen, redactLive } from '../lib/live-input';
 
 const utterance = (text: string, i = 0) => ({ id: `s${i}`, speaker: 'Dana', startMs: i * 1000, endMs: i * 1000 + 900, text });
 
@@ -40,5 +40,22 @@ describe('criteria and a scorecard', () => {
     expect(liveScorecard({ criteria: [criterion] })).toBe(true);
     expect(liveScorecard({ criteria: [{ ...criterion, definition: 'x'.repeat(LIVE_LIMITS.scorecard) }] })).toBe(false);
     expect(liveScorecard(null)).toBe(false);
+  });
+});
+
+describe('a screenshot sent with a question', () => {
+  const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 16, 74, 70, 73, 70]).toString('base64');
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).toString('base64');
+
+  it('is a JPEG or PNG by its first bytes, not by what it says it is', () => {
+    expect(readScreen({ mediaType: 'image/jpeg', data: jpeg })).toEqual({ mediaType: 'image/jpeg', data: jpeg });
+    expect(readScreen({ mediaType: 'image/png', data: png })).toEqual({ mediaType: 'image/png', data: png });
+    expect(readScreen({ mediaType: 'image/jpeg', data: png })).toBe('invalid');
+    expect(readScreen({ mediaType: 'image/gif', data: jpeg })).toBe('invalid');
+  });
+
+  it('is optional, and never too large', () => {
+    expect(readScreen(undefined)).toBeNull();
+    expect(readScreen({ mediaType: 'image/jpeg', data: 'A'.repeat(2_000_001) })).toBe('invalid');
   });
 });

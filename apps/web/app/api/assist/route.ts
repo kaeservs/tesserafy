@@ -12,7 +12,7 @@ import {
 import { NextResponse, type NextRequest } from 'next/server';
 import { myCompanyId } from '@/lib/company';
 import { purposeOf } from '@/lib/guidance';
-import { LIVE_LIMITS, liveAllowedFor, liveTranscript } from '@/lib/live-input';
+import { LIVE_LIMITS, liveAllowedFor, liveTranscript, readScreen } from '@/lib/live-input';
 import { hasKnowledge, knowledgeFor } from '@/lib/knowledge';
 import { briefText } from '@/lib/live-setup';
 import { PREP_COLUMNS, type PrepRow } from '@/lib/prep';
@@ -39,7 +39,9 @@ interface AssistBody {
   criteria?: unknown;
   prepId?: unknown;
   engagementType?: unknown;
+  screen?: unknown;
 }
+
 
 export async function POST(request: NextRequest) {
   const who = await caller(request);
@@ -73,6 +75,9 @@ export async function POST(request: NextRequest) {
         )
     : [];
 
+  const screen = readScreen(body.screen);
+  if (screen === 'invalid') return NextResponse.json({ error: 'the screenshot must be a JPEG or PNG under 1.5 MB' }, { status: 400 });
+
   if (!(await liveAllowedFor(who.db, who.userId))) {
     return NextResponse.json({ error: 'Live is not on your plan.' }, { status: 403 });
   }
@@ -86,6 +91,12 @@ export async function POST(request: NextRequest) {
   // Three lookups, side by side rather than one after another: each is a
   // round trip, and the seller is waiting on the answer.
   const companyId = await myCompanyId(who.db, who.userId);
+  if (screen && companyId) {
+    const { data: company } = await who.db.from('companies').select('screen_assist').eq('id', companyId).maybeSingle();
+    if (company?.screen_assist !== true) {
+      return NextResponse.json({ error: 'Your company has switched off Ask about your screen.' }, { status: 403 });
+    }
+  }
   const engagementType = typeof body.engagementType === 'string' ? body.engagementType.slice(0, 64) : 'discovery';
   const lookFor = mode === 'ask' ? question : transcript.slice(-3).map((segment) => segment.text).join(' ');
   const [brief, purpose, knowledge] = await Promise.all([
@@ -118,7 +129,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const result = await assist(
-      { mode, ...(mode === 'ask' ? { question } : {}), transcript, criteria, brief, knowledge },
+      // The screenshot goes to the model for this answer and nowhere else.
+      { mode, ...(mode === 'ask' ? { question } : {}), transcript, criteria, brief, knowledge, screen },
       {
         client: new Anthropic(),
         guidance: { instructions: [], examples: [], purpose },

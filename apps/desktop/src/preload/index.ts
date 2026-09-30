@@ -29,15 +29,18 @@ contextBridge.exposeInMainWorld('overlay', {
     account?: { id: string; name: string } | null;
     prep?: { id: string; person: string; callAt: string | null; chosen: boolean } | null;
     live?: boolean;
+    screen?: boolean;
     appearance?: Appearance;
     error?: string;
   }> => ipcRenderer.invoke('overlay:setup'),
   hide: (): Promise<void> => ipcRenderer.invoke('overlay:hide'),
-  assist: (body: unknown): Promise<{
+  // withScreen: the main process takes one screenshot and sends it with this
+  // question; the page never sees it.
+  assist: (body: unknown, withScreen = false): Promise<{
     mode?: string;
-    points?: { text: string; quote: string | null; segmentId: string | null; document: string | null }[];
+    points?: { text: string; quote: string | null; segmentId: string | null; document: string | null; fromScreen: boolean }[];
     error?: string;
-  }> => ipcRenderer.invoke('overlay:assist', body),
+  }> => ipcRenderer.invoke('overlay:assist', body, withScreen === true),
   // The Assist shortcut was pressed, whichever window is in front.
   onAssistKey: (listener: () => void): void => {
     ipcRenderer.on('overlay:assist-key', () => listener());

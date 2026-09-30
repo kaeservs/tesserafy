@@ -8,6 +8,7 @@ import { RetentionForm } from '@/components/retention-form';
 import { TrackerPanel } from '@/components/tracker-panel';
 import { PURGE_TIME_UTC, describeRetention } from '@/lib/retention';
 import { createClient } from '@/lib/supabase/server';
+import { setScreenAssist } from './actions';
 import { trackerKeyAvailable } from '@/lib/tracker-secret';
 import { isProvider } from '@/lib/trackers';
 
@@ -33,7 +34,7 @@ export default async function SettingsPage() {
 
   const { data: membership } = await supabase
     .from('company_members')
-    .select('role, company_id, companies(name, retention_days, plan)')
+    .select('role, company_id, companies(name, retention_days, plan, screen_assist)')
     .eq('user_id', user?.id ?? '')
     .limit(1)
     .maybeSingle();
@@ -121,6 +122,28 @@ export default async function SettingsPage() {
           />
         ) : (
           <p className="muted">The plan could not be read just now.</p>
+        )}
+      </section>
+
+      <section aria-labelledby="screen-heading" className="card">
+        <h2 id="screen-heading" style={{ marginTop: 0 }}>
+          Ask about your screen
+        </h2>
+        <p>
+          <strong>{company?.screen_assist === false ? 'Off' : 'On'}</strong>
+        </p>
+        <p className="muted">
+          In the overlay, a seller can send a screenshot with a question — their screen, as it is, the moment they press. It
+          goes to the AI for that one answer and is never stored. Nothing is ever captured without a press. Switch it off if
+          your company does not allow a picture of the screen to leave the computer.
+        </p>
+        {isOwner ? (
+          <form action={setScreenAssist} className="inline-form">
+            <input type="hidden" name="allowed" value={company?.screen_assist === false ? 'on' : 'off'} />
+            <button type="submit">{company?.screen_assist === false ? 'Switch it on' : 'Switch it off'}</button>
+          </form>
+        ) : (
+          <p className="muted">Only an owner of {company?.name ?? 'this company'} can change this.</p>
         )}
       </section>
 

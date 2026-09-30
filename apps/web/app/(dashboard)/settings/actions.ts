@@ -4,6 +4,14 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { RETENTION_CHOICES } from '@/lib/retention';
 
+/** Ask about your screen, on or off for the whole company. Owners; the database checks. */
+export async function setScreenAssist(formData: FormData): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('set_screen_assist', { p_allowed: formData.get('allowed') === 'on' });
+  if (error) throw new Error(error.message.replace(/^[a-z_]+: /, ''));
+  revalidatePath('/settings');
+}
+
 export type RetentionState =
   | { status: 'idle' }
   | { status: 'preview'; days: number; affected: number }

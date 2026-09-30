@@ -72,7 +72,8 @@ select is(
 select ok(not public.plan_has_allowance('calls'), 'checking without spending says there is none left');
 
 select lives_ok(
-  $$ select public.refund_plan_allowance((select (result ->> 'ledger_id')::bigint from spent where label = 'c3')) $$,
+  $$ select public.refund_plan_allowance((select (result ->> 'ledger_id')::bigint from spent where label = 'c3'),
+                                          (select result ->> 'refund_token' from spent where label = 'c3')) $$,
   'the person who spent one can have it back when the work failed'
 );
 select is(

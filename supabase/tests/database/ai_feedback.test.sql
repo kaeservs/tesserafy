@@ -1,5 +1,6 @@
 -- "Not right" on what the AI wrote: an action item, a signal or a point in a
--- prep is removed and becomes an example with its reason; the example goes
+-- prep is removed and becomes an example with its reason; only whoever added
+-- the call (or wrote the prep), or an owner, may say so; the example goes
 -- when its call or prep does; a signal an insight rests on alone stays; a
 -- prep's brief is changed only by its author or an owner; and none of it
 -- crosses a tenant.
@@ -8,7 +9,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(22);
+select plan(24);
 
 insert into auth.users (id, email, aud, role) values
   ('fb000001-0000-4000-8000-000000000001', 'owner@acme.test', 'authenticated', 'authenticated'),
@@ -54,7 +55,18 @@ create temporary table made (label text, id uuid);
 grant all on made to authenticated;
 set local role authenticated;
 
--- A member: an action item that is not one.
+-- Only whoever added the call, or an owner, says a result on it is not right.
+select set_config('request.jwt.claims', '{"sub":"fb000001-0000-4000-8000-000000000004","role":"authenticated"}', true);
+select throws_ok(
+  $$ select public.reject_action_item('fb000001-0000-4000-8000-0000000000a1', 'A pleasantry, not a commitment.') $$,
+  '42501', null, 'another member cannot remove a result from someone else''s call'
+);
+select throws_ok(
+  $$ select public.reject_signal('fb000001-0000-4000-8000-0000000000e1', 'Small talk, not a request.') $$,
+  '42501', null, 'nor a signal'
+);
+
+-- Whoever added it: an action item that is not one.
 select set_config('request.jwt.claims', '{"sub":"fb000001-0000-4000-8000-000000000002","role":"authenticated"}', true);
 select throws_ok(
   $$ select public.reject_action_item('fb000001-0000-4000-8000-0000000000a1', 'no') $$,

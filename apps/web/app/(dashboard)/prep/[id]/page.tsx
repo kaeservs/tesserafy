@@ -1,7 +1,9 @@
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { fetchCriteriaSets, fetchCriterionLabels } from '@tesserafy/db';
 import { PrepForm } from '@/components/prep-form';
+import { NotRight } from '@/components/not-right';
 import { RewriteBrief } from '@/components/rewrite-brief';
 import { customerCoverage } from '@/lib/account-story';
 import { accountBrief } from '@/lib/accounts';
@@ -10,7 +12,7 @@ import { PREP_COLUMNS, readBrief, readResearch, type PrepRow } from '@/lib/prep'
 import { researchAvailable } from '@/lib/apify';
 import type { PrepPoint } from '@tesserafy/ai';
 import { createClient } from '@/lib/supabase/server';
-import { deletePrep } from '../actions';
+import { deletePrep, rejectPrepItem } from '../actions';
 
 export const metadata = { title: 'Call prep · Tesserafy' };
 
@@ -22,8 +24,20 @@ const KIND_LABEL: Record<string, string> = { problem: 'Problem', feature_request
  * after. Beneath it, straight from the customer's calls rather than from the
  * model: what is established, what is still to find out, and what they said.
  */
+/** "Not right" on one item of the brief, for whoever may change it. */
+function Reject({ prepId, section, index, text }: { prepId: string; section: 'about' | 'company' | 'questions'; index: number; text: string }) {
+  return (
+    <NotRight
+      action={rejectPrepItem}
+      fields={{ prepId, section, index: String(index), text }}
+      about={`“${text}”`}
+      placeholder={section === 'questions' ? 'Too blunt to open with.' : 'Not relevant to this call.'}
+    />
+  );
+}
+
 /** A point with where it came from: the pasted profile, or a source's link. */
-function Point({ item }: { item: PrepPoint }) {
+function Point({ item, reject }: { item: PrepPoint; reject: ReactNode }) {
   return (
     <li>
       {item.point} <span className="muted">— “{item.quote}”</span>
@@ -34,7 +48,8 @@ function Point({ item }: { item: PrepPoint }) {
             {item.source.title}
           </a>
         </>
-      ) : null}
+      ) : null}{' '}
+      {reject}
     </li>
   );
 }
@@ -121,7 +136,11 @@ export default async function PrepDetailPage({
                 <h3>About them</h3>
                 <ul className="evidence">
                   {brief.about.map((item, index) => (
-                    <Point key={index} item={item} />
+                    <Point
+                      key={`${index}-${item.point}`}
+                      item={item}
+                      reject={mayChange ? <Reject prepId={prep.id} section="about" index={index} text={item.point} /> : null}
+                    />
                   ))}
                 </ul>
               </>
@@ -135,7 +154,11 @@ export default async function PrepDetailPage({
                 <h3>About their company</h3>
                 <ul className="evidence">
                   {brief.company.map((item, index) => (
-                    <Point key={index} item={item} />
+                    <Point
+                      key={`${index}-${item.point}`}
+                      item={item}
+                      reject={mayChange ? <Reject prepId={prep.id} section="company" index={index} text={item.point} /> : null}
+                    />
                   ))}
                 </ul>
               </>
@@ -143,11 +166,12 @@ export default async function PrepDetailPage({
             <h3>What to ask</h3>
             <ol>
               {brief.questions.map((question, index) => (
-                <li key={index} style={{ marginBottom: '0.5rem' }}>
+                <li key={`${index}-${question.ask}`} style={{ marginBottom: '0.5rem' }}>
                   {question.ask}{' '}
                   <span className="muted" style={{ fontSize: '0.85rem' }}>
                     — for {labelOf.get(question.criterionKey) ?? question.criterionKey.replace(/_/g, ' ')}: {question.why}
-                  </span>
+                  </span>{' '}
+                  {mayChange ? <Reject prepId={prep.id} section="questions" index={index} text={question.ask} /> : null}
                 </li>
               ))}
             </ol>

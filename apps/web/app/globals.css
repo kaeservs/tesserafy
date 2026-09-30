@@ -1451,3 +1451,27 @@ input[type='search'] {
   margin-top: 0.15rem;
 }
 
+
+/* --------------------------------------------------------------------------
+   "Not right": feedback on what the AI wrote
+   -------------------------------------------------------------------------- */
+
+.not-right {
+  font-size: 0.8rem;
+}
+
+.not-right-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.6rem;
+  align-items: flex-end;
+  margin: 0.4rem 0;
+  font-size: 0.85rem;
+}
+
+.not-right-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1 1 16rem;
+}

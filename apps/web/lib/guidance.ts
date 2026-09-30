@@ -43,8 +43,9 @@ export async function purposeOf(db: SupabaseClient, companyId: string, engagemen
 
 /**
  * The active guidance for a feature: instructions for every call type or this
- * one, and — for scoring — examples learned from corrections, oldest first so
- * the newest sit nearest the rules. With engagementType null (a live call,
+ * one, and examples learned from people: for scoring, corrections to a score;
+ * for the rest, results marked "Not right". Oldest first, so the newest sit
+ * nearest the rules. With engagementType null (a live call,
  * whose scorecard the detector is not told), every call type's scoring
  * guidance, which the renderer narrows to the criteria actually in play.
  */
@@ -57,7 +58,7 @@ export async function loadGuidance(
 ): Promise<Guidance> {
   let query = db
     .from('ai_guidance')
-    .select('kind, criterion_key, body, quote, counts, engagement_type, created_at')
+    .select('kind, criterion_key, body, quote, counts, result, engagement_type, created_at')
     .eq('company_id', companyId)
     .eq('feature', feature)
     .eq('active', true)
@@ -76,5 +77,9 @@ export async function loadGuidance(
       .filter((row) => row.kind === 'example' && row.quote !== null && row.counts !== null && row.criterion_key !== null)
       .slice(-MAX_EXAMPLES)
       .map((row) => ({ criterionKey: row.criterion_key!, quote: row.quote!, counts: row.counts!, reason: row.body })),
+    rejected: rows
+      .filter((row) => row.kind === 'example' && row.result !== null)
+      .slice(-MAX_EXAMPLES)
+      .map((row) => ({ result: row.result!, quote: row.quote, reason: row.body })),
   };
 }

@@ -3,6 +3,7 @@
 import { redact } from '@tesserafy/ingest';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { REASON_MIN, type FeedbackState } from '@/lib/feedback';
 import { createClient } from '@/lib/supabase/server';
 
 export type PrepState = { status: 'idle' } | { status: 'saved'; prepId: string } | { status: 'error'; message: string };
@@ -53,4 +54,32 @@ export async function deletePrep(formData: FormData): Promise<void> {
   if (error) throw new Error(reason(error.message));
   revalidatePath('/prep');
   redirect('/prep');
+}
+
+/**
+ * "Not right" on a point or question in a brief: it leaves the brief, and the
+ * reason is kept as an example call prep is shown from then on. Named by its
+ * words as well as its place, so a brief rewritten meanwhile loses nothing by
+ * mistake. Whoever wrote the prep, or an owner; the database checks.
+ */
+export async function rejectPrepItem(_state: FeedbackState, formData: FormData): Promise<FeedbackState> {
+  const prepId = text(formData, 'prepId');
+  const section = text(formData, 'section');
+  const index = Number(text(formData, 'index'));
+  const words = formData.get('text');
+  const why = text(formData, 'reason');
+  if (!prepId || !Number.isInteger(index) || typeof words !== 'string') return { status: 'error', message: 'That did not say what it was about.' };
+  if (why.length < REASON_MIN) return { status: 'error', message: 'Say why, in a few words.' };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('reject_prep_item', {
+    p_prep_id: prepId,
+    p_section: section,
+    p_index: index,
+    p_text: words,
+    p_reason: why,
+  });
+  if (error) return { status: 'error', message: reason(error.message) };
+  // The form refreshes the prep page itself, as on a call (feedback-actions).
+  revalidatePath('/guidance');
+  return { status: 'saved' };
 }

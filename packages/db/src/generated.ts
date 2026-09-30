@@ -343,6 +343,7 @@ export type Database = {
           active: boolean
           body: string
           company_id: string
+          conversation_id: string | null
           counts: boolean | null
           created_at: string
           created_by: string | null
@@ -351,13 +352,16 @@ export type Database = {
           feature: string
           id: string
           kind: string
+          prep_id: string | null
           quote: string | null
+          result: string | null
           source_event_id: string | null
         }
         Insert: {
           active?: boolean
           body: string
           company_id: string
+          conversation_id?: string | null
           counts?: boolean | null
           created_at?: string
           created_by?: string | null
@@ -366,13 +370,16 @@ export type Database = {
           feature: string
           id?: string
           kind: string
+          prep_id?: string | null
           quote?: string | null
+          result?: string | null
           source_event_id?: string | null
         }
         Update: {
           active?: boolean
           body?: string
           company_id?: string
+          conversation_id?: string | null
           counts?: boolean | null
           created_at?: string
           created_by?: string | null
@@ -381,16 +388,32 @@ export type Database = {
           feature?: string
           id?: string
           kind?: string
+          prep_id?: string | null
           quote?: string | null
+          result?: string | null
           source_event_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "ai_guidance_company_id_conversation_id_fkey"
+            columns: ["company_id", "conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["company_id", "id"]
+          },
           {
             foreignKeyName: "ai_guidance_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_guidance_company_id_prep_id_fkey"
+            columns: ["company_id", "prep_id"]
+            isOneToOne: false
+            referencedRelation: "call_preps"
+            referencedColumns: ["company_id", "id"]
           },
           {
             foreignKeyName: "ai_guidance_source_event_id_fkey"
@@ -2917,6 +2940,24 @@ export type Database = {
       refund_plan_allowance: {
         Args: { p_ledger_id: number }
         Returns: undefined
+      }
+      reject_action_item: {
+        Args: { p_item_id: string; p_reason: string }
+        Returns: string
+      }
+      reject_prep_item: {
+        Args: {
+          p_index: number
+          p_prep_id: string
+          p_reason: string
+          p_section: string
+          p_text: string
+        }
+        Returns: string
+      }
+      reject_signal: {
+        Args: { p_reason: string; p_signal_id: string }
+        Returns: string
       }
       remove_company_member: { Args: { p_user_id: string }; Returns: undefined }
       remove_moment: { Args: { p_moment_id: string }; Returns: undefined }

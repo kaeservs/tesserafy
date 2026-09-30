@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useRef, useTransition } from 'react';
 
 /**
  * Re-render the page from the server every few seconds while something is
@@ -22,6 +22,9 @@ export function RefreshWhile({
   forMs?: number;
 }) {
   const router = useRouter();
+  const [refreshing, startTransition] = useTransition();
+  const busy = useRef(false);
+  busy.current = refreshing;
 
   useEffect(() => {
     const started = Date.now();
@@ -30,7 +33,11 @@ export function RefreshWhile({
         window.clearInterval(timer);
         return;
       }
-      router.refresh();
+      // One at a time. A render slower than the interval used to queue
+      // refresh behind refresh, and a form submitted meanwhile (a coaching
+      // assignment, a "Not right") did its work but never heard back.
+      if (busy.current) return;
+      startTransition(() => router.refresh());
     }, everyMs);
     return () => window.clearInterval(timer);
   }, [router, everyMs, forMs]);

@@ -156,6 +156,7 @@ export {
   type CallPurpose,
   type Guidance,
   type GuidanceExample,
+  type RejectedResult,
 } from './tiers/guidance';
 export {
   extractActionItems,

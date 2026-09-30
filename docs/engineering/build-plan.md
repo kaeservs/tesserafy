@@ -99,6 +99,29 @@ tries it on recent calls without saving anything, and publishes a version.
 Imports can be scored against it. Tesserafy's sets remain as templates
 every company can use or start from.
 
+Since then (2026-09-28 to 2026-10-04), each shipped as one PR against main:
+
+- **Customers and preparation.** Each customer has a story across its calls.
+  A call prep writes a brief about the person and what to ask, quoting the
+  profile the seller pasted or, with `APIFY_TOKEN` set and the seller's say-so,
+  their LinkedIn profile and news about their company; every point is quoted
+  and linked to its source. The overlay shows the questions before a call.
+- **Managing a team.** Owners assign a moment of a call for coaching;
+  Meetings take bulk actions; each scorecard shows which criteria are met
+  and missed and how often people correct them; Reports has a rep-by-criterion
+  heatmap; the console counts which features each company uses.
+- **Action items.** Commitments and next steps from a call, each quoted, whose
+  and when as said, ticked done, and listed on the dashboard.
+- **The AI learns from the company** (`ai_guidance`). Every "This score is
+  wrong" with a reason, and every "Not right" on an action item, a signal or a
+  prep point, becomes an example the feature is shown from then on; owners
+  write instructions per feature and call type, and say what kind of call each
+  scorecard is for. Measured: one correction moved the scoring detector 3/3
+  both ways (`scripts/guidance-probe.ts`); one "Not right" took a customer's
+  to-do out of the action items 4/4 and kept the seller's 4/4
+  (`scripts/feedback-probe.ts`). Owners see all of it on AI guidance and can
+  switch any of it off.
+
 What is left cannot be done from a keyboard alone:
 
 - **S1** — run the overlay against Zoom, Meet and Teams, including the
@@ -108,6 +131,12 @@ What is left cannot be done from a keyboard alone:
   browser vendor.
 - **ADR 0010** — accept, amend or reject the revised ~2 s budget. It changes a
   product promise, so it is not a technical call.
+- **Web research** — set `APIFY_TOKEN` in Vercel (the owner accepted the
+  LinkedIn terms risk), then run one real prep to see the default actors'
+  output read well.
+- **Email, payments, Zoom** — Resend (then the weekly email, invites and
+  opening signup), Stripe (its webhook calls `private.apply_plan`), and a
+  Zoom app so calls arrive without an upload.
 - **P8** — set `TRACKER_TOKEN_KEY` in Vercel, connect a private test
   repository under Settings → Where tickets go, approve an insight and raise a
   ticket into it (`qa-checklist.md`, P8).

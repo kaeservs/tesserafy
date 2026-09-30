@@ -23,10 +23,21 @@ export interface GuidanceExample {
   readonly reason: string;
 }
 
+/** Something this feature wrote that a person marked "Not right", and why. */
+export interface RejectedResult {
+  /** What the AI had written: the action, the signal, the point or question. */
+  readonly result: string;
+  /** The words it came from, where it quoted any. */
+  readonly quote: string | null;
+  readonly reason: string;
+}
+
 export interface Guidance {
   /** Owners' instructions to this feature; criterionKey only for scoring. */
   readonly instructions: readonly { criterionKey: string | null; text: string }[];
   readonly examples: readonly GuidanceExample[];
+  /** For the features other than scoring: results people marked not right. */
+  readonly rejected?: readonly RejectedResult[];
   readonly purpose?: CallPurpose | null;
 }
 
@@ -58,7 +69,10 @@ const PURPOSE_EMPHASIS: Record<CallPurpose, string> = {
 };
 
 export function isEmpty(guidance: Guidance | null | undefined): boolean {
-  return !guidance || (guidance.instructions.length === 0 && guidance.examples.length === 0 && !purposeLine(guidance));
+  return (
+    !guidance ||
+    (guidance.instructions.length === 0 && guidance.examples.length === 0 && (guidance.rejected ?? []).length === 0 && !purposeLine(guidance))
+  );
 }
 
 function purposeLine(guidance: Guidance): string {
@@ -106,15 +120,29 @@ export function renderScoringGuidance(guidance: Guidance | null | undefined, kno
 
 /**
  * For the other features (insights, action items, call prep): the call type's
- * emphasis and the owners' instructions, appended to the system prompt.
+ * emphasis, the owners' instructions, and what people marked "Not right" —
+ * appended to the system prompt.
  */
 export function renderInstructions(guidance: Guidance | null | undefined): string {
   if (!guidance) return '';
   const instructions = guidance.instructions.slice(0, MAX_INSTRUCTIONS);
+  const rejected = (guidance.rejected ?? []).slice(-MAX_EXAMPLES);
   const purpose = purposeLine(guidance);
-  if (instructions.length === 0 && !purpose) return '';
+  if (instructions.length === 0 && rejected.length === 0 && !purpose) return '';
   const lines = ['This company’s preferences. Follow them where they apply; they do not change the rules above.'];
   if (purpose) lines.push(purpose);
   for (const item of instructions) lines.push(`- ${clip(item.text, 400)}`);
+  if (rejected.length > 0) {
+    // As with scoring: the reason is the rule, and what was written shows it.
+    lines.push(
+      '',
+      'Results the team marked as not right, each with why. Treat each reason as a rule for anything like it, not only these words, and do not produce results like these again:',
+    );
+    for (const item of rejected) {
+      lines.push(
+        `- ${clip(item.reason, 200)} (You had written: "${clip(item.result, 200)}"${item.quote ? `, from the words "${clip(item.quote, 200)}"` : ''}.)`,
+      );
+    }
+  }
   return lines.join('\n');
 }

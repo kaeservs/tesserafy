@@ -9,6 +9,7 @@ import {
 import type { Scorecard } from '@tesserafy/scoring';
 import { NextResponse, type NextRequest } from 'next/server';
 import { caller } from '@/lib/supabase/caller';
+import { liveAllowedFor, liveScorecard, liveWindow } from '@/lib/live-input';
 import { allowance, tooMany } from '@/lib/rate-limit';
 
 /**
@@ -44,12 +45,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'body must be JSON' }, { status: 400 });
   }
 
-  const { scorecard, window } = body;
-  if (!scorecard || !Array.isArray(scorecard.criteria)) {
+  const { scorecard } = body;
+  if (!scorecard || !liveScorecard(scorecard)) {
     return NextResponse.json({ error: 'scorecard is required' }, { status: 400 });
   }
-  if (!Array.isArray(window) || window.length === 0) {
-    return NextResponse.json({ error: 'window must be a non-empty array' }, { status: 400 });
+  // Bounded and redacted before it reaches a model (lib/live-input).
+  const window = liveWindow<SuggestableSegment>(body.window);
+  if (!window) {
+    return NextResponse.json({ error: 'window must be the last few utterances' }, { status: 400 });
+  }
+  if (!(await liveAllowedFor(who.db, who.userId))) {
+    return NextResponse.json({ error: 'Live is not on your plan.' }, { status: 403 });
   }
 
   // Before the model, after the body. Suggestions cost more per call than

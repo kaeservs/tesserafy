@@ -33,7 +33,7 @@ export default async function SettingsPage() {
 
   const { data: membership } = await supabase
     .from('company_members')
-    .select('role, companies(name, retention_days, plan)')
+    .select('role, company_id, companies(name, retention_days, plan)')
     .eq('user_id', user?.id ?? '')
     .limit(1)
     .maybeSingle();
@@ -41,6 +41,9 @@ export default async function SettingsPage() {
   const company = membership?.companies ?? null;
   const retention = company?.retention_days ?? null;
   const isOwner = membership?.role === 'owner';
+  // Named on every read below: an operator is a member too, and operators may
+  // read these tables across every company (the lesson of 20261002090000).
+  const companyId = membership?.company_id ?? '';
 
   // Where the company stands on its plan; rolled over first if a period
   // ended, so this never shows a trial that has already run out.
@@ -60,6 +63,7 @@ export default async function SettingsPage() {
     ? await supabase
         .from('access_requests')
         .select('id, email, role, created_at, resolution, resolution_note, resolved_at')
+        .eq('company_id', companyId)
         .order('created_at', { ascending: false })
         .limit(10)
     : { data: [] };
@@ -67,6 +71,7 @@ export default async function SettingsPage() {
     ? await supabase
         .from('company_exports')
         .select('email, conversations, requested_at')
+        .eq('company_id', companyId)
         .order('requested_at', { ascending: false })
         .limit(5)
     : { data: [] };
@@ -75,6 +80,7 @@ export default async function SettingsPage() {
     ? await supabase
         .from('membership_removals')
         .select('email, role, removed_at')
+        .eq('company_id', companyId)
         .order('removed_at', { ascending: false })
         .limit(10)
     : { data: [] };
@@ -82,6 +88,7 @@ export default async function SettingsPage() {
     ? await supabase
         .from('membership_role_changes')
         .select('id, email, to_role, changed_at')
+        .eq('company_id', companyId)
         .order('changed_at', { ascending: false })
         .limit(10)
     : { data: [] };
@@ -90,6 +97,7 @@ export default async function SettingsPage() {
   const { data: tracker } = await supabase
     .from('company_trackers')
     .select('provider, target, token_hint, connected_by, connected_at')
+    .eq('company_id', companyId)
     .maybeSingle();
   const emailOf = new Map((team ?? []).map((person) => [person.user_id, person.email]));
 

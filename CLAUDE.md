@@ -149,7 +149,11 @@ and live minutes. The catalogue is the `plans` table — trial, Basic $9, Pro
 $20, pilot, internal — so a limit is a row, not a deploy. Every AI route
 spends through `apps/web/lib/plan.ts` after its rate limit, and refunds when
 the work fails; `take_plan_allowance` checks and charges in one locked
-statement. Reading, search, export and deleting never need an allowance.
+statement. A refund needs the one-time token the charge returned to the
+server: the ledger id alone is readable by any member, and refunding by it
+made every plan limit decorative (security review, 2026-10-04). Live
+endpoints also check the plan server-side and bound what they are sent
+(`apps/web/lib/live-input.ts`): hiding Live in the pages was the only gate. Reading, search, export and deleting never need an allowance.
 The one AI path that is not charged is the sample call (`/api/sample-call`):
 a trial has three imported calls and a demonstration should not cost one, so
 `import_sample_call` allows one per company, ever, and the route sends only

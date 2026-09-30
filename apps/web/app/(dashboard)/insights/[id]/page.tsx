@@ -48,7 +48,7 @@ export default async function InsightPage({ params }: { params: Promise<{ id: st
 
   const { data: insight } = await supabase
     .from('insights')
-    .select('id, title, summary, created_at, status, assigned_to')
+    .select('id, company_id, title, summary, created_at, status, assigned_to')
     .eq('id', id)
     .maybeSingle();
 
@@ -61,12 +61,19 @@ export default async function InsightPage({ params }: { params: Promise<{ id: st
     await Promise.all([
       supabase.from('insight_tickets').select('url').eq('insight_id', id).maybeSingle(),
       // Where a ticket would go; never the token (ADR 0015).
-      supabase.from('company_trackers').select('provider, target').maybeSingle(),
+      supabase.from('company_trackers').select('provider, target').eq('company_id', insight.company_id).maybeSingle(),
       supabase.rpc('company_team'),
-      supabase.from('company_members').select('role').eq('user_id', user?.id ?? '').limit(1).maybeSingle(),
+      supabase.from('company_members').select('role').eq('user_id', user?.id ?? '').eq('company_id', insight.company_id).maybeSingle(),
       supabase.from('insight_comments').select('id, author, body, created_at').eq('insight_id', id).order('created_at'),
       supabase.from('insight_events').select('kind, detail, actor, at').eq('insight_id', id).order('at', { ascending: false }),
-      supabase.from('insights').select('id, title').neq('id', id).neq('status', 'dismissed').order('title').limit(200),
+      supabase
+        .from('insights')
+        .select('id, title')
+        .eq('company_id', insight.company_id)
+        .neq('id', id)
+        .neq('status', 'dismissed')
+        .order('title')
+        .limit(200),
       supabase.from('insight_tickets').select('insight_id'),
     ]);
   const isOwner = membership?.role === 'owner';

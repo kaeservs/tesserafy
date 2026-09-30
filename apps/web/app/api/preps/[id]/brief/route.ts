@@ -1,7 +1,7 @@
 import { recordFailure } from '@tesserafy/ai';
 import { NextResponse, type NextRequest } from 'next/server';
 import { planExhausted, refund, spend } from '@/lib/plan';
-import { writePrepBrief } from '@/lib/prep';
+import { mayChangePrep, writePrepBrief } from '@/lib/prep';
 import { allowance, tooMany } from '@/lib/rate-limit';
 import { caller } from '@/lib/supabase/caller';
 
@@ -22,12 +22,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: 'Call prep is not configured on this deployment.' }, { status: 503 });
   }
 
+  const { id } = await params;
+  const may = await mayChangePrep(who.db, who.userId, id);
+  if (may === 'not_found') return NextResponse.json({ error: 'That prep was not found.' }, { status: 404 });
+  if (may === 'forbidden') {
+    return NextResponse.json({ error: 'Only whoever wrote this prep, or an owner, can rewrite its brief.' }, { status: 403 });
+  }
+
   const limit = await allowance(who.db, 'api/preps');
   if (!limit.allowed) return tooMany('api/preps', limit.retryAfterSeconds);
   const spent = await spend(who.db, 'extractions');
   if (!spent.allowed) return planExhausted(spent);
 
-  const { id } = await params;
   const body = (await request.json().catch(() => ({}))) as { research?: unknown };
   try {
     const outcome = await writePrepBrief(who.db, id, undefined, body.research === true);

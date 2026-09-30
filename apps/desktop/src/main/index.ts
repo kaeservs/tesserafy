@@ -115,8 +115,13 @@ let appearance: Appearance = DEFAULT_APPEARANCE;
 /** Where this process last put the window, so its own moves are not taken for a drag. */
 let placed: Rect | null = null;
 
-/** Where the product is. The production app unless told otherwise. */
-const BASE_URL = process.env['TESSERAFY_URL'] ?? 'https://web-beta-khaki-cxdkp6udxk.vercel.app';
+/**
+ * Where the product is. A development build may be pointed elsewhere; an
+ * installed one never is — the password and every token go to this address,
+ * and any program running as the same user can set an environment variable.
+ */
+const PRODUCTION_URL = 'https://web-beta-khaki-cxdkp6udxk.vercel.app';
+const BASE_URL = (!app.isPackaged && process.env['TESSERAFY_URL']) || PRODUCTION_URL;
 /** The scorecard to fall back on when none has been chosen (see ./scorecard). */
 const ENGAGEMENT = process.env['TESSERAFY_ENGAGEMENT'] ?? 'discovery';
 /** The scorecard chosen on this computer, by name; null until one is. */
@@ -244,6 +249,20 @@ function createOverlay(): BrowserWindow {
 
   window.setAlwaysOnTop(true, 'screen-saver');
   window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+
+  // The page is this app's own file and nothing else. It never navigates or
+  // opens a window (a link or a file dropped on it would otherwise load in
+  // its place, with the preload's API attached), and it may ask for the
+  // microphone — live speech recognition — and no other permission.
+  window.webContents.on('will-navigate', (event) => event.preventDefault());
+  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  const own = (url: string) => url.startsWith('file://');
+  window.webContents.session.setPermissionRequestHandler((contents, permission, allow) =>
+    allow(contents === window.webContents && permission === 'media' && own(contents.getURL())),
+  );
+  window.webContents.session.setPermissionCheckHandler((contents, permission) =>
+    contents === window.webContents && permission === 'media' && own(contents?.getURL() ?? ''),
+  );
 
   // The claim under test, and whatever the switches say now.
   window.setContentProtection(protection);
@@ -478,12 +497,16 @@ void app.whenReady().then(async () => {
     post('/api/live/sessions', body),
   );
 
-  ipcMain.handle('overlay:live-segment', async (_event, conversationId: string, body: unknown) =>
-    post(`/api/live/sessions/${conversationId}/segments`, body),
+  // The id goes into a path, so it must be an id and nothing else: "../.."
+  // in it would reach any other route with the seller's token.
+  const isId = (value: unknown): value is string => typeof value === 'string' && /^[0-9a-f-]{36}$/i.test(value);
+
+  ipcMain.handle('overlay:live-segment', async (_event, conversationId: unknown, body: unknown) =>
+    isId(conversationId) ? post(`/api/live/sessions/${conversationId}/segments`, body) : { error: 'not a call' },
   );
 
-  ipcMain.handle('overlay:live-events', async (_event, conversationId: string, body: unknown) =>
-    post(`/api/live/sessions/${conversationId}/events`, body),
+  ipcMain.handle('overlay:live-events', async (_event, conversationId: unknown, body: unknown) =>
+    isId(conversationId) ? post(`/api/live/sessions/${conversationId}/events`, body) : { error: 'not a call' },
   );
 
   // The scorecards this person may use, and which is chosen: the remembered

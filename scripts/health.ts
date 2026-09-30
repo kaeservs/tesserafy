@@ -20,7 +20,7 @@
  * failure mode this whole thing was built to end. Two false alarms teach an
  * operator to ignore the alarm, which is worse than not having one.
  */
-import { ALARM_AT, alarming, createServiceClient, groupFailures, type FailureRow } from '@tesserafy/db';
+import { ALARM_AT, alarming, createServiceClient, groupFailures, readAll, type FailureRow } from '@tesserafy/db';
 
 // Which failures need a person, and how they group, live in
 // packages/db/src/health.ts, shared with the operator console's Failures page:
@@ -62,22 +62,29 @@ async function main(): Promise<void> {
   });
 
   const since = new Date(Date.now() - hours * 3600_000).toISOString();
-  const { data, error } = await db
-    .from('system_failures')
-    .select('source, kind, tier, model, status, message, created_at')
-    .gte('created_at', since)
-    .order('created_at', { ascending: false })
-    .limit(500);
-
-  if (error) {
+  // Every row in the window, not the newest few hundred: a flood of harmless
+  // failures would otherwise push the one that needs a person out of what is
+  // read, and the alarm would stay quiet exactly when it should not.
+  let rows: FailureRow[];
+  try {
+    rows = await readAll<FailureRow>(
+      (from, to) =>
+        db
+          .from('system_failures')
+          .select('source, kind, tier, model, status, message, created_at')
+          .gte('created_at', since)
+          .order('created_at', { ascending: false })
+          .order('id')
+          .range(from, to),
+      'reading system_failures',
+    );
+  } catch (error) {
     // Being unable to read the failure table is itself the worst kind of
     // failure: it is the state in which nothing can be seen, which is exactly
     // what this exists to prevent. Loud, and exit 1.
-    console.error(`health: could not read system_failures: ${error.message}`);
+    console.error(`health: could not read system_failures: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);
   }
-
-  const rows = (data ?? []) as FailureRow[];
 
   if (rows.length === 0) {
     if (!quiet) console.log(`health: nothing failed in the last ${hours}h.`);

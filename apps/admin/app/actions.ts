@@ -42,7 +42,6 @@ export async function openSession(_prev: SessionState, formData: FormData): Prom
   const admin = await requireAdmin();
 
   const subjectId = text(formData, 'subjectId');
-  const email = text(formData, 'email');
   const reason = text(formData, 'reason').trim();
   const minutes = Number(formData.get('minutes') ?? 30);
 
@@ -56,6 +55,15 @@ export async function openSession(_prev: SessionState, formData: FormData): Prom
     p_minutes: Number.isInteger(minutes) ? minutes : 30,
   });
   if (error) return { status: 'error', message: error.message };
+
+  // The address comes from the account the record names, never from the form:
+  // a session minted for any other address would be one no record describes,
+  // and the customer's banner (keyed on the account) would never show.
+  const { data: people } = await admin.db.rpc('admin_users');
+  const email = (people ?? []).find((person) => person.user_id === subjectId)?.email;
+  if (!email) {
+    return { status: 'error', message: `Recorded as ${access.id}, but that account's address could not be found, so no session was minted.` };
+  }
 
   const minted = await mintSessionFor(email);
   if (!minted) {

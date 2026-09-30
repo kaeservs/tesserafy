@@ -13,7 +13,10 @@ import { NextResponse } from 'next/server';
  * `take_plan_allowance` checks and charges in one locked statement, so two
  * requests cannot both spend the last call. When the AI work it paid for then
  * fails, the route gives it back: a failed extraction should not cost the
- * customer part of their month.
+ * customer part of their month. Giving back needs the one-time token the
+ * charge returned, which only this server ever holds — the ledger id alone is
+ * readable by any member, and once refunded any successful work from a
+ * browser (20261004110000_security_review).
  *
  * Closed on failure, like the rate limiter: if the allowance cannot be read,
  * the model is not called. A limiter that fails open is not a limiter.
@@ -22,7 +25,7 @@ import { NextResponse } from 'next/server';
 export type Meter = 'calls' | 'extractions' | 'pattern_runs' | 'live_seconds';
 
 export type Spent =
-  | { allowed: true; ledgerId: number }
+  | { allowed: true; ledgerId: number; refundToken: string }
   | {
       allowed: false;
       meter: Meter;
@@ -36,6 +39,7 @@ export type Spent =
 interface TakeResult {
   allowed: boolean;
   ledger_id?: number;
+  refund_token?: string;
   used: number;
   limit: number | null;
   plan: string;
@@ -48,7 +52,9 @@ export async function spend(db: SupabaseClient, meter: Meter, amount = 1): Promi
     return { allowed: false, meter, used: 0, limit: 0, plan: 'none', resetsAt: null, error: error?.message ?? 'no answer' };
   }
   const result = data as unknown as TakeResult;
-  if (result.allowed && result.ledger_id !== undefined) return { allowed: true, ledgerId: result.ledger_id };
+  if (result.allowed && result.ledger_id !== undefined && result.refund_token !== undefined) {
+    return { allowed: true, ledgerId: result.ledger_id, refundToken: result.refund_token };
+  }
   return {
     allowed: false,
     meter,
@@ -62,7 +68,7 @@ export async function spend(db: SupabaseClient, meter: Meter, amount = 1): Promi
 /** Gives back an allowance whose work failed. Never throws: a refund is a courtesy, not a gate. */
 export async function refund(db: SupabaseClient, spent: Spent): Promise<void> {
   if (!spent.allowed) return;
-  await db.rpc('refund_plan_allowance', { p_ledger_id: spent.ledgerId });
+  await db.rpc('refund_plan_allowance', { p_ledger_id: spent.ledgerId, p_token: spent.refundToken });
 }
 
 const NOUN: Record<Meter, [string, string]> = {

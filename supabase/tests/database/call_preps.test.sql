@@ -6,7 +6,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(15);
+select plan(18);
 
 insert into auth.users (id, email, aud, role) values
   ('c0a10001-0000-4000-8000-000000000001', 'owner@acme.test', 'authenticated', 'authenticated'),
@@ -56,8 +56,22 @@ select lives_ok(
 );
 select is((select brief from public.call_preps), null, 'and a brief written from other words is cleared');
 
+select lives_ok(
+  $$ select public.set_call_prep_research((select id from made where label = 'prep'),
+       '{"sources":[{"id":"s1","kind":"web","url":"https://example.com","title":"Harbor & Pine news","text":"Harbor & Pine opens a second warehouse."}]}'::jsonb) $$,
+  'the author stores web research on the prep'
+);
+select throws_ok(
+  $$ select public.set_call_prep_research((select id from made where label = 'prep'), '{"sources":"everything"}'::jsonb) $$,
+  '22023', null, 'research is a list of sources'
+);
+
 select set_config('request.jwt.claims', '{"sub":"c0a10001-0000-4000-8000-000000000003","role":"authenticated"}', true);
 select is((select count(*)::int from public.call_preps), 1, 'a colleague reads it');
+select throws_ok(
+  $$ select public.set_call_prep_research((select id from made where label = 'prep'), '{"sources":[]}'::jsonb) $$,
+  '42501', null, 'a colleague cannot overwrite its research'
+);
 select throws_ok(
   $$ select public.delete_call_prep((select id from made where label = 'prep')) $$,
   '42501', null, 'but cannot delete it'

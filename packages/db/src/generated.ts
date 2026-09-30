@@ -262,6 +262,82 @@ export type Database = {
           },
         ]
       }
+      action_items: {
+        Row: {
+          action: string
+          company_id: string
+          conversation_id: string
+          created_at: string
+          detector: string
+          done: boolean
+          done_at: string | null
+          done_by: string | null
+          due: string | null
+          id: string
+          model: string
+          owner_name: string | null
+          owner_side: string
+          quote: string
+          segment_id: string
+        }
+        Insert: {
+          action: string
+          company_id: string
+          conversation_id: string
+          created_at?: string
+          detector: string
+          done?: boolean
+          done_at?: string | null
+          done_by?: string | null
+          due?: string | null
+          id?: string
+          model: string
+          owner_name?: string | null
+          owner_side: string
+          quote: string
+          segment_id: string
+        }
+        Update: {
+          action?: string
+          company_id?: string
+          conversation_id?: string
+          created_at?: string
+          detector?: string
+          done?: boolean
+          done_at?: string | null
+          done_by?: string | null
+          due?: string | null
+          id?: string
+          model?: string
+          owner_name?: string | null
+          owner_side?: string
+          quote?: string
+          segment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "action_items_company_id_conversation_id_fkey"
+            columns: ["company_id", "conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "action_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "action_items_company_id_segment_id_fkey"
+            columns: ["company_id", "segment_id"]
+            isOneToOne: false
+            referencedRelation: "segments"
+            referencedColumns: ["company_id", "id"]
+          },
+        ]
+      }
       ai_guidance: {
         Row: {
           active: boolean
@@ -2729,6 +2805,15 @@ export type Database = {
         Args: { p_company_id?: string; p_limit?: number }
         Returns: Json
       }
+      record_action_items: {
+        Args: {
+          p_conversation_id: string
+          p_detector: string
+          p_items: Json
+          p_model: string
+        }
+        Returns: Json
+      }
       record_company_export: { Args: never; Returns: string }
       record_conversation_view: {
         Args: { p_conversation_id: string }
@@ -2906,6 +2991,10 @@ export type Database = {
       send_feedback: {
         Args: { p_body: string; p_page?: string }
         Returns: string
+      }
+      set_action_item_done: {
+        Args: { p_done: boolean; p_item_id: string }
+        Returns: undefined
       }
       set_ai_guidance: {
         Args: { p_active?: boolean; p_delete?: boolean; p_guidance_id: string }

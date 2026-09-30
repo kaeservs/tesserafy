@@ -14,6 +14,7 @@ import { sideShares, speakerKey, talkStats } from '@/lib/talk';
 import { ExtractButton } from '@/components/extract-button';
 import { CallViewers } from '@/components/call-viewers';
 import { CopyMomentLink } from '@/components/copy-moment-link';
+import { ActionItems } from '@/components/action-items';
 import { AssignCoaching } from '@/components/coaching-forms';
 import { OurSpeaker } from '@/components/our-speaker';
 import { SaveExample } from '@/components/save-example';
@@ -339,6 +340,11 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
     examplesOf.set(moment.segment_id, list);
   }
   const criterionOptions = card.criteria.map((criterion) => ({ key: criterion.key, label: criterion.label }));
+  const { data: actionRows } = await supabase
+    .from('action_items')
+    .select('id, action, owner_side, owner_name, due, done, segment_id, quote')
+    .eq('conversation_id', id)
+    .order('created_at');
 
   const notesBySegment = new Map<string, ShownNote[]>();
   for (const note of notes) {
@@ -637,6 +643,24 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
           </p>
         </section>
       ) : null}
+
+      <section aria-labelledby="actions-heading">
+        <h2 id="actions-heading">Action items</h2>
+        <ActionItems
+          conversationId={id}
+          items={(actionRows ?? []).map((row) => ({
+            id: row.id,
+            action: row.action,
+            ownerSide: row.owner_side,
+            ownerName: row.owner_name,
+            due: row.due,
+            done: row.done,
+            segmentId: row.segment_id,
+            quote: row.quote,
+            at: clock(startedAt.get(row.segment_id) ?? 0),
+          }))}
+        />
+      </section>
 
       <section aria-labelledby="signals-heading">
         <h2 id="signals-heading">Signals</h2>

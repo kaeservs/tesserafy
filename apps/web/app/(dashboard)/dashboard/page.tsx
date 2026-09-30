@@ -38,6 +38,7 @@ import { createClient } from '@/lib/supabase/server';
 const KIND_LABEL: Record<AgendaItem['kind'], string> = {
   prep: 'Call',
   coaching: 'Coaching',
+  action: 'To do',
   assigned: 'Yours',
   decide: 'Decide',
   customer: 'Customer',
@@ -170,7 +171,29 @@ export default async function DashboardPage() {
   const titleOfCall = new Map(rows.map((row) => [row.id, row.title]));
   const { data: teamRows } = (coachingRows ?? []).length > 0 ? await supabase.rpc('company_team') : { data: [] };
   const emailOf = new Map((teamRows ?? []).map((person) => [person.user_id, person.email]));
+  // What your side committed to on your own calls in the last month, not yet done.
+  const myCallIds = rows.filter((row) => row.added_by === user?.id).map((row) => row.id);
+  const { data: actionRows } =
+    myCallIds.length > 0
+      ? await supabase
+          .from('action_items')
+          .select('id, action, due, conversation_id, segment_id, created_at')
+          .in('conversation_id', myCallIds.slice(0, 200))
+          .eq('owner_side', 'ours')
+          .eq('done', false)
+          .gte('created_at', new Date(now.getTime() - 30 * 86_400_000).toISOString())
+          .order('created_at', { ascending: false })
+          .limit(20)
+      : { data: [] };
   const agenda = homeAgenda({
+    actions: (actionRows ?? []).map((row) => ({
+      id: row.id,
+      action: row.action,
+      due: row.due,
+      callTitle: titleOfCall.get(row.conversation_id) ?? 'a call',
+      conversationId: row.conversation_id,
+      segmentId: row.segment_id,
+    })),
     coaching: (coachingRows ?? []).map((row) => ({
       id: row.id,
       callTitle: titleOfCall.get(row.conversation_id) ?? 'a call',

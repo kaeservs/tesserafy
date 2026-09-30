@@ -1397,3 +1397,41 @@ input[type='search'] {
   font-size: 0.8rem;
 }
 
+/* --------------------------------------------------------------------------
+   Action items
+   -------------------------------------------------------------------------- */
+
+.action-items {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.5rem;
+}
+
+.action-items li {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.action-items li.done .action-text {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.action-check {
+  font-size: 1.15rem;
+  line-height: 1;
+  padding: 0.1rem 0.3rem;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: inherit;
+}
+
+.action-meta {
+  font-size: 0.82rem;
+  margin-top: 0.15rem;
+}
+

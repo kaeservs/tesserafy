@@ -111,6 +111,18 @@ describe('homeAgenda', () => {
     expect(items[1]!.kind).toBe('assigned');
   });
 
+  it('lists what your side committed to, linking to the words', () => {
+    const items = homeAgenda({
+      actions: [{ id: 'a1', action: 'Send the security documents', due: 'today', callTitle: 'Acme: discovery', conversationId: 'c1', segmentId: 's1' }],
+      assignedToYou: [],
+      waitingForDecision: 0,
+      customers: [],
+      goals: [],
+      themes: [],
+    });
+    expect(items).toEqual([{ kind: 'action', text: 'Send the security documents, due today (Acme: discovery)', href: '/conversations/c1#segment-s1' }]);
+  });
+
   it('is empty when nothing needs anyone', () => {
     expect(homeAgenda({ assignedToYou: [], waitingForDecision: 0, customers: [], goals: [], themes: [theme('t', 'steady', 1, 1)] })).toEqual([]);
   });

@@ -48,7 +48,7 @@ values ('00000000-0000-4000-8000-00000000000a', 'fb000001-0000-4000-8000-0000000
 insert into public.call_preps (id, company_id, person_name, created_by, brief) values
   ('fb000001-0000-4000-8000-0000000000b1', '00000000-0000-4000-8000-00000000000a', 'Priya Raman', 'fb000001-0000-4000-8000-000000000002',
    '{"about":[{"point":"Priya runs finance.","quote":"Head of Finance","source":{"id":"profile"}},{"point":"Priya likes golf.","quote":"golf","source":{"id":"profile"}}],
-     "company":[],"questions":[{"criterion_key":"budget_indicated","question":"What is the budget?"}],"openWith":null}');
+     "company":[],"questions":[{"criterionKey":"budget_indicated","ask":"What is the budget?","why":"Budget is still to find out."}],"openWith":null}');
 
 create temporary table made (label text, id uuid);
 grant all on made to authenticated;

@@ -166,7 +166,7 @@ begin
   end if;
 
   v_item := v_row.brief -> p_section -> p_index;
-  v_text := case p_section when 'questions' then v_item ->> 'question' else v_item ->> 'point' end;
+  v_text := case p_section when 'questions' then v_item ->> 'ask' else v_item ->> 'point' end;
   if v_item is null or p_index < 0 or v_text is null or v_text is distinct from p_text then
     raise exception 'reject_prep_item: that is no longer in the brief' using errcode = 'P0002';
   end if;

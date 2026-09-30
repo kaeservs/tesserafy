@@ -195,7 +195,21 @@
                         font-variant-numeric: tabular-nums; }
       .look-actions { display: flex; gap: 6px; justify-content: flex-end; }
       body.looking #criteria, body.looking #suggestion, body.looking .signin,
-      body.looking .who, body.looking .consent, body.looking .consent-note { display: none; }
+      .bar { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+      .bar .primary { color: var(--text); border-color: rgb(var(--accent-rgb)); background: rgba(var(--accent-rgb), 0.25); }
+      .bar-note { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .assist { margin-top: 10px; -webkit-app-region: no-drag; }
+      .assist[hidden] { display: none; }
+      .actions { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+      .ask { display: flex; gap: 4px; }
+      .ask input { flex: 1; min-width: 0; font: inherit; font-size: 12px; color: var(--text); background: var(--field);
+                   border: 1px solid rgba(var(--line), 0.35); border-radius: 6px; padding: 4px 7px; }
+      .answer { margin-bottom: 8px; padding: 8px 10px; border-radius: 8px; background: rgba(var(--accent-rgb), 0.14); }
+      .answer[hidden] { display: none; }
+      .answer-title { margin: 0 0 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--dim); }
+      .answer ul { margin: 0; padding-left: 16px; }
+      .answer li { margin: 2px 0; font-size: 12px; }
+      .answer .quote { display: block; font-size: 10px; color: var(--dim); }
       .consent-note { margin: 2px 0 0 22px; font-size: 11px; -webkit-app-region: no-drag; }
       .consent-note .link { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }
     </style>
@@ -213,6 +227,14 @@
       <button type="button" id="updateLater" hidden>Later</button>
     </div>
 
+    <!-- Cluely's bar: start or stop, and hide. Everything else about the
+         overlay is set in the dashboard. -->
+    <div class="bar">
+      <button type="button" id="listen" class="primary" disabled>Start</button>
+      <button type="button" id="hide" title="Hide the overlay">Hide</button>
+      <span class="muted bar-note" id="nextCall"></span>
+    </div>
+
     <header>
       <h1 id="engagement">…</h1>
       <div class="score"><span id="scoreValue">0</span><span> / 100</span></div>
@@ -225,60 +247,6 @@
          through when the scorecard confirms the criterion it was asked for. -->
     <section class="to-ask" id="toAsk" aria-label="To ask" hidden></section>
 
-    <!-- How the overlay looks and where it sits: saved on this computer only.
-         Every choice applies as it is made; there is nothing to save. -->
-    <section class="look" id="look" aria-label="Appearance" hidden>
-      <div class="look-row">
-        <span>Theme</span>
-        <div class="choices">
-          <button type="button" data-theme-choice="dark">Dark</button>
-          <button type="button" data-theme-choice="midnight">Midnight</button>
-          <button type="button" data-theme-choice="light">Light</button>
-        </div>
-      </div>
-      <div class="look-row">
-        <span>Accent</span>
-        <div class="choices">
-          <button type="button" class="swatch" data-accent-choice="indigo" aria-label="Indigo" title="Indigo"></button>
-          <button type="button" class="swatch" data-accent-choice="sky" aria-label="Sky" title="Sky"></button>
-          <button type="button" class="swatch" data-accent-choice="violet" aria-label="Violet" title="Violet"></button>
-          <button type="button" class="swatch" data-accent-choice="stone" aria-label="Neutral" title="Neutral"></button>
-        </div>
-      </div>
-      <div class="look-row">
-        <label for="opacity">Background</label>
-        <div class="opacity">
-          <input type="range" id="opacity" min="35" max="100" step="5" />
-          <output id="opacityValue" for="opacity"></output>
-        </div>
-      </div>
-      <div class="look-row">
-        <span>Size</span>
-        <div class="choices">
-          <button type="button" data-size-choice="small">Small</button>
-          <button type="button" data-size-choice="normal">Normal</button>
-          <button type="button" data-size-choice="large">Large</button>
-        </div>
-      </div>
-      <div class="look-row">
-        <span>Position</span>
-        <div class="corners">
-          <button type="button" data-corner-choice="top-left">↖ Top left</button>
-          <button type="button" data-corner-choice="top-right">↗ Top right</button>
-          <button type="button" data-corner-choice="bottom-left">↙ Bottom left</button>
-          <button type="button" data-corner-choice="bottom-right">↘ Bottom right</button>
-        </div>
-      </div>
-      <p class="muted" style="margin: 0">
-        Or drag the overlay anywhere; it opens there next time. The text stays solid at any
-        background. Saved on this computer only.
-      </p>
-      <p class="muted" id="shortcutsNote" style="margin: 0"></p>
-      <div class="look-actions">
-        <button type="button" id="lookReset">Reset</button>
-        <button type="button" id="lookDone">Done</button>
-      </div>
-    </section>
 
     <!-- One suggestion, or nothing. Someone mid-conversation cannot read a
          list, and a stale suggestion is worse than none. -->
@@ -286,6 +254,25 @@
       <p class="suggestion-ask" id="suggestionAsk"></p>
       <p class="suggestion-why muted" id="suggestionWhy"></p>
     </aside>
+
+    <!-- Cluely's four buttons and ask box. What comes back says what it
+         rests on: a point about the call quotes the call (t2-assist). -->
+    <section class="assist" id="assist" aria-label="Assist" hidden>
+      <div class="answer" id="answer" aria-live="polite" hidden>
+        <p class="answer-title" id="answerTitle"></p>
+        <ul id="answerPoints"></ul>
+      </div>
+      <div class="actions">
+        <button type="button" data-assist="assist">Assist</button>
+        <button type="button" data-assist="say">What should I say?</button>
+        <button type="button" data-assist="followups">Follow-up questions</button>
+        <button type="button" data-assist="recap">Recap</button>
+      </div>
+      <form class="ask" id="askForm">
+        <input id="askInput" maxlength="500" autocomplete="off" placeholder="Ask about the call" aria-label="Ask about the call" />
+        <button type="submit" id="askButton">Ask</button>
+      </form>
+    </section>
 
     <!-- The same account as the web app. The password goes to the main
          process once and is not kept; the page is told who, never a token. -->
@@ -317,27 +304,15 @@
       <button type="button" class="link" id="termsLink">Terms</button>
     </p>
 
-    <!-- Which scorecard this call is scored against. Shown when there is a
-         choice; fixed once listening starts, because the call pins it. -->
-    <!-- Who the call is with, and what to know walking in. The brief is
-         built with textContent: it carries customers' words and colleagues'
-         notes, which must never be read as markup. -->
-    <label class="scorecard-pick" id="accountPick" hidden>
-      <span>Customer</span>
-      <select id="account"></select>
-    </label>
+    <!-- The customer's brief, before the call. Which customer, and which
+         scorecard, come from the dashboard (the prep chosen as the next
+         call). Built with textContent: it carries customers' words and
+         colleagues' notes, which must never be read as markup. -->
     <section class="brief" id="brief" aria-label="Before this call" hidden></section>
 
-    <label class="scorecard-pick" id="scorecardPick" hidden>
-      <span>Scorecard</span>
-      <select id="scorecard"></select>
-    </label>
-
     <footer>
-      <button id="listen" disabled>Listen</button>
-      <button id="clickthrough">Click-through: off</button>
-      <button id="lookOpen" aria-expanded="false" aria-controls="look">Appearance</button>
       <span class="muted" id="status">idle</span>
+      <span class="muted" id="clickNote" hidden></span>
       <!-- Whether the call is being kept. Deliberately its own line rather
            than folded into the status: the score and the saving fail
            independently, and one reading fine says nothing about the other. -->

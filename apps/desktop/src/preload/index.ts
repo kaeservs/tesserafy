@@ -11,7 +11,7 @@
  * who is signed in, never a token.
  */
 import { contextBridge, ipcRenderer } from 'electron';
-import type { Appearance, AppearanceChange } from '../main/appearance';
+import type { Appearance } from '../main/appearance';
 
 interface UpdateState {
   current: string;
@@ -22,9 +22,26 @@ interface UpdateState {
 
 contextBridge.exposeInMainWorld('overlay', {
   appearance: (): Promise<Appearance> => ipcRenderer.invoke('overlay:appearance'),
-  setAppearance: (change: AppearanceChange): Promise<Appearance> =>
-    ipcRenderer.invoke('overlay:set-appearance', change),
-  resetAppearance: (): Promise<Appearance> => ipcRenderer.invoke('overlay:reset-appearance'),
+  // What the next call starts with, set in the dashboard; the main process
+  // applies the look it names before answering.
+  setup: (): Promise<{
+    engagementType?: string;
+    account?: { id: string; name: string } | null;
+    prep?: { id: string; person: string; callAt: string | null; chosen: boolean } | null;
+    live?: boolean;
+    appearance?: Appearance;
+    error?: string;
+  }> => ipcRenderer.invoke('overlay:setup'),
+  hide: (): Promise<void> => ipcRenderer.invoke('overlay:hide'),
+  assist: (body: unknown): Promise<{
+    mode?: string;
+    points?: { text: string; quote: string | null; segmentId: string | null }[];
+    error?: string;
+  }> => ipcRenderer.invoke('overlay:assist', body),
+  // The Assist shortcut was pressed, whichever window is in front.
+  onAssistKey: (listener: () => void): void => {
+    ipcRenderer.on('overlay:assist-key', () => listener());
+  },
   quit: (): Promise<void> => ipcRenderer.invoke('overlay:quit'),
   fit: (height: number): Promise<void> => ipcRenderer.invoke('overlay:fit', height),
   // A newer overlay, if one is published. The page is told the version, never
@@ -60,6 +77,8 @@ contextBridge.exposeInMainWorld('overlay', {
     shortcuts: {
       visible: { keys: string; available: boolean };
       clickThrough: { keys: string; available: boolean };
+      assist: { keys: string; available: boolean };
+      move: { keys: string; available: boolean };
     };
   }> => ipcRenderer.invoke('overlay:config'),
   session: (): Promise<{ email: string | null; remembers: boolean }> =>
@@ -72,15 +91,6 @@ contextBridge.exposeInMainWorld('overlay', {
   signOut: (): Promise<{ email: null }> => ipcRenderer.invoke('overlay:sign-out'),
   criteria: (engagementType?: string): Promise<{ criteria?: unknown[]; error?: string }> =>
     ipcRenderer.invoke('overlay:criteria', engagementType),
-  scorecards: (): Promise<{
-    sets?: { engagementType: string; version: number; own: boolean; label: string }[];
-    chosen?: string | null;
-    error?: string;
-  }> => ipcRenderer.invoke('overlay:scorecards'),
-  setScorecard: (engagementType: string): Promise<string | null> =>
-    ipcRenderer.invoke('overlay:set-scorecard', engagementType),
-  accounts: (): Promise<{ accounts?: { id: string; name: string }[]; error?: string }> =>
-    ipcRenderer.invoke('overlay:accounts'),
   brief: (
     id: string,
   ): Promise<{

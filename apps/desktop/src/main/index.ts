@@ -26,10 +26,10 @@ import {
   type Appearance,
   type Rect,
 } from './appearance';
-import { chooseScorecard, parseScorecards, scorecardName } from './scorecard';
+import { scorecardName } from './scorecard';
 import { Session, type Store } from './session';
 import { nudged } from './nudge';
-import { MOVE_SHORTCUTS, SHORTCUTS, shortcutLabel, type MoveDirection } from './shortcuts';
+import { ASSIST_SHORTCUT, MOVE_SHORTCUTS, SHORTCUTS, shortcutLabel, type MoveDirection } from './shortcuts';
 import { createTray, type OverlayTray } from './tray';
 import { isNewer, latestOverlayRelease, RELEASES_API, type Release } from './updates';
 
@@ -123,18 +123,11 @@ let placed: Rect | null = null;
  */
 const PRODUCTION_URL = 'https://web-beta-khaki-cxdkp6udxk.vercel.app';
 const BASE_URL = (!app.isPackaged && process.env['TESSERAFY_URL']) || PRODUCTION_URL;
-/** The scorecard to fall back on when none has been chosen (see ./scorecard). */
+/**
+ * The scorecard to fall back on when the dashboard names none. Which one a
+ * call uses is decided in the dashboard (/api/live/setup), not here.
+ */
 const ENGAGEMENT = process.env['TESSERAFY_ENGAGEMENT'] ?? 'discovery';
-/** The scorecard chosen on this computer, by name; null until one is. */
-let scorecard: string | null = null;
-const scorecardFile = () => join(app.getPath('userData'), 'scorecard.json');
-async function loadScorecard(): Promise<string | null> {
-  try {
-    return scorecardName((JSON.parse(await readFile(scorecardFile(), 'utf8')) as { name?: unknown }).name);
-  } catch {
-    return null;
-  }
-}
 
 /**
  * The refresh token, encrypted by the operating system and nowhere else.
@@ -324,7 +317,6 @@ void app.whenReady().then(async () => {
   // Before the window exists, so it opens where it was left rather than
   // appearing in the default corner and jumping.
   appearance = await loadAppearance();
-  scorecard = await loadScorecard();
   overlay = createOverlay();
 
   // Global shortcuts (see ./shortcuts). Showing is inactive: the overlay
@@ -337,6 +329,9 @@ void app.whenReady().then(async () => {
       else overlay.showInactive();
     }),
     clickThrough: globalShortcut.register(SHORTCUTS.clickThrough, () => setClickThrough(!clickThrough)),
+    // Assist without reaching for the overlay, as Cluely's Cmd+Enter; not
+    // plain Ctrl+Enter, which sends the message in Teams, Slack and Outlook.
+    assist: globalShortcut.register(ASSIST_SHORTCUT, () => overlay?.webContents.send('overlay:assist-key')),
     // All four or none: an arrow that moves one way only is worse than none.
     move: (Object.keys(MOVE_SHORTCUTS) as MoveDirection[])
       .map((direction) => globalShortcut.register(MOVE_SHORTCUTS[direction], () => nudge(direction)))
@@ -395,21 +390,24 @@ void app.whenReady().then(async () => {
     showFirstTime(overlay);
   });
 
-  // Whatever the page sends is checked field by field; a size or corner
-  // change moves the window, the rest is the page's own CSS.
-  ipcMain.handle('overlay:set-appearance', (_event, change: unknown) => {
-    appearance = withChange(appearance, change);
+  // What the next call starts with, as set in the dashboard: the customer,
+  // scorecard and prep, and how the overlay looks. The look is applied here;
+  // where the overlay sits stays this computer's (drag, or the arrow keys),
+  // so a corner from the server is never taken.
+  ipcMain.handle('overlay:setup', async () => {
+    const response = await session.fetch('/api/live/setup');
+    if (!response) return NOT_SIGNED_IN;
+    if (!response.ok) return { error: `setup failed: ${response.status}` };
+    const setup = (await response.json()) as { look?: Record<string, unknown> };
+    const look = setup.look ?? {};
+    appearance = withChange(appearance, { theme: look['theme'], accent: look['accent'], opacity: look['opacity'], size: look['size'] });
     if (overlay) place(overlay);
     saveAppearance();
-    return appearance;
+    return { ...setup, appearance };
   });
 
-  ipcMain.handle('overlay:reset-appearance', () => {
-    appearance = DEFAULT_APPEARANCE;
-    if (overlay) place(overlay);
-    saveAppearance();
-    return appearance;
-  });
+  // The Hide button: the same as the shortcut and the tray.
+  ipcMain.handle('overlay:hide', () => overlay?.hide());
 
   ipcMain.handle('overlay:session', async () => {
     await resumed;
@@ -457,7 +455,7 @@ void app.whenReady().then(async () => {
   // Who is signed in is overlay:session; the token is never sent here.
   ipcMain.handle('overlay:config', () => ({
     baseUrl: BASE_URL,
-    engagementType: scorecard ?? ENGAGEMENT,
+    engagementType: ENGAGEMENT,
     // As the keys read on this system, and whether they are ours: another app
     // may own them.
     shortcuts: {
@@ -466,6 +464,7 @@ void app.whenReady().then(async () => {
         keys: shortcutLabel(SHORTCUTS.clickThrough, process.platform),
         available: shortcuts.clickThrough,
       },
+      assist: { keys: shortcutLabel(ASSIST_SHORTCUT, process.platform), available: shortcuts.assist },
       move: {
         keys: shortcutLabel(MOVE_SHORTCUTS.up, process.platform).replace(/Up$/, process.platform === 'darwin' ? ' arrows' : 'arrow keys'),
         available: shortcuts.move,
@@ -530,6 +529,10 @@ void app.whenReady().then(async () => {
     return response.json();
   };
 
+  // The overlay's buttons and ask box (/api/assist): Assist, What should I
+  // say?, Follow-up questions, Recap, or a typed question.
+  ipcMain.handle('overlay:assist', async (_event, body: unknown) => post('/api/assist', body));
+
   ipcMain.handle('overlay:live-start', async (_event, body: unknown) =>
     post('/api/live/sessions', body),
   );
@@ -548,21 +551,6 @@ void app.whenReady().then(async () => {
 
   // The scorecards this person may use, and which is chosen: the remembered
   // one if still offered, else the company's own, else the default.
-  ipcMain.handle('overlay:scorecards', async () => {
-    const response = await session.fetch('/api/criteria/sets');
-    if (!response) return NOT_SIGNED_IN;
-    const sets = response.ok ? parseScorecards(await response.json()) : [];
-    return { sets, chosen: chooseScorecard(sets, scorecard, ENGAGEMENT) };
-  });
-
-  // Who the call is with: the company's accounts, and a brief on the one chosen.
-  // Not remembered — every call is with somebody different.
-  ipcMain.handle('overlay:accounts', async () => {
-    const response = await session.fetch('/api/accounts');
-    if (!response) return NOT_SIGNED_IN;
-    return response.ok ? response.json() : { error: `accounts failed: ${response.status}` };
-  });
-
   ipcMain.handle('overlay:brief', async (_event, id: unknown) => {
     if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/i.test(id)) return { error: 'not an account' };
     const response = await session.fetch(`/api/accounts/${id}/brief`);
@@ -570,18 +558,10 @@ void app.whenReady().then(async () => {
     return response.ok ? response.json() : { error: `brief failed: ${response.status}` };
   });
 
-  ipcMain.handle('overlay:set-scorecard', (_event, name: unknown) => {
-    const chosen = scorecardName(name);
-    if (!chosen) return scorecard;
-    scorecard = chosen;
-    writeFile(scorecardFile(), JSON.stringify({ name: chosen })).catch(() => undefined);
-    return scorecard;
-  });
-
   // The newest version of the chosen scorecard; a call pins that version when
   // it starts, so publishing the next one mid-call changes nothing.
   ipcMain.handle('overlay:criteria', async (_event, name: unknown) => {
-    const chosen = scorecardName(name) ?? scorecard ?? ENGAGEMENT;
+    const chosen = scorecardName(name) ?? ENGAGEMENT;
     const response = await session.fetch(`/api/criteria?engagement_type=${encodeURIComponent(chosen)}`);
     if (!response) return NOT_SIGNED_IN;
     if (!response.ok) {

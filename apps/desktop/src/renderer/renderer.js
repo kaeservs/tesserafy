@@ -125,33 +125,12 @@ function render() {
   }
 }
 
-/** The customer this call is with, if anyone said. Chosen per call, never remembered. */
+/** The customer this call is with: the dashboard's next call says who (/api/live/setup). */
 let chosenAccount = null;
+/** What the dashboard set up for the next call: customer, scorecard, prep. */
+let setup = null;
 /** The prep's questions for this customer's call, each naming its criterion. */
 let preparedQuestions = [];
-
-async function loadAccounts() {
-  const result = await api.accounts();
-  const accounts = result.accounts ?? [];
-  const select = el('account');
-  const none = document.createElement('option');
-  none.value = '';
-  none.textContent = 'Not said';
-  select.replaceChildren(
-    none,
-    ...accounts.map((account) => {
-      const option = document.createElement('option');
-      option.value = account.id;
-      option.textContent = account.name;
-      return option;
-    }),
-  );
-  chosenAccount = null;
-  preparedQuestions = [];
-  el('brief').hidden = true;
-  el('toAsk').hidden = true;
-  el('accountPick').hidden = accounts.length === 0;
-}
 
 const OUTCOME = { won: 'Won', lost: 'Lost', open: 'Still open' };
 const SAID = { problem: 'Problem', feature_request: 'Asked for' };
@@ -216,39 +195,32 @@ async function showBrief(id) {
   brief.hidden = false;
 }
 
-el('account').addEventListener('change', () => {
-  if (listening) return;
-  chosenAccount = el('account').value || null;
-  void showBrief(chosenAccount);
-});
-
-/** The scorecard chosen for the next call, by name. */
+/** The scorecard for the next call, by name, as the dashboard set it. */
 let chosenScorecard = null;
 
-async function loadScorecards() {
-  const result = await api.scorecards();
-  const sets = result.sets ?? [];
-  chosenScorecard = result.chosen ?? chosenScorecard;
-  const select = el('scorecard');
-  select.replaceChildren(
-    ...sets.map((set) => {
-      const option = document.createElement('option');
-      option.value = set.engagementType;
-      option.textContent = set.own ? set.label : `${set.label} (template)`;
-      option.selected = set.engagementType === chosenScorecard;
-      return option;
-    }),
-  );
-  el('scorecardPick').hidden = sets.length < 2;
+/**
+ * The next call as the dashboard set it up: which customer, which scorecard,
+ * which prep, and how the overlay looks. Read on sign-in and again before
+ * each call, so a change made in the dashboard is picked up without asking.
+ */
+async function loadSetup() {
+  const result = await api.setup();
+  if (result.error) {
+    setStatus(result.error);
+    return false;
+  }
+  setup = result;
+  if (result.appearance) showAppearance(result.appearance);
+  chosenScorecard = result.engagementType ?? null;
+  chosenAccount = result.account?.id ?? null;
+  el('nextCall').textContent = result.prep
+    ? `${result.prep.person}${result.account ? `, ${result.account.name}` : ''}`
+    : result.account
+      ? result.account.name
+      : 'No call prepared — set one up in Tesserafy';
+  void showBrief(chosenAccount);
+  return true;
 }
-
-el('scorecard').addEventListener('change', async () => {
-  if (listening) return;
-  chosenScorecard = await api.setScorecard(el('scorecard').value);
-  // Loaded again for the next call; nothing is running to disturb.
-  state = null;
-  void loadCriteria();
-});
 
 async function loadCriteria() {
   const result = await api.criteria(chosenScorecard ?? undefined);
@@ -461,17 +433,13 @@ function startListening() {
   };
   recognition.onend = () => {
     listening = false;
-    el('listen').textContent = 'Listen';
+    el('listen').textContent = 'Start';
     el('consent').disabled = false;
-    el('scorecard').disabled = false;
-    el('account').disabled = false;
   };
 
   recognition.start();
   listening = true;
   el('listen').textContent = 'Stop';
-  el('scorecard').disabled = true;
-  el('account').disabled = true;
   // The brief was for walking in; the scorecard is for the call, with the
   // prep's questions beside it.
   el('brief').hidden = true;
@@ -498,11 +466,10 @@ el('listen').addEventListener('click', () => {
     return;
   }
   if (!el('consent').checked || !signedIn) return;
-  if (state) {
-    startListening();
-    return;
-  }
-  void loadCriteria().then((ready) => ready && startListening());
+  // Set up afresh: the next call may have changed in the dashboard since.
+  void loadSetup()
+    .then(() => loadCriteria())
+    .then((ready) => ready && startListening());
 });
 
 // The main process owns both switches, and the tray changes them too; the
@@ -515,99 +482,118 @@ void api.platform().then((p) => {
 });
 
 // The keyboard shortcuts as they read on this system, and whether they are
-// ours — another app may own them (see src/main/shortcuts.ts).
-let keys = { visible: null, clickThrough: null, move: null };
+// ours — another app may own them (see src/main/shortcuts.ts). The tray lists
+// them all; the ask box says the one for Assist.
+let keys = { visible: null, clickThrough: null, assist: null, move: null };
 void api.config().then((config) => {
   keys = config.shortcuts;
-  const say = (shortcut, does, would) =>
-    shortcut.available ? `${shortcut.keys} ${does}` : `${shortcut.keys} would ${would}, but another app uses it`;
-  el('shortcutsNote').textContent =
-    `Keyboard, whichever window is in front: ` +
-    `${say(keys.visible, 'shows or hides the overlay', 'show or hide the overlay')}; ` +
-    `${say(keys.clickThrough, 'turns click-through on or off', 'turn click-through on or off')}; ` +
-    `${say(keys.move, 'move it', 'move it')}.`;
+  el('askInput').placeholder = keys.assist?.available
+    ? `Ask about the call — or ${keys.assist.keys} for Assist`
+    : 'Ask about the call — or Ctrl+Enter here for Assist';
 });
 
 function showSwitches(state) {
   protection = state.protection;
   clickThrough = state.clickThrough;
   el('unprotected').hidden = protection;
-  el('clickthrough').textContent = clickThrough
-    ? `Click-through: on — ${keys.clickThrough?.available ? `${keys.clickThrough.keys} or ` : ''}the Tesserafy icon in ${trayPlace} turns it off`
-    : 'Click-through: off';
+  // With click-through on nothing here can be clicked, so it says how to
+  // turn it off; the switch itself is the shortcut and the tray.
+  el('clickNote').hidden = !clickThrough;
+  el('clickNote').textContent = `Click-through on — ${keys.clickThrough?.available ? `${keys.clickThrough.keys} or ` : ''}the Tesserafy icon in ${trayPlace} turns it off`;
 }
 api.onState(showSwitches);
 
 el('termsLink').addEventListener('click', () => void api.openTerms());
-
-el('clickthrough').addEventListener('click', async () => {
-  showSwitches({ protection, clickThrough: await api.setClickThrough(!clickThrough) });
-});
+el('hide').addEventListener('click', () => void api.hide());
 
 /*
- * Appearance.
- *
- * Theme, accent and background are this page's CSS; size and position move
- * the window, which only the main process can do. Every change goes through
- * the main process either way, and what it sends back — checked, clamped and
- * saved — is what is shown, so the page never displays a look that was not
- * kept.
+ * Cluely's four buttons and ask box (/api/assist). Each reads the call so far
+ * and the prep for it. A point about the call carries the words it rests on,
+ * shown under it; the server has already dropped any whose words the call
+ * did not say. A later press replaces an earlier answer still on its way.
+ */
+const ASSIST_TITLE = {
+  assist: 'Assist',
+  say: 'What to say',
+  followups: 'Follow-up questions',
+  recap: 'Recap',
+  ask: 'Answer',
+};
+let assistSeq = 0;
+
+async function runAssist(mode, question) {
+  if (!signedIn) return;
+  const seq = ++assistSeq;
+  el('answer').hidden = false;
+  el('answerTitle').textContent = `${ASSIST_TITLE[mode]} · thinking…`;
+  el('answerPoints').replaceChildren();
+  const result = await api.assist({
+    mode,
+    ...(question ? { question } : {}),
+    transcript: utterances.map(({ id, speaker, text }) => ({ id, speaker, text })),
+    criteria: state ? score(state).criteria.map((c) => ({ key: c.key, label: c.label, status: c.status })) : [],
+    ...(setup?.prep ? { prepId: setup.prep.id } : {}),
+    engagementType: chosenScorecard ?? state?.criteriaSet?.engagementType ?? 'discovery',
+  });
+  if (seq !== assistSeq) return;
+  if (result.error) {
+    el('answerTitle').textContent = `${ASSIST_TITLE[mode]} · ${result.error}`;
+    return;
+  }
+  el('answerTitle').textContent = question ? `${ASSIST_TITLE[mode]} · ${question}` : ASSIST_TITLE[mode];
+  const points = result.points ?? [];
+  if (points.length === 0) {
+    const li = document.createElement('li');
+    li.textContent = utterances.length === 0 ? 'Nothing said yet to go on.' : 'Nothing worth saying yet.';
+    el('answerPoints').replaceChildren(li);
+    return;
+  }
+  el('answerPoints').replaceChildren(
+    ...points.map((point) => {
+      const li = document.createElement('li');
+      li.textContent = point.text;
+      if (point.quote) {
+        const quote = document.createElement('span');
+        quote.className = 'quote';
+        quote.textContent = `“${point.quote}”`;
+        li.append(quote);
+      }
+      return li;
+    }),
+  );
+}
+
+for (const button of document.querySelectorAll('[data-assist]')) {
+  button.addEventListener('click', () => void runAssist(button.dataset.assist));
+}
+el('askForm').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const question = el('askInput').value.trim();
+  if (!question) return;
+  el('askInput').value = '';
+  void runAssist('ask', question);
+});
+// Ctrl+Enter in the box is Assist, as in Cluely; the global shortcut is for
+// when the meeting, not the overlay, has the keyboard.
+el('askInput').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+    event.preventDefault();
+    void runAssist('assist');
+  }
+});
+api.onAssistKey(() => void runAssist('assist'));
+
+/*
+ * Appearance: theme, accent and background, as set in the dashboard and
+ * applied by the main process (overlay:setup). Size and position move the
+ * window, which only the main process can do.
  */
 function showAppearance(look) {
   const root = document.documentElement;
   root.dataset.theme = look.theme;
   root.dataset.accent = look.accent;
   root.style.setProperty('--alpha', String(look.opacity / 100));
-  el('opacity').value = String(look.opacity);
-  el('opacityValue').textContent = `${look.opacity}%`;
-
-  const pressed = (attribute, value) => {
-    for (const button of document.querySelectorAll(`[${attribute}]`)) {
-      button.setAttribute('aria-pressed', String(button.getAttribute(attribute) === value));
-    }
-  };
-  pressed('data-theme-choice', look.theme);
-  pressed('data-accent-choice', look.accent);
-  pressed('data-size-choice', look.size);
-  // Dragged somewhere of its own: no corner is the answer.
-  pressed('data-corner-choice', look.position.corner ?? '');
 }
-
-async function changeAppearance(change) {
-  showAppearance(await api.setAppearance(change));
-}
-
-function openLook(open) {
-  el('look').hidden = !open;
-  document.body.classList.toggle('looking', open);
-  el('lookOpen').setAttribute('aria-expanded', String(open));
-  // Read afresh: a drag since the last look moved it off its corner.
-  if (open) void api.appearance().then(showAppearance);
-}
-
-const choices = [
-  ['data-theme-choice', 'theme'],
-  ['data-accent-choice', 'accent'],
-  ['data-size-choice', 'size'],
-  ['data-corner-choice', 'corner'],
-];
-for (const [attribute, field] of choices) {
-  for (const button of document.querySelectorAll(`[${attribute}]`)) {
-    button.addEventListener('click', () => void changeAppearance({ [field]: button.getAttribute(attribute) }));
-  }
-}
-
-// Shown while dragging, kept when let go: one save per choice, not per pixel.
-el('opacity').addEventListener('input', () => {
-  const value = Number(el('opacity').value);
-  document.documentElement.style.setProperty('--alpha', String(value / 100));
-  el('opacityValue').textContent = `${value}%`;
-});
-el('opacity').addEventListener('change', () => void changeAppearance({ opacity: Number(el('opacity').value) }));
-
-el('lookOpen').addEventListener('click', () => openLook(el('look').hidden));
-el('lookDone').addEventListener('click', () => openLook(false));
-el('lookReset').addEventListener('click', async () => showAppearance(await api.resetAppearance()));
 
 void api.appearance().then(showAppearance);
 
@@ -682,8 +668,8 @@ function showSignedIn(email) {
   el('whoEmail').textContent = email;
   el('password').value = '';
   el('signinError').textContent = '';
-  void loadScorecards().then(() => loadCriteria());
-  void loadAccounts();
+  el('assist').hidden = false;
+  void loadSetup().then(() => loadCriteria());
 }
 
 /**
@@ -715,8 +701,8 @@ function renderToAsk(card) {
 
 function showSignedOut(remembers) {
   signedIn = false;
-  el('scorecardPick').hidden = true;
-  el('accountPick').hidden = true;
+  el('assist').hidden = true;
+  el('nextCall').textContent = '';
   el('brief').hidden = true;
   el('toAsk').hidden = true;
   el('signin').hidden = false;

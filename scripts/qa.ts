@@ -1234,6 +1234,17 @@ async function checkWorkingWithACall(baseUrl: string, token: string, conversatio
     `${listed.status}, ${rejected?.status ?? 'no item'}, ${stillThere ?? '?'} left`,
   );
 
+  // The overlay's settings live in the dashboard: /api/live/setup says what
+  // the next call starts with, and a look the overlay does not know is refused.
+  const setup = await fetch(new URL('/api/live/setup', baseUrl), { headers: { authorization: `Bearer ${token}` } });
+  const setupBody = (await setup.json().catch(() => ({}))) as { engagementType?: unknown };
+  const badLook = await rpc('set_overlay_look', { p_look: { theme: 'neon' } });
+  record(
+    'the overlay is set up from the dashboard, with only looks it knows',
+    setup.status === 200 && typeof setupBody.engagementType === 'string' && code(badLook) === '22023',
+    `${setup.status}, ${code(badLook)}`,
+  );
+
   const empty = await rpc('send_feedback', { p_body: '   ' });
   record('feedback with nothing in it is refused', code(empty) === '22023', code(empty));
 

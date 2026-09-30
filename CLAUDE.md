@@ -54,7 +54,7 @@ Do not break these without an ADR that supersedes the existing one.
 |---|---|---|
 | T0 | Chunking, endpointing, redaction | none — pure TS |
 | T1 | Criterion detectors: live on the last 3 utterances (<= 700 ms); a stored call in 48-utterance windows | `claude-haiku-4-5` |
-| T2 | Live suggestions (<= 3.5 s) | `claude-sonnet-5` |
+| T2 | Live suggestions, and the overlay's Assist, What should I say?, Follow-up questions, Recap and Ask (<= 3.5 s) | `claude-sonnet-5` |
 | T3 | Post-call extraction and synthesis; a call prep's brief | `claude-sonnet-5` (ADR 0014) |
 | — | Embeddings | `gte-small` in a Supabase Edge Function, 384-dim |
 
@@ -175,6 +175,17 @@ stays. Undetectable to the meeting, never to the computer: the process keeps
 its own name in Task Manager, and nothing is built to evade monitoring or
 proctoring software. Call audio and transcripts are never used for
 Tesserafy's own purposes (the Otter.ai wiretap suits turned partly on that).
+
+The overlay's settings live in the dashboard: its look (per person) and the
+call prep marked "Use for my next call", which gives the call its customer,
+scorecard and questions (`/api/live/setup`); where it sits stays each
+computer's. Its four buttons and ask box are `/api/assist` (t2-assist): a
+point about the call quotes the call or is dropped, and the model is told it
+does not know the seller's product, so it never states a price or a rollout
+time (measured: before that rule Haiku said "4-6 weeks" and Sonnet "a few
+weeks"; after it, neither did). Sonnet answers in 2.6-3.9 s median, Haiku in
+2.1-3.7 s — not enough faster to leave the routed model
+(`scripts/assist-probe.ts`).
 
 Brands can sign up themselves (`/signup`) only when an operator opens it in
 the console: the switch is `app_settings.signup_open`, checked by

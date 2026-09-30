@@ -2333,6 +2333,35 @@ export type Database = {
           },
         ]
       }
+      user_preferences: {
+        Row: {
+          next_prep_id: string | null
+          overlay_look: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          next_prep_id?: string | null
+          overlay_look?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          next_prep_id?: string | null
+          overlay_look?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_preferences_next_prep_id_fkey"
+            columns: ["next_prep_id"]
+            isOneToOne: false
+            referencedRelation: "call_preps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -3078,10 +3107,12 @@ export type Database = {
         Args: { p_role: string; p_user_id: string }
         Returns: undefined
       }
+      set_next_call: { Args: { p_prep_id?: string }; Returns: undefined }
       set_our_speaker: {
         Args: { p_name: string; p_ours: boolean }
         Returns: undefined
       }
+      set_overlay_look: { Args: { p_look: Json }; Returns: Json }
       set_retention: { Args: { p_days: number }; Returns: number }
       signup_is_open: { Args: never; Returns: boolean }
       start_live_conversation: {

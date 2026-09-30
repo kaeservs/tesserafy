@@ -21,13 +21,38 @@ function days(value: number | null): string {
   return `${Math.round(value)}d`;
 }
 
+const FEATURE_DAYS = 90;
+
+/** The features a company might use, as admin_feature_adoption names them. */
+const FEATURES = [
+  { key: 'calls', label: 'Calls' },
+  { key: 'preps', label: 'Call preps' },
+  { key: 'examples', label: 'Examples' },
+  { key: 'goals', label: 'Goals set' },
+  { key: 'coaching', label: 'Coaching' },
+  { key: 'corrections', label: 'Score corrections' },
+  { key: 'feedback', label: 'Feedback' },
+  { key: 'speakers_marked', label: 'Speakers marked' },
+  { key: 'sample_call', label: 'Tried the sample' },
+] as const;
+
 export default async function Adoption({ searchParams }: { searchParams: Promise<{ all?: string }> }) {
   const { all } = await searchParams;
   const admin = await requireAdmin();
-  const [{ data, error }, { data: weeks }] = await Promise.all([
+  const [{ data, error }, { data: weeks }, { data: featureRows, error: featureError }] = await Promise.all([
     admin.db.rpc('admin_adoption'),
     admin.db.rpc('admin_activity_weeks', { p_weeks: 12 }),
+    admin.db.rpc('admin_feature_adoption', { p_days: FEATURE_DAYS }),
   ]);
+  // Which features each company uses: counts only, no content (the function says why).
+  const features = (featureRows ?? [])
+    .filter((row) => all === '1' || (row.closed_at as string | null) === null)
+    .map((row) => ({
+      companyId: row.company_id,
+      name: row.name,
+      counts: FEATURES.map((feature) => (feature.key === 'sample_call' ? (row.sample_call ? 1 : 0) : Number(row[feature.key]))),
+    }));
+  const using = FEATURES.map((_, index) => features.filter((row) => row.counts[index]! > 0).length);
   const rows: AdoptionRow[] = (data ?? []).map((row) => ({
     companyId: row.company_id,
     name: row.name,
@@ -188,6 +213,49 @@ export default async function Adoption({ searchParams }: { searchParams: Promise
         </tbody>
       </table>
       {cohort.length === 0 && !error ? <p className="muted">No companies in this view.</p> : null}
+
+      <h2>What they use, last {FEATURE_DAYS} days</h2>
+      <p className="muted">
+        How many of each feature every company used. Goals and marked speakers are what is set now; the rest happened in the
+        window. Counts only: the console does not read what is in them.
+      </p>
+      {featureError ? <p className="tag open">{featureError.message}</p> : null}
+      <p>
+        {FEATURES.map((feature, index) => (
+          <span key={feature.key} style={{ marginRight: '1rem' }}>
+            {feature.label}: <strong>{using[index]}</strong>
+            <span className="muted"> of {features.length}</span>
+          </span>
+        ))}
+      </p>
+      <table tabIndex={0}>
+        <thead>
+          <tr>
+            <th>Company</th>
+            {FEATURES.map((feature) => (
+              <th key={feature.key} className="num">
+                {feature.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {features.map((row) => (
+            <tr key={row.companyId}>
+              <td>
+                <Link className="link" href={`/companies/${row.companyId}`}>
+                  {row.name}
+                </Link>
+              </td>
+              {row.counts.map((count, index) => (
+                <td key={FEATURES[index]!.key} className={`num${count === 0 ? ' muted' : ''}`}>
+                  {FEATURES[index]!.key === 'sample_call' ? (count ? 'yes' : '—') : count || '—'}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </Chrome>
   );
 }

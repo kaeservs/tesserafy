@@ -1,3 +1,4 @@
+import { criterionHealth } from '@/lib/criterion-health';
 import { TableScroll } from '@/components/table-scroll';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -64,6 +65,30 @@ export default async function ScorecardPage({
   const onOlder = versions.slice(1).reduce((sum, set) => sum + (callsFor.get(set.version) ?? 0), 0);
   const totalWeight = criteria.reduce((sum, row) => sum + row.weight, 0);
 
+  // Where people have corrected the AI on this scorecard, across its versions.
+  const { data: correctionRows } = await supabase
+    .from('criterion_events')
+    .select('criterion_key, kind, reason, quote, created_at, conversation_id')
+    .eq('company_id', companyId ?? '')
+    .eq('detector', 'person')
+    .order('created_at', { ascending: false })
+    .limit(1000);
+  const { data: callRows } = await supabase
+    .from('conversations')
+    .select('id')
+    .eq('company_id', companyId ?? '')
+    .eq('engagement_type', name)
+    .limit(5000);
+  const onThisScorecard = new Set((callRows ?? []).map((row) => row.id));
+  const health = criterionHealth(
+    criteria.map((row) => ({ key: row.key, label: row.label })),
+    (correctionRows ?? [])
+      .filter((row) => onThisScorecard.has(row.conversation_id))
+      .map((row) => ({ criterionKey: row.criterion_key, kind: row.kind, reason: row.reason, quote: row.quote, createdAt: row.created_at })),
+    onThisScorecard.size,
+  );
+  const corrected = health.filter((row) => row.missed + row.wrong > 0);
+
   return (
     <main>
       <p>
@@ -108,6 +133,54 @@ export default async function ScorecardPage({
             </li>
           ))}
         </ol>
+      </section>
+
+      <section aria-labelledby="health-heading">
+        <h2 id="health-heading">Criterion health</h2>
+        {corrected.length === 0 ? (
+          <p className="muted">
+            Nobody has corrected the AI on this scorecard yet. When someone presses <em>This score is wrong</em> on a call,
+            it shows here, criterion by criterion.
+          </p>
+        ) : (
+          <>
+            <p className="muted">
+              How often people corrected the AI on each criterion, across {onThisScorecard.size} call
+              {onThisScorecard.size === 1 ? '' : 's'}. One corrected often reads differently to the AI than to your team:
+              reword it in the next version, or teach it with an example.
+            </p>
+            <TableScroll label="Criterion health">
+              <table className="team">
+                <thead>
+                  <tr>
+                    <th scope="col">Criterion</th>
+                    <th scope="col">It missed it</th>
+                    <th scope="col">It was wrong</th>
+                    <th scope="col">Of calls</th>
+                    <th scope="col">Latest reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {corrected.map((row) => (
+                    <tr key={row.key}>
+                      <td>
+                        {row.label}
+                        {row.attention ? <span className="stage stage-proposed"> worth a look</span> : null}
+                      </td>
+                      <td>{row.missed}</td>
+                      <td>{row.wrong}</td>
+                      <td className="when">{Math.round(row.rate * 100)}%</td>
+                      <td className="muted">
+                        {row.latest[0]?.reason ?? '—'}
+                        {row.latest[0]?.quote ? <> — “{row.latest[0].quote}”</> : null}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableScroll>
+          </>
+        )}
       </section>
 
       <section aria-labelledby="versions-heading">

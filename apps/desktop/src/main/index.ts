@@ -28,7 +28,8 @@ import {
 } from './appearance';
 import { chooseScorecard, parseScorecards, scorecardName } from './scorecard';
 import { Session, type Store } from './session';
-import { SHORTCUTS, shortcutLabel } from './shortcuts';
+import { nudged } from './nudge';
+import { MOVE_SHORTCUTS, SHORTCUTS, shortcutLabel, type MoveDirection } from './shortcuts';
 import { createTray, type OverlayTray } from './tray';
 import { isNewer, latestOverlayRelease, RELEASES_API, type Release } from './updates';
 
@@ -210,6 +211,16 @@ function place(window: BrowserWindow): void {
   appearance = { ...appearance, position: { ...appearance.position, x: placed.x, y: placed.y } };
 }
 
+/** One press of a move shortcut: a step that way, kept on its display, and kept there. */
+function nudge(direction: MoveDirection): void {
+  if (!overlay) return;
+  const bounds = overlay.getBounds();
+  placed = nudged(bounds, screen.getDisplayMatching(bounds).workArea, direction);
+  overlay.setBounds(placed);
+  appearance = { ...appearance, position: { corner: null, x: placed.x, y: placed.y } };
+  saveAppearance();
+}
+
 function createOverlay(): BrowserWindow {
   // A new window measures and shows afresh (macOS re-creates one on activate).
   shownOnce = false;
@@ -226,6 +237,16 @@ function createOverlay(): BrowserWindow {
     transparent: true,
     resizable: false,
     skipTaskbar: true,
+    // Undetectable in the meeting, as Cluely is: never on a shared screen or
+    // in a recording (setContentProtection, below), and nowhere a colleague
+    // glancing at the screen would see an app running. On Windows a tool
+    // window is left out of Alt-Tab as well as the taskbar; on a Mac it is
+    // left out of Mission Control, and the app out of the Dock and Cmd-Tab
+    // (app.dock.hide, and LSUIElement in electron-builder.yml). It is still
+    // an app anyone can find and quit in Task Manager or Activity Monitor,
+    // under its own name: invisible to the meeting, not to the computer.
+    ...(process.platform === 'win32' ? { type: 'toolbar' } : {}),
+    hiddenInMissionControl: true,
     // 'screen-saver' keeps it above full-screen meeting windows; the default
     // 'normal' level does not.
     alwaysOnTop: true,
@@ -290,6 +311,10 @@ app.on('second-instance', () => overlay?.show());
 // `void`: nothing can await this, it is the top of the process. Marked so
 // that the next promise added here has to say what it does about failure.
 void app.whenReady().then(async () => {
+  // No Dock icon, so no Cmd-Tab entry either; the menu-bar icon is how it is
+  // shown, hidden and quit (./tray). LSUIElement does the same from launch in
+  // an installed build; this covers a development run.
+  if (process.platform === 'darwin') app.dock?.hide();
   if (!firstInstance) return;
   const session = new Session(BASE_URL, encryptedStore());
   // Before the window asks who is signed in, so a returning user is not shown
@@ -312,6 +337,10 @@ void app.whenReady().then(async () => {
       else overlay.showInactive();
     }),
     clickThrough: globalShortcut.register(SHORTCUTS.clickThrough, () => setClickThrough(!clickThrough)),
+    // All four or none: an arrow that moves one way only is worse than none.
+    move: (Object.keys(MOVE_SHORTCUTS) as MoveDirection[])
+      .map((direction) => globalShortcut.register(MOVE_SHORTCUTS[direction], () => nudge(direction)))
+      .every(Boolean),
   };
   app.on('will-quit', () => globalShortcut.unregisterAll());
 
@@ -346,6 +375,10 @@ void app.whenReady().then(async () => {
     note: null,
   }));
   ipcMain.handle('overlay:open-update', () => openUpdate());
+
+  // The Terms that say asking everyone on the call is the seller's to do. A
+  // fixed address on the product's own site, so the page can open nothing else.
+  ipcMain.handle('overlay:open-terms', () => shell.openExternal(new URL('/terms', PRODUCTION_URL).toString()));
 
   ipcMain.handle('overlay:appearance', () => appearance);
 
@@ -432,6 +465,10 @@ void app.whenReady().then(async () => {
       clickThrough: {
         keys: shortcutLabel(SHORTCUTS.clickThrough, process.platform),
         available: shortcuts.clickThrough,
+      },
+      move: {
+        keys: shortcutLabel(MOVE_SHORTCUTS.up, process.platform).replace(/Up$/, process.platform === 'darwin' ? ' arrows' : 'arrow keys'),
+        available: shortcuts.move,
       },
     },
   }));

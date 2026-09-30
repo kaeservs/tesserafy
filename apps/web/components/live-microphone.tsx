@@ -310,6 +310,15 @@ export function LiveMicrophone({
           />{' '}
           {CONSENT_STATEMENTS.live}
         </label>
+        {/* Tesserafy never announces itself on a call, so telling the others is
+            the person's own to do; the Terms say so, and this says it where it
+            is decided. */}
+        <span className="muted" style={{ fontSize: '0.8rem' }}>
+          Tesserafy never tells the others on the call; asking them is yours to do.{' '}
+          <a href="/terms" target="_blank" rel="noopener noreferrer">
+            Terms
+          </a>
+        </span>
       </div>
       <div className="toolbar">
         <button type="button" onClick={listening ? stop : start} disabled={!listening && !consented}>

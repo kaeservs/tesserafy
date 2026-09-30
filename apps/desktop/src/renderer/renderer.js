@@ -516,7 +516,7 @@ void api.platform().then((p) => {
 
 // The keyboard shortcuts as they read on this system, and whether they are
 // ours — another app may own them (see src/main/shortcuts.ts).
-let keys = { visible: null, clickThrough: null };
+let keys = { visible: null, clickThrough: null, move: null };
 void api.config().then((config) => {
   keys = config.shortcuts;
   const say = (shortcut, does, would) =>
@@ -524,13 +524,13 @@ void api.config().then((config) => {
   el('shortcutsNote').textContent =
     `Keyboard, whichever window is in front: ` +
     `${say(keys.visible, 'shows or hides the overlay', 'show or hide the overlay')}; ` +
-    `${say(keys.clickThrough, 'turns click-through on or off', 'turn click-through on or off')}.`;
+    `${say(keys.clickThrough, 'turns click-through on or off', 'turn click-through on or off')}; ` +
+    `${say(keys.move, 'move it', 'move it')}.`;
 });
 
 function showSwitches(state) {
   protection = state.protection;
   clickThrough = state.clickThrough;
-  el('protection').textContent = `Protection: ${protection ? 'on' : 'off'}`;
   el('unprotected').hidden = protection;
   el('clickthrough').textContent = clickThrough
     ? `Click-through: on — ${keys.clickThrough?.available ? `${keys.clickThrough.keys} or ` : ''}the Tesserafy icon in ${trayPlace} turns it off`
@@ -538,9 +538,7 @@ function showSwitches(state) {
 }
 api.onState(showSwitches);
 
-el('protection').addEventListener('click', async () => {
-  showSwitches({ protection: await api.setProtection(!protection), clickThrough });
-});
+el('termsLink').addEventListener('click', () => void api.openTerms());
 
 el('clickthrough').addEventListener('click', async () => {
   showSwitches({ protection, clickThrough: await api.setClickThrough(!clickThrough) });

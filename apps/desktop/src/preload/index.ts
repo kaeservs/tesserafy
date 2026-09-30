@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('overlay', {
   // an address: opening the release page is the main process's to do.
   update: (): Promise<UpdateState> => ipcRenderer.invoke('overlay:update'),
   openUpdate: (): Promise<void> => ipcRenderer.invoke('overlay:open-update'),
+  openTerms: (): Promise<void> => ipcRenderer.invoke('overlay:open-terms'),
   onUpdate: (listener: (state: UpdateState) => void): void => {
     ipcRenderer.on('overlay:update', (_event, state: UpdateState) =>
       listener({

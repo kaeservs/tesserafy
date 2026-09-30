@@ -6,7 +6,9 @@ import { RewriteBrief } from '@/components/rewrite-brief';
 import { customerCoverage } from '@/lib/account-story';
 import { accountBrief } from '@/lib/accounts';
 import { engagementLabel, myCompanyId } from '@/lib/company';
-import { PREP_COLUMNS, readBrief, type PrepRow } from '@/lib/prep';
+import { PREP_COLUMNS, readBrief, readResearch, type PrepRow } from '@/lib/prep';
+import { researchAvailable } from '@/lib/apify';
+import type { PrepPoint } from '@tesserafy/ai';
 import { createClient } from '@/lib/supabase/server';
 import { deletePrep } from '../actions';
 
@@ -20,8 +22,32 @@ const KIND_LABEL: Record<string, string> = { problem: 'Problem', feature_request
  * after. Beneath it, straight from the customer's calls rather than from the
  * model: what is established, what is still to find out, and what they said.
  */
-export default async function PrepDetailPage({ params }: { params: Promise<{ id: string }> }) {
+/** A point with where it came from: the pasted profile, or a source's link. */
+function Point({ item }: { item: PrepPoint }) {
+  return (
+    <li>
+      {item.point} <span className="muted">— “{item.quote}”</span>
+      {'url' in item.source ? (
+        <>
+          {' '}
+          <a href={item.source.url} target="_blank" rel="noopener noreferrer" className="source-link">
+            {item.source.title}
+          </a>
+        </>
+      ) : null}
+    </li>
+  );
+}
+
+export default async function PrepDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ research?: string }>;
+}) {
   const { id } = await params;
+  const { research: researchNote } = await searchParams;
   const supabase = await createClient();
   const { data: prep } = await supabase.from('call_preps').select(PREP_COLUMNS).eq('id', id).maybeSingle<PrepRow>();
   if (!prep) notFound();
@@ -95,9 +121,7 @@ export default async function PrepDetailPage({ params }: { params: Promise<{ id:
                 <h3>About them</h3>
                 <ul className="evidence">
                   {brief.about.map((item, index) => (
-                    <li key={index}>
-                      {item.point} <span className="muted">— “{item.quote}”</span>
-                    </li>
+                    <Point key={index} item={item} />
                   ))}
                 </ul>
               </>
@@ -106,6 +130,16 @@ export default async function PrepDetailPage({ params }: { params: Promise<{ id:
                 Nothing about them yet: paste what their profile says below, and the brief will quote it.
               </p>
             )}
+            {brief.company.length > 0 ? (
+              <>
+                <h3>About their company</h3>
+                <ul className="evidence">
+                  {brief.company.map((item, index) => (
+                    <Point key={index} item={item} />
+                  ))}
+                </ul>
+              </>
+            ) : null}
             <h3>What to ask</h3>
             <ol>
               {brief.questions.map((question, index) => (
@@ -119,7 +153,19 @@ export default async function PrepDetailPage({ params }: { params: Promise<{ id:
             </ol>
           </>
         )}
-        {mayChange ? <RewriteBrief prepId={prep.id} hasBrief={brief !== null} /> : null}
+        {researchNote === 'partial' ? (
+          <p className="muted" role="status">
+            Part of the web research did not come back, so the brief used what did.
+          </p>
+        ) : null}
+        {mayChange ? <RewriteBrief prepId={prep.id} hasBrief={brief !== null} research={researchAvailable()} /> : null}
+        {readResearch(prep.research) ? (
+          <p className="muted" style={{ fontSize: '0.8rem' }}>
+            Looked up on the web{' '}
+            {new Date(prep.research_at ?? prep.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })}:{' '}
+            {readResearch(prep.research)!.sources.length} source{readResearch(prep.research)!.sources.length === 1 ? '' : 's'}.
+          </p>
+        ) : null}
         <p className="muted" style={{ fontSize: '0.8rem', marginBottom: 0 }}>
           Written by a model from what you pasted and from earlier calls, and checked: a point it could not quote from their
           profile is left out. Questions are suggestions; the scorecard judges the call.
@@ -183,6 +229,7 @@ export default async function PrepDetailPage({ params }: { params: Promise<{ id:
             }}
             accounts={accounts ?? []}
             scorecards={scorecards}
+            researchReady={researchAvailable()}
           />
           <form action={deletePrep} style={{ marginTop: '1rem' }}>
             <input type="hidden" name="prepId" value={prep.id} />

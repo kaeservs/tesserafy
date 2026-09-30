@@ -37,10 +37,13 @@ export function PrepForm({
   initial = {},
   accounts,
   scorecards,
+  researchReady = false,
 }: {
   initial?: PrepFields;
   accounts: readonly { id: string; name: string }[];
   scorecards: readonly { value: string; label: string }[];
+  /** The platform can look people and companies up on the web (Apify). */
+  researchReady?: boolean;
 }) {
   const router = useRouter();
   const [fields, setFields] = useState({
@@ -55,6 +58,7 @@ export function PrepForm({
   });
   const [state, action, saving] = useActionState(savePrep, START);
   const [writing, setWriting] = useState(false);
+  const [lookUp, setLookUp] = useState(researchReady);
   const [error, setError] = useState<string | null>(null);
   const set = (key: keyof typeof fields) => (event: { target: { value: string } }) =>
     setFields((current) => ({ ...current, [key]: event.target.value }));
@@ -65,16 +69,20 @@ export function PrepForm({
     setWriting(true);
     setError(null);
     void (async () => {
-      const response = await fetch(`/api/preps/${prepId}/brief`, { method: 'POST' });
+      const response = await fetch(`/api/preps/${prepId}/brief`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ research: lookUp }),
+      });
+      const body = (await response.json().catch(() => ({}))) as { error?: string; researchErrors?: string[] };
       if (!response.ok) {
-        const body = (await response.json().catch(() => ({}))) as { error?: string };
         // Saved either way: the prep opens, and says its brief is still to write.
         setError(body.error ?? 'The brief could not be written.');
       }
-      router.push(`/prep/${prepId}`);
+      router.push(`/prep/${prepId}${(body.researchErrors ?? []).length > 0 ? '?research=partial' : ''}`);
       router.refresh();
     })();
-  }, [state, router]);
+  }, [state, router, lookUp]);
 
   const busy = saving || writing;
   return (
@@ -140,11 +148,22 @@ export function PrepForm({
         <label htmlFor="prep-profile">What their profile says (optional)</label>
         <textarea id="prep-profile" name="profile" rows={7} maxLength={12000} value={fields.profile} onChange={set('profile')} />
         <span className="muted" style={{ fontSize: '0.8rem' }}>
-          Paste their About and Experience sections, or on their profile choose More, then Save to PDF, and paste the text.
-          Tesserafy does not open LinkedIn itself: LinkedIn does not allow it. Everything the brief says about them quotes
-          what you paste here, and email addresses and phone numbers in it are masked.
+          {researchReady
+            ? 'Optional when you look them up on the web. Anything you paste is used too, and quoted like the rest.'
+            : 'Paste their About and Experience sections, or on their profile choose More, then Save to PDF, and paste the text. Everything the brief says about them quotes what you paste here, and email addresses and phone numbers in it are masked.'}
         </span>
       </div>
+      {researchReady ? (
+        <div className="field consent">
+          <label>
+            <input type="checkbox" checked={lookUp} onChange={(event) => setLookUp(event.target.checked)} /> Look them up on the web: their
+            LinkedIn profile and news about their company
+          </label>
+          <span className="muted" style={{ fontSize: '0.8rem' }}>
+            Every point in the brief quotes where it came from, with a link. Their email and phone number are never kept.
+          </span>
+        </div>
+      ) : null}
       <button type="submit" disabled={busy || fields.name.trim().length === 0}>
         {writing ? 'Writing the brief…' : saving ? 'Saving…' : initial.prepId ? 'Save and rewrite the brief' : 'Prepare'}
       </button>

@@ -465,6 +465,8 @@ export type Database = {
           person_name: string
           person_title: string | null
           profile_text: string | null
+          research: Json | null
+          research_at: string | null
         }
         Insert: {
           account_id?: string | null
@@ -481,6 +483,8 @@ export type Database = {
           person_name: string
           person_title?: string | null
           profile_text?: string | null
+          research?: Json | null
+          research_at?: string | null
         }
         Update: {
           account_id?: string | null
@@ -497,6 +501,8 @@ export type Database = {
           person_name?: string
           person_title?: string | null
           profile_text?: string | null
+          research?: Json | null
+          research_at?: string | null
         }
         Relationships: [
           {
@@ -3002,6 +3008,10 @@ export type Database = {
       }
       set_call_prep_brief: {
         Args: { p_brief: Json; p_model: string; p_prep_id: string }
+        Returns: undefined
+      }
+      set_call_prep_research: {
+        Args: { p_prep_id: string; p_research: Json }
         Returns: undefined
       }
       set_call_type: {

@@ -3,6 +3,7 @@ import { fetchCriteriaSets } from '@tesserafy/db';
 import { PrepForm } from '@/components/prep-form';
 import { engagementLabel, myCompanyId } from '@/lib/company';
 import { PREP_COLUMNS, readBrief, type PrepRow } from '@/lib/prep';
+import { researchAvailable } from '@/lib/apify';
 import { createClient } from '@/lib/supabase/server';
 
 export const metadata = { title: 'Prepare · Tesserafy' };
@@ -63,7 +64,7 @@ export default async function PrepPage({ searchParams }: { searchParams: Promise
         at what you have not yet found out with their company, and reminds you what they said last time.
       </p>
       <section className="card">
-        <PrepForm initial={{ accountId: account ?? null }} accounts={accounts ?? []} scorecards={scorecards} />
+        <PrepForm initial={{ accountId: account ?? null }} accounts={accounts ?? []} scorecards={scorecards} researchReady={researchAvailable()} />
       </section>
       <section aria-labelledby="upcoming-heading">
         <h2 id="upcoming-heading">Coming up</h2>

@@ -850,6 +850,7 @@ export type Database = {
         Row: {
           account_id: string | null
           added_by: string | null
+          captured_live: boolean
           company_id: string
           consent_confirmed_at: string | null
           consent_confirmed_by: string | null
@@ -869,6 +870,7 @@ export type Database = {
         Insert: {
           account_id?: string | null
           added_by?: string | null
+          captured_live?: boolean
           company_id: string
           consent_confirmed_at?: string | null
           consent_confirmed_by?: string | null
@@ -888,6 +890,7 @@ export type Database = {
         Update: {
           account_id?: string | null
           added_by?: string | null
+          captured_live?: boolean
           company_id?: string
           consent_confirmed_at?: string | null
           consent_confirmed_by?: string | null
@@ -2938,7 +2941,7 @@ export type Database = {
         Returns: number
       }
       refund_plan_allowance: {
-        Args: { p_ledger_id: number }
+        Args: { p_ledger_id: number; p_token: string }
         Returns: undefined
       }
       reject_action_item: {

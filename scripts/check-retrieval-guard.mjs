@@ -58,8 +58,14 @@ for (const file of files) {
 const SERVICE_ROLE = /\b(SUPABASE_SERVICE_ROLE_KEY|createServiceClient)\b/;
 const serviceRoleViolations = [];
 const KEY_HOLDERS = [/^apps\/admin\//];
+// And the shared packages' own source, other than packages/db, which defines
+// createServiceClient for the console and the operator scripts. Otherwise a
+// helper in, say, packages/ai could wrap the key and apps/web import it
+// without either name ever appearing under apps/.
 const appFiles = files.filter(
-  (f) => f.startsWith('apps/') && !KEY_HOLDERS.some((pattern) => pattern.test(f)),
+  (f) =>
+    (f.startsWith('apps/') && !KEY_HOLDERS.some((pattern) => pattern.test(f))) ||
+    (/^packages\/[^/]+\/src\//.test(f) && !f.startsWith('packages/db/src/')),
 );
 for (const file of appFiles) {
   let text;

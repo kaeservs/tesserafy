@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { nudged, NUDGE_STEP } from '../src/main/nudge';
-import { MOVE_SHORTCUTS, SHORTCUTS } from '../src/main/shortcuts';
+import { ASSIST_SHORTCUT, MOVE_SHORTCUTS, SHORTCUTS } from '../src/main/shortcuts';
 
 const area = { x: 0, y: 0, width: 1920, height: 1040 };
 const card = { x: 100, y: 100, width: 380, height: 300 };
@@ -25,7 +25,7 @@ describe('moving the overlay from the keyboard', () => {
   });
 
   it('uses keys no other overlay shortcut uses', () => {
-    const all = [...Object.values(SHORTCUTS), ...Object.values(MOVE_SHORTCUTS)];
+    const all = [...Object.values(SHORTCUTS), ...Object.values(MOVE_SHORTCUTS), ASSIST_SHORTCUT];
     expect(new Set(all).size).toBe(all.length);
   });
 });

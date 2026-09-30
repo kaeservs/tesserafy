@@ -1475,3 +1475,22 @@ input[type='search'] {
   gap: 0.2rem;
   flex: 1 1 16rem;
 }
+
+/* --------------------------------------------------------------------------
+   Overlay settings (Account) and a prep's "Use for my next call"
+   -------------------------------------------------------------------------- */
+
+.overlay-look {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+}
+
+.overlay-look input[type='number'] {
+  width: 4.5rem;
+}
+
+.next-call {
+  margin: 0.25rem 0 0.75rem;
+}

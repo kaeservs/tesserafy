@@ -147,6 +147,17 @@ export {
   type SuggestOptions,
 } from './tiers/t2-suggest';
 export {
+  assist,
+  ASSIST_MAX,
+  ASSIST_MODES,
+  resolveAssist,
+  T2_ASSISTER,
+  type AssistInput,
+  type AssistMode,
+  type AssistPoint,
+  type AssistResult,
+} from './tiers/t2-assist';
+export {
   isEmpty as guidanceIsEmpty,
   MAX_EXAMPLES,
   MAX_INSTRUCTIONS,

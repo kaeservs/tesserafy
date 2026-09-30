@@ -58,6 +58,12 @@ export const LIMITS: Record<string, readonly Window[]> = {
     { seconds: 60, limit: 20 },
     { seconds: 86_400, limit: 600 },
   ],
+  // The overlay's buttons and ask box: pressed by a person a few times a
+  // call, each a larger-model read of the call so far.
+  'api/assist': [
+    { seconds: 60, limit: 12 },
+    { seconds: 86_400, limit: 400 },
+  ],
   // Sonnet 5, pressed by a person. Measured at ~$0.007 per short test call; a
   // real hour-long call is likely $0.04-0.10. Each call can only be read once,
   // so this bounds how many different calls one account reads in a day.

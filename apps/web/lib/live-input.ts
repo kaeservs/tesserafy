@@ -49,6 +49,32 @@ export function liveWindow<T extends { id: string; text: string; speaker: string
   return (window as T[]).map((segment) => ({ ...segment, text: redactLive(segment.text) }));
 }
 
+/**
+ * The call so far, for on-demand help (/api/assist): the latest utterances
+ * that fit in TRANSCRIPT_CHARS, redacted. Longer than a detection window —
+ * a recap needs the call, not its last sentence — and still bounded, taking
+ * from the end so the newest words are always there.
+ */
+export const TRANSCRIPT_CHARS = 24_000;
+export const TRANSCRIPT_SEGMENTS = 400;
+
+export function liveTranscript<T extends { id: string; text: string; speaker: string | null }>(transcript: unknown): T[] | null {
+  if (!Array.isArray(transcript) || transcript.length > TRANSCRIPT_SEGMENTS) return null;
+  for (const segment of transcript as unknown[]) {
+    const item = segment as Partial<T> | null;
+    if (!item || !shortString(item.id, 100) || !shortString(item.text, LIVE_LIMITS.text)) return null;
+    if (item.speaker !== null && item.speaker !== undefined && !shortString(item.speaker, LIVE_LIMITS.speaker)) return null;
+  }
+  const kept: T[] = [];
+  let total = 0;
+  for (const segment of [...(transcript as T[])].reverse()) {
+    total += segment.text.length;
+    if (total > TRANSCRIPT_CHARS) break;
+    kept.unshift({ ...segment, text: redactLive(segment.text) });
+  }
+  return kept;
+}
+
 /** Criteria for the detector: the same bounds a scorecard has when it is written. */
 export function liveCriteria<T extends { key: string; label: string; definition: string }>(criteria: unknown): T[] | null {
   if (!Array.isArray(criteria) || criteria.length === 0 || criteria.length > LIVE_LIMITS.criteria) return null;

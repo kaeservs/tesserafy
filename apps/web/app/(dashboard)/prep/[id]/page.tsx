@@ -12,6 +12,7 @@ import { PREP_COLUMNS, readBrief, readResearch, type PrepRow } from '@/lib/prep'
 import { researchAvailable } from '@/lib/apify';
 import type { PrepPoint } from '@tesserafy/ai';
 import { createClient } from '@/lib/supabase/server';
+import { chooseNextCall } from '../../account/overlay-actions';
 import { deletePrep, rejectPrepItem } from '../actions';
 
 export const metadata = { title: 'Call prep · Tesserafy' };
@@ -75,13 +76,15 @@ export default async function PrepDetailPage({
     data: { user },
   } = await supabase.auth.getUser();
   const companyId = await myCompanyId(supabase);
-  const [{ data: membership }, { data: accounts }, story, sets, labels] = await Promise.all([
+  const [{ data: membership }, { data: accounts }, story, sets, labels, { data: preferences }] = await Promise.all([
     supabase.from('company_members').select('role').eq('user_id', user?.id ?? '').limit(1).maybeSingle(),
     supabase.from('accounts').select('id, name').order('name').limit(500),
     prep.account_id ? accountBrief(supabase, prep.account_id) : Promise.resolve(null),
     fetchCriteriaSets(supabase, companyId),
     fetchCriterionLabels(supabase, companyId),
+    supabase.from('user_preferences').select('next_prep_id').eq('user_id', user?.id ?? '').maybeSingle(),
   ]);
+  const isNextCall = preferences?.next_prep_id === prep.id;
   const mayChange = membership?.role === 'owner' || (user !== null && prep.created_by === user.id);
   const brief = readBrief(prep.brief);
   const coverage = story ? customerCoverage(story.calls).find((set) => set.engagementType === prep.engagement_type) : undefined;
@@ -99,6 +102,27 @@ export default async function PrepDetailPage({
         {prep.person_name}
         {story ? <span className="muted">, {story.account.name}</span> : null}
       </h1>
+      {/* The overlay takes its customer, scorecard and questions from this
+          prep when it is the person's next call (lib/live-setup). */}
+      <form action={chooseNextCall} className="next-call">
+        <input type="hidden" name="back" value={`/prep/${prep.id}`} />
+        {isNextCall ? (
+          <>
+            <span className="stage">Your next call in the overlay</span>{' '}
+            <button type="submit" className="link-button">
+              Clear
+            </button>
+          </>
+        ) : (
+          <>
+            <input type="hidden" name="prepId" value={prep.id} />
+            <button type="submit">Use for my next call</button>{' '}
+            <span className="muted" style={{ fontSize: '0.85rem' }}>
+              The overlay opens with this customer, scorecard and questions.
+            </span>
+          </>
+        )}
+      </form>
       <p className="muted">
         {prep.person_title ? `${prep.person_title} · ` : ''}
         {prep.call_at

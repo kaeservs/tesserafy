@@ -84,5 +84,8 @@ mac:
     # macOS stops an app that opens the microphone without saying why. This is
     # the sentence in the permission prompt.
     NSMicrophoneUsageDescription: Tesserafy listens to your call, once you start it, to score it live against your criteria.
+    # No Dock icon and no Cmd-Tab entry from launch: the overlay lives in the
+    # menu bar, like Cluely's (see createOverlay in src/main/index.ts).
+    LSUIElement: true
 dmg:
   title: Tesserafy ${version}

@@ -163,6 +163,19 @@ downgrade or cancel (at period end); the operator sets any plan; a nightly
 job rolls periods over. Payments do not exist yet and plans are free until
 they do; when Stripe lands its webhook calls the same function.
 
+The overlay is meant to be Cluely-like, and undetectable in the meeting the
+way Cluely is: no bot joins, nothing announces it, it is excluded from screen
+capture (`setContentProtection`; Windows reports display affinity 0x11 and a
+screen capture of its area matches one with it hidden, pixel for pixel), and
+it is out of the taskbar, Alt-Tab, the Dock, Cmd-Tab and Mission Control.
+Telling everyone on the call is the user's legal responsibility, set out in
+the Terms (`/terms`, `TERMS_URL`) and confirmed per call in a checkbox only
+the user sees — that record is what places the responsibility on them, so it
+stays. Undetectable to the meeting, never to the computer: the process keeps
+its own name in Task Manager, and nothing is built to evade monitoring or
+proctoring software. Call audio and transcripts are never used for
+Tesserafy's own purposes (the Otter.ai wiretap suits turned partly on that).
+
 Brands can sign up themselves (`/signup`) only when an operator opens it in
 the console: the switch is `app_settings.signup_open`, checked by
 `create_my_company` itself, so the database refuses a company while closed

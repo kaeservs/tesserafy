@@ -102,6 +102,7 @@ export function createTray(controls: TrayControls): OverlayTray {
         },
         {
           label: 'Hidden from screen share',
+          sublabel: 'Always on at start. Off only to test that it works',
           type: 'checkbox',
           checked: controls.protection(),
           click: (item) => controls.setProtection(item.checked),

@@ -195,7 +195,9 @@
                         font-variant-numeric: tabular-nums; }
       .look-actions { display: flex; gap: 6px; justify-content: flex-end; }
       body.looking #criteria, body.looking #suggestion, body.looking .signin,
-      body.looking .who, body.looking .consent { display: none; }
+      body.looking .who, body.looking .consent, body.looking .consent-note { display: none; }
+      .consent-note { margin: 2px 0 0 22px; font-size: 11px; -webkit-app-region: no-drag; }
+      .consent-note .link { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }
     </style>
   </head>
   <body>
@@ -307,6 +309,13 @@
       <input type="checkbox" id="consent" />
       <span>Everyone on this call has been told it is being recorded, transcribed and analysed, and has agreed to it.</span>
     </label>
+    <!-- Tesserafy never announces itself in a meeting, so telling the others
+         is the seller's to do; the Terms say so, and this says it where it
+         is decided. Only the seller ever sees it. -->
+    <p class="consent-note muted">
+      Tesserafy never tells the others on the call; asking them is yours to do.
+      <button type="button" class="link" id="termsLink">Terms</button>
+    </p>
 
     <!-- Which scorecard this call is scored against. Shown when there is a
          choice; fixed once listening starts, because the call pins it. -->
@@ -326,7 +335,6 @@
 
     <footer>
       <button id="listen" disabled>Listen</button>
-      <button id="protection">Protection: on</button>
       <button id="clickthrough">Click-through: off</button>
       <button id="lookOpen" aria-expanded="false" aria-controls="look">Appearance</button>
       <span class="muted" id="status">idle</span>

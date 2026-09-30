@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { publicSupabaseEnv } from '../env';
 import { siteUrl } from '../site-url';
 
-const PUBLIC_PATHS = ['/login', '/signup', '/auth/'];
+const PUBLIC_PATHS = ['/login', '/signup', '/auth/', '/terms', '/privacy'];
 
 /**
  * Refreshes the auth session cookie and turns signed-out visitors away from

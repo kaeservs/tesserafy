@@ -28,3 +28,17 @@ export function shortcutLabel(accelerator: string, platform: string): string {
   }
   return keys.map((key) => (key === 'CommandOrControl' ? 'Ctrl' : key)).join('+');
 }
+
+/**
+ * Moving the overlay without the mouse, as Cluely's arrow keys do: nothing is
+ * dragged across a screen that is being shared, and it can be put out of the
+ * way mid-sentence. The same three modifiers as the others, and the arrows.
+ */
+export const MOVE_SHORTCUTS = {
+  up: 'CommandOrControl+Alt+Shift+Up',
+  down: 'CommandOrControl+Alt+Shift+Down',
+  left: 'CommandOrControl+Alt+Shift+Left',
+  right: 'CommandOrControl+Alt+Shift+Right',
+} as const;
+
+export type MoveDirection = keyof typeof MOVE_SHORTCUTS;

@@ -17,7 +17,7 @@ describe('what the overlay may say', () => {
   it('keeps a point whose quote is in the segment it names, as the call has it', () => {
     const { points, dropped } = resolveAssist('recap', { points: [point('Close takes three days.', 'three days, and finance hates it', 's1')] }, transcript);
     expect(dropped).toBe(0);
-    expect(points).toEqual([{ text: 'Close takes three days.', quote: 'three days, and finance hates it', segmentId: 's1', document: null }]);
+    expect(points).toEqual([{ text: 'Close takes three days.', quote: 'three days, and finance hates it', segmentId: 's1', document: null, fromScreen: false }]);
   });
 
   it('drops a point quoting words the call did not say, or quoting the wrong segment', () => {
@@ -34,7 +34,7 @@ describe('what the overlay may say', () => {
     expect(resolveAssist('say', { points: [point('Offer a demo.')] }, transcript).points).toHaveLength(0);
     expect(resolveAssist('followups', { points: [point('Ask about timing.')] }, transcript).points).toHaveLength(0);
     expect(resolveAssist('ask', { points: [point('Lead with the ROI calculator.')] }, transcript).points).toEqual([
-      { text: 'Lead with the ROI calculator.', quote: null, segmentId: null, document: null },
+      { text: 'Lead with the ROI calculator.', quote: null, segmentId: null, document: null, fromScreen: false },
     ]);
   });
 
@@ -57,7 +57,15 @@ describe('what the overlay may say', () => {
       transcript,
       knowledge,
     );
-    expect(points).toEqual([{ text: 'Rollout is two weeks.', quote: 'Rollout takes two weeks', segmentId: null, document: 'Pricing sheet' }]);
+    expect(points).toEqual([{ text: 'Rollout is two weeks.', quote: 'Rollout takes two weeks', segmentId: null, document: 'Pricing sheet', fromScreen: false }]);
     expect(dropped).toBe(1);
+  });
+
+  it('keeps words read off the screen only when a screenshot was sent, and says they are from it', () => {
+    const claimed = { points: [point('Their slide says churn is 12%.', 'Churn: 12%', 'screen')] };
+    expect(resolveAssist('ask', claimed, transcript, [], true).points).toEqual([
+      { text: 'Their slide says churn is 12%.', quote: 'Churn: 12%', segmentId: null, document: null, fromScreen: true },
+    ]);
+    expect(resolveAssist('ask', claimed, transcript, [], false)).toEqual({ points: [], dropped: 1 });
   });
 });

@@ -19,6 +19,8 @@ export interface LiveSetup {
   readonly engagementType: string;
   readonly account: { id: string; name: string } | null;
   readonly prep: { id: string; person: string; callAt: string | null; chosen: boolean } | null;
+  /** Whether the company lets the overlay send a screenshot with a question. */
+  readonly screen: boolean;
 }
 
 /** Of a person's own preps, the one whose call is nearest now, within the window. */
@@ -70,12 +72,16 @@ export async function liveSetup(db: SupabaseClient, userId: string, now = new Da
     account = data ?? null;
   }
   const fallback = prep ? null : await companyDefaultScorecard(db, userId);
+  const { data: company } = companyId
+    ? await db.from('companies').select('screen_assist').eq('id', companyId).maybeSingle()
+    : { data: null };
   const look = preferences?.overlay_look;
   return {
     look: look && typeof look === 'object' && !Array.isArray(look) ? look : {},
     engagementType: prep?.engagement_type ?? fallback?.engagementType ?? 'discovery',
     account,
     prep: prep ? { id: prep.id, person: prep.person_name, callAt: prep.call_at, chosen } : null,
+    screen: company?.screen_assist ?? false,
   };
 }
 

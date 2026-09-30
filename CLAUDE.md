@@ -199,6 +199,16 @@ the seller's product may only come from one, quoted and named, and a question
 no document answers is still answered with "confirm it", not a guess.
 Documents are not redacted: redaction is for what customers say.
 
+"Ask about your screen" sends one screenshot with a question: taken by the
+overlay's main process only when the seller presses Screen, of the display
+the overlay is on (which content protection keeps it out of), never held by
+the page, never stored — it goes to the model for that answer alone. A JPEG
+or PNG by its bytes, under 1.5 MB. Owners can switch it off for the company
+(`companies.screen_assist`, Settings); the overlay then does not offer it and
+`/api/assist` refuses it. Words read off the screen are shown as "on your
+screen", not as a verified quote: there is no stored text to check them
+against. Tests send the model a rendered slide, never a real screen.
+
 Brands can sign up themselves (`/signup`) only when an operator opens it in
 the console: the switch is `app_settings.signup_open`, checked by
 `create_my_company` itself, so the database refuses a company while closed

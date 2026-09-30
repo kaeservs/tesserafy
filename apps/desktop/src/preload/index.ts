@@ -35,7 +35,7 @@ contextBridge.exposeInMainWorld('overlay', {
   hide: (): Promise<void> => ipcRenderer.invoke('overlay:hide'),
   assist: (body: unknown): Promise<{
     mode?: string;
-    points?: { text: string; quote: string | null; segmentId: string | null }[];
+    points?: { text: string; quote: string | null; segmentId: string | null; document: string | null }[];
     error?: string;
   }> => ipcRenderer.invoke('overlay:assist', body),
   // The Assist shortcut was pressed, whichever window is in front.

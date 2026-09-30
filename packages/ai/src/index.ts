@@ -4,8 +4,10 @@ export {
   TenantBoundaryViolation,
   type RetrievalQuery,
   type RetrieveOptions,
+  type RetrievedPassage,
   type RetrievedSegment,
 } from './retrieval/retrieve';
+export { storeKnowledge, type StoreKnowledgeOptions } from './retrieval/knowledge';
 export {
   assertEmbedding,
   createSupabaseEmbedder,
@@ -156,6 +158,7 @@ export {
   type AssistMode,
   type AssistPoint,
   type AssistResult,
+  type KnowledgePassage,
 } from './tiers/t2-assist';
 export {
   isEmpty as guidanceIsEmpty,

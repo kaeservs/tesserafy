@@ -5,6 +5,7 @@ export { parseTurns } from './parse/turns';
 export { parseText } from './parse/text';
 export { parseTranscript, transcriptFormat, TRANSCRIPT_EXTENSIONS, type TranscriptFormat } from './parse/detect';
 export { toSegments, type ChunkOptions } from './chunk/segment';
+export { DOCUMENT_MAX_CHARS, PASSAGE_MAX, PASSAGE_TARGET, toPassages } from './chunk/passages';
 export {
   addCounts,
   anyRedactions,

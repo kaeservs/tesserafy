@@ -1425,6 +1425,94 @@ export type Database = {
           },
         ]
       }
+      knowledge_chunks: {
+        Row: {
+          company_id: string
+          document_id: string
+          embedding: string
+          id: string
+          ordinal: number
+          search: unknown
+          text: string
+        }
+        Insert: {
+          company_id: string
+          document_id: string
+          embedding: string
+          id?: string
+          ordinal: number
+          search?: unknown
+          text: string
+        }
+        Update: {
+          company_id?: string
+          document_id?: string
+          embedding?: string
+          id?: string
+          ordinal?: number
+          search?: unknown
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_chunks_company_id_document_id_fkey"
+            columns: ["company_id", "document_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_documents"
+            referencedColumns: ["company_id", "id"]
+          },
+        ]
+      }
+      knowledge_documents: {
+        Row: {
+          characters: number
+          company_id: string
+          created_at: string
+          created_by: string | null
+          error: string | null
+          file_name: string | null
+          id: string
+          passages: number
+          source: string
+          status: string
+          title: string
+        }
+        Insert: {
+          characters?: number
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          file_name?: string | null
+          id?: string
+          passages?: number
+          source: string
+          status?: string
+          title: string
+        }
+        Update: {
+          characters?: number
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          file_name?: string | null
+          id?: string
+          passages?: number
+          source?: string
+          status?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       membership_removals: {
         Row: {
           company_id: string
@@ -2652,6 +2740,10 @@ export type Database = {
           views: number
         }[]
       }
+      create_knowledge_document: {
+        Args: { p_file_name?: string; p_source: string; p_title: string }
+        Returns: string
+      }
       create_my_company: { Args: { p_name: string }; Returns: string }
       decide_insight: {
         Args: { p_insight_id: string; p_status: string }
@@ -2677,6 +2769,10 @@ export type Database = {
       }
       delete_account: { Args: { p_account_id: string }; Returns: undefined }
       delete_call_prep: { Args: { p_prep_id: string }; Returns: undefined }
+      delete_knowledge_document: {
+        Args: { p_document_id: string }
+        Returns: undefined
+      }
       delete_segment_note: { Args: { p_note_id: string }; Returns: undefined }
       disconnect_tracker: { Args: never; Returns: undefined }
       dispute_criterion: {
@@ -2738,6 +2834,10 @@ export type Database = {
         Args: { p_conversation_id: string; p_reason?: string }
         Returns: Json
       }
+      fail_knowledge_document: {
+        Args: { p_document_id: string; p_error: string }
+        Returns: undefined
+      }
       import_conversation: {
         Args: {
           p_company_id?: string
@@ -2766,6 +2866,23 @@ export type Database = {
         Returns: string
       }
       mark_notifications_read: { Args: { p_ids?: string[] }; Returns: number }
+      match_knowledge: {
+        Args: {
+          p_company_id: string
+          p_match_count: number
+          p_query_embedding: string
+          p_query_text: string
+        }
+        Returns: {
+          chunk_id: string
+          company_id: string
+          document_id: string
+          score: number
+          similarity: number
+          text: string
+          title: string
+        }[]
+      }
       match_segments: {
         Args: {
           p_company_id: string
@@ -2949,6 +3066,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      record_knowledge_chunks: {
+        Args: { p_characters: number; p_chunks: Json; p_document_id: string }
+        Returns: number
       }
       record_model_usage: {
         Args: {

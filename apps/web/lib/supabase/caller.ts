@@ -20,6 +20,12 @@ import { createClient } from './server';
 export interface Caller {
   db: SupabaseClient;
   userId: string;
+  /**
+   * Their access token, for a call made as them beyond the database — the
+   * embedding function inside Supabase, which takes a signed-in user's token
+   * and nothing weaker.
+   */
+  token: () => Promise<string | null>;
 }
 
 export async function caller(request: NextRequest): Promise<Caller | null> {
@@ -32,12 +38,18 @@ export async function caller(request: NextRequest): Promise<Caller | null> {
       global: { headers: { Authorization: header } },
     });
     const { data } = await db.auth.getUser(header.slice('Bearer '.length));
-    return data.user ? { db, userId: data.user.id } : null;
+    const token = header.slice('Bearer '.length);
+    return data.user ? { db, userId: data.user.id, token: () => Promise.resolve(token) } : null;
   }
 
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
+  // The session's token, read only after getUser has verified it with Auth.
   return data.user
-    ? { db: supabase, userId: data.user.id }
+    ? {
+        db: supabase,
+        userId: data.user.id,
+        token: async () => (await supabase.auth.getSession()).data.session?.access_token ?? null,
+      }
     : null;
 }

@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 // does not fire inside record_segment_embeddings -- which is how a vector write
 // outside the retrieval module once got past this guard (ADR 0011).
 const FORBIDDEN =
-  /\b(match_segments|segment_embeddings|record_segment_embeddings|embed_stored_segments|segments_without_embeddings)\b/;
+  /\b(match_segments|segment_embeddings|record_segment_embeddings|embed_stored_segments|segments_without_embeddings|match_knowledge|knowledge_chunks|record_knowledge_chunks)\b/;
 
 const ALLOWED = [
   /^packages\/ai\/src\/retrieval\//,

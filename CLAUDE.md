@@ -187,6 +187,18 @@ weeks"; after it, neither did). Sonnet answers in 2.6-3.9 s median, Haiku in
 2.1-3.7 s — not enough faster to leave the routed model
 (`scripts/assist-probe.ts`).
 
+A company's knowledge — the documents its sellers answer from, added by
+owners on the Knowledge page (PDF, Word, text, Markdown, or pasted) — is
+split into passages (`packages/ingest`, `toPassages`), embedded by the same
+gte-small function as calls, and searched by `retrieve()` with
+`corpus: 'knowledge'` through `match_knowledge`, which merges meaning and
+keyword rank because gte-small alone ranks by phrasing. `knowledge_chunks` has
+no read policy and its names are in the retrieval guard. Assist and Ask get
+the four passages that fit the question or what was just said; a fact about
+the seller's product may only come from one, quoted and named, and a question
+no document answers is still answered with "confirm it", not a guess.
+Documents are not redacted: redaction is for what customers say.
+
 Brands can sign up themselves (`/signup`) only when an operator opens it in
 the console: the switch is `app_settings.signup_open`, checked by
 `create_my_company` itself, so the database refuses a company while closed

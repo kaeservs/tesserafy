@@ -1,9 +1,19 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { assist, ASSIST_MODES, databaseSink, recordFailure, T2_ASSISTER, type AssistMode, type SuggestableSegment } from '@tesserafy/ai';
+import {
+  assist,
+  ASSIST_MODES,
+  databaseSink,
+  recordFailure,
+  T2_ASSISTER,
+  type AssistMode,
+  type KnowledgePassage,
+  type SuggestableSegment,
+} from '@tesserafy/ai';
 import { NextResponse, type NextRequest } from 'next/server';
 import { myCompanyId } from '@/lib/company';
 import { purposeOf } from '@/lib/guidance';
 import { LIVE_LIMITS, liveAllowedFor, liveTranscript } from '@/lib/live-input';
+import { hasKnowledge, knowledgeFor } from '@/lib/knowledge';
 import { briefText } from '@/lib/live-setup';
 import { PREP_COLUMNS, type PrepRow } from '@/lib/prep';
 import { allowance, tooMany } from '@/lib/rate-limit';
@@ -73,24 +83,42 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Your plan has no live minutes left this month.' }, { status: 402 });
   }
 
-  // The prep for this call, read as the person (RLS), as the brief it gives.
-  let brief: string | null = null;
-  if (typeof body.prepId === 'string' && /^[0-9a-f-]{36}$/i.test(body.prepId)) {
-    const { data: prep } = await who.db.from('call_preps').select(PREP_COLUMNS).eq('id', body.prepId).returns<PrepRow[]>().maybeSingle();
-    if (prep) {
+  // Three lookups, side by side rather than one after another: each is a
+  // round trip, and the seller is waiting on the answer.
+  const companyId = await myCompanyId(who.db, who.userId);
+  const engagementType = typeof body.engagementType === 'string' ? body.engagementType.slice(0, 64) : 'discovery';
+  const lookFor = mode === 'ask' ? question : transcript.slice(-3).map((segment) => segment.text).join(' ');
+  const [brief, purpose, knowledge] = await Promise.all([
+    // The prep for this call, read as the person (RLS), as the brief it gives.
+    (async (): Promise<string | null> => {
+      if (typeof body.prepId !== 'string' || !/^[0-9a-f-]{36}$/i.test(body.prepId)) return null;
+      const { data: prep } = await who.db.from('call_preps').select(PREP_COLUMNS).eq('id', body.prepId).returns<PrepRow[]>().maybeSingle();
+      if (!prep) return null;
       const { data: account } = prep.account_id
         ? await who.db.from('accounts').select('name').eq('id', prep.account_id).maybeSingle()
         : { data: null };
-      brief = briefText(prep, account?.name ?? null);
-    }
-  }
-  const companyId = await myCompanyId(who.db, who.userId);
-  const engagementType = typeof body.engagementType === 'string' ? body.engagementType.slice(0, 64) : 'discovery';
-  const purpose = companyId ? await purposeOf(who.db, companyId, engagementType) : null;
+      return briefText(prep, account?.name ?? null);
+    })(),
+    companyId ? purposeOf(who.db, companyId, engagementType) : Promise.resolve(null),
+    // The company's own documents that fit this moment: the question typed, or
+    // what was just said. Only when there are any, so a company with none pays
+    // no search; and a search that fails leaves the answer without, never
+    // without an answer.
+    (async (): Promise<KnowledgePassage[]> => {
+      if (!companyId || !lookFor || !(await hasKnowledge(who.db, companyId))) return [];
+      const token = await who.token();
+      try {
+        return token ? await knowledgeFor(who.db, token, companyId, lookFor, 4) : [];
+      } catch (error) {
+        recordFailure(error, { db: who.db, source: 'api/assist/knowledge' });
+        return [];
+      }
+    })(),
+  ]);
 
   try {
     const result = await assist(
-      { mode, ...(mode === 'ask' ? { question } : {}), transcript, criteria, brief },
+      { mode, ...(mode === 'ask' ? { question } : {}), transcript, criteria, brief, knowledge },
       {
         client: new Anthropic(),
         guidance: { instructions: [], examples: [], purpose },

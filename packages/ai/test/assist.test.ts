@@ -17,7 +17,7 @@ describe('what the overlay may say', () => {
   it('keeps a point whose quote is in the segment it names, as the call has it', () => {
     const { points, dropped } = resolveAssist('recap', { points: [point('Close takes three days.', 'three days, and finance hates it', 's1')] }, transcript);
     expect(dropped).toBe(0);
-    expect(points).toEqual([{ text: 'Close takes three days.', quote: 'three days, and finance hates it', segmentId: 's1' }]);
+    expect(points).toEqual([{ text: 'Close takes three days.', quote: 'three days, and finance hates it', segmentId: 's1', document: null }]);
   });
 
   it('drops a point quoting words the call did not say, or quoting the wrong segment', () => {
@@ -34,7 +34,7 @@ describe('what the overlay may say', () => {
     expect(resolveAssist('say', { points: [point('Offer a demo.')] }, transcript).points).toHaveLength(0);
     expect(resolveAssist('followups', { points: [point('Ask about timing.')] }, transcript).points).toHaveLength(0);
     expect(resolveAssist('ask', { points: [point('Lead with the ROI calculator.')] }, transcript).points).toEqual([
-      { text: 'Lead with the ROI calculator.', quote: null, segmentId: null },
+      { text: 'Lead with the ROI calculator.', quote: null, segmentId: null, document: null },
     ]);
   });
 
@@ -42,5 +42,22 @@ describe('what the overlay may say', () => {
     const many = { points: Array.from({ length: 6 }, (_, i) => point(`Q${i}?`, 'finance hates it', 's1')) };
     expect(resolveAssist('say', many, transcript).points).toHaveLength(ASSIST_MAX.say);
     expect(resolveAssist('followups', many, transcript).points).toHaveLength(ASSIST_MAX.followups);
+  });
+
+  it('answers from the company\'s knowledge only in its own words, and names the document', () => {
+    const knowledge = [{ id: 'k1', title: 'Pricing sheet', text: 'Pro is $20 a seat a month. Rollout takes two weeks.' }];
+    const { points, dropped } = resolveAssist(
+      'ask',
+      {
+        points: [
+          point('Rollout is two weeks.', 'Rollout takes two weeks', 'k1'),
+          point('It is $15 a seat.', 'Pro is $15 a seat', 'k1'),
+        ],
+      },
+      transcript,
+      knowledge,
+    );
+    expect(points).toEqual([{ text: 'Rollout is two weeks.', quote: 'Rollout takes two weeks', segmentId: null, document: 'Pricing sheet' }]);
+    expect(dropped).toBe(1);
   });
 });

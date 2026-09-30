@@ -154,3 +154,12 @@ export {
   type Guidance,
   type GuidanceExample,
 } from './tiers/guidance';
+export {
+  extractActionItems,
+  resolveActionItems,
+  T3_ACTIONS_DETECTOR,
+  type ActionItem,
+  type ActionOptions,
+  type ActionResult,
+  type OwnerSide,
+} from './tiers/t3-actions';

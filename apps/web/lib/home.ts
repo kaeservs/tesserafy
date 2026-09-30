@@ -54,12 +54,14 @@ export function goalStandings(calls: readonly CoachingCall[], goals: readonly Go
 }
 
 export interface AgendaItem {
-  readonly kind: 'prep' | 'coaching' | 'assigned' | 'decide' | 'customer' | 'goal' | 'theme';
+  readonly kind: 'prep' | 'coaching' | 'action' | 'assigned' | 'decide' | 'customer' | 'goal' | 'theme';
   readonly text: string;
   readonly href: string;
 }
 
 export interface AgendaInput {
+  /** Commitments your side made on your calls, not yet ticked done. */
+  readonly actions?: readonly { id: string; action: string; due: string | null; callTitle: string; conversationId: string; segmentId: string }[];
   /** Calls and moments a manager asked you to listen to, not yet done. */
   readonly coaching?: readonly { id: string; callTitle: string; conversationId: string; segmentId: string | null; from: string | null }[];
   /** Calls prepared for in the next few days, soonest first. */
@@ -112,6 +114,18 @@ export function homeAgenda(input: AgendaInput): AgendaItem[] {
   }
   if (coaching.length > SHOWN) {
     items.push({ kind: 'coaching', text: `and ${coaching.length - SHOWN} more to listen to`, href: '/coaching' });
+  }
+
+  const actions = input.actions ?? [];
+  for (const item of actions.slice(0, SHOWN)) {
+    items.push({
+      kind: 'action',
+      text: `${item.action}${item.due ? `, due ${item.due}` : ''} (${item.callTitle})`,
+      href: `/conversations/${item.conversationId}#segment-${item.segmentId}`,
+    });
+  }
+  if (actions.length > SHOWN) {
+    items.push({ kind: 'action', text: `and ${actions.length - SHOWN} more open action items on your calls`, href: '/conversations' });
   }
 
   for (const insight of input.assignedToYou.slice(0, SHOWN)) {

@@ -52,8 +52,11 @@ export {
   T3_PREP_DETECTOR,
   type PrepBrief,
   type PrepInput,
+  type PointSource,
   type PrepOptions,
+  type PrepPoint,
   type PrepResult,
+  type PrepSource,
 } from './tiers/t3-prep';
 export {
   resolveSignals,

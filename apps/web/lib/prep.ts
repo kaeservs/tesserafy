@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { awaitableDatabaseSink, prepareBrief, T3_PREP_DETECTOR, type PrepBrief } from '@tesserafy/ai';
+import { awaitableDatabaseSink, prepareBrief, T3_PREP_DETECTOR, type PrepBrief, type PrepPoint } from '@tesserafy/ai';
+import { research, researchAvailable, type Research } from './apify';
 import { fetchCriteria, type SupabaseClient } from '@tesserafy/db';
 import { customerCoverage } from './account-story';
 import { accountBrief } from './accounts';
@@ -27,22 +28,59 @@ export interface PrepRow {
   readonly brief_at: string | null;
   readonly created_by: string | null;
   readonly created_at: string;
+  readonly research: unknown;
+  readonly research_at: string | null;
 }
 
 export const PREP_COLUMNS =
-  'id, company_id, account_id, person_name, person_title, linkedin_url, profile_text, engagement_type, call_at, brief, brief_model, brief_at, created_by, created_at';
+  'id, company_id, account_id, person_name, person_title, linkedin_url, profile_text, engagement_type, call_at, brief, brief_model, brief_at, created_by, created_at, research, research_at';
+
+/** Points from briefs written before sources: all from the pasted profile. */
+function readPoints(value: unknown): PrepPoint[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    const record = item as Partial<PrepPoint> | null;
+    if (!record || typeof record.point !== 'string' || typeof record.quote !== 'string') return [];
+    return [{ point: record.point, quote: record.quote, source: record.source ?? { id: 'profile' as const } }];
+  });
+}
+
+/** Stored research, read defensively. */
+export function readResearch(value: unknown): Research | null {
+  if (!value || typeof value !== 'object') return null;
+  const record = value as Partial<Research>;
+  return Array.isArray(record.sources)
+    ? { linkedinUrl: record.linkedinUrl ?? null, company: record.company ?? null, sources: record.sources }
+    : null;
+}
 
 /** A stored brief, read defensively: it is JSON from a column, not a type. */
 export function readBrief(value: unknown): PrepBrief | null {
   if (!value || typeof value !== 'object') return null;
   const brief = value as Partial<PrepBrief>;
   if (!Array.isArray(brief.about) || !Array.isArray(brief.questions)) return null;
-  return { about: brief.about, questions: brief.questions, openWith: typeof brief.openWith === 'string' ? brief.openWith : null };
+  return {
+    about: readPoints(brief.about),
+    company: readPoints(brief.company),
+    questions: brief.questions,
+    openWith: typeof brief.openWith === 'string' ? brief.openWith : null,
+  };
 }
 
-export type WriteOutcome = { status: 'written'; brief: PrepBrief } | { status: 'not_found' };
+export type WriteOutcome = { status: 'written'; brief: PrepBrief; researchErrors: readonly string[] } | { status: 'not_found' };
 
-export async function writePrepBrief(db: SupabaseClient, prepId: string, client: Anthropic = new Anthropic()): Promise<WriteOutcome> {
+/**
+ * `withResearch`: look them up on the web first (lib/apify), when the
+ * platform has an Apify token. Research is kept on the prep and reused while
+ * the LinkedIn URL and the company are unchanged: Apify charges per run, and
+ * a person does not change between two rewrites of one brief.
+ */
+export async function writePrepBrief(
+  db: SupabaseClient,
+  prepId: string,
+  client: Anthropic = new Anthropic(),
+  withResearch = false,
+): Promise<WriteOutcome> {
   const { data: prep } = await db.from('call_preps').select(PREP_COLUMNS).eq('id', prepId).maybeSingle<PrepRow>();
   if (!prep) return { status: 'not_found' };
 
@@ -53,6 +91,24 @@ export async function writePrepBrief(db: SupabaseClient, prepId: string, client:
   const coverage = story ? customerCoverage(story.calls).find((set) => set.engagementType === prep.engagement_type) : undefined;
   const established = coverage?.established.map(({ key, label }) => ({ key, label })) ?? [];
   const done = new Set(established.map((criterion) => criterion.key));
+  const purpose = await purposeOf(db, prep.company_id, prep.engagement_type);
+
+  let found = readResearch(prep.research);
+  let researchErrors: readonly string[] = [];
+  const company = story?.account.name ?? null;
+  if (withResearch && researchAvailable() && (prep.linkedin_url || company)) {
+    const stale = !found || found.linkedinUrl !== prep.linkedin_url || (company !== null && found.company !== company);
+    if (stale) {
+      const fresh = await research({ linkedinUrl: prep.linkedin_url, company, purpose });
+      researchErrors = fresh.errors;
+      found = { linkedinUrl: fresh.linkedinUrl, company: fresh.company, sources: fresh.sources };
+      const { error: kept } = await db.rpc('set_call_prep_research', {
+        p_prep_id: prep.id,
+        p_research: { linkedinUrl: found.linkedinUrl, company: found.company, sources: found.sources.map((source) => ({ ...source })) },
+      });
+      if (kept) throw new Error(`Storing the research failed: ${kept.message}`);
+    }
+  }
 
   const usage = awaitableDatabaseSink({ db, companyId: prep.company_id, detector: T3_PREP_DETECTOR });
   const result = await prepareBrief(
@@ -66,21 +122,24 @@ export async function writePrepBrief(db: SupabaseClient, prepId: string, client:
       // With no earlier calls, every criterion is still to find out.
       stillToFindOut: criteria.filter((row) => !done.has(row.key)).map((row) => ({ key: row.key, label: row.label })),
       earlier: (story?.signals ?? []).slice(0, 15).map((signal) => ({ kind: signal.kind, summary: signal.summary, quote: signal.quote })),
+      ...(found && withResearch ? { sources: found.sources } : {}),
     },
     {
       client,
       onUsage: usage.sink,
-      guidance: await loadGuidance(db, prep.company_id, 'prep', prep.engagement_type, await purposeOf(db, prep.company_id, prep.engagement_type)),
+      guidance: await loadGuidance(db, prep.company_id, 'prep', prep.engagement_type, purpose),
     },
   );
   await usage.settled();
 
-  const brief: PrepBrief = { about: result.about, questions: result.questions, openWith: result.openWith };
+  const brief: PrepBrief = { about: result.about, company: result.company, questions: result.questions, openWith: result.openWith };
+  const plain = (points: readonly PrepPoint[]) => points.map((item) => ({ point: item.point, quote: item.quote, source: { ...item.source } }));
   const { error } = await db.rpc('set_call_prep_brief', {
     p_prep_id: prep.id,
     // Plain arrays, as JSON: the brief's own are read-only.
     p_brief: {
-      about: brief.about.map((item) => ({ point: item.point, quote: item.quote })),
+      about: plain(brief.about),
+      company: plain(brief.company),
       questions: brief.questions.map((q) => ({ criterionKey: q.criterionKey, ask: q.ask, why: q.why })),
       openWith: brief.openWith,
       detector: result.detector,
@@ -89,7 +148,7 @@ export async function writePrepBrief(db: SupabaseClient, prepId: string, client:
     p_model: result.model,
   });
   if (error) throw new Error(`Storing the brief failed: ${error.message}`);
-  return { status: 'written', brief };
+  return { status: 'written', brief, researchErrors };
 }
 
 const HOUR = 3_600_000;

@@ -28,13 +28,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!spent.allowed) return planExhausted(spent);
 
   const { id } = await params;
+  const body = (await request.json().catch(() => ({}))) as { research?: unknown };
   try {
-    const outcome = await writePrepBrief(who.db, id);
+    const outcome = await writePrepBrief(who.db, id, undefined, body.research === true);
     if (outcome.status === 'not_found') {
       await refund(who.db, spent);
       return NextResponse.json({ error: 'That prep was not found.' }, { status: 404 });
     }
-    return NextResponse.json({ brief: outcome.brief });
+    // Research that failed is said, not hidden: the brief was written from what there was.
+    return NextResponse.json({ brief: outcome.brief, researchErrors: outcome.researchErrors });
   } catch (error) {
     await refund(who.db, spent);
     // A refusal to store is someone who may read the prep but not change it.

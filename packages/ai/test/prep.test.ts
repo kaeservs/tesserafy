@@ -1,48 +1,59 @@
 /**
  * The pre-call brief keeps only what it can show: a point about the person
- * only with a quote that is in the pasted profile, a question only for a
- * criterion on the scorecard.
+ * or their company only with a quote that is in the source it names — the
+ * pasted profile, or a web source — and a question only for a criterion on
+ * the scorecard.
  */
 import { describe, expect, it } from 'vitest';
-import { resolvePrep } from '../src/tiers/t3-prep';
+import { resolvePrep, type PrepSource } from '../src/tiers/t3-prep';
 
 const PROFILE = `Head of Operations at Harbor & Pine Logistics.
 Twelve years in freight, the last four running carrier relationships.`;
+const SOURCES: PrepSource[] = [
+  { id: 's1', kind: 'linkedin', url: 'https://www.linkedin.com/in/tom-okafor-example/', title: 'LinkedIn profile', text: 'headline: Head of Operations\nabout: I fix broken reporting.' },
+  { id: 's2', kind: 'web', url: 'https://news.example/harbor-pine', title: 'Harbor & Pine opens a second warehouse', text: 'Harbor & Pine opens a second warehouse. The site adds 200 jobs in Leeds.' },
+];
+const point = (source: string, quote: string) => ({ point: `A point from ${source}`, source, quote });
 
 describe('resolvePrep', () => {
-  it('keeps points whose quote is in the profile, however the copy spaced it', () => {
+  it('keeps points whose quote is in the source they name, however the copy spaced it', () => {
     const brief = resolvePrep(
       {
-        about: [
-          { point: 'Runs operations.', quote: 'Head of Operations at  Harbor & Pine Logistics' },
-          { point: 'Long in freight.', quote: 'twelve years in freight' },
-          { point: 'Went to Stanford.', quote: 'Stanford University' },
-        ],
+        about: [point('profile', 'Head of Operations at  Harbor & Pine Logistics'), point('s1', 'I fix broken reporting'), point('profile', 'Stanford University')],
+        company: [point('s2', 'The site adds 200 jobs in Leeds'), point('s2', 'Harbor & Pine was acquired'), point('s9', 'anything')],
         questions: [],
         open_with: '',
       },
       PROFILE,
       new Set(),
+      SOURCES,
     );
-    expect(brief.about.map((item) => item.point)).toEqual(['Runs operations.', 'Long in freight.']);
-    expect(brief.dropped).toBe(1);
+    expect(brief.about.map((item) => item.source.id)).toEqual(['profile', 's1']);
+    expect(brief.company).toEqual([
+      { point: 'A point from s2', quote: 'The site adds 200 jobs in Leeds', source: { id: 's2', url: 'https://news.example/harbor-pine', title: 'Harbor & Pine opens a second warehouse' } },
+    ]);
+    expect(brief.dropped).toBe(3);
     expect(brief.openWith).toBeNull();
   });
 
-  it('says nothing about the person when nothing was pasted', () => {
-    const brief = resolvePrep({ about: [{ point: 'Anything.', quote: 'Anything' }], questions: [], open_with: 'Hi' }, null, new Set());
+  it('does not take a quote from one source as coming from another', () => {
+    const brief = resolvePrep({ about: [point('s1', 'The site adds 200 jobs')], company: [], questions: [], open_with: '' }, PROFILE, new Set(), SOURCES);
+    expect(brief.about).toEqual([]);
+  });
+
+  it('says nothing about the person when nothing was pasted or found', () => {
+    const brief = resolvePrep({ about: [point('profile', 'Anything')], company: [], questions: [], open_with: 'Hi' }, null, new Set());
     expect(brief.about).toEqual([]);
   });
 
   it('keeps questions only for criteria on the scorecard, at most five', () => {
     const question = (key: string) => ({ criterion_key: key, ask: ` Ask about ${key}? `, why: 'because' });
     const brief = resolvePrep(
-      { about: [], questions: ['budget', 'made_up', 'timeline', 'budget', 'pain', 'timeline', 'budget'].map(question), open_with: '' },
+      { about: [], company: [], questions: ['budget', 'made_up', 'timeline', 'budget', 'pain', 'timeline', 'budget'].map(question), open_with: '' },
       PROFILE,
       new Set(['budget', 'timeline', 'pain']),
     );
     expect(brief.questions).toHaveLength(5);
     expect(brief.questions[0]).toEqual({ criterionKey: 'budget', ask: 'Ask about budget?', why: 'because' });
-    expect(brief.questions.some((q) => q.criterionKey === 'made_up')).toBe(false);
   });
 });

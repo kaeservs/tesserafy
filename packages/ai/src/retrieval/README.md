@@ -12,3 +12,12 @@ The cross-tenant test in packages/ai/test is release-blocking.
 This directory owns the vector table, reads and writes alike (ADR 0008).
 `storeSegmentEmbeddings()` takes the tenant as its first argument, the same
 way `retrieve()` does, so no caller can supply a per-row `company_id`.
+
+## Knowledge
+
+The same `retrieve()` searches a company's knowledge (the documents its
+sellers answer from) with `corpus: 'knowledge'`, through `match_knowledge`,
+and checks every passage's company as it does every segment's.
+`storeKnowledge()` writes a document's passages and vectors, tenant first.
+One function for both corpora on purpose: two would be two places to get the
+tenant wrong.

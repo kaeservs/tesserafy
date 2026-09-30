@@ -60,6 +60,11 @@ export const LIMITS: Record<string, readonly Window[]> = {
   ],
   // The overlay's buttons and ask box: pressed by a person a few times a
   // call, each a larger-model read of the call so far.
+  // Adding a document embeds every passage of it inside Supabase.
+  'api/knowledge': [
+    { seconds: 3_600, limit: 20 },
+    { seconds: 86_400, limit: 60 },
+  ],
   'api/assist': [
     { seconds: 60, limit: 12 },
     { seconds: 86_400, limit: 400 },

@@ -1245,6 +1245,26 @@ async function checkWorkingWithACall(baseUrl: string, token: string, conversatio
     `${setup.status}, ${code(badLook)}`,
   );
 
+  // Knowledge: a document goes in through the route, is read, split and
+  // embedded inside Supabase, and is deleted again; a member is refused.
+  const knowledgeForm = new FormData();
+  knowledgeForm.set('title', 'QA probe knowledge');
+  knowledgeForm.set('text', 'QA probe knowledge. The probe plan costs nothing and rolls out in one minute.');
+  const added = await fetch(new URL('/api/knowledge', baseUrl), {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}` },
+    body: knowledgeForm,
+  });
+  const addedBody = (await added.json().catch(() => ({}))) as { documentId?: string; passages?: number };
+  const removed = addedBody.documentId ? await rpc('delete_knowledge_document', { p_document_id: addedBody.documentId }) : null;
+  record(
+    membership?.role === 'owner' ? 'an owner adds a document to the knowledge, embedded, and deletes it' : 'a member cannot add to the knowledge',
+    membership?.role === 'owner'
+      ? added.status === 200 && (addedBody.passages ?? 0) >= 1 && (removed?.status ?? 500) < 300
+      : added.status === 403,
+    `${added.status}${removed ? `, ${removed.status}` : ''}`,
+  );
+
   const empty = await rpc('send_feedback', { p_body: '   ' });
   record('feedback with nothing in it is refused', code(empty) === '22023', code(empty));
 

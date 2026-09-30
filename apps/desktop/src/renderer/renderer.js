@@ -555,7 +555,9 @@ async function runAssist(mode, question) {
       if (point.quote) {
         const quote = document.createElement('span');
         quote.className = 'quote';
-        quote.textContent = `“${point.quote}”`;
+        // From the company's knowledge, the document says where; from the
+        // call, the quote is the customer's own words.
+        quote.textContent = point.document ? `“${point.quote}” — ${point.document}` : `“${point.quote}”`;
         li.append(quote);
       }
       return li;

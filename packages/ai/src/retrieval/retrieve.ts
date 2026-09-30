@@ -1,6 +1,11 @@
 /**
  * The guarded retrieve(). ADR 0004.
  *
+ * Two corpora, one function: a company's calls (segments, the default) and
+ * its knowledge (passages of the documents it uploaded). Both are searched
+ * with companyId first and every row checked against it — a second function
+ * would be a second place to get that wrong.
+ *
  * The AI pipeline holds a service-role key, which bypasses RLS. This function,
  * not RLS, is therefore what keeps one customer's words out of another
  * customer's prompts. It is the only code permitted to run a similarity or
@@ -15,6 +20,8 @@ export type RetrievalQuery =
   | { readonly embedding: readonly number[] };
 
 export interface RetrieveOptions {
+  /** Which corpus: the company's calls (default) or its knowledge. */
+  readonly corpus?: 'calls' | 'knowledge';
   /** A service-role client. */
   readonly db: SupabaseClient;
   /** Required when the query is text. */
@@ -37,6 +44,28 @@ export interface RetrievedSegment {
   readonly similarity: number;
 }
 
+/** A passage of a company's knowledge, with the document it is from. */
+export interface RetrievedPassage {
+  readonly chunkId: string;
+  readonly companyId: CompanyId;
+  readonly documentId: string;
+  readonly title: string;
+  readonly text: string;
+  readonly similarity: number;
+  /** Reciprocal-rank fusion of meaning and words; higher is more relevant. */
+  readonly score: number;
+}
+
+interface MatchKnowledgeRow {
+  chunk_id: string;
+  company_id: string;
+  document_id: string;
+  title: string;
+  text: string;
+  similarity: number;
+  score: number;
+}
+
 /** A row came back belonging to a tenant other than the one asked for. */
 export class TenantBoundaryViolation extends Error {
   override readonly name = 'TenantBoundaryViolation';
@@ -56,8 +85,18 @@ interface MatchSegmentsRow {
 export async function retrieve(
   companyId: CompanyId,
   query: RetrievalQuery,
+  opts: RetrieveOptions & { readonly corpus?: 'calls' },
+): Promise<RetrievedSegment[]>;
+export async function retrieve(
+  companyId: CompanyId,
+  query: RetrievalQuery,
+  opts: RetrieveOptions & { readonly corpus: 'knowledge' },
+): Promise<RetrievedPassage[]>;
+export async function retrieve(
+  companyId: CompanyId,
+  query: RetrievalQuery,
   opts: RetrieveOptions,
-): Promise<RetrievedSegment[]> {
+): Promise<RetrievedSegment[] | RetrievedPassage[]> {
   // The type already demands a CompanyId; this catches `as any` and plain JS.
   if (!isCompanyId(companyId)) {
     throw new TypeError(`retrieve() requires a valid companyId, got ${JSON.stringify(companyId)}`);
@@ -75,6 +114,34 @@ export async function retrieve(
   }
 
   const embedding = await resolveEmbedding(query, opts.embedder);
+
+  if (opts.corpus === 'knowledge') {
+    // Meaning and words together (match_knowledge): the words need the text,
+    // so a query given only as a vector is searched by meaning alone.
+    const { data, error } = await opts.db.rpc('match_knowledge', {
+      p_company_id: companyId,
+      p_query_embedding: vectorArg(embedding),
+      p_query_text: 'text' in query ? query.text : '',
+      p_match_count: Math.min(limit, 20),
+    });
+    if (error) throw new Error(`match_knowledge failed: ${error.message}`, { cause: error });
+    const rows = (data ?? []) as MatchKnowledgeRow[];
+    const foreign = rows.filter((row) => row.company_id !== companyId);
+    if (foreign.length > 0) {
+      throw new TenantBoundaryViolation(
+        `retrieve() for company ${companyId} received ${foreign.length} passage(s) from another company`,
+      );
+    }
+    return rows.map((row) => ({
+      chunkId: row.chunk_id,
+      companyId,
+      documentId: row.document_id,
+      title: row.title,
+      text: row.text,
+      similarity: row.similarity,
+      score: row.score,
+    }));
+  }
 
   const { data, error } = await opts.db.rpc('match_segments', {
     p_company_id: companyId,

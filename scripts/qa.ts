@@ -1103,8 +1103,12 @@ async function checkWorkingWithACall(baseUrl: string, token: string, conversatio
   const eventId = typeof disputed.body === 'string' ? disputed.body : null;
   record('a person can correct the score, quoting the words', disputed.status === 200 && eventId !== null, code(disputed));
   if (eventId) {
+    // The correction teaches the scoring AI (ai_guidance), and withdrawing it forgets.
+    const { count: learned } = await db.from('ai_guidance').select('id', { count: 'exact', head: true }).eq('source_event_id', eventId);
     const withdrawn = await rpc('withdraw_dispute', { p_event_id: eventId });
+    const { count: forgotten } = await db.from('ai_guidance').select('id', { count: 'exact', head: true }).eq('source_event_id', eventId);
     record('and withdraw the correction', withdrawn.status < 300, `${withdrawn.status}`);
+    record('the AI learns from the correction, and forgets it when withdrawn', learned === 1 && forgotten === 0, `${learned ?? 0} then ${forgotten ?? 0}`);
   }
 
   const saved = await rpc('save_moment', { p_segment_id: segment.id, p_criterion_key: 'pain_quantified', p_note: 'QA probe' });
@@ -1192,6 +1196,14 @@ async function checkWorkingWithACall(baseUrl: string, token: string, conversatio
       : code(assigned) === '42501',
     `${assigned.status}${completed ? `, ${completed.status}` : ''}${withdrawn ? `, ${withdrawn.status}` : ''}`,
   );
+
+  // An owner instructs an AI feature, and deletes the instruction again.
+  if (membership?.role === 'owner') {
+    const told = await rpc('add_ai_instruction', { p_feature: 'action_items', p_body: 'QA probe instruction' });
+    const toldId = typeof told.body === 'string' ? told.body : null;
+    const removed = toldId ? await rpc('set_ai_guidance', { p_guidance_id: toldId, p_delete: true }) : null;
+    record('an owner instructs an AI feature, and deletes the instruction', told.status === 200 && (removed?.status ?? 500) < 300, `${told.status}, ${removed?.status}`);
+  }
 
   const empty = await rpc('send_feedback', { p_body: '   ' });
   record('feedback with nothing in it is refused', code(empty) === '22023', code(empty));

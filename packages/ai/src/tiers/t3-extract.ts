@@ -12,6 +12,7 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import { logUsage, toUsageEvent, type UsageSink } from '../telemetry/usage';
 import { resolveSignals, type ResolutionResult } from './evidence';
+import { isEmpty, renderInstructions, type Guidance } from './guidance';
 
 /**
  * Sonnet 5 since 2026-09-27 (ADR 0014): on the extraction corpus it scored
@@ -42,6 +43,8 @@ export interface ExtractOptions {
    * it, which is how pinning it everywhere took three tiers down at once.
    */
   readonly temperature?: number;
+  /** The call type and owners' instructions for insights; absent, the prompt is unchanged. */
+  readonly guidance?: Guidance | null;
 }
 
 export interface ExtractionResult extends ResolutionResult {
@@ -103,7 +106,7 @@ export async function extractSignals(
     model,
     max_tokens: opts.maxTokens ?? 16_000,
     ...(opts.temperature === undefined ? {} : { temperature: opts.temperature }),
-    system: SYSTEM,
+    system: isEmpty(opts.guidance) ? SYSTEM : `${SYSTEM}\n\n${renderInstructions(opts.guidance)}`,
     messages: [{ role: 'user', content: renderTranscript(segments) }],
     output_config: { format: zodOutputFormat(ExtractionSchema) },
   });
@@ -127,7 +130,7 @@ export async function extractSignals(
   return {
     ...resolveSignals(response.parsed_output.signals, segments),
     model,
-    detector: T3_DETECTOR,
+    detector: isEmpty(opts.guidance) ? T3_DETECTOR : `${T3_DETECTOR}+guided`,
   };
 }
 

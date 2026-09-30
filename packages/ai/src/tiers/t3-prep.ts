@@ -18,6 +18,7 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import { logUsage, toUsageEvent, type UsageSink } from '../telemetry/usage';
 import { T3_MODEL } from './t3-extract';
+import { isEmpty, renderInstructions, type Guidance } from './guidance';
 
 /** Bumped whenever the prompt or schema changes; stored with every brief. */
 export const T3_PREP_DETECTOR = 't3-prep@2026-09-30';
@@ -39,6 +40,8 @@ export interface PrepOptions {
   readonly client: Anthropic;
   readonly model?: string;
   readonly onUsage?: UsageSink;
+  /** The call type and owners' instructions for call prep. */
+  readonly guidance?: Guidance | null;
 }
 
 const ClaimedPrepSchema = z.object({
@@ -140,7 +143,7 @@ export async function prepareBrief(input: PrepInput, opts: PrepOptions): Promise
   const response = await opts.client.messages.parse({
     model,
     max_tokens: 4_000,
-    system: SYSTEM,
+    system: isEmpty(opts.guidance) ? SYSTEM : `${SYSTEM}\n\n${renderInstructions(opts.guidance)}`,
     messages: [{ role: 'user', content: render(input) }],
     output_config: { format: zodOutputFormat(ClaimedPrepSchema) },
   });
@@ -153,5 +156,5 @@ export async function prepareBrief(input: PrepInput, opts: PrepOptions): Promise
   if (!response.parsed_output) throw new Error('T3 prep returned no parsable output');
 
   const resolved = resolvePrep(response.parsed_output, input.profileText, new Set(input.criteria.map((c) => c.key)));
-  return { ...resolved, model, detector: T3_PREP_DETECTOR };
+  return { ...resolved, model, detector: isEmpty(opts.guidance) ? T3_PREP_DETECTOR : `${T3_PREP_DETECTOR}+guided` };
 }

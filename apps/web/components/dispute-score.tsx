@@ -115,7 +115,7 @@ export function DisputeScore({
         <button type="button" className="link-button" onClick={() => setOpen(true)}>
           This score is wrong
         </button>
-        {state.status === 'saved' ? <span role="status" className="muted"> Recorded; the score above includes it.</span> : null}
+        {state.status === 'saved' ? <span role="status" className="muted"> Recorded; the score above includes it, and the AI learns from it for calls scored from now on.</span> : null}
       </p>
     );
   }

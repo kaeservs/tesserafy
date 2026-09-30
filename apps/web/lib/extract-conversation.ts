@@ -1,3 +1,4 @@
+import { loadGuidance, purposeOf } from './guidance';
 import Anthropic from '@anthropic-ai/sdk';
 import { awaitableDatabaseSink, extractSignals, T3_DETECTOR, type ExtractableSegment } from '@tesserafy/ai';
 import type { SupabaseClient } from '@tesserafy/db';
@@ -81,7 +82,10 @@ export async function extractConversation(
     conversationId,
     detector: T3_DETECTOR,
   });
-  const extraction = await extractSignals(segments, { client, onUsage: usage.sink });
+  const { data: pinned } = await db.from('conversations').select('engagement_type').eq('id', conversationId).single();
+  const type = pinned?.engagement_type ?? 'discovery';
+  const guidance = await loadGuidance(db, conversation.company_id, 'insights', type, await purposeOf(db, conversation.company_id, type));
+  const extraction = await extractSignals(segments, { client, guidance, onUsage: usage.sink });
   // Before anything returns: this row is what marks the pass as run.
   await usage.settled();
 

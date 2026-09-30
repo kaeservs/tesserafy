@@ -20,6 +20,7 @@ import type { DetectorEvent } from '@tesserafy/scoring';
 import { z } from 'zod';
 import { logUsage, toUsageEvent, type UsageEvent, type UsageSink } from '../telemetry/usage';
 import { locate, type QuotableSegment, type RejectedSignal } from './evidence';
+import { isEmpty, renderScoringGuidance, type Guidance } from './guidance';
 
 export const T1_MODEL = 'claude-haiku-4-5';
 
@@ -71,6 +72,13 @@ export interface DetectOptions {
    * drift into it by accident.
    */
   readonly temperature?: number;
+  /**
+   * What this company has taught the detector: examples from people's
+   * corrections, owners' instructions, the call type. Part of the frozen
+   * prefix — the same for every window of a call — and absent, the prompt is
+   * exactly what it always was.
+   */
+  readonly guidance?: Guidance | null;
 }
 
 export interface DetectionResult {
@@ -102,16 +110,18 @@ const DetectionSchema = z.object({ observations: z.array(ObservationSchema) });
 export function systemPrompt(
   criteria: readonly CriterionPrompt[],
   variant: 'full' | 'compact' = 'full',
+  guidance?: Guidance | null,
 ): string {
   const list = criteria
     .map((criterion) => `- ${criterion.key} (${criterion.label}): ${criterion.definition}`)
     .join('\n');
+  const taught = renderScoringGuidance(guidance, new Set(criteria.map((criterion) => criterion.key)));
 
   return `You watch a live sales conversation and report evidence for a fixed list of criteria. You never judge whether a criterion is met — you report what was said and how strongly it bears on each criterion. Something else decides.
 
 Criteria:
 
-${list}
+${taught ? `${list}\n\n${taught}` : list}
 
 Rules:
 
@@ -153,7 +163,7 @@ export async function detectCriteria(
     system: [
       {
         type: 'text',
-        text: systemPrompt(opts.criteria, opts.variant ?? 'full'),
+        text: systemPrompt(opts.criteria, opts.variant ?? 'full', opts.guidance),
         cache_control: { type: 'ephemeral' },
       },
     ],
@@ -214,7 +224,9 @@ export async function detectCriteria(
     });
   }
 
-  const detector = opts.variant === 'compact' ? `${T1_DETECTOR}-compact` : T1_DETECTOR;
+  // Guided results say so, so their accuracy can be measured apart from the base prompt's.
+  const base = opts.variant === 'compact' ? `${T1_DETECTOR}-compact` : T1_DETECTOR;
+  const detector = isEmpty(opts.guidance) ? base : `${base}+guided`;
   return { events, rejected, model, detector, usage };
 }
 

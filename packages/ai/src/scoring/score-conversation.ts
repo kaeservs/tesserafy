@@ -1,5 +1,6 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { detectCriteria, type CriterionPrompt, type DetectableSegment } from '../tiers/t1-detect';
+import type { Guidance } from '../tiers/guidance';
 import type { UsageSink } from '../telemetry/usage';
 
 /**
@@ -124,6 +125,8 @@ export interface DetectedEvent {
 export interface ScanOptions {
   readonly client: Anthropic;
   readonly criteria: readonly CriterionPrompt[];
+  /** What the company has taught the detector (tiers/guidance). */
+  readonly guidance?: Guidance | null;
   readonly onUsage?: UsageSink;
   /**
    * Detector calls in flight at once. Sequential is what the CLI always did
@@ -169,6 +172,7 @@ export async function scanWindows(
       const result = await (opts.detect ?? detectCriteria)(window, {
         client: opts.client,
         criteria: opts.criteria,
+        ...(opts.guidance ? { guidance: opts.guidance } : {}),
         maxTokens: opts.maxTokens ?? SCORE_MAX_TOKENS,
         ...(opts.onUsage ? { onUsage: opts.onUsage } : {}),
       });

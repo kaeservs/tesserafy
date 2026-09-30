@@ -262,6 +262,69 @@ export type Database = {
           },
         ]
       }
+      ai_guidance: {
+        Row: {
+          active: boolean
+          body: string
+          company_id: string
+          counts: boolean | null
+          created_at: string
+          created_by: string | null
+          criterion_key: string | null
+          engagement_type: string | null
+          feature: string
+          id: string
+          kind: string
+          quote: string | null
+          source_event_id: string | null
+        }
+        Insert: {
+          active?: boolean
+          body: string
+          company_id: string
+          counts?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          criterion_key?: string | null
+          engagement_type?: string | null
+          feature: string
+          id?: string
+          kind: string
+          quote?: string | null
+          source_event_id?: string | null
+        }
+        Update: {
+          active?: boolean
+          body?: string
+          company_id?: string
+          counts?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          criterion_key?: string | null
+          engagement_type?: string | null
+          feature?: string
+          id?: string
+          kind?: string
+          quote?: string | null
+          source_event_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_guidance_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_guidance_source_event_id_fkey"
+            columns: ["source_event_id"]
+            isOneToOne: true
+            referencedRelation: "criterion_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       app_settings: {
         Row: {
           id: boolean
@@ -447,6 +510,7 @@ export type Database = {
           closed_reason: string | null
           created_at: string
           created_by: string | null
+          default_engagement_type: string | null
           id: string
           name: string
           plan: string
@@ -459,6 +523,7 @@ export type Database = {
           closed_reason?: string | null
           created_at?: string
           created_by?: string | null
+          default_engagement_type?: string | null
           id?: string
           name: string
           plan?: string
@@ -471,6 +536,7 @@ export type Database = {
           closed_reason?: string | null
           created_at?: string
           created_by?: string | null
+          default_engagement_type?: string | null
           id?: string
           name?: string
           plan?: string
@@ -1639,6 +1705,38 @@ export type Database = {
         }
         Relationships: []
       }
+      scorecard_purposes: {
+        Row: {
+          company_id: string
+          engagement_type: string
+          purpose: string
+          set_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          engagement_type: string
+          purpose: string
+          set_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          engagement_type?: string
+          purpose?: string
+          set_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scorecard_purposes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       segment_embeddings: {
         Row: {
           company_id: string
@@ -2132,6 +2230,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_ai_instruction: {
+        Args: {
+          p_body: string
+          p_criterion_key?: string
+          p_engagement_type?: string
+          p_feature: string
+        }
+        Returns: string
+      }
       add_segment_note: {
         Args: { p_body: string; p_segment_id: string }
         Returns: string
@@ -2232,6 +2339,24 @@ export type Database = {
           plan: string
           price_usd_cents: number
           usd: number
+        }[]
+      }
+      admin_feature_adoption: {
+        Args: { p_days?: number }
+        Returns: {
+          calls: number
+          closed_at: string
+          coaching: number
+          company_id: string
+          corrections: number
+          examples: number
+          feedback: number
+          goals: number
+          name: string
+          plan: string
+          preps: number
+          sample_call: boolean
+          speakers_marked: number
         }[]
       }
       admin_operator_mfa: { Args: never; Returns: Json }
@@ -2782,8 +2907,20 @@ export type Database = {
         Args: { p_body: string; p_page?: string }
         Returns: string
       }
+      set_ai_guidance: {
+        Args: { p_active?: boolean; p_delete?: boolean; p_guidance_id: string }
+        Returns: undefined
+      }
       set_call_prep_brief: {
         Args: { p_brief: Json; p_model: string; p_prep_id: string }
+        Returns: undefined
+      }
+      set_call_type: {
+        Args: {
+          p_engagement_type: string
+          p_make_default?: boolean
+          p_purpose?: string
+        }
         Returns: undefined
       }
       set_criterion_goal: {

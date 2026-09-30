@@ -9,7 +9,10 @@ import { coverageBySet as coverageForSets } from '@/lib/coverage';
 import { goalStandings, homeAgenda, type AgendaItem } from '@/lib/home';
 import { speakerKey, talkBySeller } from '@/lib/talk';
 import { themesOverTime } from '@/lib/themes';
-import { readAll } from '@tesserafy/db';
+import { fetchCriteriaSets, readAll } from '@tesserafy/db';
+import { CallTypeForm } from '@/components/guidance-forms';
+import { defaultPurpose } from '@/lib/guidance';
+import { myCompanyId } from '@/lib/company';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -143,6 +146,19 @@ export default async function DashboardPage() {
     .order('call_at')
     .limit(10);
   const accountName = new Map(accounts.map((account) => [account.id, account.name]));
+  // Owners set what kind of call each scorecard is for, right here.
+  const companyId = isOwner ? await myCompanyId(supabase, user?.id) : null;
+  const [callSets, { data: purposeRows }, { data: companyRow }] = companyId
+    ? await Promise.all([
+        fetchCriteriaSets(supabase, companyId),
+        supabase.from('scorecard_purposes').select('engagement_type, purpose').eq('company_id', companyId),
+        supabase.from('companies').select('default_engagement_type').eq('id', companyId).maybeSingle(),
+      ])
+    : [[], { data: [] }, { data: null }];
+  const callTypes = [...new Set(callSets.map((set) => set.engagementType))];
+  const purposeByType = new Map((purposeRows ?? []).map((row) => [row.engagement_type, row.purpose]));
+  const defaultType = companyRow?.default_engagement_type ?? 'discovery';
+
   // Coaching waiting on you.
   const { data: coachingRows } = await supabase
     .from('coaching_assignments')
@@ -260,6 +276,27 @@ export default async function DashboardPage() {
               ))}
             </ul>
           )}
+        </section>
+      ) : null}
+
+      {isOwner && callTypes.length > 0 ? (
+        <section aria-labelledby="call-types-heading" className="card" style={{ marginTop: '1.5rem' }}>
+          <h2 id="call-types-heading" style={{ marginTop: 0 }}>
+            Call types
+          </h2>
+          <p className="muted" style={{ marginTop: 0 }}>
+            What each scorecard is for. Scoring, insights, action items and call prep all lean that way: a sales call is read for
+            buying signals, and its prep looks at their company. <Link href="/guidance">What the AI has learned</Link>
+          </p>
+          {callTypes.map((type) => (
+            <CallTypeForm
+              key={type}
+              engagementType={type}
+              label={engagementLabel(type)}
+              purpose={purposeByType.get(type) ?? defaultPurpose(type)}
+              isDefault={type === defaultType}
+            />
+          ))}
         </section>
       ) : null}
 

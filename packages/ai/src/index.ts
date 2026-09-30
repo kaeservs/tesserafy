@@ -143,3 +143,14 @@ export {
   type Suggestion,
   type SuggestOptions,
 } from './tiers/t2-suggest';
+export {
+  isEmpty as guidanceIsEmpty,
+  MAX_EXAMPLES,
+  MAX_INSTRUCTIONS,
+  PURPOSE_LABEL,
+  renderInstructions,
+  renderScoringGuidance,
+  type CallPurpose,
+  type Guidance,
+  type GuidanceExample,
+} from './tiers/guidance';

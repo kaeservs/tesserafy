@@ -1370,3 +1370,30 @@ input[type='search'] {
   height: 1.05rem;
 }
 
+/* --------------------------------------------------------------------------
+   Call types and AI guidance
+   -------------------------------------------------------------------------- */
+
+.call-type-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+  padding: 0.4rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.call-type-name {
+  min-width: 8rem;
+  font-weight: 600;
+}
+
+.call-type-default {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.guidance-controls {
+  font-size: 0.8rem;
+}
+

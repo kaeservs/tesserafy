@@ -9,6 +9,7 @@ import {
 } from '@tesserafy/ai';
 import { NextResponse, type NextRequest } from 'next/server';
 import { caller } from '@/lib/supabase/caller';
+import { liveGuidance } from '@/lib/live-guidance';
 import { liveSeconds, planExhausted, refund, spend } from '@/lib/plan';
 import { allowance, tooMany } from '@/lib/rate-limit';
 
@@ -84,9 +85,11 @@ export async function POST(request: NextRequest) {
   if (!spent.allowed) return planExhausted(spent);
 
   try {
+    const guidance = await liveGuidance(who.db, who.userId);
     const result = await detectCriteria(window, {
       client: new Anthropic(),
       criteria,
+      guidance,
       ...(variant ? { variant } : {}),
       // Recorded as the caller, so a T1 call lands in the same table as the
       // batch ones. No company: a detection knows a window, not a tenant.

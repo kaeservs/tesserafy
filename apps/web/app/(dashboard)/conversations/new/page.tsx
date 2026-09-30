@@ -23,10 +23,15 @@ export default async function NewConversationPage() {
   const supabase = await createClient();
   // The newest version of each set, the company's own first: a new call is
   // scored against what the company uses now.
-  const all = await fetchCriteriaSets(supabase, await myCompanyId(supabase));
+  const companyId = await myCompanyId(supabase);
+  const all = await fetchCriteriaSets(supabase, companyId);
+  // By id: an operator is a member too, and reads more than one company's row.
+  const { data: company } = await supabase.from('companies').select('default_engagement_type').eq('id', companyId ?? '').maybeSingle();
+  const defaultType = company?.default_engagement_type ?? null;
+  // The newest version of each; the company's default first, then its own, then templates.
   const sets = all
     .filter((set) => !all.some((other) => other.engagementType === set.engagementType && other.version > set.version))
-    .sort((a, b) => Number(b.own) - Number(a.own));
+    .sort((a, b) => Number(b.engagementType === defaultType) - Number(a.engagementType === defaultType) || Number(b.own) - Number(a.own));
   const { data: accounts } = await supabase.from('accounts').select('name').order('name').limit(500);
   const offerSample = await sampleCallOffered(supabase);
 

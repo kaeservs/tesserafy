@@ -98,6 +98,16 @@ test('Coaching opens for a member, with what is assigned to them', async ({ page
   await expect(page.getByRole('heading', { name: 'Assigned across the team' })).toHaveCount(0);
 });
 
+test('AI guidance shows a member what the AI was taught, without letting them change it', async ({ page }) => {
+  await signIn(page);
+  await page.getByRole('link', { name: 'AI guidance' }).click();
+  await page.waitForURL((url) => url.pathname === '/guidance');
+  await expect(page.getByRole('heading', { name: 'Call types' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Learned from corrections/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save instruction' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Switch off' })).toHaveCount(0);
+});
+
 test('Examples and Themes over time open for a member', async ({ page }) => {
   await signIn(page);
   await page.getByRole('link', { name: 'Examples' }).click();

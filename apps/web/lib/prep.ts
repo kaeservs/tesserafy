@@ -3,6 +3,7 @@ import { awaitableDatabaseSink, prepareBrief, T3_PREP_DETECTOR, type PrepBrief }
 import { fetchCriteria, type SupabaseClient } from '@tesserafy/db';
 import { customerCoverage } from './account-story';
 import { accountBrief } from './accounts';
+import { loadGuidance, purposeOf } from './guidance';
 
 /**
  * Writing a call prep's brief, as the person who asked: their RLS client reads
@@ -66,7 +67,11 @@ export async function writePrepBrief(db: SupabaseClient, prepId: string, client:
       stillToFindOut: criteria.filter((row) => !done.has(row.key)).map((row) => ({ key: row.key, label: row.label })),
       earlier: (story?.signals ?? []).slice(0, 15).map((signal) => ({ kind: signal.kind, summary: signal.summary, quote: signal.quote })),
     },
-    { client, onUsage: usage.sink },
+    {
+      client,
+      onUsage: usage.sink,
+      guidance: await loadGuidance(db, prep.company_id, 'prep', prep.engagement_type, await purposeOf(db, prep.company_id, prep.engagement_type)),
+    },
   );
   await usage.settled();
 

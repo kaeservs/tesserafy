@@ -99,6 +99,19 @@ only. Four repeats of the criterion eval scored 81/81/81/79, with the movement
 landing entirely on the one criterion nearest a judgement call. Quote a range,
 not a figure, and treat two or three points between single runs as nothing.
 
+A company teaches the AI through `ai_guidance`: every "This score is wrong"
+with a reason becomes an example (a trigger writes it; withdrawing the
+correction or erasing the call deletes it), and owners write instructions per
+feature and call type. `packages/ai/src/tiers/guidance.ts` renders it into the
+T1 prefix (it is stable per call, so the cache still holds) and into T3
+prompts; with none, every prompt is byte for byte the base one and results
+carry no `+guided` suffix, so the eval harness still measures the base prompt.
+The reason is the rule and the quote illustrates it — worded that way a single
+correction moved the detector 3/3 on differently phrased sentences in both
+directions, where a bare quote did not (`scripts/guidance-probe.ts`). Guidance
+cannot make the detector count words it does not read as being about the
+criterion at all, and it never touches the score's arithmetic.
+
 Log `response.usage` on every API call. Cost telemetry added later cannot be
 backfilled.
 

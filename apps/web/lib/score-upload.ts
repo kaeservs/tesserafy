@@ -6,6 +6,7 @@ import {
   windowsOf,
 } from '@tesserafy/ai';
 import { fetchCriteria, type SupabaseClient } from '@tesserafy/db';
+import { loadGuidance, purposeOf } from './guidance';
 
 /**
  * Scoring a transcript the moment it arrives, as the person who uploaded it.
@@ -84,9 +85,19 @@ export async function scoreUploadedConversation(
     companyId: conversation.company_id,
     conversationId,
   });
+  // What the company has taught the detector: examples from corrections,
+  // owners' instructions, and what kind of call this scorecard is for.
+  const guidance = await loadGuidance(
+    db,
+    conversation.company_id,
+    'scoring',
+    conversation.engagement_type,
+    await purposeOf(db, conversation.company_id, conversation.engagement_type),
+  );
   const scan = await scanWindows(windows, {
     client,
     criteria,
+    guidance,
     concurrency: CONCURRENCY,
     onUsage: usage.sink,
   });

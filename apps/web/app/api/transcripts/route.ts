@@ -14,6 +14,7 @@ import { embedUploadedConversation } from '@/lib/embed-upload';
 import { scoreUploadedConversation } from '@/lib/score-upload';
 import { linkAccount } from '@/lib/account-link';
 import { caller } from '@/lib/supabase/caller';
+import { companyDefaultScorecard } from '@/lib/company';
 
 /**
  * Importing a transcript, from a browser.
@@ -121,9 +122,11 @@ export async function POST(request: NextRequest) {
   // The picker sends "name/version" as one value, so the version is the one
   // it showed. Separate fields are still accepted from other clients.
   const [pickedType, pickedVersion] = ((form.get('criteriaSet') as string | null) ?? '').split('/');
-  const engagementType =
-    pickedType?.trim() || (form.get('engagementType') as string | null)?.trim() || 'discovery';
-  const criteriaVersion = Number(pickedVersion || (form.get('criteriaVersion') ?? 1));
+  const asked = pickedType?.trim() || (form.get('engagementType') as string | null)?.trim() || null;
+  // Nothing picked: the scorecard the company made its default, at its newest version.
+  const fallback = asked ? null : await companyDefaultScorecard(who.db, who.userId);
+  const engagementType = asked ?? fallback?.engagementType ?? 'discovery';
+  const criteriaVersion = Number(pickedVersion || (form.get('criteriaVersion') ?? fallback?.version ?? 1));
 
   // Before anything is written. An identifier that reaches the database has
   // reached the embeddings, the prompts, the ticket bodies and the backups

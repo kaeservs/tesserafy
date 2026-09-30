@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@tesserafy/db';
+import { fetchCriteriaSets, type SupabaseClient } from '@tesserafy/db';
 
 /**
  * The signed-in person's company, as far as pages need it.
@@ -55,3 +55,22 @@ export async function sampleCallOffered(db: SupabaseClient): Promise<boolean> {
   const { data } = await db.from('companies').select('sample_imported_at').eq('id', companyId).maybeSingle();
   return data !== null && data.sample_imported_at === null;
 }
+
+/**
+ * The scorecard a new import uses when nobody picks one: the company's
+ * default, at its newest version. Null with no default set.
+ */
+export async function companyDefaultScorecard(
+  db: SupabaseClient,
+  userId: string,
+): Promise<{ engagementType: string; version: number } | null> {
+  const companyId = await myCompanyId(db, userId);
+  if (!companyId) return null;
+  const { data } = await db.from('companies').select('default_engagement_type').eq('id', companyId).maybeSingle();
+  const engagementType = data?.default_engagement_type;
+  if (!engagementType) return null;
+  const sets = await fetchCriteriaSets(db, companyId);
+  const newest = sets.filter((set) => set.engagementType === engagementType).sort((a, b) => b.version - a.version)[0];
+  return newest ? { engagementType, version: newest.version } : null;
+}
+

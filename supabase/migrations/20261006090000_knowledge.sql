@@ -251,12 +251,12 @@ begin
   ),
   merged as (
     select coalesce(m.id, w.id) as id,
-           coalesce(1.0 / (60 + m.r), 0) + coalesce(1.0 / (60 + w.r), 0) as score,
+           (coalesce(1.0 / (60 + m.r), 0) + coalesce(1.0 / (60 + w.r), 0))::double precision as score,
            m.similarity
       from by_meaning m full outer join by_words w on w.id = m.id
   )
   select c.id, c.company_id, c.document_id, d.title, c.text,
-         coalesce(merged.similarity, 1 - (c.embedding operator(extensions.<=>) p_query_embedding)),
+         coalesce(merged.similarity, 1 - (c.embedding operator(extensions.<=>) p_query_embedding))::double precision,
          merged.score
     from merged
     join public.knowledge_chunks c on c.id = merged.id

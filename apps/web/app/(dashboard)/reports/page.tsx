@@ -8,6 +8,7 @@ import { engagementLabel } from '@/lib/company';
 import { ScoreTrend } from '@/components/score-trend';
 import { buildReport, type Seller } from '@/lib/report';
 import { speakerKey, talkBySeller } from '@/lib/talk';
+import { teamHeatmap } from '@/lib/heatmap';
 import { GoalForm } from '@/components/goal-form';
 import { createClient } from '@/lib/supabase/server';
 
@@ -75,6 +76,11 @@ export default async function ReportsPage({
   // Company-wide unless filtered, so every member sees it: it ranks criteria, not people.
   const byOutcome = criteriaByOutcome(selected);
   const trends = criteriaTrend(selected, now, filters.weeks);
+  // The heatmap is one scorecard's criteria: the one filtered to, else the one most used.
+  const typeCounts = new Map<string, number>();
+  for (const call of selected) typeCounts.set(call.engagementType, (typeCounts.get(call.engagementType) ?? 0) + 1);
+  const heatType = filters.type ?? [...typeCounts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  const heat = isOwner && heatType ? teamHeatmap(selected, heatType) : null;
   // Who talked, per seller: only once someone has marked whose people are whose.
   const since = new Date(now.getTime() - filters.weeks * 7 * 86_400_000).toISOString();
   const { data: talkRows } = ours.size > 0 ? await supabase.rpc('conversation_talk', { p_since: since }) : { data: [] };
@@ -263,6 +269,51 @@ export default async function ReportsPage({
           </p>
         ) : null}
       </section>
+
+      {heat && heat.rows.length > 0 && heat.criteria.length > 0 ? (
+        <section aria-labelledby="heatmap-heading" className="card">
+          <h2 id="heatmap-heading" style={{ marginTop: 0 }}>
+            Team heatmap{types.length > 1 ? <span className="muted"> · {engagementLabel(heatType!)}</span> : null}
+          </h2>
+          <TableScroll label="Team heatmap">
+            <table className="team heatmap">
+              <thead>
+                <tr>
+                  <th scope="col">Seller</th>
+                  {heat.criteria.map((criterion) => (
+                    <th key={criterion.key} scope="col">
+                      {criterion.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {heat.rows.map((row) => (
+                  <tr key={row.seller}>
+                    <th scope="row">
+                      <Link href={`/reports/sellers/${row.seller}`}>{email.get(row.seller) ?? 'a former member'}</Link>{' '}
+                      <span className="muted">({row.calls})</span>
+                    </th>
+                    {row.cells.map((cell, index) => (
+                      <td
+                        key={heat.criteria[index]!.key}
+                        className="heat"
+                        style={cell.rate === null ? undefined : { ['--heat' as string]: `${Math.round(cell.rate * 100)}%` }}
+                      >
+                        {cell.rate === null ? <span className="muted">—</span> : `${Math.round(cell.rate * 100)}%`}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableScroll>
+          <p className="muted" style={{ marginBottom: 0, fontSize: '0.82rem' }}>
+            The share of each seller&apos;s scored calls that established each criterion, in this period. A dash is fewer than
+            two calls: too few to call a habit. Pair someone who rarely establishes a criterion with someone who usually does.
+          </p>
+        </section>
+      ) : null}
 
       <section aria-labelledby="criteria-trend-heading" className="card">
         <h2 id="criteria-trend-heading" style={{ marginTop: 0 }}>

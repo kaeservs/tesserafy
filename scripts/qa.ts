@@ -1205,6 +1205,35 @@ async function checkWorkingWithACall(baseUrl: string, token: string, conversatio
     record('an owner instructs an AI feature, and deletes the instruction', told.status === 200 && (removed?.status ?? 500) < 300, `${told.status}, ${removed?.status}`);
   }
 
+  // "Not right" on an action item: it goes, and the reason teaches that
+  // feature. The example is tied to the probe's call, so its erasure takes it.
+  const listed = await rpc('record_action_items', {
+    p_conversation_id: conversationId,
+    p_detector: 'qa-probe',
+    p_model: 'none',
+    p_items: [{ segment_id: segment.id, quote: '90 minutes', action: 'QA probe item', owner_side: 'ours' }],
+  });
+  const { data: item } = await db.from('action_items').select('id').eq('conversation_id', conversationId).eq('detector', 'qa-probe').maybeSingle();
+  const rejected = item ? await rpc('reject_action_item', { p_item_id: item.id, p_reason: 'QA probe: not a commitment.' }) : null;
+  const exampleId = typeof rejected?.body === 'string' ? rejected.body : null;
+  const { count: stillThere } = await db
+    .from('action_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('conversation_id', conversationId)
+    .eq('detector', 'qa-probe');
+  const { data: example } = exampleId
+    ? await db.from('ai_guidance').select('feature, result, conversation_id').eq('id', exampleId).maybeSingle()
+    : { data: null };
+  record(
+    '"Not right" removes an action item and teaches action items why',
+    listed.status === 200 &&
+      (stillThere ?? 1) === 0 &&
+      example?.feature === 'action_items' &&
+      example.result === 'QA probe item' &&
+      example.conversation_id === conversationId,
+    `${listed.status}, ${rejected?.status ?? 'no item'}, ${stillThere ?? '?'} left`,
+  );
+
   const empty = await rpc('send_feedback', { p_body: '   ' });
   record('feedback with nothing in it is refused', code(empty) === '22023', code(empty));
 

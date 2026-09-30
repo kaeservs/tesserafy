@@ -57,3 +57,34 @@ describe('instructions for other features', () => {
     expect(text).toContain('- Name who owns each fix.');
   });
 });
+
+describe('results marked not right', () => {
+  const rejected: Guidance = {
+    instructions: [],
+    examples: [],
+    rejected: [
+      { result: 'Have a good weekend', quote: 'have a good weekend', reason: 'A pleasantry, not a commitment.' },
+      { result: 'What is the budget?', quote: null, reason: 'Too blunt to open with.' },
+    ],
+  };
+
+  it('counts as guidance, so a guided result says so', async () => {
+    const { guidanceIsEmpty } = await import('../src/index');
+    expect(guidanceIsEmpty(rejected)).toBe(false);
+    expect(guidanceIsEmpty({ instructions: [], examples: [], rejected: [] })).toBe(true);
+  });
+
+  it('leads with the reason as the rule, then what was written and the words it came from', () => {
+    const text = renderInstructions(rejected);
+    expect(text).toContain('- A pleasantry, not a commitment. (You had written: "Have a good weekend", from the words "have a good weekend".)');
+    expect(text).toContain('- Too blunt to open with. (You had written: "What is the budget?".)');
+  });
+
+  it('keeps only the newest, so a long history cannot crowd out the call', () => {
+    const many = Array.from({ length: 30 }, (_, i) => ({ result: `r${i}`, quote: null, reason: `reason ${i}` }));
+    const text = renderInstructions({ instructions: [], examples: [], rejected: many });
+    expect(text).not.toContain('reason 9.');
+    expect(text).toContain('reason 10');
+    expect(text).toContain('reason 29');
+  });
+});

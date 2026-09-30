@@ -27,6 +27,9 @@ interface GuidanceRow {
   quote: string | null;
   counts: boolean | null;
   source_event_id: string | null;
+  result: string | null;
+  conversation_id: string | null;
+  prep_id: string | null;
   active: boolean;
   created_by: string | null;
   created_at: string;
@@ -48,7 +51,7 @@ export default async function GuidancePage() {
     supabase.from('company_members').select('role').eq('user_id', user?.id ?? '').limit(1).maybeSingle(),
     supabase
       .from('ai_guidance')
-      .select('id, feature, engagement_type, criterion_key, kind, body, quote, counts, source_event_id, active, created_by, created_at')
+      .select('id, feature, engagement_type, criterion_key, kind, body, quote, counts, source_event_id, result, conversation_id, prep_id, active, created_by, created_at')
       .eq('company_id', companyId ?? '')
       .order('created_at', { ascending: false })
       .limit(500)
@@ -66,7 +69,8 @@ export default async function GuidancePage() {
   const labelOf = new Map(labels.map((label) => [`${label.engagementType}/${label.key}`, label.label]));
   const nameOf = new Map((team ?? []).map((person) => [person.user_id, person.is_you ? 'you' : person.email]));
   const all = rows ?? [];
-  const examples = all.filter((row) => row.kind === 'example');
+  const examples = all.filter((row) => row.kind === 'example' && row.result === null);
+  const rejected = all.filter((row) => row.kind === 'example' && row.result !== null);
   const instructions = all.filter((row) => row.kind === 'instruction');
 
   const controls = (row: GuidanceRow) =>
@@ -99,7 +103,7 @@ export default async function GuidancePage() {
       <h1>AI guidance</h1>
       <p className="muted">
         What the AI is told about your company. It learns from every <em>This score is wrong</em>: the words, whether they count,
-        and why. Owners can add instructions for each feature. It all applies to calls scored and read from then on; calls
+        and why; and from every <em>Not right</em> on an action item, a signal or a call prep, with why. Owners can add instructions for each feature. It all applies to calls scored and read from then on; calls
         already scored keep their evidence. Nothing here changes how a score is worked out, only what evidence the AI looks for.
       </p>
 
@@ -146,6 +150,44 @@ export default async function GuidancePage() {
                 <div>“{row.quote}”</div>
                 <p className="muted" style={{ margin: '0.25rem 0' }}>
                   {row.body} — {row.created_by ? (nameOf.get(row.created_by) ?? 'a former member') : 'a former member'},{' '}
+                  {new Date(row.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })}
+                </p>
+                {controls(row)}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section aria-labelledby="rejected-heading">
+        <h2 id="rejected-heading">Marked not right ({rejected.filter((row) => row.active).length} in use)</h2>
+        {rejected.length === 0 ? (
+          <p className="muted">
+            Nothing yet. <em>Not right</em> on an action item, a signal found in a call, or a point in a call prep removes it and
+            teaches that feature why.
+          </p>
+        ) : (
+          <ul className="signals">
+            {rejected.map((row) => (
+              <li key={row.id} className={`signal${row.active ? '' : ' muted'}`}>
+                <div className="signal-kind muted">
+                  {FEATURE_LABEL[row.feature]} · {scope(row)}
+                  {row.active ? '' : ' · switched off'}
+                </div>
+                <div>
+                  “{row.result}”{' '}
+                  {row.conversation_id ? (
+                    <Link href={`/conversations/${row.conversation_id}`} className="muted">
+                      the call
+                    </Link>
+                  ) : row.prep_id ? (
+                    <Link href={`/prep/${row.prep_id}`} className="muted">
+                      the prep
+                    </Link>
+                  ) : null}
+                </div>
+                <p className="muted" style={{ margin: '0.25rem 0' }}>
+                  Not right: {row.body} — {row.created_by ? (nameOf.get(row.created_by) ?? 'a former member') : 'a former member'},{' '}
                   {new Date(row.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })}
                 </p>
                 {controls(row)}

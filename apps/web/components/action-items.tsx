@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toggleActionItem } from '@/app/(dashboard)/conversations/[id]/action-actions';
+import { rejectActionItem } from '@/app/(dashboard)/conversations/[id]/feedback-actions';
+import { NotRight } from './not-right';
 
 const SIDE: Record<string, string> = { ours: 'Ours', theirs: 'Theirs', both: 'Both', unclear: 'Not said' };
 
@@ -23,7 +25,16 @@ export interface ShownActionItem {
  * due as said, and a box to tick it done. Finding them is one read of the
  * call, charged like Find insights; finding them again keeps what was done.
  */
-export function ActionItems({ conversationId, items }: { conversationId: string; items: readonly ShownActionItem[] }) {
+export function ActionItems({
+  conversationId,
+  items,
+  mayEdit = false,
+}: {
+  conversationId: string;
+  items: readonly ShownActionItem[];
+  /** Whoever added the call, or an owner: they may say an item is not right. */
+  mayEdit?: boolean;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -60,7 +71,15 @@ export function ActionItems({ conversationId, items }: { conversationId: string;
                   {item.due ? ` · due ${item.due}` : ''} ·{' '}
                   <a href={`#segment-${item.segmentId}`}>
                     “{item.quote}” <span className="muted">at {item.at}</span>
-                  </a>
+                  </a>{' '}
+                  {mayEdit ? (
+                    <NotRight
+                    action={rejectActionItem}
+                    fields={{ itemId: item.id }}
+                    about={`the action item “${item.action}”`}
+                    placeholder="A pleasantry, not a commitment."
+                  />
+                  ) : null}
                 </div>
               </div>
             </li>

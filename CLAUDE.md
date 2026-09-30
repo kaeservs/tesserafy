@@ -110,7 +110,15 @@ The reason is the rule and the quote illustrates it — worded that way a single
 correction moved the detector 3/3 on differently phrased sentences in both
 directions, where a bare quote did not (`scripts/guidance-probe.ts`). Guidance
 cannot make the detector count words it does not read as being about the
-criterion at all, and it never touches the score's arithmetic.
+criterion at all, and it never touches the score's arithmetic. The other
+features learn the same way from "Not right" on an action item, a signal or a
+prep point: the result is removed and the reason becomes an example for that
+feature, tied to the call or prep it quotes so erasing that erases the lesson.
+One "Not right" took a customer's to-do out of the action items 4/4 on a
+differently worded call and kept the seller's commitment 4/4
+(`scripts/feedback-probe.ts`). A probe only means something where the model's
+own reading differs from the team's; measured where it already agreed, the
+same lesson shows nothing.
 
 Log `response.usage` on every API call. Cost telemetry added later cannot be
 backfilled.

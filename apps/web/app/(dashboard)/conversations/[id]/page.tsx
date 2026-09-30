@@ -19,7 +19,9 @@ import { AssignCoaching } from '@/components/coaching-forms';
 import { OurSpeaker } from '@/components/our-speaker';
 import { SaveExample } from '@/components/save-example';
 import { DeleteCall } from '@/components/delete-call';
+import { NotRight } from '@/components/not-right';
 import { RefreshWhile } from '@/components/refresh-while';
+import { rejectSignal } from './feedback-actions';
 import { capturedState, type CapturedState } from '@/lib/scoring-status';
 import { batches, fetchCriteriaSets, readAll } from '@tesserafy/db';
 import { createClient } from '@/lib/supabase/server';
@@ -648,6 +650,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
         <h2 id="actions-heading">Action items</h2>
         <ActionItems
           conversationId={id}
+          mayEdit={mayEdit}
           items={(actionRows ?? []).map((row) => ({
             id: row.id,
             action: row.action,
@@ -689,6 +692,14 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
                     </li>
                   ))}
                 </ul>
+                {mayEdit ? (
+                  <NotRight
+                    action={rejectSignal}
+                    fields={{ signalId: signal.id }}
+                    about={`the signal “${signal.summary}”`}
+                    placeholder="Small talk, not a request."
+                  />
+                ) : null}
               </li>
             ))}
           </ul>

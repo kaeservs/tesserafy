@@ -2234,6 +2234,24 @@ export type Database = {
           usd: number
         }[]
       }
+      admin_feature_adoption: {
+        Args: { p_days?: number }
+        Returns: {
+          calls: number
+          closed_at: string
+          coaching: number
+          company_id: string
+          corrections: number
+          examples: number
+          feedback: number
+          goals: number
+          name: string
+          plan: string
+          preps: number
+          sample_call: boolean
+          speakers_marked: number
+        }[]
+      }
       admin_operator_mfa: { Args: never; Returns: Json }
       admin_overview: { Args: never; Returns: Json }
       admin_set_feedback_status: {

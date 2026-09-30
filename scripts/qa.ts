@@ -1285,6 +1285,7 @@ async function checkConsoleReads(token: string): Promise<void> {
     ['admin_activity', { p_limit: 20 }],
     ['admin_company_margin', { p_days: 30 }],
     ['admin_company_health', {}],
+    ['admin_feature_adoption', { p_days: 90 }],
   ] as const) {
     const answer = await rpc(name, body);
     if (required) {

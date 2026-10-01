@@ -78,19 +78,22 @@ export async function POST(request: NextRequest) {
   const screen = readScreen(body.screen);
   if (screen === 'invalid') return NextResponse.json({ error: 'the screenshot must be a JPEG or PNG under 1.5 MB' }, { status: 400 });
 
-  if (!(await liveAllowedFor(who.db, who.userId))) {
-    return NextResponse.json({ error: 'Live is not on your plan.' }, { status: 403 });
-  }
-  const limit = await allowance(who.db, 'api/assist');
+  // The gates, side by side rather than one after another: each is a round
+  // trip to the database, and the seller is waiting on the answer. All must
+  // pass; the order they are reported in is the order they were written in.
+  const [liveAllowed, limit, { data: live }, companyId] = await Promise.all([
+    liveAllowedFor(who.db, who.userId),
+    allowance(who.db, 'api/assist'),
+    who.db.rpc('plan_has_allowance', { p_meter: 'live_seconds' }),
+    myCompanyId(who.db, who.userId),
+  ]);
+  if (!liveAllowed) return NextResponse.json({ error: 'Live is not on your plan.' }, { status: 403 });
   if (!limit.allowed) return tooMany('api/assist', limit.retryAfterSeconds);
-  const { data: live } = await who.db.rpc('plan_has_allowance', { p_meter: 'live_seconds' });
   if (live !== true) {
     return NextResponse.json({ error: 'Your plan has no live minutes left this month.' }, { status: 402 });
   }
 
-  // Three lookups, side by side rather than one after another: each is a
-  // round trip, and the seller is waiting on the answer.
-  const companyId = await myCompanyId(who.db, who.userId);
+  // Three lookups, side by side for the same reason.
   if (screen && companyId) {
     const { data: company } = await who.db.from('companies').select('screen_assist').eq('id', companyId).maybeSingle();
     if (company?.screen_assist !== true) {
@@ -127,16 +130,39 @@ export async function POST(request: NextRequest) {
     })(),
   ]);
 
-  try {
-    const result = await assist(
-      // The screenshot goes to the model for this answer and nowhere else.
-      { mode, ...(mode === 'ask' ? { question } : {}), transcript, criteria, brief, knowledge, screen },
-      {
-        client: new Anthropic(),
-        guidance: { instructions: [], examples: [], purpose },
-        onUsage: databaseSink({ db: who.db, detector: T2_ASSISTER }),
+  const input = { mode, ...(mode === 'ask' ? { question } : {}), transcript, criteria, brief, knowledge, screen };
+  const options = {
+    client: new Anthropic(),
+    guidance: { instructions: [], examples: [], purpose },
+    onUsage: databaseSink({ db: who.db, detector: T2_ASSISTER }),
+  };
+
+  // Streamed, when the caller asks for it (the overlay from 0.1.11): one line
+  // per point as soon as its quote is found, then one saying it is done. The
+  // first point shows a second or two before the last is written. Anything
+  // else — an older overlay — gets the whole answer at once, as before.
+  if ((request.headers.get('accept') ?? '').includes('application/x-ndjson')) {
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        const send = (line: unknown) => controller.enqueue(encoder.encode(`${JSON.stringify(line)}\n`));
+        try {
+          // The screenshot goes to the model for this answer and nowhere else.
+          const result = await assist(input, options, (point) => send({ type: 'point', point }));
+          send({ type: 'done', mode, points: result.points, dropped: result.dropped });
+        } catch (error) {
+          const failure = recordFailure(error, { db: who.db, source: 'api/assist', tier: 't2' });
+          send({ type: 'error', error: failure.message });
+        }
+        controller.close();
       },
-    );
+    });
+    return new Response(body, { headers: { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store' } });
+  }
+
+  try {
+    // The screenshot goes to the model for this answer and nowhere else.
+    const result = await assist(input, options);
     return NextResponse.json({ mode, points: result.points, dropped: result.dropped });
   } catch (error) {
     const failure = recordFailure(error, { db: who.db, source: 'api/assist', tier: 't2' });

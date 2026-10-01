@@ -52,7 +52,7 @@ export default async function SettingsPage() {
     supabase.rpc('plan_overview'),
     supabase
       .from('plans')
-      .select('id, name, price_usd_cents, calls, extractions, pattern_runs, live_minutes')
+      .select('id, name, price_usd_cents, calls, extractions, pattern_runs, questions, live_minutes')
       .eq('self_serve', true)
       .order('rank'),
   ]);

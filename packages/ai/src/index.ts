@@ -182,3 +182,21 @@ export {
   type ActionResult,
   type OwnerSide,
 } from './tiers/t3-actions';
+export {
+  askCalls,
+  assertNoTracing,
+  buildAskGraph,
+  ASK_CALLS_AGENT,
+  ASK_CALLS_MODEL,
+  MAX_ROUNDS,
+  QUESTION_MAX_CHARS,
+  TracingEnabled,
+  UnreadableAnswer,
+  type AskAnswer,
+  type AskOptions,
+  type AskPoint,
+  type AskSources,
+  type CallLine,
+  type DocumentPassage,
+} from './agents/ask-calls';
+export { companySources } from './agents/sources';

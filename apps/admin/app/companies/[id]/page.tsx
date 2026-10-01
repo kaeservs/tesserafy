@@ -45,6 +45,7 @@ const METER: Record<string, string> = {
   calls: 'Imported calls',
   extractions: 'Find insights in a call',
   pattern_runs: 'Look for patterns',
+  questions: 'Questions to Ask',
   live_seconds: 'Live minutes',
 };
 

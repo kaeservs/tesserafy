@@ -27,3 +27,4 @@ accepted ADR to change the decision; write a new one that supersedes it.
 | 0015 | Each company's tickets go to its own tracker | proposed |
 | 0016 | Each company writes its own scorecards | proposed |
 | 0017 | Operators sign in with two steps, and the database asks | proposed |
+| 0018 | "Ask your calls" is an agent, and LangGraph runs its loop | proposed |

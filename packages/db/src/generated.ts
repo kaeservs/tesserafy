@@ -1832,6 +1832,7 @@ export type Database = {
           name: string
           pattern_runs: number | null
           price_usd_cents: number | null
+          questions: number | null
           rank: number
           self_serve: boolean
           trial_days: number | null
@@ -1844,6 +1845,7 @@ export type Database = {
           name: string
           pattern_runs?: number | null
           price_usd_cents?: number | null
+          questions?: number | null
           rank: number
           self_serve?: boolean
           trial_days?: number | null
@@ -1856,6 +1858,7 @@ export type Database = {
           name?: string
           pattern_runs?: number | null
           price_usd_cents?: number | null
+          questions?: number | null
           rank?: number
           self_serve?: boolean
           trial_days?: number | null

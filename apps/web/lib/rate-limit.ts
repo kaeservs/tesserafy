@@ -117,6 +117,13 @@ export const LIMITS: Record<string, readonly Window[]> = {
     { seconds: 3_600, limit: 30 },
     { seconds: 86_400, limit: 200 },
   ],
+  // Ask your calls: up to seven Sonnet calls a question (ADR 0018), ~$0.04-0.10.
+  // A person asks a handful in a sitting; the plan's monthly allowance is the
+  // real ceiling, this one stops a loop.
+  'api/ask': [
+    { seconds: 3_600, limit: 20 },
+    { seconds: 86_400, limit: 60 },
+  ],
   // A full copy of every call. Cheap for us, but it is the whole company
   // leaving in one file, so a handful a day is plenty for a person and a
   // ceiling on a stolen session.

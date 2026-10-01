@@ -55,7 +55,7 @@ Do not break these without an ADR that supersedes the existing one.
 | T0 | Chunking, endpointing, redaction | none — pure TS |
 | T1 | Criterion detectors: live on the last 3 utterances (<= 700 ms); a stored call in 48-utterance windows | `claude-haiku-4-5` |
 | T2 | Live suggestions, and the overlay's Assist, What should I say?, Follow-up questions, Recap and Ask (<= 3.5 s) | `claude-sonnet-5` |
-| T3 | Post-call extraction and synthesis; a call prep's brief | `claude-sonnet-5` (ADR 0014) |
+| T3 | Post-call extraction and synthesis; a call prep's brief; the "Ask your calls" agent | `claude-sonnet-5` (ADR 0014, 0018) |
 | — | Embeddings | `gte-small` in a Supabase Edge Function, 384-dim |
 
 Cost is decided by the number of calls before the price of the model. A
@@ -234,6 +234,18 @@ since ended or expired, and the web app signs it out on its next page
 Only sessions started by a sign-in link are asked — a password session never
 is one — so the overlay's detections pay nothing. The customer's own sessions
 from before the window are untouched.
+
+"Ask your calls" (`/ask`) is the one agent: LangGraph runs its loop
+(`packages/ai/src/agents/ask-calls.ts`), and nothing else of LangChain is
+used — the model is called with our own client inside the graph's nodes, so
+the cache breakpoint, the no-temperature rule and usage logging hold as in
+every tier, and its tools reach vectors only through `retrieve()`, reading as
+the signed-in person (ADR 0018). It cites lines by the aliases the tools gave
+them and every quote is located before it is shown. LangSmith tracing would
+send meeting text away, so `askCalls` refuses to run while a
+`LANGSMITH_TRACING`/`LANGCHAIN_TRACING_V2` variable is on. At most seven
+model calls a question; ~$0.016 measured with the cache engaged; its own
+monthly allowance (`plans.questions`).
 
 Brands can sign up themselves (`/signup`) only when an operator opens it in
 the console: the switch is `app_settings.signup_open`, checked by

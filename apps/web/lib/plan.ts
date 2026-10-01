@@ -22,7 +22,7 @@ import { NextResponse } from 'next/server';
  * the model is not called. A limiter that fails open is not a limiter.
  */
 
-export type Meter = 'calls' | 'extractions' | 'pattern_runs' | 'live_seconds';
+export type Meter = 'calls' | 'extractions' | 'pattern_runs' | 'questions' | 'live_seconds';
 
 export type Spent =
   | { allowed: true; ledgerId: number; refundToken: string }
@@ -75,6 +75,7 @@ const NOUN: Record<Meter, [string, string]> = {
   calls: ['imported call', 'imported calls'],
   extractions: ['“Find insights” or call prep', '“Find insights” or call preps'],
   pattern_runs: ['“Look for patterns” run', '“Look for patterns” runs'],
+  questions: ['question to Ask', 'questions to Ask'],
   live_seconds: ['live minute', 'live minutes'],
 };
 

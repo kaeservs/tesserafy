@@ -24,6 +24,7 @@ export interface CatalogPlan {
   calls: number;
   extractions: number;
   pattern_runs: number;
+  questions: number;
   live_minutes: number;
 }
 
@@ -31,6 +32,7 @@ const METER_LABEL: Record<string, string> = {
   calls: 'Imported calls',
   extractions: 'Find insights in a call, or prepare for one',
   pattern_runs: 'Look for patterns',
+  questions: 'Questions to Ask',
   live_seconds: 'Live minutes',
 };
 
@@ -146,7 +148,8 @@ export function PlanPanel({
                 </h3>
                 <p className="muted" style={{ marginBottom: '0.5rem' }}>
                   {plan.calls} imported calls, {plan.extractions} “Find insights in this call”,{' '}
-                  {plan.pattern_runs} “Look for patterns”, {plan.live_minutes} live minutes
+                  {plan.pattern_runs} “Look for patterns”, {plan.questions} questions to Ask,{' '}
+                  {plan.live_minutes} live minutes
                   {liveAvailable ? '' : ' (when live launches)'} — a month.
                 </p>
                 {label ? (

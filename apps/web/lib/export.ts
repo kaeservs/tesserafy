@@ -14,7 +14,42 @@
  */
 
 export const EXPORT_FORMAT = 'tesserafy-export';
-export const EXPORT_VERSION = 1;
+export const EXPORT_VERSION = 2;
+
+/**
+ * Everything else a company made, beyond its calls: each table with the
+ * columns that are the company's own, read under RLS as the owner exporting.
+ * Listed, not `*`: a column added later is a decision to export, and a
+ * column that is ours rather than theirs (a tracker's sealed token, a
+ * detector's version) is never sent. Version 2 added this section.
+ */
+export const WORK_TABLES = [
+  { key: 'customers', table: 'accounts', columns: 'id, name, domain, created_by, created_at' },
+  { key: 'action_items', table: 'action_items', columns: 'id, conversation_id, segment_id, quote, action, owner_side, owner_name, due, done, done_by, done_at, created_at' },
+  { key: 'follow_ups', table: 'follow_ups', columns: 'id, conversation_id, subject, greeting, opening, closing, drafted_by, created_at' },
+  { key: 'follow_up_lines', table: 'follow_up_lines', columns: 'id, follow_up_id, position, kind, text, segment_id, quote' },
+  { key: 'call_preps', table: 'call_preps', columns: 'id, account_id, person_name, person_title, linkedin_url, call_at, engagement_type, profile_text, research, research_at, brief, brief_at, created_by, created_at' },
+  { key: 'coaching', table: 'coaching_assignments', columns: 'id, conversation_id, segment_id, assigned_by, assigned_to, note, reply, status, created_at, done_at' },
+  { key: 'examples', table: 'moments', columns: 'id, conversation_id, segment_id, criterion_key, engagement_type, note, saved_by, created_at' },
+  { key: 'ai_guidance', table: 'ai_guidance', columns: 'id, feature, kind, engagement_type, criterion_key, body, quote, result, conversation_id, prep_id, active, created_by, created_at' },
+  { key: 'scorecards', table: 'criteria_definitions', columns: 'id, engagement_type, version, key, label, definition, weight, position, candidate_threshold, confirm_threshold, corroborating_segments, published_by, created_at', ownOnly: true },
+  { key: 'scorecard_purposes', table: 'scorecard_purposes', columns: 'engagement_type, purpose, set_by, updated_at', order: 'engagement_type' },
+  { key: 'criterion_goals', table: 'criterion_goals', columns: 'engagement_type, criterion_key, target, set_by, updated_at', order: 'criterion_key' },
+  { key: 'our_speakers', table: 'our_speakers', columns: 'name, added_by, created_at', order: 'name' },
+  { key: 'knowledge_documents', table: 'knowledge_documents', columns: 'id, title, source, file_name, characters, passages, status, created_by, created_at' },
+  { key: 'insight_comments', table: 'insight_comments', columns: 'id, insight_id, author, body, created_at' },
+  { key: 'insight_events', table: 'insight_events', columns: 'id, insight_id, kind, detail, actor, at' },
+  { key: 'insight_tickets', table: 'insight_tickets', columns: 'id, insight_id, provider, external_id, url, created_by, created_at' },
+  { key: 'tracker', table: 'company_trackers', columns: 'provider, target, connected_by, connected_at', order: 'provider' },
+] as const;
+
+/** Columns that hold a person: exported as their address, as everywhere in the file. */
+const PERSON_COLUMNS = new Set([
+  'created_by', 'done_by', 'drafted_by', 'assigned_by', 'assigned_to', 'saved_by',
+  'published_by', 'set_by', 'added_by', 'author', 'actor', 'connected_by',
+]);
+
+export type WorkRow = Record<string, unknown>;
 
 export interface ConversationRow {
   id: string;
@@ -137,6 +172,8 @@ export interface ExportParts {
   people: ReadonlyMap<string, string>;
   /** Account id to the customer's name. */
   accounts?: ReadonlyMap<string, string>;
+  /** WORK_TABLES, by key. */
+  work?: Readonly<Record<string, readonly WorkRow[]>>;
   scores: ReadonlyMap<string, ComputedScore>;
 }
 
@@ -174,6 +211,7 @@ export function assembleExport(parts: ExportParts) {
       'Scores are not stored anywhere. Each one here was computed at export time from criterion_evidence by the scoring rules for the call\'s criteria version, as the product computes them on every page.',
       'Every signal and every insight cites quotes that appear word for word in the transcript segment they name.',
       'erasures lists calls that were deleted: when and why, never what they contained.',
+      'work holds everything else the company made: customers, action items, follow-up emails, call preps, coaching, saved examples, AI guidance, its own scorecards and goals, knowledge documents (their details; the files are the ones you uploaded), and the work on insights. People are named by address; someone no longer in the company appears as "a former member".',
     ],
     team: parts.team,
     conversations: parts.conversations.map((conversation) => {
@@ -249,6 +287,19 @@ export function assembleExport(parts: ExportParts) {
       decided_at: insight.decided_at,
       cited_signal_ids: (citedBy.get(insight.id) ?? []).map((row) => row.signal_id),
     })),
+    work: Object.fromEntries(
+      WORK_TABLES.map(({ key }) => [
+        key,
+        (parts.work?.[key] ?? []).map((row) =>
+          Object.fromEntries(
+            Object.entries(row).map(([column, value]) => [
+              column,
+              PERSON_COLUMNS.has(column) && typeof value === 'string' ? (parts.people.get(value) ?? 'a former member') : value,
+            ]),
+          ),
+        ),
+      ]),
+    ),
     erasures: parts.erasures.map((erasure) => ({
       conversation_id: erasure.conversation_id,
       reason: erasure.reason,

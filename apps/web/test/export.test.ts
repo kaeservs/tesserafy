@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assembleExport, exportFilename, type ExportParts } from '../lib/export';
+import { assembleExport, exportFilename, WORK_TABLES, type ExportParts } from '../lib/export';
 
 function parts(overrides: Partial<ExportParts> = {}): ExportParts {
   return {
@@ -180,6 +180,23 @@ describe('assembleExport', () => {
     expect(out.erasures).toEqual([
       { conversation_id: 'gone', reason: 'request', erased_at: '2026-09-25T00:00:00Z', segments_removed: 12, signals_removed: 2 },
     ]);
+  });
+
+  it('carries everything else the company made, naming people by address, and never a sealed token', () => {
+    const out = assembleExport(
+      parts({
+        work: {
+          action_items: [{ id: 'a1', action: 'Send the security documents', done: true, done_by: 'u1' }],
+          follow_ups: [{ id: 'f1', subject: 'Following up', drafted_by: 'gone-user' }],
+          tracker: [{ provider: 'github', target: 'acme/product', connected_by: 'u1' }],
+        },
+      }),
+    );
+    expect(Object.keys(out.work)).toEqual(WORK_TABLES.map((spec) => spec.key));
+    expect(out.work['action_items']).toEqual([{ id: 'a1', action: 'Send the security documents', done: true, done_by: 'owner@acme.test' }]);
+    expect(out.work['follow_ups']?.[0]?.['drafted_by']).toBe('a former member');
+    expect(out.work['coaching']).toEqual([]);
+    expect(WORK_TABLES.some((spec) => spec.columns.includes('token'))).toBe(false);
   });
 
   it('is plain JSON all the way down', () => {

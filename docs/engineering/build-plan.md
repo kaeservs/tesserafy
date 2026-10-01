@@ -62,9 +62,10 @@ arrives — each answers a question whose answer could change the plan.
 
 ## Explicitly not building yet
 
-Billing, the full 25-table schema, LangChain / LlamaIndex / LangGraph,
-fine-tuning, Teams, mobile, SSO, multi-language, FastAPI in the request path,
-agent frameworks.
+Billing, the full 25-table schema, LangChain / LlamaIndex, fine-tuning, Teams,
+mobile, SSO, multi-language, FastAPI in the request path. LangGraph is used
+for "Ask your calls" only, as its loop, with our own model calls and tools
+(ADR 0018); nothing else of LangChain.
 
 ## What is left
 

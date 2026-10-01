@@ -816,6 +816,7 @@ async function checkImport(baseUrl: string, token: string): Promise<void> {
 
     await checkCallWorkflow(baseUrl, token, conversationId);
     await checkWorkingWithACall(baseUrl, token, conversationId);
+    await checkAsk(baseUrl, token, conversationId);
   } finally {
     if (conversationId) {
       const { error } = await createServiceClient({
@@ -828,6 +829,32 @@ async function checkImport(baseUrl: string, token: string): Promise<void> {
 }
 
 
+/**
+ * "Ask your calls" (ADR 0018), on the probe just imported: the agent finds
+ * the line, quotes it as it was said, and links to it. One real question,
+ * ~$0.02, because an agent that stopped answering would otherwise be found by
+ * a customer.
+ */
+async function checkAsk(baseUrl: string, token: string, conversationId: string): Promise<void> {
+  const response = await fetch(new URL('/api/ask', baseUrl), {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ question: 'How long does reconciliation take each morning?' }),
+  });
+  const lines = (await response.text()).split('\n').filter(Boolean).map((line) => JSON.parse(line) as {
+    type: string;
+    points?: { quote: string; href: string | null }[];
+    error?: string;
+  });
+  const steps = lines.filter((line) => line.type === 'step').length;
+  const answer = lines.find((line) => line.type === 'answer');
+  const cited = (answer?.points ?? []).find((point) => point.href?.includes(conversationId));
+  record(
+    'Ask finds the probe, quotes it as said and links to the line',
+    response.status === 200 && steps > 0 && !!cited && /90 minutes/.test(cited.quote),
+    answer ? `${steps} step(s); ${cited ? `“${cited.quote}”` : 'no point from the probe'}` : `${response.status} ${lines.find((line) => line.error)?.error ?? ''}`,
+  );
+}
 
 /**
  * Can a failure be recorded, and does the recording lose the identifiers?

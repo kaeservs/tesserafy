@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",
+    "@langchain/core": "1.2.13",
+    "@langchain/langgraph": "1.4.18",
     "@tesserafy/db": "workspace:*",
     "@tesserafy/ingest": "workspace:*",
     "@tesserafy/scoring": "workspace:*",

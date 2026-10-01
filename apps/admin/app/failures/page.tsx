@@ -28,6 +28,7 @@ const WINDOWS = [
 
 const KIND: Record<string, string> = {
   model_rejected: 'a request we built wrong',
+  billing: 'out of credit with the model provider',
   database: 'our database refused',
   model_unavailable: 'model overloaded or down',
   input: 'unusable input from a caller',

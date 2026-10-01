@@ -44,6 +44,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
     const failure = recordFailure(error, { db: who.db, source: 'api/insights/find', tier: 't3' });
-    return NextResponse.json({ error: failure.message }, { status: 502 });
+    return NextResponse.json({ error: failure.said }, { status: 502 });
   }
 }

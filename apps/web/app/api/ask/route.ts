@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     scope = await askScope(who.db, filters);
   } catch (error) {
     const failure = recordFailure(error, { db: who.db, source: 'api/ask/scope', companyId });
-    return NextResponse.json({ error: failure.message }, { status: 502 });
+    return NextResponse.json({ error: failure.said }, { status: 502 });
   }
   if (scope && scope.conversationIds.length === 0) {
     return NextResponse.json({ error: `There are no ${scope.text} to search.` }, { status: 422 });
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
               ? 'The answer came back garbled, so nothing was shown. Ask again; it was not charged.'
               : error instanceof Error && error.name === 'TimeoutError'
               ? 'That took too long to answer. Try a narrower question.'
-              : failure.message;
+              : failure.said;
         send({ type: 'error', error: message });
       } finally {
         controller.close();

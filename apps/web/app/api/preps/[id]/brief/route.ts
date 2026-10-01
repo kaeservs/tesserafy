@@ -50,6 +50,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: 'Only whoever wrote this prep, or an owner, can rewrite its brief.' }, { status: 403 });
     }
     const failure = recordFailure(error, { db: who.db, source: 'api/preps/brief', tier: 't3' });
-    return NextResponse.json({ error: failure.message }, { status: 502 });
+    return NextResponse.json({ error: failure.said }, { status: 502 });
   }
 }

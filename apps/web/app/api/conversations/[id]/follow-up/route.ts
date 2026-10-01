@@ -41,6 +41,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   } catch (error) {
     await refund(who.db, spent);
     const failure = recordFailure(error, { db: who.db, source: 'api/conversations/follow-up', tier: 't3', conversationId: id });
-    return NextResponse.json({ error: failure.message }, { status: 502 });
+    return NextResponse.json({ error: failure.said }, { status: 502 });
   }
 }

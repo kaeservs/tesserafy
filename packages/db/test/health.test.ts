@@ -82,4 +82,13 @@ describe('alarming', () => {
       ),
     ).toBe(2);
   });
+
+  it('counts billing as needing a person: nothing fixes itself', () => {
+    const groups = groupFailures([
+      row('billing', 'api/ask', '2026-10-01T10:00:00Z', { status: 400 }),
+      row('billing', 'api/ask', '2026-10-01T10:01:00Z', { status: 400 }),
+    ]);
+    expect(groups[0]?.needsAPerson).toBe(true);
+    expect(alarming(groups)).toBe(2);
+  });
 });

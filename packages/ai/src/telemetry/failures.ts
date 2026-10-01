@@ -28,15 +28,29 @@ import type { SupabaseClient } from '@tesserafy/db';
 export type FailureKind =
   | 'model_rejected'
   | 'model_unavailable'
+  | 'billing'
   | 'database'
   | 'input'
   | 'unknown';
 
 export interface Classified {
   readonly kind: FailureKind;
+  /** Scrubbed: what is stored, and what a caller is told unless `said` differs. */
   readonly message: string;
+  /**
+   * What the caller is told. The scrubbed message, except where it is about
+   * us rather than their request: a customer is not told that Tesserafy's
+   * account with its model provider ran out of credit.
+   */
+  readonly said: string;
   readonly status?: number;
 }
+
+/** What a customer reads when the model provider has refused us for money. */
+export const BILLING_SAID = 'The AI is unavailable right now. We have been alerted and are fixing it; nothing was charged.';
+
+/** The provider refusing us for money, as its errors say it. */
+const BILLING = /credit balance is too low|insufficient (credit|funds|balance)|billing|spend(ing)? limit/i;
 
 const CREDENTIALS: readonly RegExp[] = [
   /sk-ant-[A-Za-z0-9_-]+/g,
@@ -76,26 +90,31 @@ export function classify(cause: unknown): Classified {
   // PostgREST hands back a five-character SQLSTATE and a details field. Our own
   // database refusing us is never the same problem as a model refusing us.
   if (typeof error?.code === 'string' && /^[0-9A-Z]{5}$/.test(error.code)) {
-    return { kind: 'database', message };
+    return { kind: 'database', message, said: message };
   }
 
   if (typeof error?.status === 'number') {
     const status = error.status;
     // 429 sits with the outages on purpose. It is the upstream saying "not
     // now", not "not like that", and waiting is the whole fix.
-    if (status === 429 || status >= 500) return { kind: 'model_unavailable', status, message };
-    if (status >= 400) return { kind: 'model_rejected', status, message };
+    // Before the generic 4xx: out of credit is a 400 too, and calling it a
+    // request we built wrong sends the reader to the code instead of billing.
+    if (status >= 400 && status < 500 && status !== 429 && BILLING.test(message)) {
+      return { kind: 'billing', status, message, said: BILLING_SAID };
+    }
+    if (status === 429 || status >= 500) return { kind: 'model_unavailable', status, message, said: message };
+    if (status >= 400) return { kind: 'model_rejected', status, message, said: message };
   }
 
-  if (error?.name === 'ZodError') return { kind: 'input', message };
+  if (error?.name === 'ZodError') return { kind: 'input', message, said: message };
 
   // A socket that never answered has no status. Grouping it with the outages
   // is right: nothing was rejected, the request never landed.
   if (/\b(ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|fetch failed|aborted)\b/i.test(message)) {
-    return { kind: 'model_unavailable', message };
+    return { kind: 'model_unavailable', message, said: message };
   }
 
-  return { kind: 'unknown', message };
+  return { kind: 'unknown', message, said: message };
 }
 
 export interface FailureContext {

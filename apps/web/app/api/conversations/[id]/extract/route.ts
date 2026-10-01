@@ -61,6 +61,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       tier: 't3',
       conversationId: id,
     });
-    return NextResponse.json({ error: failure.message }, { status: 502 });
+    return NextResponse.json({ error: failure.said }, { status: 502 });
   }
 }

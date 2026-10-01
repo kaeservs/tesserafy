@@ -30,6 +30,13 @@ export interface RetrieveOptions {
   readonly limit?: number;
   /** Cosine similarity floor, 0–1. Default 0.5. */
   readonly minSimilarity?: number;
+  /**
+   * Calls only: search just these calls' lines (at most 2000) — "only Acme's
+   * calls", "the last 30 days". Narrows, never widens: the company check is
+   * unchanged, and a row from any other call is a failure, as a foreign
+   * company's is.
+   */
+  readonly conversationIds?: readonly string[];
 }
 
 /** A quoted, timestamped span — the unit of evidence (invariant 4). */
@@ -143,11 +150,18 @@ export async function retrieve(
     }));
   }
 
+  if (opts.conversationIds && opts.conversationIds.length > 2000) {
+    throw new RangeError(`conversationIds is at most 2000 calls, got ${opts.conversationIds.length}`);
+  }
+  // No calls in scope: nothing to search, and no round trip to say so.
+  if (opts.conversationIds && opts.conversationIds.length === 0) return [];
+
   const { data, error } = await opts.db.rpc('match_segments', {
     p_company_id: companyId,
     p_query_embedding: vectorArg(embedding),
     p_match_count: limit,
     p_min_similarity: minSimilarity,
+    ...(opts.conversationIds ? { p_conversation_ids: [...opts.conversationIds] } : {}),
   });
   if (error) {
     throw new Error(`match_segments failed: ${error.message}`, { cause: error });
@@ -162,6 +176,16 @@ export async function retrieve(
     throw new TenantBoundaryViolation(
       `retrieve() for company ${companyId} received ${foreign.length} row(s) from another company`,
     );
+  }
+
+  if (opts.conversationIds) {
+    const scope = new Set(opts.conversationIds);
+    const outside = rows.filter((row) => !scope.has(row.conversation_id));
+    if (outside.length > 0) {
+      throw new TenantBoundaryViolation(
+        `retrieve() scoped to ${scope.size} call(s) received ${outside.length} row(s) from other calls`,
+      );
+    }
   }
 
   return rows.map((row) => ({

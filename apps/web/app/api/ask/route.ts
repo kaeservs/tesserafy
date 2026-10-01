@@ -12,7 +12,7 @@ import {
   UnreadableAnswer,
 } from '@tesserafy/ai';
 import { NextResponse, type NextRequest } from 'next/server';
-import { shown } from '@/lib/ask';
+import { askFilters, askScope, shown, type AskFilters } from '@/lib/ask';
 import { myCompanyId } from '@/lib/company';
 import { publicSupabaseEnv } from '@/lib/env';
 import { planExhausted, refund, spend } from '@/lib/plan';
@@ -45,9 +45,11 @@ export async function POST(request: NextRequest) {
   }
 
   let question: string;
+  let filters: AskFilters;
   try {
-    const body = (await request.json()) as { question?: unknown };
+    const body = (await request.json()) as { question?: unknown; accountId?: unknown; days?: unknown };
     question = typeof body.question === 'string' ? body.question.trim() : '';
+    filters = askFilters(body);
   } catch {
     return NextResponse.json({ error: 'body must be JSON' }, { status: 400 });
   }
@@ -58,6 +60,19 @@ export async function POST(request: NextRequest) {
   const companyId = await myCompanyId(who.db, who.userId);
   const token = await who.token();
   if (!companyId || !token) return NextResponse.json({ error: 'Ask needs a company to search.' }, { status: 409 });
+
+  // Narrowed to one account's calls, or the last so many days: worked out
+  // before anything is charged, so a scope with no calls in it costs nothing.
+  let scope: Awaited<ReturnType<typeof askScope>>;
+  try {
+    scope = await askScope(who.db, filters);
+  } catch (error) {
+    const failure = recordFailure(error, { db: who.db, source: 'api/ask/scope', companyId });
+    return NextResponse.json({ error: failure.message }, { status: 502 });
+  }
+  if (scope && scope.conversationIds.length === 0) {
+    return NextResponse.json({ error: `There are no ${scope.text} to search.` }, { status: 422 });
+  }
 
   const limit = await allowance(who.db, 'api/ask');
   if (!limit.allowed) return tooMany('api/ask', limit.retryAfterSeconds);
@@ -71,7 +86,13 @@ export async function POST(request: NextRequest) {
       try {
         const answer = await askCalls(question, {
           client: new Anthropic(),
-          sources: companySources(who.db, toCompanyId(companyId), createSupabaseEmbedder({ url: publicSupabaseEnv().url, token })),
+          sources: companySources(
+            who.db,
+            toCompanyId(companyId),
+            createSupabaseEmbedder({ url: publicSupabaseEnv().url, token }),
+            scope ? { conversationIds: scope.conversationIds } : {},
+          ),
+          ...(scope ? { scope: scope.text } : {}),
           onUsage: databaseSink({ db: who.db, companyId, detector: ASK_CALLS_AGENT }),
           onStep: (text) => send({ type: 'step', text }),
           signal: AbortSignal.timeout(TIME_LIMIT_MS),

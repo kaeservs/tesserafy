@@ -27,8 +27,15 @@ interface Header {
   occurredAt: string | null;
 }
 
-export function companySources(db: SupabaseClient, companyId: CompanyId, embedder: Embedder): AskSources {
+/** Which calls the agent may search: all of the company's, or only these. */
+export interface AskScope {
+  /** At most 2000; none means none. */
+  readonly conversationIds?: readonly string[];
+}
+
+export function companySources(db: SupabaseClient, companyId: CompanyId, embedder: Embedder, scope: AskScope = {}): AskSources {
   const headers = new Map<string, Header>();
+  const only = scope.conversationIds ? [...scope.conversationIds] : null;
 
   async function header(conversationIds: readonly string[]): Promise<void> {
     const missing = [...new Set(conversationIds)].filter((id) => !headers.has(id));
@@ -60,7 +67,13 @@ export function companySources(db: SupabaseClient, companyId: CompanyId, embedde
   return {
     async searchMeaning(query, limit) {
       if (!query.trim()) return [];
-      const found = await retrieve(companyId, { text: query }, { db, embedder, limit, minSimilarity: QUESTION_SIMILARITY });
+      const found = await retrieve(companyId, { text: query }, {
+        db,
+        embedder,
+        limit,
+        minSimilarity: QUESTION_SIMILARITY,
+        ...(only ? { conversationIds: only } : {}),
+      });
       await header(found.map((segment) => segment.conversationId));
       return lines(
         found.map((segment) => ({
@@ -74,9 +87,13 @@ export function companySources(db: SupabaseClient, companyId: CompanyId, embedde
     },
 
     async searchWords(words, limit) {
-      if (!words.trim()) return [];
+      if (!words.trim() || only?.length === 0) return [];
       // SECURITY INVOKER: the caller's RLS decides which lines it considers.
-      const { data, error } = await db.rpc('search_segments', { p_query: words, p_limit: limit });
+      const { data, error } = await db.rpc('search_segments', {
+        p_query: words,
+        p_limit: limit,
+        ...(only ? { p_conversation_ids: only } : {}),
+      });
       if (error) throw new Error(`search_segments failed: ${error.message}`, { cause: error });
       const rows = data ?? [];
       await header(rows.map((row) => row.conversation_id));

@@ -254,7 +254,11 @@ them and every quote is located before it is shown. LangSmith tracing would
 send meeting text away, so `askCalls` refuses to run while a
 `LANGSMITH_TRACING`/`LANGCHAIN_TRACING_V2` variable is on. At most seven
 model calls a question; ~$0.016 measured with the cache engaged; its own
-monthly allowance (`plans.questions`).
+monthly allowance (`plans.questions`). A question can be narrowed to one
+account's calls or the last 7/30/90 days: both searches take the calls in
+scope (`p_conversation_ids`, `retrieve({ conversationIds })`), searched
+exactly rather than filtered after the index, so a narrow scope never comes
+back empty for lack of rows.
 
 Brands can sign up themselves (`/signup`) only when an operator opens it in
 the console: the switch is `app_settings.signup_open`, checked by

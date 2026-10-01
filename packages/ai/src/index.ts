@@ -199,7 +199,7 @@ export {
   type CallLine,
   type DocumentPassage,
 } from './agents/ask-calls';
-export { companySources } from './agents/sources';
+export { companySources, type AskScope } from './agents/sources';
 export {
   draftFollowUp,
   followUpText,

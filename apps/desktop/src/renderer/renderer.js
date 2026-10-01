@@ -75,20 +75,24 @@ function render() {
   const card = score(state);
   const confirmed = card.criteria.filter((criterion) => criterion.status === 'confirmed').length;
 
-  el('scoreValue').textContent = String(Math.round(card.score));
+  const rounded = Math.round(card.score);
+  el('scoreValue').textContent = String(rounded);
+  el('scoreFill').style.width = `${Math.max(0, Math.min(100, rounded))}%`;
+  el('scoreMeter').setAttribute('aria-valuenow', String(rounded));
   // Built as nodes, never as HTML: a label is whatever a company's owner
   // typed into their scorecard, and markup in it would run in this window.
   el('criteria').replaceChildren(
     ...card.criteria.map((criterion) => {
       const item = document.createElement('li');
+      item.className = criterion.status;
       const label = document.createElement('span');
       label.className = 'label';
       label.textContent = criterion.label;
       item.append(label);
       // Numbers only, not the sentence the web app writes. Phrasing it here
       // too would be a second copy of the wording to keep in step, and there
-      // is no room for a sentence in a 380px overlay anyway — what a seller
-      // needs mid-call is "one more mention", which `1/2` says.
+      // is no room for a sentence in a chip anyway — what a seller needs
+      // mid-call is "one more mention", which `1/2` says.
       const short = criterion.shortfall;
       if (short && short.segmentsNeeded > 1) {
         const hint = document.createElement('span');
@@ -98,8 +102,10 @@ function render() {
       }
       const status = document.createElement('span');
       status.className = `state ${criterion.status}`;
+      // Read out, and shown on hover; on the chip it is the mark.
       status.textContent = criterion.status;
-      item.append(status);
+      item.prepend(status);
+      item.title = `${criterion.label}: ${criterion.status}${short && short.segmentsNeeded > 1 ? ` (${short.segments} of ${short.segmentsNeeded} mentions)` : ''}`;
       return item;
     }),
   );

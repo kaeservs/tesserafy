@@ -3,7 +3,7 @@ import { PasswordForm } from '@/components/password-form';
 import { liveSetup } from '@/lib/live-setup';
 import { OVERLAY_ACCENTS, OVERLAY_MIN_OPACITY, OVERLAY_SIZES, OVERLAY_THEMES, readLook } from '@/lib/overlay-look';
 import { createClient } from '@/lib/supabase/server';
-import { chooseNextCall, saveOverlayLook } from './overlay-actions';
+import { chooseNextCall, saveDetectCalls, saveOverlayLook } from './overlay-actions';
 
 export const metadata = { title: 'Account · Tesserafy' };
 
@@ -92,6 +92,22 @@ export default async function AccountPage({
               overlay takes its customer, scorecard and questions from it.
             </p>
           )}
+          <h3>When a call starts</h3>
+          <form action={saveDetectCalls} className="inline-form">
+            <input type="hidden" name="on" value={setup.detectCalls ? 'off' : 'on'} />
+            <p>
+              {setup.detectCalls
+                ? 'The overlay comes up by itself when Zoom, Teams, Webex, Slack or your browser starts using your microphone, and offers Start.'
+                : 'The overlay stays where it is when a call starts; bring it up yourself.'}{' '}
+              <button type="submit" className="link-button">
+                {setup.detectCalls ? 'Switch off' : 'Switch on'}
+              </button>
+            </p>
+            <p className="muted" style={{ fontSize: '0.8rem' }}>
+              It never starts listening by itself: you confirm everyone agreed, then press Start. On Windows; on a Mac this comes
+              later.
+            </p>
+          </form>
           <h3>How it looks</h3>
           <form action={saveOverlayLook} className="overlay-look">
             <label>

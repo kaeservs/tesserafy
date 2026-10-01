@@ -15,6 +15,7 @@
  * settles the question without anyone squinting.
  */
 import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, net, safeStorage, screen, shell } from 'electron';
+import { execFile } from 'node:child_process';
 import { readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
@@ -28,6 +29,7 @@ import {
 } from './appearance';
 import { scorecardName } from './scorecard';
 import { Session, type Store } from './session';
+import { callChange, meetingMicrophoneUsers, MICROPHONE_KEY, type MicrophoneUser } from './calls';
 import { nudged } from './nudge';
 import { ASSIST_SHORTCUT, MOVE_SHORTCUTS, SHORTCUTS, shortcutLabel, type MoveDirection } from './shortcuts';
 import { createTray, type OverlayTray } from './tray';
@@ -223,6 +225,35 @@ async function captureScreen(): Promise<{ mediaType: 'image/jpeg'; data: string 
   }
 }
 
+/**
+ * A call starting: on Windows, a meeting app taking the microphone (./calls).
+ * Checked every few seconds; when one starts, the overlay comes up — without
+ * taking focus from the meeting — and the page offers Start. It never starts
+ * listening by itself: the consent confirmation comes first. Off when the
+ * person switched it off in the dashboard (Account → Overlay).
+ */
+let detectCalls = true;
+let micUsers: MicrophoneUser[] = [];
+function watchForCalls(): void {
+  if (process.platform !== 'win32') return;
+  const check = () =>
+    execFile('reg', ['query', MICROPHONE_KEY, '/s'], { windowsHide: true, maxBuffer: 1024 * 1024 }, (error, stdout) => {
+      if (error) return;
+      const now = meetingMicrophoneUsers(stdout, process.execPath);
+      const change = callChange(micUsers, now);
+      micUsers = now;
+      if (!overlay || !detectCalls) return;
+      if (change.started) {
+        if (!overlay.isVisible()) overlay.showInactive();
+        overlay.webContents.send('overlay:call', { active: true, app: change.started });
+      } else if (change.ended) {
+        overlay.webContents.send('overlay:call', { active: false, app: null });
+      }
+    });
+  setInterval(check, 4_000);
+  check();
+}
+
 /** One press of a move shortcut: a step that way, kept on its display, and kept there. */
 function nudge(direction: MoveDirection): void {
   if (!overlay) return;
@@ -380,6 +411,7 @@ void app.whenReady().then(async () => {
     quit: () => app.quit(),
   });
 
+  watchForCalls();
   setTimeout(() => void checkForUpdates(false), 5000);
   setInterval(() => void checkForUpdates(false), SIX_HOURS);
 
@@ -417,7 +449,8 @@ void app.whenReady().then(async () => {
     const response = await session.fetch('/api/live/setup');
     if (!response) return NOT_SIGNED_IN;
     if (!response.ok) return { error: `setup failed: ${response.status}` };
-    const setup = (await response.json()) as { look?: Record<string, unknown> };
+    const setup = (await response.json()) as { look?: Record<string, unknown>; detectCalls?: unknown };
+    detectCalls = setup.detectCalls !== false;
     const look = setup.look ?? {};
     appearance = withChange(appearance, { theme: look['theme'], accent: look['accent'], opacity: look['opacity'], size: look['size'] });
     if (overlay) place(overlay);

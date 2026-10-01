@@ -62,7 +62,7 @@ create temporary table d as select public.admin_company_detail('00000000-0000-40
 
 select is(jsonb_array_length((select v from d) -> 'members'), 2, 'the detail lists the members');
 select is((select v from d) -> 'members' -> 0 ->> 'role', 'owner', 'owners first');
-select is(jsonb_array_length((select v from d) -> 'usage'), 4, 'with usage for every meter');
+select is(jsonb_array_length((select v from d) -> 'usage'), 5, 'with usage for every meter');
 select throws_ok(
   $$ select public.admin_company_detail('99999999-0000-4000-8000-000000000000') $$, '22023', null,
   'and says so for a company that does not exist');

@@ -242,8 +242,8 @@ select throws_ok(
 
 select is(
   jsonb_array_length(public.plan_overview() -> 'meters'),
-  4,
-  'the overview reports all four meters'
+  5,
+  'the overview reports all five meters'
 );
 
 -- ---------------------------------------------------------------------------

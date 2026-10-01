@@ -106,13 +106,18 @@ export interface AskOptions {
 // The tools, as the model sees them
 // ---------------------------------------------------------------------------
 
-const TOOLS: Anthropic.Tool[] = [
+// Strict: the API holds every tool's input to its schema. Without it the
+// answer's points sometimes arrived as a string, once one that was not even
+// JSON, and the answer was lost (pnpm health, 2026-10-01).
+export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'search_calls',
     description:
       'Search the company\'s recorded calls by meaning. Returns lines that were said, each with an id (s1, s2, …), the call\'s title and date, when in the call, and who said it. Use for topics and ideas ("worries about price", "rollout timing").',
+    strict: true,
     input_schema: {
       type: 'object',
+      additionalProperties: false,
       properties: { query: { type: 'string', description: 'What to look for, in a few words.' } },
       required: ['query'],
     },
@@ -121,8 +126,10 @@ const TOOLS: Anthropic.Tool[] = [
     name: 'search_words',
     description:
       'Search the calls for exact words or a name: a product, a competitor, a person, a figure. Returns lines in the same form as search_calls.',
+    strict: true,
     input_schema: {
       type: 'object',
+      additionalProperties: false,
       properties: { words: { type: 'string', description: 'The words to find.' } },
       required: ['words'],
     },
@@ -131,8 +138,10 @@ const TOOLS: Anthropic.Tool[] = [
     name: 'read_around',
     description:
       'Read the lines just before and after a line already found, in the same call, to understand what it was about or who it answered.',
+    strict: true,
     input_schema: {
       type: 'object',
+      additionalProperties: false,
       properties: { id: { type: 'string', description: 'The id of a line already found, such as s3.' } },
       required: ['id'],
     },
@@ -141,8 +150,10 @@ const TOOLS: Anthropic.Tool[] = [
     name: 'search_documents',
     description:
       'Search the company\'s own documents (pricing, product sheets, policies). Returns passages with ids k1, k2, …. The only source for facts about the company\'s own product.',
+    strict: true,
     input_schema: {
       type: 'object',
+      additionalProperties: false,
       properties: { query: { type: 'string' } },
       required: ['query'],
     },
@@ -150,14 +161,17 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: 'answer',
     description: 'Give the answer. Call this once, when you have enough, or when searching further will not help.',
+    strict: true,
     input_schema: {
       type: 'object',
+      additionalProperties: false,
       properties: {
         points: {
           type: 'array',
           description: `At most ${POINTS_MAX}, most important first.`,
           items: {
             type: 'object',
+            additionalProperties: false,
             properties: {
               text: { type: 'string', description: 'One point of the answer, a sentence or two.' },
               quote: { type: 'string', description: 'Words copied exactly from one line (s…) or passage (k…) that this point rests on.' },

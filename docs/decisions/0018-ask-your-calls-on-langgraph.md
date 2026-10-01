@@ -91,6 +91,16 @@ The graph:
   `UnreadableAnswer`; it is recorded (its shape, never its words) and refunded
   rather than shown as "nothing found". Points sent as a JSON string are read.
 
+## Follow-up: strict tools (2026-10-01)
+
+The empty answer happened again in local testing, and `pnpm health` showed
+why: the points arrived as a string that was not JSON either. Every tool is
+now `strict: true`, with every object closed (`additionalProperties: false`)
+and every property required, so the API holds the input to the schema. A unit
+test pins that. With strict tools, five questions all answered in full, still
+about $0.016 each. The tolerant parse and `UnreadableAnswer` stay as the
+second line of defence.
+
 ## Consequences
 
 - LangGraph is a dependency of `packages/ai` (`@langchain/langgraph`, and

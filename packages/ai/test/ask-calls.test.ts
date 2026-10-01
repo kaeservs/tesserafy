@@ -5,7 +5,7 @@
  */
 import type Anthropic from '@anthropic-ai/sdk';
 import { describe, expect, it, vi } from 'vitest';
-import { askCalls, assertNoTracing, MAX_ROUNDS, TracingEnabled, UnreadableAnswer, type AskSources, type CallLine } from '../src/agents/ask-calls';
+import { askCalls, assertNoTracing, MAX_ROUNDS, TOOLS, TracingEnabled, UnreadableAnswer, type AskSources, type CallLine } from '../src/agents/ask-calls';
 
 const line = (id: string, text: string, startMs = 61_000): CallLine => ({
   segmentId: id,
@@ -180,5 +180,22 @@ describe('ask your calls', () => {
 
     const garbled = scripted(reply(toolUse('t1', 'answer', { points: 'not json at all', note: 3 })));
     await expect(askCalls('How long?', { client: garbled.client, sources: sources() })).rejects.toThrow(UnreadableAnswer);
+  });
+
+  it('holds every tool to its schema, so the API cannot send an answer in another shape', () => {
+    const closed = (schema: unknown): boolean => {
+      if (!schema || typeof schema !== 'object') return true;
+      const node = schema as { type?: string; additionalProperties?: unknown; properties?: Record<string, unknown>; required?: string[]; items?: unknown };
+      if (node.type === 'object') {
+        const keys = Object.keys(node.properties ?? {});
+        if (node.additionalProperties !== false || keys.some((key) => !node.required?.includes(key))) return false;
+        return keys.every((key) => closed(node.properties![key]));
+      }
+      return node.type === 'array' ? closed(node.items) : true;
+    };
+    for (const tool of TOOLS) {
+      expect(tool.strict, tool.name).toBe(true);
+      expect(closed(tool.input_schema), tool.name).toBe(true);
+    }
   });
 });

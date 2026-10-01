@@ -55,7 +55,7 @@ Do not break these without an ADR that supersedes the existing one.
 | T0 | Chunking, endpointing, redaction | none — pure TS |
 | T1 | Criterion detectors: live on the last 3 utterances (<= 700 ms); a stored call in 48-utterance windows | `claude-haiku-4-5` |
 | T2 | Live suggestions, and the overlay's Assist, What should I say?, Follow-up questions, Recap and Ask (<= 3.5 s) | `claude-sonnet-5` |
-| T3 | Post-call extraction and synthesis; a call prep's brief; the "Ask your calls" agent | `claude-sonnet-5` (ADR 0014, 0018) |
+| T3 | Post-call extraction and synthesis; action items and the follow-up email; a call prep's brief; the "Ask your calls" agent | `claude-sonnet-5` (ADR 0014, 0018) |
 | — | Embeddings | `gte-small` in a Supabase Edge Function, 384-dim |
 
 Cost is decided by the number of calls before the price of the model. A
@@ -234,6 +234,15 @@ since ended or expired, and the web app signs it out on its next page
 Only sessions started by a sign-in link are asked — a password session never
 is one — so the overlay's detections pay nothing. The customer's own sessions
 from before the window are untouched.
+
+After a call, the seller can draft its follow-up email (the call page;
+the overlay offers it when a call ends, opening that page — it never drafts
+by itself, because a draft spends the allowance). It is held to the same rule
+as everything else: the recap and the next steps are lines each quoting a
+segment, checked in code and again by `record_follow_up`; the subject,
+greeting, opening and closing are told to carry no facts; and it promises no
+price, date or term the call did not say, because the email goes out in the
+seller's name. One draft a call, charged like action items.
 
 "Ask your calls" (`/ask`) is the one agent: LangGraph runs its loop
 (`packages/ai/src/agents/ask-calls.ts`), and nothing else of LangChain is

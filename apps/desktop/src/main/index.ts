@@ -426,6 +426,12 @@ void app.whenReady().then(async () => {
   // fixed address on the product's own site, so the page can open nothing else.
   ipcMain.handle('overlay:open-terms', () => shell.openExternal(new URL('/terms', PRODUCTION_URL).toString()));
 
+  // When a call ends: its page in the dashboard, at the follow-up email. Only
+  // a call's own page on the product's site, so the page can open nothing else.
+  ipcMain.handle('overlay:open-follow-up', (_event, conversationId: unknown) =>
+    isId(conversationId) ? shell.openExternal(new URL(`/conversations/${conversationId}#follow-up`, BASE_URL).toString()) : undefined,
+  );
+
   ipcMain.handle('overlay:appearance', () => appearance);
 
   // The card changed height: the window follows, so it covers the meeting

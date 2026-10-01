@@ -15,6 +15,8 @@ import { ExtractButton } from '@/components/extract-button';
 import { CallViewers } from '@/components/call-viewers';
 import { CopyMomentLink } from '@/components/copy-moment-link';
 import { ActionItems } from '@/components/action-items';
+import { FollowUp } from '@/components/follow-up';
+import { followUpText } from '@tesserafy/ai';
 import { AssignCoaching } from '@/components/coaching-forms';
 import { OurSpeaker } from '@/components/our-speaker';
 import { SaveExample } from '@/components/save-example';
@@ -342,11 +344,26 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
     examplesOf.set(moment.segment_id, list);
   }
   const criterionOptions = card.criteria.map((criterion) => ({ key: criterion.key, label: criterion.label }));
-  const { data: actionRows } = await supabase
-    .from('action_items')
-    .select('id, action, owner_side, owner_name, due, done, segment_id, quote')
-    .eq('conversation_id', id)
-    .order('created_at');
+  const [{ data: actionRows }, { data: followUpRow }] = await Promise.all([
+    supabase
+      .from('action_items')
+      .select('id, action, owner_side, owner_name, due, done, segment_id, quote')
+      .eq('conversation_id', id)
+      .order('created_at'),
+    supabase
+      .from('follow_ups')
+      .select('id, subject, greeting, opening, closing, created_at, follow_up_lines(position, kind, text, segment_id, quote)')
+      .eq('conversation_id', id)
+      .maybeSingle(),
+  ]);
+  const followUpLines = [...(followUpRow?.follow_up_lines ?? [])]
+    .sort((a, b) => a.position - b.position)
+    .map((line) => ({
+      kind: line.kind === 'next_step' ? ('next_step' as const) : ('recap' as const),
+      text: line.text,
+      segmentId: line.segment_id,
+      quote: line.quote,
+    }));
 
   const notesBySegment = new Map<string, ShownNote[]>();
   for (const note of notes) {
@@ -413,6 +430,14 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
   }
 
   const startedAt = new Map(segments.map((segment) => [segment.id, segment.start_ms]));
+  const followUp = followUpRow
+    ? {
+        subject: followUpRow.subject,
+        text: followUpText({ ...followUpRow, lines: followUpLines }),
+        drafted: stamp(followUpRow.created_at),
+        lines: followUpLines.map((line) => ({ ...line, at: clock(startedAt.get(line.segmentId) ?? 0) })),
+      }
+    : null;
   const talk = talkStats(segments);
   const split = sideShares(talk.speakers, ours);
   const { title, occurred_at: occurredAt } = conversation as {
@@ -663,6 +688,11 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
             at: clock(startedAt.get(row.segment_id) ?? 0),
           }))}
         />
+      </section>
+
+      <section aria-labelledby="follow-up-heading" id="follow-up">
+        <h2 id="follow-up-heading">Follow-up email</h2>
+        <FollowUp conversationId={id} draft={followUp} />
       </section>
 
       <section aria-labelledby="signals-heading">

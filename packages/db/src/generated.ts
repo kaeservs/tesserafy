@@ -1187,6 +1187,111 @@ export type Database = {
           },
         ]
       }
+      follow_up_lines: {
+        Row: {
+          company_id: string
+          follow_up_id: string
+          id: string
+          kind: string
+          position: number
+          quote: string
+          segment_id: string
+          text: string
+        }
+        Insert: {
+          company_id: string
+          follow_up_id: string
+          id?: string
+          kind: string
+          position: number
+          quote: string
+          segment_id: string
+          text: string
+        }
+        Update: {
+          company_id?: string
+          follow_up_id?: string
+          id?: string
+          kind?: string
+          position?: number
+          quote?: string
+          segment_id?: string
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_up_lines_company_id_follow_up_id_fkey"
+            columns: ["company_id", "follow_up_id"]
+            isOneToOne: false
+            referencedRelation: "follow_ups"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "follow_up_lines_company_id_segment_id_fkey"
+            columns: ["company_id", "segment_id"]
+            isOneToOne: false
+            referencedRelation: "segments"
+            referencedColumns: ["company_id", "id"]
+          },
+        ]
+      }
+      follow_ups: {
+        Row: {
+          closing: string
+          company_id: string
+          conversation_id: string
+          created_at: string
+          detector: string
+          drafted_by: string | null
+          greeting: string
+          id: string
+          model: string
+          opening: string
+          subject: string
+        }
+        Insert: {
+          closing: string
+          company_id: string
+          conversation_id: string
+          created_at?: string
+          detector: string
+          drafted_by?: string | null
+          greeting: string
+          id?: string
+          model: string
+          opening: string
+          subject: string
+        }
+        Update: {
+          closing?: string
+          company_id?: string
+          conversation_id?: string
+          created_at?: string
+          detector?: string
+          drafted_by?: string | null
+          greeting?: string
+          id?: string
+          model?: string
+          opening?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_ups_company_id_conversation_id_fkey"
+            columns: ["company_id", "conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "follow_ups_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       insight_comments: {
         Row: {
           author: string | null
@@ -3032,6 +3137,15 @@ export type Database = {
           p_tier?: string
         }
         Returns: string
+      }
+      record_follow_up: {
+        Args: {
+          p_conversation_id: string
+          p_detector: string
+          p_draft: Json
+          p_model: string
+        }
+        Returns: Json
       }
       record_insight: {
         Args: {

@@ -84,6 +84,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     // See api/detect: the failure gets a destination that is not the browser.
     const failure = recordFailure(error, { db: who.db, source: 'api/suggest', tier: 't2' });
-    return NextResponse.json({ error: failure.message }, { status: 502 });
+    return NextResponse.json({ error: failure.said }, { status: 502 });
   }
 }

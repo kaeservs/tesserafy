@@ -27,6 +27,17 @@ describe('what needs a person today', () => {
     expect(result.status).toBe(400);
   });
 
+  it('calls running out of credit billing, and tells the customer nothing about our account', () => {
+    const result = classify(
+      apiError(400, '400 {"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API."}}'),
+    );
+    expect(result.kind).toBe('billing');
+    expect(result.message).toMatch(/credit balance/);
+    expect(result.said).not.toMatch(/credit|Anthropic/i);
+    // Anything else is told as it was recorded, scrubbed.
+    expect(classify(apiError(400, 'temperature is deprecated')).said).toBe('temperature is deprecated');
+  });
+
   it('calls a refused key our bug too, because waiting will not fix it', () => {
     expect(classify(apiError(401, 'invalid x-api-key')).kind).toBe('model_rejected');
   });

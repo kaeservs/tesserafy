@@ -16,7 +16,7 @@
  */
 
 /** The kinds that mean somebody must act today. */
-export const ACTIONABLE_KINDS: ReadonlySet<string> = new Set(['model_rejected', 'database']);
+export const ACTIONABLE_KINDS: ReadonlySet<string> = new Set(['model_rejected', 'database', 'billing']);
 
 /**
  * Below this, an actionable failure is reported but does not raise the alarm.

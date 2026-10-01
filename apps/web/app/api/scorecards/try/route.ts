@@ -68,6 +68,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     await refund(who.db, spent);
     const failure = recordFailure(error, { db: who.db, source: 'api/scorecards/try', tier: 't1' });
-    return NextResponse.json({ error: failure.message }, { status: 502 });
+    return NextResponse.json({ error: failure.said }, { status: 502 });
   }
 }

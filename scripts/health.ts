@@ -109,8 +109,11 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
+  if (groups.some((group) => group.kind === 'billing' && group.needsAPerson)) {
+    console.log('\nThe model provider is refusing us for money: top up the Anthropic account (Plans & Billing).');
+  }
   console.log(
-    `\n${alarmingCount} failure(s) marked ! are requests we built wrong or our own database refusing us.`,
+    `\n${alarmingCount} failure(s) marked ! need a person: a request we built wrong, our own database refusing us, or billing.`,
   );
   console.log('Those do not fix themselves. Exiting 1 so a scheduled run says so.');
   process.exit(1);

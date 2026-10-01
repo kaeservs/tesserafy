@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
           send({ type: 'done', mode, points: result.points, dropped: result.dropped });
         } catch (error) {
           const failure = recordFailure(error, { db: who.db, source: 'api/assist', tier: 't2' });
-          send({ type: 'error', error: failure.message });
+          send({ type: 'error', error: failure.said });
         }
         controller.close();
       },
@@ -166,6 +166,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ mode, points: result.points, dropped: result.dropped });
   } catch (error) {
     const failure = recordFailure(error, { db: who.db, source: 'api/assist', tier: 't2' });
-    return NextResponse.json({ error: failure.message }, { status: 502 });
+    return NextResponse.json({ error: failure.said }, { status: 502 });
   }
 }

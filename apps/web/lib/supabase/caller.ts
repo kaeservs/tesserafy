@@ -2,6 +2,7 @@ import { createClient as createTokenClient } from '@supabase/supabase-js';
 import type { Database, SupabaseClient } from '@tesserafy/db';
 import type { NextRequest } from 'next/server';
 import { publicSupabaseEnv } from '../env';
+import { supportSessionEnded } from '../support-session';
 import { createClient } from './server';
 
 /**
@@ -39,17 +40,16 @@ export async function caller(request: NextRequest): Promise<Caller | null> {
     });
     const { data } = await db.auth.getUser(header.slice('Bearer '.length));
     const token = header.slice('Bearer '.length);
-    return data.user ? { db, userId: data.user.id, token: () => Promise.resolve(token) } : null;
+    // A support session whose window has closed is not let in (lib/support-session).
+    if (!data.user || (await supportSessionEnded(db, token))) return null;
+    return { db, userId: data.user.id, token: () => Promise.resolve(token) };
   }
 
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
   // The session's token, read only after getUser has verified it with Auth.
-  return data.user
-    ? {
-        db: supabase,
-        userId: data.user.id,
-        token: async () => (await supabase.auth.getSession()).data.session?.access_token ?? null,
-      }
-    : null;
+  if (!data.user) return null;
+  const token = (await supabase.auth.getSession()).data.session?.access_token ?? null;
+  if (await supportSessionEnded(supabase, token)) return null;
+  return { db: supabase, userId: data.user.id, token: () => Promise.resolve(token) };
 }

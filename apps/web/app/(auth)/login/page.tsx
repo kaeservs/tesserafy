@@ -22,6 +22,7 @@ const REASONS: Record<string, string> = {
     'That link could not be completed in this browser. Request a new one — links now work in any browser.',
   session_failed: 'Signing in failed after the link was accepted. Request a new one.',
   flow_state_expired: 'That link has expired. Request a new one.',
+  support_ended: 'The support session has ended, so it was signed out.',
 };
 
 export default async function LoginPage({

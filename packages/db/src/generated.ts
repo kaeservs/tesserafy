@@ -3275,6 +3275,7 @@ export type Database = {
         }
         Returns: string[]
       }
+      support_session_ended: { Args: never; Returns: boolean }
       take_plan_allowance: {
         Args: { p_amount?: number; p_meter: string }
         Returns: Json

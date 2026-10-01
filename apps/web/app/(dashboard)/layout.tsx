@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { NavLink } from '@/components/nav-link';
 import { SiteMenu } from '@/components/site-menu';
 import { supportBanner } from '@/lib/support-banner';
+import { supportSessionEnded } from '@/lib/support-session';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -23,6 +24,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   if (!user) {
     redirect('/login');
+  }
+
+  // A support session whose window has closed is signed out here, on the
+  // first page it asks for (lib/support-session).
+  if (await supportSessionEnded(supabase, (await supabase.auth.getSession()).data.session?.access_token)) {
+    redirect('/auth/support-ended');
   }
 
   // An account with no company yet — signed up, not yet on a plan. Every page

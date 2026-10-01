@@ -307,11 +307,15 @@ export default async function SettingsPage() {
             the signals and insights read from it, your team, and the log of deleted calls. Each
             export is recorded here, with who took it.
           </p>
-          <p>
-            <a href="/api/export" download>
-              Download everything
-            </a>
-          </p>
+          {/* A form, not a link: a link can be followed from any other site
+              with the owner's session, and each export is recorded. */}
+          <form method="post" action="/api/export">
+            <p>
+              <button type="submit" className="link-button">
+                Download everything
+              </button>
+            </p>
+          </form>
           {(exports ?? []).length > 0 ? (
             <ul className="muted" style={{ marginBottom: 0 }}>
               {(exports ?? []).map((row) => (

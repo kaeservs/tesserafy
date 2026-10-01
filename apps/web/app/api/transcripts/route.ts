@@ -15,6 +15,7 @@ import { scoreUploadedConversation } from '@/lib/score-upload';
 import { linkAccount } from '@/lib/account-link';
 import { caller } from '@/lib/supabase/caller';
 import { companyDefaultScorecard } from '@/lib/company';
+import { refused } from '@/lib/refusal';
 
 /**
  * Importing a transcript, from a browser.
@@ -159,13 +160,9 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     await refund(who.db, spent);
-    const status = error.code === '42501' ? 403 : error.code === '22023' ? 400 : 502;
     // A refusal we designed — not a member, or a malformed argument — is an
-    // answer, and answers are not failures. A constraint or a missing function
-    // is a failure, and classify() already tells them apart by SQLSTATE, so
-    // only the ones we did not plan for are recorded.
-    if (status === 502) recordFailure(error, { db: who.db, source: 'api/transcripts' });
-    return NextResponse.json({ error: error.message }, { status });
+    // answer, and answers are not failures; anything else is recorded.
+    return refused(error, { db: who.db, source: 'api/transcripts' });
   }
 
   const conversationId = data;

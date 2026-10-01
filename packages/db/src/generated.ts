@@ -2659,6 +2659,7 @@ export type Database = {
       }
       cancel_plan: { Args: never; Returns: undefined }
       change_plan: { Args: { p_plan: string }; Returns: string }
+      claim_insight_ticket: { Args: { p_insight_id: string }; Returns: boolean }
       close_company: {
         Args: { p_company_id: string; p_confirm_name: string; p_reason: string }
         Returns: Json
@@ -3117,6 +3118,10 @@ export type Database = {
       reject_signal: {
         Args: { p_reason: string; p_signal_id: string }
         Returns: string
+      }
+      release_insight_ticket: {
+        Args: { p_insight_id: string }
+        Returns: undefined
       }
       remove_company_member: { Args: { p_user_id: string }; Returns: undefined }
       remove_moment: { Args: { p_moment_id: string }; Returns: undefined }

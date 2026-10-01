@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { type TicketCitation } from '@/lib/ticket';
 import { isProvider, PROVIDER_NAME, raiseTicket } from '@/lib/trackers';
 import { siteUrl } from '@/lib/site-url';
+import { refusal, refused } from '@/lib/refusal';
 import { caller } from '@/lib/supabase/caller';
 import { openToken, trackerKeyAvailable } from '@/lib/tracker-secret';
 
@@ -107,9 +108,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // The company's own tracker, and its token still sealed. The function checks
   // the insight is approved and the caller's.
   const { data: trackers, error: trackerError } = await supabase.rpc('tracker_for_ticket', { p_insight_id: id });
-  if (trackerError) {
-    return NextResponse.json({ error: trackerError.message.replace(/^tracker_for_ticket: /, '') }, { status: 409 });
-  }
+  if (trackerError) return refused(trackerError, { db: supabase, source: 'api/insights/ticket' });
   const tracker = trackers?.[0];
   if (!tracker) {
     return NextResponse.json(
@@ -129,10 +128,26 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!provider) {
     return NextResponse.json({ error: 'The connected tracker is not one this version knows.' }, { status: 409 });
   }
+
+  // The check for an existing ticket above cannot stop two presses, or two
+  // tabs, that both pass it before either is recorded: both would open an
+  // issue. So one press claims the insight before the tracker is called, and
+  // the other is told it is under way. Recording the ticket ends the claim.
+  const { data: claimed, error: claimError } = await supabase.rpc('claim_insight_ticket', { p_insight_id: id });
+  if (claimError) return refused(claimError, { db: supabase, source: 'api/insights/ticket' });
+  if (claimed !== true) {
+    return NextResponse.json(
+      { error: 'A ticket for this insight is already being raised. Reload in a moment to see it.' },
+      { status: 409 },
+    );
+  }
+
   const insightUrl = siteUrl(request, `/insights/${id}`).toString();
   const created = await raiseTicket(provider, tracker.target, token, { title, summary, citations, insightUrl });
 
   if (!created.ok) {
+    // Nothing was opened, so the next press may try again.
+    await supabase.rpc('release_insight_ticket', { p_insight_id: id });
     return NextResponse.json({ error: `Creating the ticket in ${PROVIDER_NAME[provider]} failed: ${created.message}` }, { status: 502 });
   }
 
@@ -172,10 +187,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     // The issue exists and we failed to remember it. Say so plainly: a silent
-    // failure here means the next click opens a second issue.
+    // failure here means the next click opens a second issue. The claim stays
+    // for its two minutes for the same reason.
+    const { message } = refusal(recordError, { db: supabase, source: 'api/insights/ticket' });
     return NextResponse.json(
       {
-        error: `the issue was created at ${issue.html_url} but could not be recorded: ${recordError.message}`,
+        error: `the issue was created at ${issue.html_url} but could not be recorded: ${message}`,
         url: issue.html_url,
       },
       { status: 500 },

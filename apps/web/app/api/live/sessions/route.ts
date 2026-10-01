@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { linkAccount } from '@/lib/account-link';
 import { CONSENT_REQUIRED, CONSENT_STATEMENTS, consentConfirmed } from '@/lib/consent';
 import { liveAllowedFor } from '@/lib/live-input';
+import { refused } from '@/lib/refusal';
 import { caller } from '@/lib/supabase/caller';
 
 /**
@@ -71,12 +72,9 @@ export async function POST(request: NextRequest) {
     ...(body.companyId ? { p_company_id: body.companyId } : {}),
   });
 
-  if (error) {
-    // 22023 is "you are in more than one company, say which" — a request
-    // problem the caller can fix, not a server fault.
-    const status = error.code === '42501' ? 403 : error.code === '22023' ? 400 : 502;
-    return NextResponse.json({ error: error.message }, { status });
-  }
+  // 22023 is "you are in more than one company, say which" — a request
+  // problem the caller can fix, not a server fault.
+  if (error) return refused(error, { db: who.db, source: 'api/live/sessions' });
 
   if (typeof body.accountId === 'string' && /^[0-9a-f-]{36}$/i.test(body.accountId)) {
     await linkAccount(who.db, data, { id: body.accountId });

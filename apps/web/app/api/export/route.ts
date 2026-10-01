@@ -18,6 +18,7 @@ import {
 } from '@/lib/export';
 import { allowance, tooMany } from '@/lib/rate-limit';
 import { scoreConversations } from '@/lib/scorecard';
+import { siteUrl } from '@/lib/site-url';
 import { caller } from '@/lib/supabase/caller';
 
 /**
@@ -35,7 +36,15 @@ import { caller } from '@/lib/supabase/caller';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
+  // A POST from the settings page, not a GET a link anywhere could trigger:
+  // a browser sends the session cookie with another site's link, and an
+  // export is the whole company. A form posted from another site is refused
+  // by its origin as well as by the cookie's SameSite.
+  const origin = request.headers.get('origin');
+  if (origin && origin !== siteUrl(request, '/').origin) {
+    return NextResponse.json({ error: 'an export is requested from Settings' }, { status: 403 });
+  }
   const who = await caller(request);
   if (!who) return NextResponse.json({ error: 'not signed in' }, { status: 401 });
 

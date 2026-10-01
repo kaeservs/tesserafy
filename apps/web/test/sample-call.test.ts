@@ -3,9 +3,12 @@
  * it was said), it survives the importer's own checks, and it never reaches
  * budget — the gap the first scorecard anyone sees is meant to show.
  */
+import { createHash } from 'node:crypto';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { parseTurns, redactSegments, toSegments } from '@tesserafy/ingest';
 import { describe, expect, it } from 'vitest';
-import { sampleTurns } from '@/lib/sample-call';
+import { SAMPLE_FINGERPRINT, sampleTurns } from '@/lib/sample-call';
 
 describe('sample call', () => {
   const turns = sampleTurns();
@@ -25,5 +28,21 @@ describe('sample call', () => {
 
   it('never mentions budget, so the first scorecard shows a gap', () => {
     expect(turns.some((turn) => /budget|pricing|price|afford|sign off on/i.test(turn.text))).toBe(false);
+  });
+
+  it('is the sample the database will take, and the database knows it', () => {
+    const { segments } = redactSegments(toSegments(turns));
+    const words = segments.map((segment) => segment.text).join('\n');
+    expect(createHash('md5').update(words, 'utf8').digest('hex')).toBe(SAMPLE_FINGERPRINT);
+
+    // The newest migration that defines import_sample_call carries it.
+    const dir = join(__dirname, '../../../supabase/migrations');
+    const latest = readdirSync(dir)
+      .filter((name) => name.endsWith('.sql'))
+      .sort()
+      .map((name) => readFileSync(join(dir, name), 'utf8'))
+      .filter((sql) => /function public\.import_sample_call\(/.test(sql))
+      .at(-1);
+    expect(latest).toContain(SAMPLE_FINGERPRINT);
   });
 });

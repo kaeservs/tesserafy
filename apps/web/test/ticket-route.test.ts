@@ -25,6 +25,7 @@ const COMPANY = '00000000-0000-4000-8000-00000000000a';
 let tables: Record<string, Table>;
 let rpcCalls: { name: string; args: unknown }[];
 let issues: { url: string; auth: string }[];
+let claimed: boolean;
 let tracker: { provider: string; target: string; token_ciphertext: string; company_id: string } | null;
 
 /**
@@ -53,6 +54,7 @@ const db = {
   rpc: async (name: string, args: unknown) => {
     rpcCalls.push({ name, args });
     if (name === 'tracker_for_ticket') return { data: tracker ? [tracker] : [], error: null };
+    if (name === 'claim_insight_ticket') return { data: claimed, error: null };
     return { data: null, error: null };
   },
 };
@@ -73,6 +75,7 @@ beforeEach(() => {
   process.env['TRACKER_TOKEN_KEY'] = randomBytes(32).toString('base64');
   rpcCalls = [];
   issues = [];
+  claimed = true;
   tracker = {
     provider: 'github',
     target: 'acme/product',
@@ -111,7 +114,7 @@ describe('POST /api/insights/[id]/ticket', () => {
     expect(issues).toEqual([
       { url: 'https://api.github.com/repos/acme/product/issues', auth: 'Bearer acme-own-token' },
     ]);
-    expect(rpcCalls.map((call) => call.name)).toEqual(['tracker_for_ticket', 'record_insight_ticket']);
+    expect(rpcCalls.map((call) => call.name)).toEqual(['tracker_for_ticket', 'claim_insight_ticket', 'record_insight_ticket']);
   });
 
   it('raises it in Jira Cloud when that is where the company’s tickets go', async () => {
@@ -173,6 +176,26 @@ describe('POST /api/insights/[id]/ticket', () => {
       { url: 'https://api.linear.app/graphql', auth: 'lin_api_key_0123456789' },
     ]);
     expect(queries).toEqual(['query Team', 'mutation Create']);
+  });
+
+  it('tells a press that came while another is raising the ticket, and opens nothing', async () => {
+    claimed = false;
+
+    const response = await post();
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({ error: expect.stringMatching(/already being raised/) });
+    expect(issues).toEqual([]);
+    expect(rpcCalls.map((call) => call.name)).toEqual(['tracker_for_ticket', 'claim_insight_ticket']);
+  });
+
+  it('lets the next press try when the tracker refused', async () => {
+    vi.stubGlobal('fetch', async () => Response.json({ message: 'Bad credentials' }, { status: 401 }));
+
+    const response = await post();
+
+    expect(response.status).toBe(502);
+    expect(rpcCalls.map((call) => call.name)).toEqual(['tracker_for_ticket', 'claim_insight_ticket', 'release_insight_ticket']);
   });
 
   it('answers a second click with the first ticket, without calling GitHub', async () => {

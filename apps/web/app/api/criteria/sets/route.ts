@@ -1,3 +1,4 @@
+import { recordFailure } from '@tesserafy/ai';
 import { fetchCriteriaSets } from '@tesserafy/db';
 import { NextResponse, type NextRequest } from 'next/server';
 import { engagementLabel, myCompanyId } from '@/lib/company';
@@ -30,9 +31,7 @@ export async function GET(request: NextRequest) {
       }));
     return NextResponse.json({ sets });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'could not list scorecards' },
-      { status: 500 },
-    );
+    recordFailure(error, { db: who.db, source: 'api/criteria/sets' });
+    return NextResponse.json({ error: 'Could not list the scorecards; it has been recorded.' }, { status: 502 });
   }
 }

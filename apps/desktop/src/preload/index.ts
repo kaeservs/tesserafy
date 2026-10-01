@@ -42,6 +42,26 @@ contextBridge.exposeInMainWorld('overlay', {
     points?: { text: string; quote: string | null; segmentId: string | null; document: string | null; fromScreen: boolean }[];
     error?: string;
   }> => ipcRenderer.invoke('overlay:assist', body, withScreen === true, Number(seq) || 0),
+  // Before a call: past calls and documents answer (/api/ask), with the next
+  // call's customer when there is one.
+  askCalls: (question: string, accountId: string | null, seq = 0): Promise<{
+    points?: {
+      text: string;
+      quote: string;
+      href: string | null;
+      call: { title: string; occurredAt: string | null; startMs: number; speaker: string | null } | null;
+      document: string | null;
+    }[];
+    note?: string;
+    dropped?: number;
+    error?: string;
+  }> => ipcRenderer.invoke('overlay:ask-calls', question, accountId, Number(seq) || 0),
+  onAskStep: (listener: (step: { seq: number; text: string }) => void): void => {
+    ipcRenderer.on('overlay:ask-step', (_event, step: { seq?: unknown; text?: unknown }) => {
+      if (typeof step.text === 'string') listener({ seq: Number(step.seq) || 0, text: step.text });
+    });
+  },
+  openCall: (href: string): Promise<void> => ipcRenderer.invoke('overlay:open-call', href),
   // One point of an answer still being written, as soon as it is checked.
   onAssistPart: (
     listener: (part: { seq: number; point: { text: string; quote: string | null; segmentId: string | null; document: string | null; fromScreen: boolean } }) => void,

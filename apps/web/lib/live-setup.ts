@@ -21,6 +21,8 @@ export interface LiveSetup {
   readonly prep: { id: string; person: string; callAt: string | null; chosen: boolean } | null;
   /** Whether the company lets the overlay send a screenshot with a question. */
   readonly screen: boolean;
+  /** Whether the overlay shows itself, offering Start, when a call starts. */
+  readonly detectCalls: boolean;
 }
 
 /** Of a person's own preps, the one whose call is nearest now, within the window. */
@@ -38,7 +40,7 @@ export async function liveSetup(db: SupabaseClient, userId: string, now = new Da
   const companyId = await myCompanyId(db, userId);
   const { data: preferences } = await db
     .from('user_preferences')
-    .select('overlay_look, next_prep_id')
+    .select('overlay_look, next_prep_id, detect_calls')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -82,6 +84,7 @@ export async function liveSetup(db: SupabaseClient, userId: string, now = new Da
     account,
     prep: prep ? { id: prep.id, person: prep.person_name, callAt: prep.call_at, chosen } : null,
     screen: company?.screen_assist ?? false,
+    detectCalls: preferences?.detect_calls ?? true,
   };
 }
 

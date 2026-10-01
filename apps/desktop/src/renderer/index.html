@@ -196,6 +196,10 @@
       .look-actions { display: flex; gap: 6px; justify-content: flex-end; }
       body.looking #criteria, body.looking #suggestion, body.looking .signin,
       .bar { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+      .call-banner { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; padding: 6px 8px; border-radius: 8px;
+                     font-size: 12px; background: rgba(var(--accent-rgb), 0.2); -webkit-app-region: no-drag; }
+      .call-banner[hidden] { display: none; }
+      .call-banner span { flex: 1; }
       .bar .primary { color: var(--text); border-color: rgb(var(--accent-rgb)); background: rgba(var(--accent-rgb), 0.25); }
       .bar-note { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .assist { margin-top: 10px; -webkit-app-region: no-drag; }
@@ -233,6 +237,14 @@
       <button type="button" id="listen" class="primary" disabled>Start</button>
       <button type="button" id="hide" title="Hide the overlay">Hide</button>
       <span class="muted bar-note" id="nextCall"></span>
+    </div>
+
+    <!-- A call has started (or ended): the overlay came up by itself, and
+         says why. Start still needs the consent box ticked. -->
+    <div class="call-banner" id="callBanner" role="status" hidden>
+      <span id="callText"></span>
+      <button type="button" id="callAction"></button>
+      <button type="button" id="callDismiss" aria-label="Dismiss">×</button>
     </div>
 
     <header>

@@ -209,6 +209,16 @@ or PNG by its bytes, under 1.5 MB. Owners can switch it off for the company
 screen", not as a verified quote: there is no stored text to check them
 against. Tests send the model a rendered slide, never a real screen.
 
+On Windows the overlay notices a call starting: Windows records which app is
+using the microphone now (`HKCU\…\CapabilityAccessManager\ConsentStore\microphone`,
+an app whose LastUsedTimeStop is 0), which covers Zoom and Teams and, as
+well, Meet or Teams in a browser — no process list can tell a browser in a
+meeting from a browser. Only meeting apps count (games use the microphone
+too), never the overlay itself. It comes up without taking focus and offers
+Start; it never starts listening by itself, because consent comes first.
+Each person can switch it off (Account → Overlay, `user_preferences.detect_calls`).
+macOS keeps no such record a command can read; it needs a native check.
+
 Brands can sign up themselves (`/signup`) only when an operator opens it in
 the console: the switch is `app_settings.signup_open`, checked by
 `create_my_company` itself, so the database refuses a company while closed

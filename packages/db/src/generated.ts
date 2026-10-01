@@ -2426,18 +2426,21 @@ export type Database = {
       }
       user_preferences: {
         Row: {
+          detect_calls: boolean
           next_prep_id: string | null
           overlay_look: Json
           updated_at: string
           user_id: string
         }
         Insert: {
+          detect_calls?: boolean
           next_prep_id?: string | null
           overlay_look?: Json
           updated_at?: string
           user_id: string
         }
         Update: {
+          detect_calls?: boolean
           next_prep_id?: string | null
           overlay_look?: Json
           updated_at?: string
@@ -3227,6 +3230,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      set_detect_calls: { Args: { p_on: boolean }; Returns: boolean }
       set_member_role: {
         Args: { p_role: string; p_user_id: string }
         Returns: undefined

@@ -510,6 +510,44 @@ el('termsLink').addEventListener('click', () => void api.openTerms());
 el('hide').addEventListener('click', () => void api.hide());
 
 /*
+ * A call started or ended (main/calls): say so, and offer the next step.
+ * Starting is the seller's: Start needs the consent box ticked, as always.
+ */
+let callAction = null;
+function showCall(text, label, action) {
+  el('callText').textContent = text;
+  el('callAction').textContent = label;
+  el('callAction').hidden = !label;
+  callAction = action;
+  el('callBanner').hidden = false;
+}
+el('callAction').addEventListener('click', () => callAction?.());
+el('callDismiss').addEventListener('click', () => {
+  el('callBanner').hidden = true;
+});
+api.onCall((call) => {
+  if (!signedIn) return;
+  if (call.active && !listening) {
+    showCall(`${call.app} is using your microphone — a call?`, 'Start', () => {
+      if (!el('consent').checked) {
+        el('callText').textContent = 'Tick that everyone agreed, then Start.';
+        el('consent').focus();
+        return;
+      }
+      el('callBanner').hidden = true;
+      el('listen').click();
+    });
+  } else if (!call.active && listening) {
+    showCall('The call seems to have ended.', 'Stop', () => {
+      el('callBanner').hidden = true;
+      if (listening) el('listen').click();
+    });
+  } else if (!call.active) {
+    el('callBanner').hidden = true;
+  }
+});
+
+/*
  * Cluely's four buttons and ask box (/api/assist). Each reads the call so far
  * and the prep for it. A point about the call carries the words it rests on,
  * shown under it; the server has already dropped any whose words the call

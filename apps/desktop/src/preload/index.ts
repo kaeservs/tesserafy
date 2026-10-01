@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('overlay', {
     prep?: { id: string; person: string; callAt: string | null; chosen: boolean } | null;
     live?: boolean;
     screen?: boolean;
+    detectCalls?: boolean;
     appearance?: Appearance;
     error?: string;
   }> => ipcRenderer.invoke('overlay:setup'),
@@ -41,6 +42,12 @@ contextBridge.exposeInMainWorld('overlay', {
     points?: { text: string; quote: string | null; segmentId: string | null; document: string | null; fromScreen: boolean }[];
     error?: string;
   }> => ipcRenderer.invoke('overlay:assist', body, withScreen === true),
+  // A meeting app started (or stopped) using the microphone (main/calls).
+  onCall: (listener: (call: { active: boolean; app: string | null }) => void): void => {
+    ipcRenderer.on('overlay:call', (_event, call: { active?: unknown; app?: unknown }) =>
+      listener({ active: call.active === true, app: typeof call.app === 'string' ? call.app : null }),
+    );
+  },
   // The Assist shortcut was pressed, whichever window is in front.
   onAssistKey: (listener: () => void): void => {
     ipcRenderer.on('overlay:assist-key', () => listener());

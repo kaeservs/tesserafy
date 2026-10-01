@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { LIVE_LIMITS, redactLive } from '@/lib/live-input';
 import { caller } from '@/lib/supabase/caller';
+import { refused } from '@/lib/refusal';
 
 /**
  * One utterance, as it is finalised.
@@ -60,10 +61,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     p_text: text,
   });
 
-  if (error) {
-    const status = error.code === '42501' ? 403 : error.code === 'P0002' ? 404 : 502;
-    return NextResponse.json({ error: error.message }, { status });
-  }
+  if (error) return refused(error, { db: who.db, source: 'api/live/sessions/segments' });
 
   return NextResponse.json({ segmentId: data });
 }

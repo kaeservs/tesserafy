@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { caller } from '@/lib/supabase/caller';
+import { refused } from '@/lib/refusal';
 
 /**
  * The evidence behind a live score, kept.
@@ -69,10 +70,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     })),
   });
 
-  if (error) {
-    const status = error.code === '42501' ? 403 : error.code === 'P0002' ? 404 : 502;
-    return NextResponse.json({ error: error.message }, { status });
-  }
+  if (error) return refused(error, { db: who.db, source: 'api/live/sessions/events' });
 
   return NextResponse.json(data as { recorded: number; rejected: number });
 }

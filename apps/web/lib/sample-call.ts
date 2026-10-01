@@ -16,6 +16,15 @@ import type { Turn } from '@tesserafy/ingest';
 
 export const SAMPLE_TITLE = 'Sample call: Harbor & Pine Logistics, discovery';
 
+/**
+ * The md5 of the sample's segment texts after redaction, joined by newlines.
+ * import_sample_call takes only a transcript with this fingerprint, so the
+ * one import that skips the consent confirmation cannot carry a real call.
+ * Changing the words means a migration with the new value; a test fails
+ * until there is one.
+ */
+export const SAMPLE_FINGERPRINT = 'a222391bb6e1c6ab147130fcfc5626d7';
+
 const LINES: readonly (readonly [speaker: string, seconds: number, text: string])[] = [
   ['Maya Chen', 2, 'Thanks for making the time, Tom. Before I show you anything, could you walk me through how weekly reporting works for you today?'],
   ['Tom Okafor', 11, 'Sure. Every Friday two of my analysts pull shipment data out of our warehouse system and the carrier portals, paste it into one big spreadsheet, and build the weekly report for the ops leads.'],

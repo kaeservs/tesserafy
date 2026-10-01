@@ -26,6 +26,10 @@ values ('00000000-0000-4000-8000-00000000000a',
         '00000000-0000-4000-8000-0000000000f1',
         '00000000-0000-4000-8000-000000000a21');
 
+-- The company's tracker: a ticket is only ever an issue on it.
+insert into public.company_trackers (company_id, provider, target, token_ciphertext, token_hint)
+values ('00000000-0000-4000-8000-00000000000a', 'github', 'x/y', 'v1:x:y:z', 'abcd');
+
 -- Still the owner here: the fixture above was just inserted.
 select is(
   (select status from public.insights where id = '00000000-0000-4000-8000-0000000000f1'),

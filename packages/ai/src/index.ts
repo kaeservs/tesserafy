@@ -200,3 +200,14 @@ export {
   type DocumentPassage,
 } from './agents/ask-calls';
 export { companySources } from './agents/sources';
+export {
+  draftFollowUp,
+  followUpText,
+  resolveFollowUp,
+  T3_FOLLOW_UP_DRAFTER,
+  type FollowUpDraft,
+  type FollowUpKind,
+  type FollowUpLine,
+  type FollowUpOptions,
+  type FollowUpResult,
+} from './tiers/t3-follow-up';

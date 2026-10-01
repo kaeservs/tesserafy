@@ -444,6 +444,15 @@ function startListening() {
     listening = false;
     el('listen').textContent = 'Start';
     el('consent').disabled = false;
+    // What Cluely hands over when the meeting ends: here, the follow-up email,
+    // drafted in the dashboard when the seller asks for it there.
+    const ended = conversationId;
+    if (ended) {
+      showCall('Call saved. Draft the follow-up email?', 'Follow-up', () => {
+        el('callBanner').hidden = true;
+        void api.openFollowUp(ended);
+      });
+    }
   };
 
   recognition.start();

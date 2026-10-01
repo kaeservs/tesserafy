@@ -226,6 +226,15 @@ Start; it never starts listening by itself, because consent comes first.
 Each person can switch it off (Account → Overlay, `user_preferences.detect_calls`).
 macOS keeps no such record a command can read; it needs a native check.
 
+A support session ends when its record does. The console's link starts an
+ordinary session; `support_session_ended()` says whether the caller's session
+began inside a support window (after the record, before its expiry) that has
+since ended or expired, and the web app signs it out on its next page
+(`/auth/support-ended`) and refuses it on the API (`lib/supabase/caller.ts`).
+Only sessions started by a sign-in link are asked — a password session never
+is one — so the overlay's detections pay nothing. The customer's own sessions
+from before the window are untouched.
+
 Brands can sign up themselves (`/signup`) only when an operator opens it in
 the console: the switch is `app_settings.signup_open`, checked by
 `create_my_company` itself, so the database refuses a company while closed

@@ -101,6 +101,29 @@ test pins that. With strict tools, five questions all answered in full, still
 about $0.016 each. The tolerant parse and `UnreadableAnswer` stay as the
 second line of defence.
 
+## Follow-up: narrowed questions (2026-10-01)
+
+A question can be narrowed to one account's calls, or to the last 7, 30 or
+90 days. The calls in scope are read as the person asking (RLS), at most the
+newest 2000. Both searches then take that list. `match_segments` and
+`search_segments` gained an optional `p_conversation_ids`, and `retrieve()`
+gained `conversationIds`, which treats a row from any other call as a broken
+boundary, as it treats another company's.
+
+Filtering the nearest rows afterwards would have been wrong: the top matches
+across the company may contain none of the account's, so a narrow question
+would find nothing. With calls named, `match_segments` searches exactly over
+just their lines instead of using the vector index. That is cheap for an
+account's calls, and it never loses rows to a limit applied before the
+filter. The agent is told the scope, so it says "only Harbor's calls were
+searched" rather than "no call mentions it". A scope with no calls is refused
+before anything is charged.
+
+Measured on two invented calls on two accounts:
+- narrowed to either account, every point came from that account's call;
+- a question only the other call answers found nothing, and said why;
+- not narrowed, the answer drew on both.
+
 ## Consequences
 
 - LangGraph is a dependency of `packages/ai` (`@langchain/langgraph`, and

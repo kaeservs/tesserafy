@@ -23,8 +23,19 @@ interface Answer {
  * searching for rather than a spinner, then the points, each with its quote
  * and a link to where it was said.
  */
-export function AskBox({ maxLength }: { maxLength: number }) {
+export function AskBox({
+  maxLength,
+  accounts,
+  periods,
+}: {
+  maxLength: number;
+  /** The company's accounts, to narrow a question to one's calls. */
+  accounts: readonly { id: string; name: string }[];
+  periods: readonly number[];
+}) {
   const [question, setQuestion] = useState('');
+  const [accountId, setAccountId] = useState('');
+  const [days, setDays] = useState('');
   const [busy, setBusy] = useState(false);
   const [steps, setSteps] = useState<string[]>([]);
   const [answer, setAnswer] = useState<Answer | null>(null);
@@ -41,7 +52,11 @@ export function AskBox({ maxLength }: { maxLength: number }) {
       const response = await fetch('/api/ask', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({
+          question,
+          ...(accountId ? { accountId } : {}),
+          ...(days ? { days: Number(days) } : {}),
+        }),
       });
       if (!response.ok || !response.body) {
         const body = (await response.json().catch(() => ({}))) as { error?: string };
@@ -89,6 +104,30 @@ export function AskBox({ maxLength }: { maxLength: number }) {
           placeholder="What do customers say about…"
           style={{ width: '100%' }}
         />
+        <div className="toolbar" style={{ marginTop: '0.5rem' }}>
+          <label>
+            Calls with{' '}
+            <select value={accountId} onChange={(event) => setAccountId(event.target.value)} disabled={busy}>
+              <option value="">any account</option>
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            From{' '}
+            <select value={days} onChange={(event) => setDays(event.target.value)} disabled={busy}>
+              <option value="">any time</option>
+              {periods.map((period) => (
+                <option key={period} value={period}>
+                  the last {period} days
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         <p style={{ marginTop: '0.5rem' }}>
           <button type="submit" disabled={busy || question.trim().length < 3}>
             {busy ? 'Looking…' : 'Ask'}

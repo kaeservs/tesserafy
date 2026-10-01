@@ -100,6 +100,12 @@ export interface AskOptions {
   readonly signal?: AbortSignal;
   /** Today, for questions like "last month". Defaults to now. */
   readonly today?: Date;
+  /**
+   * What the sources are narrowed to, in words ("calls with Acme, from the
+   * last 30 days"), so the agent never says "no call mentions it" of calls it
+   * was not allowed to search.
+   */
+  readonly scope?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -441,7 +447,14 @@ export async function askCalls(question: string, opts: AskOptions): Promise<AskA
   const today = (opts.today ?? new Date()).toISOString().slice(0, 10);
   const graph = buildAskGraph(opts);
   const final = await graph.invoke(
-    { messages: [{ role: 'user', content: `Today is ${today}.\n\n<question>\n${asked}\n</question>` }] },
+    {
+      messages: [
+        {
+          role: 'user',
+          content: `Today is ${today}.${opts.scope ? ` You can search only ${opts.scope}; say so if that is why something is missing.` : ''}\n\n<question>\n${asked}\n</question>`,
+        },
+      ],
+    },
     // Each round is two steps (agent, tools); the last is agent then verify.
     { recursionLimit: MAX_ROUNDS * 2 + 4, ...(opts.signal ? { signal: opts.signal } : {}) },
   );

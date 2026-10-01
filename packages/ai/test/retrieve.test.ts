@@ -60,6 +60,26 @@ describe('retrieve', () => {
     });
   });
 
+  it('narrows to the calls named, and treats a row from any other call as a broken boundary', async () => {
+    const a1 = '00000000-0000-4000-8000-0000000000a1';
+    const { db, rpc } = fakeDb([row(A)]);
+    await retrieve(A, { embedding: EMBEDDING }, { db, conversationIds: [a1] });
+    expect(rpc).toHaveBeenCalledWith('match_segments', expect.objectContaining({ p_conversation_ids: [a1] }));
+
+    const other = fakeDb([row(A)]);
+    await expect(
+      retrieve(A, { embedding: EMBEDDING }, { db: other.db, conversationIds: ['00000000-0000-4000-8000-0000000000a2'] }),
+    ).rejects.toThrow(TenantBoundaryViolation);
+  });
+
+  it('searches nothing when no calls are in scope, and refuses more than 2000', async () => {
+    const { db, rpc } = fakeDb([row(A)]);
+    await expect(retrieve(A, { embedding: EMBEDDING }, { db, conversationIds: [] })).resolves.toEqual([]);
+    const many = Array.from({ length: 2001 }, () => '00000000-0000-4000-8000-0000000000a1');
+    await expect(retrieve(A, { embedding: EMBEDDING }, { db, conversationIds: many })).rejects.toThrow(RangeError);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it('maps rows to evidence with timestamps', async () => {
     const { db } = fakeDb([row(A)]);
     const [segment] = await retrieve(A, { embedding: EMBEDDING }, { db });

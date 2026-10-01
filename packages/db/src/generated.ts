@@ -3001,6 +3001,7 @@ export type Database = {
       match_segments: {
         Args: {
           p_company_id: string
+          p_conversation_ids?: string[]
           p_match_count: number
           p_min_similarity: number
           p_query_embedding: string
@@ -3295,7 +3296,11 @@ export type Database = {
         Returns: string
       }
       search_segments: {
-        Args: { p_limit?: number; p_query: string }
+        Args: {
+          p_conversation_ids?: string[]
+          p_limit?: number
+          p_query: string
+        }
         Returns: {
           conversation_id: string
           headline: string

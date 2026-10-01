@@ -185,7 +185,14 @@ does not know the seller's product, so it never states a price or a rollout
 time (measured: before that rule Haiku said "4-6 weeks" and Sonnet "a few
 weeks"; after it, neither did). Sonnet answers in 2.6-3.9 s median, Haiku in
 2.1-3.7 s — not enough faster to leave the routed model
-(`scripts/assist-probe.ts`).
+(`scripts/assist-probe.ts`). Measured end to end in production before
+streaming: 3.9 s for what to say, 4.6 ask, 4.8 follow-ups, 5.9 recap. So the
+answer streams: `/api/assist` with `Accept: application/x-ndjson` sends each
+point as soon as `PointStream` sees it whole and its quote is found, then the
+finished answer checked whole (anything else gets the whole answer, as older
+overlays expect), and the route's gates and lookups run side by side. A point
+may also quote the prepared brief ("brief", shown as from your prep), never
+in a recap, which is of what was said.
 
 A company's knowledge — the documents its sellers answer from, added by
 owners on the Knowledge page (PDF, Word, text, Markdown, or pasted) — is

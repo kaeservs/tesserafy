@@ -594,11 +594,51 @@ void app.whenReady().then(async () => {
   // it, of the display the overlay is on, and sent with this question alone.
   // The page never holds it, it is never written to disk, and the overlay is
   // not in it (content protection keeps it out of every capture).
-  ipcMain.handle('overlay:assist', async (_event, body: unknown, withScreen: unknown) => {
-    if (withScreen !== true || !body || typeof body !== 'object') return post('/api/assist', body);
-    const shot = await captureScreen();
-    if (!shot) return { error: 'The screen could not be captured. On a Mac, allow screen recording for Tesserafy.' };
-    return post('/api/assist', { ...(body as Record<string, unknown>), screen: shot });
+  //
+  // Streamed: each point is passed to the page the moment the server has
+  // checked it ('overlay:assist-part', with the page's own sequence number so
+  // a later question's points are never mixed into an earlier one's), and the
+  // finished answer is what this resolves with.
+  ipcMain.handle('overlay:assist', async (event, body: unknown, withScreen: unknown, seq: unknown) => {
+    if (!body || typeof body !== 'object') return { error: 'nothing to ask' };
+    let payload = body as Record<string, unknown>;
+    if (withScreen === true) {
+      const shot = await captureScreen();
+      if (!shot) return { error: 'The screen could not be captured. On a Mac, allow screen recording for Tesserafy.' };
+      payload = { ...payload, screen: shot };
+    }
+    const response = await session.fetch('/api/assist', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/x-ndjson' },
+      body: JSON.stringify(payload),
+    });
+    if (!response) return NOT_SIGNED_IN;
+    if (!response.ok || !response.body) {
+      const failed = (await response.json().catch(() => ({}))) as { error?: unknown };
+      return { error: typeof failed.error === 'string' ? failed.error : `/api/assist failed: ${response.status}` };
+    }
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finished: unknown = { error: 'The answer was cut off.' };
+    for await (const chunk of response.body as unknown as AsyncIterable<Uint8Array>) {
+      buffer += decoder.decode(chunk, { stream: true });
+      let newline: number;
+      while ((newline = buffer.indexOf('\n')) >= 0) {
+        const line = buffer.slice(0, newline).trim();
+        buffer = buffer.slice(newline + 1);
+        if (!line) continue;
+        let part: { type?: unknown; point?: unknown; error?: unknown };
+        try {
+          part = JSON.parse(line) as typeof part;
+        } catch {
+          continue;
+        }
+        if (part.type === 'point') event.sender.send('overlay:assist-part', { seq, point: part.point });
+        else if (part.type === 'done') finished = part;
+        else if (part.type === 'error') finished = { error: typeof part.error === 'string' ? part.error : 'That did not work.' };
+      }
+    }
+    return finished;
   });
 
   ipcMain.handle('overlay:live-start', async (_event, body: unknown) =>

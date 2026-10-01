@@ -37,11 +37,30 @@ contextBridge.exposeInMainWorld('overlay', {
   hide: (): Promise<void> => ipcRenderer.invoke('overlay:hide'),
   // withScreen: the main process takes one screenshot and sends it with this
   // question; the page never sees it.
-  assist: (body: unknown, withScreen = false): Promise<{
+  assist: (body: unknown, withScreen = false, seq = 0): Promise<{
     mode?: string;
     points?: { text: string; quote: string | null; segmentId: string | null; document: string | null; fromScreen: boolean }[];
     error?: string;
-  }> => ipcRenderer.invoke('overlay:assist', body, withScreen === true),
+  }> => ipcRenderer.invoke('overlay:assist', body, withScreen === true, Number(seq) || 0),
+  // One point of an answer still being written, as soon as it is checked.
+  onAssistPart: (
+    listener: (part: { seq: number; point: { text: string; quote: string | null; segmentId: string | null; document: string | null; fromScreen: boolean } }) => void,
+  ): void => {
+    ipcRenderer.on('overlay:assist-part', (_event, part: { seq?: unknown; point?: unknown }) => {
+      const point = part.point as Record<string, unknown> | null;
+      if (!point || typeof point['text'] !== 'string') return;
+      listener({
+        seq: Number(part.seq) || 0,
+        point: {
+          text: point['text'],
+          quote: typeof point['quote'] === 'string' ? point['quote'] : null,
+          segmentId: typeof point['segmentId'] === 'string' ? point['segmentId'] : null,
+          document: typeof point['document'] === 'string' ? point['document'] : null,
+          fromScreen: point['fromScreen'] === true,
+        },
+      });
+    });
+  },
   // A meeting app started (or stopped) using the microphone (main/calls).
   onCall: (listener: (call: { active: boolean; app: string | null }) => void): void => {
     ipcRenderer.on('overlay:call', (_event, call: { active?: unknown; app?: unknown }) =>

@@ -24,10 +24,11 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import { logUsage, toUsageEvent, type UsageEvent, type UsageSink } from '../telemetry/usage';
 import { locate } from './evidence';
+import { PointStream } from './stream-points';
 import { isEmpty, renderInstructions, type Guidance } from './guidance';
 import { T2_MODEL, type SuggestableSegment } from './t2-suggest';
 
-export const T2_ASSISTER = 't2-assist@2026-10-07';
+export const T2_ASSISTER = 't2-assist@2026-10-09';
 
 export const ASSIST_MODES = ['assist', 'say', 'followups', 'recap', 'ask'] as const;
 export type AssistMode = (typeof ASSIST_MODES)[number];
@@ -115,7 +116,7 @@ const ClaimedSchema = z.object({
           .describe('Words copied exactly from one transcript segment or one knowledge passage that this point rests on. Empty only for general advice.'),
         segment_id: z
           .string()
-          .describe('The id of the segment (u…) or knowledge passage (k…) the quote was copied from, or "screen" for words read off the screenshot. Empty when quote is empty.'),
+          .describe('The id of the segment (u…) or knowledge passage (k…) the quote was copied from, "brief" for the prepared brief, or "screen" for words read off the screenshot. Empty when quote is empty.'),
       }),
     )
     .describe('The answer, most useful first.'),
@@ -172,53 +173,96 @@ export function resolveAssist(
   transcript: readonly SuggestableSegment[],
   knowledge: readonly KnowledgePassage[] = [],
   screen = false,
+  brief: string | null = null,
 ): { points: AssistPoint[]; dropped: number } {
-  const byId = new Map(transcript.map((segment) => [segment.id, segment]));
-  const passages = new Map(knowledge.map((passage) => [passage.id, passage]));
+  const check = pointChecker(mode, transcript, knowledge, screen, brief);
   const points: AssistPoint[] = [];
   let dropped = 0;
   for (const item of claimed.points) {
-    const text = item.text.trim();
-    const quote = item.quote.trim();
-    if (!text) continue;
-    if (!quote) {
-      if (MUST_QUOTE.has(mode)) dropped++;
-      else points.push({ text, quote: null, segmentId: null, document: null, fromScreen: false });
-      continue;
-    }
-    // Read off the screenshot: kept, and said to be from the screen. Only
-    // when a screenshot was sent — otherwise it is a quote from nowhere.
-    if (item.segment_id === 'screen') {
-      if (screen) points.push({ text, quote, segmentId: null, document: null, fromScreen: true });
-      else dropped++;
-      continue;
-    }
-    const passage = passages.get(item.segment_id);
-    if (passage) {
-      const found = locate(passage.text, quote);
-      if (found) points.push({ text, quote: passage.text.slice(found.start, found.end), segmentId: null, document: passage.title, fromScreen: false });
-      else dropped++;
-      continue;
-    }
-    const segment = byId.get(item.segment_id);
-    const span = segment ? locate(segment.text, quote) : null;
-    if (!segment || !span) {
-      dropped++;
-      continue;
-    }
-    points.push({ text, quote: segment.text.slice(span.start, span.end), segmentId: segment.id, document: null, fromScreen: false });
+    const verdict = check(item);
+    if (verdict === 'skip') continue;
+    if (verdict === 'drop') dropped++;
+    else points.push(verdict);
   }
   return { points: points.slice(0, ASSIST_MAX[mode]), dropped };
 }
 
-export async function assist(input: AssistInput, opts: AssistOptions): Promise<AssistResult> {
+type ClaimedPoint = z.infer<typeof ClaimedSchema>['points'][number];
+
+/**
+ * One claimed point: kept as an AssistPoint, dropped (its quote is not where
+ * it says), or skipped (empty). The same check whether the point arrives in a
+ * stream or in the finished answer, so what was shown is what was kept.
+ */
+function pointChecker(
+  mode: AssistMode,
+  transcript: readonly SuggestableSegment[],
+  knowledge: readonly KnowledgePassage[],
+  screen: boolean,
+  brief: string | null,
+): (item: ClaimedPoint) => AssistPoint | 'drop' | 'skip' {
+  const byId = new Map(transcript.map((segment) => [segment.id, segment]));
+  const passages = new Map(knowledge.map((passage) => [passage.id, passage]));
+  return (item) => {
+    const text = item.text.trim();
+    const quote = item.quote.trim();
+    if (!text) return 'skip';
+    if (!quote) return MUST_QUOTE.has(mode) ? 'drop' : { text, quote: null, segmentId: null, document: null, fromScreen: false };
+    // Read off the screenshot: kept, and said to be from the screen. Only
+    // when a screenshot was sent — otherwise it is a quote from nowhere.
+    if (item.segment_id === 'screen') return screen ? { text, quote, segmentId: null, document: null, fromScreen: true } : 'drop';
+    // From the prepared brief: found in it, word for word, like any quote.
+    // Never in a recap, which is of what was said on the call.
+    if (item.segment_id === 'brief') {
+      if (mode === 'recap') return 'drop';
+      const found = brief ? locate(brief, quote) : null;
+      return found && brief
+        ? { text, quote: brief.slice(found.start, found.end), segmentId: null, document: 'your prep', fromScreen: false }
+        : 'drop';
+    }
+    const passage = passages.get(item.segment_id);
+    if (passage) {
+      const found = locate(passage.text, quote);
+      return found
+        ? { text, quote: passage.text.slice(found.start, found.end), segmentId: null, document: passage.title, fromScreen: false }
+        : 'drop';
+    }
+    const segment = byId.get(item.segment_id);
+    const span = segment ? locate(segment.text, quote) : null;
+    return segment && span
+      ? { text, quote: segment.text.slice(span.start, span.end), segmentId: segment.id, document: null, fromScreen: false }
+      : 'drop';
+  };
+}
+
+/** Whether a streamed value has the shape of a claimed point. */
+function isClaimedPoint(value: unknown): value is ClaimedPoint {
+  const item = value as Partial<ClaimedPoint> | null;
+  return !!item && typeof item.text === 'string' && typeof item.quote === 'string' && typeof item.segment_id === 'string';
+}
+
+/**
+ * The answer, streamed: `onPoint` is called with each point as soon as the
+ * model has finished writing it and its quote has been found — usually a
+ * second or two before the whole answer is done — up to the mode's limit.
+ * What it returns is the finished answer, checked whole; the points it holds
+ * are the ones already passed to `onPoint`, in the same order.
+ */
+export async function assist(
+  input: AssistInput,
+  opts: AssistOptions,
+  onPoint?: (point: AssistPoint) => void,
+): Promise<AssistResult> {
   if (input.mode === 'ask' && !input.question?.trim()) throw new Error('assist(): ask needs a question');
   const model = opts.model ?? T2_MODEL;
   const sink = opts.onUsage ?? logUsage;
   const startedAt = Date.now();
+  const check = pointChecker(input.mode, input.transcript, input.knowledge ?? [], Boolean(input.screen), input.brief ?? null);
+  const reader = new PointStream();
+  let shown = 0;
 
   // No temperature: this tier's model rejects a request carrying one.
-  const response = await opts.client.messages.parse({
+  const stream = opts.client.messages.stream({
     model,
     max_tokens: 1_000,
     system: isEmpty(opts.guidance) ? SYSTEM : `${SYSTEM}\n\n${renderInstructions(opts.guidance)}`,
@@ -235,6 +279,18 @@ export async function assist(input: AssistInput, opts: AssistOptions): Promise<A
     ],
     output_config: { format: zodOutputFormat(ClaimedSchema) },
   });
+  if (onPoint) {
+    stream.on('text', (delta) => {
+      for (const item of reader.push(delta)) {
+        if (shown >= ASSIST_MAX[input.mode] || !isClaimedPoint(item)) continue;
+        const verdict = check(item);
+        if (verdict === 'skip' || verdict === 'drop') continue;
+        shown++;
+        onPoint(verdict);
+      }
+    });
+  }
+  const response = await stream.finalMessage();
   const usage = toUsageEvent('t2', model, response.usage, Date.now() - startedAt);
   sink(usage);
 
@@ -243,6 +299,6 @@ export async function assist(input: AssistInput, opts: AssistOptions): Promise<A
   }
   if (!response.parsed_output) throw new Error('T2 assist returned no parsable output');
 
-  const resolved = resolveAssist(input.mode, response.parsed_output, input.transcript, input.knowledge ?? [], Boolean(input.screen));
+  const resolved = resolveAssist(input.mode, response.parsed_output, input.transcript, input.knowledge ?? [], Boolean(input.screen), input.brief ?? null);
   return { ...resolved, assister: isEmpty(opts.guidance) ? T2_ASSISTER : `${T2_ASSISTER}+guided`, model, usage };
 }

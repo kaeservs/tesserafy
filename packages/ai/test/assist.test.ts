@@ -68,4 +68,14 @@ describe('what the overlay may say', () => {
     ]);
     expect(resolveAssist('ask', claimed, transcript, [], false)).toEqual({ points: [], dropped: 1 });
   });
+
+  it('keeps a quote from the prepared brief when it is in the brief, and names it', () => {
+    const brief = 'Call with Dana Whitfield.\nOpen with: Ask how month-end went.';
+    const claimed = { points: [point('Open with month-end.', 'Ask how month-end went', 'brief'), point('Open with pricing.', 'Lead with pricing', 'brief')] };
+    expect(resolveAssist('ask', claimed, transcript, [], false, brief)).toEqual({
+      points: [{ text: 'Open with month-end.', quote: 'Ask how month-end went', segmentId: null, document: 'your prep', fromScreen: false }],
+      dropped: 1,
+    });
+    expect(resolveAssist('recap', claimed, transcript, [], false, brief).points).toEqual([]);
+  });
 });

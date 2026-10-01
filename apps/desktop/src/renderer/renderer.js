@@ -584,6 +584,7 @@ async function runAssist(mode, question) {
   el('answer').hidden = false;
   el('answerTitle').textContent = `${ASSIST_TITLE[mode]}${screenshot ? ' · with your screen' : ''} · thinking…`;
   el('answerPoints').replaceChildren();
+  el('answerPoints').replaceChildren();
   const result = await api.assist({
     mode,
     ...(question ? { question } : {}),
@@ -591,7 +592,7 @@ async function runAssist(mode, question) {
     criteria: state ? score(state).criteria.map((c) => ({ key: c.key, label: c.label, status: c.status })) : [],
     ...(setup?.prep ? { prepId: setup.prep.id } : {}),
     engagementType: chosenScorecard ?? state?.criteriaSet?.engagementType ?? 'discovery',
-  }, screenshot);
+  }, screenshot, seq);
   if (seq !== assistSeq) return;
   if (result.error) {
     el('answerTitle').textContent = `${ASSIST_TITLE[mode]} · ${result.error}`;
@@ -605,26 +606,35 @@ async function runAssist(mode, question) {
     el('answerPoints').replaceChildren(li);
     return;
   }
-  el('answerPoints').replaceChildren(
-    ...points.map((point) => {
-      const li = document.createElement('li');
-      li.textContent = point.text;
-      if (point.quote) {
-        const quote = document.createElement('span');
-        quote.className = 'quote';
-        // From the company's knowledge, the document says where; from the
-        // call, the quote is the customer's own words.
-        quote.textContent = point.fromScreen
-          ? `“${point.quote}” — on your screen`
-          : point.document
-            ? `“${point.quote}” — ${point.document}`
-            : `“${point.quote}”`;
-        li.append(quote);
-      }
-      return li;
-    }),
-  );
+  // The same points as arrived one by one; set whole so the list is exactly
+  // the checked answer.
+  el('answerPoints').replaceChildren(...points.map(pointItem));
 }
+
+function pointItem(point) {
+  const li = document.createElement('li');
+  li.textContent = point.text;
+  if (point.quote) {
+    const quote = document.createElement('span');
+    quote.className = 'quote';
+    // From the company's knowledge, the document says where; from the
+    // call, the quote is the customer's own words.
+    quote.textContent = point.fromScreen
+      ? `“${point.quote}” — on your screen`
+      : point.document
+        ? `“${point.quote}” — ${point.document}`
+        : `“${point.quote}”`;
+    li.append(quote);
+  }
+  return li;
+}
+
+// Points of the answer being written, shown as they are checked. A part for
+// an earlier question (a later press replaced it) is left out.
+api.onAssistPart((part) => {
+  if (part.seq !== assistSeq) return;
+  el('answerPoints').append(pointItem(part.point));
+});
 
 for (const button of document.querySelectorAll('[data-assist]')) {
   button.addEventListener('click', () => void runAssist(button.dataset.assist));

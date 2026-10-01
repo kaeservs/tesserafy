@@ -452,7 +452,14 @@ void app.whenReady().then(async () => {
     const setup = (await response.json()) as { look?: Record<string, unknown>; detectCalls?: unknown };
     detectCalls = setup.detectCalls !== false;
     const look = setup.look ?? {};
-    appearance = withChange(appearance, { theme: look['theme'], accent: look['accent'], opacity: look['opacity'], size: look['size'] });
+    // The dashboard is where the look is set, so what it leaves unset is the
+    // default — not whatever the last person on this computer chose.
+    appearance = withChange(appearance, {
+      theme: look['theme'] ?? DEFAULT_APPEARANCE.theme,
+      accent: look['accent'] ?? DEFAULT_APPEARANCE.accent,
+      opacity: look['opacity'] ?? DEFAULT_APPEARANCE.opacity,
+      size: look['size'] ?? DEFAULT_APPEARANCE.size,
+    });
     if (overlay) place(overlay);
     saveAppearance();
     return { ...setup, appearance };

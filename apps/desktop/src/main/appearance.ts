@@ -70,7 +70,9 @@ export const SCALE: Record<Size, number> = { small: 0.85, normal: 1, large: 1.2 
  * measured it (`placement`'s `height`). This height is only the guess the
  * window opens with, before it has.
  */
-const BASE = { width: 380, height: 460 };
+// As wide as Cluely's panel: room for an answer, a question and the
+// four buttons on one line each, with the score kept to one line above.
+const BASE = { width: 520, height: 400 };
 /** Clear of the screen edge, and of the meeting controls at the bottom. */
 const MARGIN = 24;
 /** Never shorter than this, whatever the page reports. */

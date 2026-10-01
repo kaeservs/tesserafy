@@ -274,7 +274,12 @@ message, and writes a row. `pnpm health` reads those rows and exits non-zero
 when something needs a person; a scheduled GitHub Action runs it every four
 hours, which is the alarm. Errors are deliberately not sent to a tracking
 vendor: an upstream error quotes the request back, and here the request is
-meeting content.
+meeting content. To reach a person, an n8n workflow reads `ops_digest` with
+the public key and a token an operator makes on the console's Alerts page
+(only its hash is stored): counts and states only — no failure message, no
+company name, nothing from a call — because what it reads goes on to a chat
+app. Its judgement of what needs a person is the same as `pnpm health`'s, and
+a test fails if they drift (ADR 0019).
 
 ## Commands
 

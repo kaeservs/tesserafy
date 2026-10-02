@@ -38,14 +38,21 @@ function Stat({ value, label }: { value: string | number; label: string }) {
 
 export default async function OverviewPage() {
   const admin = await requireAdmin();
-  const [{ data, error }, { data: deletionRequests }] = await Promise.all([
+  const [{ data, error }, { data: deletionRequests }, { data: week }] = await Promise.all([
     admin.db.rpc('admin_overview'),
     admin.db
       .from('account_deletion_requests')
       .select('user_id, requested_at')
       .is('resolved_at', null)
       .order('requested_at'),
+    // The Cluely-style features over the last week, every company together.
+    admin.db.rpc('admin_feature_adoption', { p_days: 7 }),
   ]);
+  // Open companies only, as Adoption shows by default: closed and test companies are not usage.
+  const weekRows = (week ?? []).filter((row) => (row.closed_at as string | null) === null);
+  const sum = (key: 'live_calls' | 'overlay_help' | 'questions' | 'follow_ups') =>
+    weekRows.reduce((total, row) => total + Number(row[key]), 0);
+  const overlayCompanies = weekRows.filter((row) => Number(row.live_calls) > 0 || Number(row.overlay_help) > 0).length;
   const asked = deletionRequests ?? [];
   // A function's jsonb comes typed as Json; this is its shape.
   const o = data as unknown as Overview | null;
@@ -108,7 +115,6 @@ export default async function OverviewPage() {
   return (
     <Chrome email={admin.email}>
       <h1>Overview</h1>
-
       <section className="card">
         <h2 style={{ marginTop: 0 }}>Needs you</h2>
         {attention.length > 0 ? <ul>{attention}</ul> : <p className="muted">Nothing is waiting on an operator.</p>}
@@ -127,6 +133,37 @@ export default async function OverviewPage() {
         <Stat value={o.activity.active_7d} label={`people signed in this week, of ${o.activity.people_in_a_company} in a company`} />
         <Stat value={`$${Number(o.spend.usd_7d).toFixed(2)}`} label={`AI spend this week, estimated ($${Number(o.spend.usd_30d).toFixed(2)} in 30 days)`} />
       </div>
+
+      <section className="card" aria-labelledby="overlay-week">
+        <h2 id="overlay-week" style={{ marginTop: 0 }}>
+          The overlay this week
+        </h2>
+        <div className="stats" style={{ margin: 0 }}>
+          <div>
+            <div className="stat-value">{overlayCompanies}</div>
+            <div className="muted">companies used it</div>
+          </div>
+          <div>
+            <div className="stat-value">{sum('live_calls')}</div>
+            <div className="muted">live calls</div>
+          </div>
+          <div>
+            <div className="stat-value">{sum('overlay_help')}</div>
+            <div className="muted">times its help was asked for</div>
+          </div>
+          <div>
+            <div className="stat-value">{sum('questions')}</div>
+            <div className="muted">questions to Ask</div>
+          </div>
+          <div>
+            <div className="stat-value">{sum('follow_ups')}</div>
+            <div className="muted">follow-up emails drafted</div>
+          </div>
+        </div>
+        <p className="muted" style={{ marginBottom: 0 }}>
+          Every company, the last 7 days. <Link className="link" href="/adoption">By company</Link>
+        </p>
+      </section>
 
       <section className="card">
         <h2 style={{ marginTop: 0 }}>Companies by plan</h2>

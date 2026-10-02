@@ -130,6 +130,41 @@ export function spendByDetector(rows: readonly SpendRow[]): { detector: string; 
   return [...totals.values()].sort((a, b) => b.usd - a.usd);
 }
 
+/**
+ * What a detector is, as a product feature: the console's spend reads by what
+ * people use (the overlay's help, Ask, follow-up emails), not by prompt
+ * version. A detector's version and a `+guided` suffix do not change its
+ * feature; anything not listed is "Other", never dropped.
+ */
+const FEATURE_OF: readonly (readonly [RegExp, string])[] = [
+  [/^t1-detect/, 'Scoring, live and imported'],
+  [/^t2-suggest/, 'Live suggestions'],
+  [/^t2-assist/, 'Overlay help: Assist, What to say, Follow-ups, Recap, Ask'],
+  [/^ask-calls/, 'Ask your calls'],
+  [/^t3-follow-up/, 'Follow-up emails'],
+  [/^t3-actions/, 'Action items'],
+  [/^t3-extract/, 'Find insights in a call'],
+  [/^t3-synthesise/, 'Look for patterns'],
+  [/prep|brief/, 'Call prep briefs'],
+];
+
+export function featureOf(detector: string): string {
+  return FEATURE_OF.find(([pattern]) => pattern.test(detector))?.[1] ?? 'Other';
+}
+
+/** Spend over the whole window by product feature, largest first. */
+export function spendByFeature(rows: readonly SpendRow[]): { feature: string; calls: number; usd: number }[] {
+  const totals = new Map<string, { feature: string; calls: number; usd: number }>();
+  for (const row of rows) {
+    const feature = featureOf(row.detector);
+    const seen = totals.get(feature) ?? { feature, calls: 0, usd: 0 };
+    seen.calls += row.calls;
+    seen.usd += row.usd;
+    totals.set(feature, seen);
+  }
+  return [...totals.values()].sort((a, b) => b.usd - a.usd);
+}
+
 export const COMPANY_SORTS = ['name', 'plan', 'people', 'calls', 'last', 'failures', 'spend'] as const;
 export type CompanySort = (typeof COMPANY_SORTS)[number];
 

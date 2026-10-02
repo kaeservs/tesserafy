@@ -82,6 +82,8 @@ export {
   COMPANY_SORTS,
   findCompanies,
   spendByDetector,
+  spendByFeature,
+  featureOf,
   spendByWeek,
   type AdoptionRow,
   type CompanySort,

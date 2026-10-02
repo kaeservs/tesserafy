@@ -2725,6 +2725,8 @@ export type Database = {
       admin_feature_adoption: {
         Args: { p_days?: number }
         Returns: {
+          action_items: number
+          agreed: number
           calls: number
           closed_at: string
           coaching: number
@@ -2732,10 +2734,15 @@ export type Database = {
           corrections: number
           examples: number
           feedback: number
+          follow_ups: number
           goals: number
+          knowledge_docs: number
+          live_calls: number
           name: string
+          overlay_help: number
           plan: string
           preps: number
+          questions: number
           sample_call: boolean
           speakers_marked: number
         }[]

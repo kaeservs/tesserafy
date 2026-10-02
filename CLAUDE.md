@@ -348,6 +348,13 @@ a test fails if they drift (ADR 0019).
   pgvector lives in the `extensions` schema, not `public`. The dimension
   belongs to the embedding model; changing one means changing both, and every
   stored vector with them.
+- The look (2026-10, from the owner's reference): a white icon sidebar in
+  seven groups, a lavender-white page, white cards on a soft shadow, one
+  purple (`#5932EA`), Poppins (self-hosted by `next/font`), status as green
+  and red pills. Plain CSS on the tokens at the top of `apps/web/app/globals.css`
+  — no UI library — so a token change restyles every page. Muted text and the
+  confirmed green are darker than the reference, because the reference's
+  fail the accessibility scan in `pnpm e2e`; keep them that way.
 - Criteria definitions are data, not code. A row with no company is a
   Tesserafy template, written by an operator with `pnpm criteria --add`; a row
   with a company is that company's own scorecard, published by its owner in

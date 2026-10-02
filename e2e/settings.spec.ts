@@ -20,6 +20,8 @@ test('a member sees how long calls are kept, and is not offered the choice', asy
   await page.getByRole('button', { name: 'Sign in' }).click();
   await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 30_000 });
 
+  // Settings sits in the sidebar's Setup group.
+  await page.getByRole('button', { name: 'Setup' }).click();
   await page.getByRole('link', { name: 'Settings' }).click();
   await page.waitForURL((url) => url.pathname === '/settings');
 

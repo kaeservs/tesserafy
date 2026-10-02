@@ -28,3 +28,4 @@ accepted ADR to change the decision; write a new one that supersedes it.
 | 0016 | Each company writes its own scorecards | proposed |
 | 0017 | Operators sign in with two steps, and the database asks | proposed |
 | 0018 | "Ask your calls" is an agent, and LangGraph runs its loop | proposed |
+| 0019 | Alerts read a digest of counts, with a token, not the service-role key | proposed |

@@ -2680,6 +2680,7 @@ export type Database = {
           usd: number
         }[]
       }
+      admin_create_ops_token: { Args: never; Returns: string }
       admin_feature_adoption: {
         Args: { p_days?: number }
         Returns: {
@@ -2699,7 +2700,9 @@ export type Database = {
         }[]
       }
       admin_operator_mfa: { Args: never; Returns: Json }
+      admin_ops_token: { Args: never; Returns: Json }
       admin_overview: { Args: never; Returns: Json }
+      admin_revoke_ops_token: { Args: never; Returns: undefined }
       admin_set_feedback_status: {
         Args: { p_feedback_id: string; p_status: string }
         Returns: undefined
@@ -3089,6 +3092,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      ops_digest: { Args: { p_hours?: number; p_token: string }; Returns: Json }
       plan_has_allowance: { Args: { p_meter: string }; Returns: boolean }
       plan_overview: { Args: never; Returns: Json }
       publish_scorecard: {

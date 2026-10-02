@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { spendByDetector, spendByWeek, type SpendRow } from '@tesserafy/db';
+import { spendByDetector, spendByFeature, spendByWeek, type SpendRow } from '@tesserafy/db';
 import { requireAdmin } from '@/lib/admin';
 import { Chrome } from '../chrome';
 
@@ -37,6 +37,7 @@ export default async function Spend() {
   const peak = Math.max(0.01, ...weeks.map((week) => week.usd));
   const total = weeks.reduce((sum, week) => sum + week.usd, 0);
   const detectors = spendByDetector(rows);
+  const features = spendByFeature(rows);
   // Cost against price: what each company's AI use cost over the last
   // MARGIN_DAYS, beside what its plan charges a month. Closed companies with
   // nothing spent are left out.
@@ -91,6 +92,29 @@ export default async function Spend() {
               <td style={{ width: '25%' }}>
                 <div style={{ background: 'currentColor', opacity: 0.35, height: '0.6rem', width: `${(week.usd / peak) * 100}%` }} />
               </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <h2>By feature</h2>
+      <p className="muted">What people use, whatever the prompt version: the overlay's help, Ask, follow-up emails, scoring.</p>
+      <table tabIndex={0}>
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th className="num">Calls</th>
+            <th className="num">Estimated</th>
+            <th className="num">Share</th>
+          </tr>
+        </thead>
+        <tbody>
+          {features.map((row) => (
+            <tr key={row.feature}>
+              <td>{row.feature}</td>
+              <td className="num">{row.calls}</td>
+              <td className="num">{usd(row.usd)}</td>
+              <td className="num muted">{total > 0 ? `${Math.round((row.usd / total) * 100)}%` : '—'}</td>
             </tr>
           ))}
         </tbody>

@@ -21,7 +21,8 @@ export default async function Mfa() {
   if (verified && level?.currentLevel === 'aal2') redirect('/');
 
   return (
-    <main style={{ maxWidth: '34rem', margin: '4rem auto' }}>
+    <main className="auth">
+      <div className="auth-card" style={{ width: 'min(100%, 34rem)' }}>
       <h1>{verified ? 'Your code, please' : 'Set up two-step sign-in'}</h1>
       <p className="lede">
         {verified
@@ -32,6 +33,7 @@ export default async function Mfa() {
       <form action={signOut} style={{ marginTop: '2rem' }}>
         <button type="submit">Sign out</button>
       </form>
+      </div>
     </main>
   );
 }

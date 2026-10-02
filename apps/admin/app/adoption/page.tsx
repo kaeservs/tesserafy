@@ -34,6 +34,14 @@ const FEATURES = [
   { key: 'feedback', label: 'Feedback' },
   { key: 'speakers_marked', label: 'Speakers marked' },
   { key: 'sample_call', label: 'Tried the sample' },
+  // What the product does now (2026-10).
+  { key: 'live_calls', label: 'Live calls' },
+  { key: 'overlay_help', label: 'Overlay help' },
+  { key: 'questions', label: 'Ask questions' },
+  { key: 'follow_ups', label: 'Follow-up emails' },
+  { key: 'action_items', label: 'Action items' },
+  { key: 'knowledge_docs', label: 'Knowledge docs' },
+  { key: 'agreed', label: 'Agreed to record' },
 ] as const;
 
 export default async function Adoption({ searchParams }: { searchParams: Promise<{ all?: string }> }) {
@@ -228,6 +236,7 @@ export default async function Adoption({ searchParams }: { searchParams: Promise
           </span>
         ))}
       </p>
+      <div className="table-scroll">
       <table tabIndex={0}>
         <thead>
           <tr>
@@ -256,6 +265,7 @@ export default async function Adoption({ searchParams }: { searchParams: Promise
           ))}
         </tbody>
       </table>
+      </div>
     </Chrome>
   );
 }

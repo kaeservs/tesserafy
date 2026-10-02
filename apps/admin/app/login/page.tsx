@@ -32,10 +32,18 @@ export default async function Login({
   }
 
   return (
-    <main style={{ maxWidth: '22rem', marginTop: '18vh' }}>
+    <main className="auth">
+      <div className="auth-card">
+      <p className="brand">
+        <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden="true">
+          <path d="M12 2.5 20.5 7.5v9L12 21.5 3.5 16.5v-9zM12 8.5l3.5 2v3.5L12 16l-3.5-2v-3.5z" />
+        </svg>
+        Tesserafy <span className="operator">Operator</span>
+      </p>
       <h1>Operator console</h1>
       <p className="lede">Internal. Sign in with your operator account.</p>
       <LoginForm denied={Boolean(denied)} />
+      </div>
     </main>
   );
 }

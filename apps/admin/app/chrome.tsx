@@ -1,7 +1,7 @@
-import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { signOut } from './actions';
+import { ConsoleSidebar } from './console-sidebar';
 
 /**
  * The band and the navigation, on every page.
@@ -12,26 +12,22 @@ import { signOut } from './actions';
  * everything else.
  */
 /**
- * How many owners are waiting on an answer. There is no email to tell the
- * operator, so the nav does — on every page, as the thing most likely to be
- * forgotten. Nothing when none are waiting, and nothing if the count cannot
- * be read: a missing badge is not worth breaking a page for.
+ * How many owners are waiting on an answer, and how much feedback nobody has
+ * looked at. There is no email to tell the operator, so the sidebar does — on
+ * every page, as the things most likely to be forgotten. Zero if a count
+ * cannot be read: a missing badge is not worth breaking a page for.
  */
-async function RequestCount() {
+async function waitingCounts(): Promise<{ requests: number; feedback: number }> {
   const db = await createClient();
-  const { data } = await db.rpc('admin_access_requests');
-  const waiting = (data ?? []).length;
-  return waiting > 0 ? <span className="tag open">{waiting}</span> : null;
+  const [{ data: requests }, { count: feedback }] = await Promise.all([
+    db.rpc('admin_access_requests'),
+    db.from('feedback').select('id', { count: 'exact', head: true }).eq('status', 'new'),
+  ]);
+  return { requests: (requests ?? []).length, feedback: feedback ?? 0 };
 }
 
-/** Feedback nobody has looked at yet, the same way. */
-async function FeedbackCount() {
-  const db = await createClient();
-  const { count } = await db.from('feedback').select('id', { count: 'exact', head: true }).eq('status', 'new');
-  return count ? <span className="tag open">{count}</span> : null;
-}
-
-export function Chrome({ email, children }: { email: string; children: ReactNode }) {
+export async function Chrome({ email, children }: { email: string; children: ReactNode }) {
+  const counts = await waitingCounts();
   return (
     <>
       <div className="band">
@@ -41,31 +37,22 @@ export function Chrome({ email, children }: { email: string; children: ReactNode
         </span>
         <span>{email}</span>
       </div>
-      <nav>
-        <Link href="/">Overview</Link>
-        <Link href="/companies">Companies</Link>
-        <Link href="/health">Health</Link>
-        <Link href="/adoption">Adoption</Link>
-        <Link href="/spend">Spend</Link>
-        <Link href="/people">People</Link>
-        <Link href="/onboard">
-          Add people <RequestCount />
-        </Link>
-        <Link href="/history">Access history</Link>
-        <Link href="/agreements">Agreements</Link>
-        <Link href="/activity">Activity</Link>
-        <Link href="/failures">Failures</Link>
-        <Link href="/alerts">Alerts</Link>
-        <Link href="/feedback">
-          Feedback <FeedbackCount />
-        </Link>
-        <Link href="/security">Security</Link>
-        <span className="spacer" />
-        <form action={signOut}>
-          <button type="submit">Sign out</button>
-        </form>
-      </nav>
-      <main>{children}</main>
+      <div className="shell">
+        <ConsoleSidebar
+          counts={counts}
+          footer={
+            <>
+              <span className="who">{email}</span>
+              <form action={signOut}>
+                <button type="submit" className="link-button">
+                  Sign out
+                </button>
+              </form>
+            </>
+          }
+        />
+        <main>{children}</main>
+      </div>
     </>
   );
 }

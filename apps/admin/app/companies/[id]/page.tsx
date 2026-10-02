@@ -97,7 +97,7 @@ function scorecardsOf(rows: readonly CriterionRow[]) {
 export default async function CompanyPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const admin = await requireAdmin();
-  const [{ data, error }, { data: people }, { data: roleChanges }, { data: criteria }] = await Promise.all([
+  const [{ data, error }, { data: people }, { data: roleChanges }, { data: criteria }, { data: agreements }] = await Promise.all([
     admin.db.rpc('admin_company_detail', { p_company_id: id }),
     // The detail names members by address; changing a role needs their id.
     admin.db.rpc('admin_users'),
@@ -116,7 +116,15 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
       .order('engagement_type')
       .order('version', { ascending: false })
       .order('position'),
+    // Who has agreed, once, to tell everyone on every call they record (ADR 0020).
+    admin.db
+      .from('recording_agreements')
+      .select('email, terms_version, surface, agreed_at')
+      .eq('company_id', id)
+      .order('agreed_at', { ascending: false }),
   ]);
+  const agreementOf = new Map<string, { terms_version: string; surface: string; agreed_at: string }>();
+  for (const row of agreements ?? []) if (!agreementOf.has(row.email.toLowerCase())) agreementOf.set(row.email.toLowerCase(), row);
   const scorecards = scorecardsOf(criteria ?? []);
   if (error?.code === '22023') notFound();
   const idOf = new Map(
@@ -200,6 +208,14 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
                     <td>{m.email}</td>
                     <td className="muted">{m.role}</td>
                     <td className="muted">{m.last_sign_in ? `seen ${utc(m.last_sign_in)}` : 'never signed in'}</td>
+                    <td className="muted">
+                      {(() => {
+                        const agreement = agreementOf.get(m.email.toLowerCase());
+                        return agreement
+                          ? `agreed to record ${utc(agreement.agreed_at)} · Terms ${agreement.terms_version} · ${agreement.surface}`
+                          : 'no recording agreement';
+                      })()}
+                    </td>
                     <td>
                       {d.company.closed_at || !idOf.get(m.email) ? null : (
                         <SetRole

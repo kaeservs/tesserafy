@@ -31,6 +31,12 @@ insert into good values (jsonb_build_array(
 ));
 grant select on good to authenticated;
 
+-- Every member here has agreed once to tell everyone on the calls they record (ADR 0020).
+insert into public.recording_agreements (user_id, email, company_id, terms_version, statement, surface)
+select m.user_id, 'test@test.tesserafy.local', m.company_id, 'test', 'I will tell everyone on every call I record.', 'overlay'
+  from public.company_members m
+on conflict do nothing;
+
 set local role authenticated;
 
 -- ---------------------------------------------------------------------------

@@ -52,6 +52,7 @@ export function Chrome({ email, children }: { email: string; children: ReactNode
           Add people <RequestCount />
         </Link>
         <Link href="/history">Access history</Link>
+        <Link href="/agreements">Agreements</Link>
         <Link href="/activity">Activity</Link>
         <Link href="/failures">Failures</Link>
         <Link href="/alerts">Alerts</Link>

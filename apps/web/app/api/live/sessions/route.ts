@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { linkAccount } from '@/lib/account-link';
-import { CONSENT_REQUIRED, CONSENT_STATEMENTS, consentConfirmed } from '@/lib/consent';
+import { AGREEMENT_REQUIRED, currentAgreement, liveConsentStatement } from '@/lib/consent';
 import { liveAllowedFor } from '@/lib/live-input';
 import { refused } from '@/lib/refusal';
 import { caller } from '@/lib/supabase/caller';
@@ -28,8 +28,6 @@ interface StartBody {
   /** The customer this call is with, from the overlay's picker. */
   accountId?: string;
   companyId?: string;
-  /** That everyone on the call was told it is being recorded and agreed. */
-  consent?: boolean;
 }
 
 export async function POST(request: NextRequest) {
@@ -45,11 +43,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'body must be JSON' }, { status: 400 });
   }
 
-  // A call is kept only once somebody has confirmed everyone agreed. The
-  // clients degrade to an unsaved session when this is refused, so a missing
-  // confirmation stops the recording being kept, never the meeting.
-  if (!consentConfirmed(body.consent)) {
-    return NextResponse.json({ error: CONSENT_REQUIRED }, { status: 400 });
+  // A call is kept only from someone who has agreed, once, to tell everyone
+  // on every call they record (ADR 0020); the call's consent record cites
+  // that agreement. The clients degrade to an unsaved session when this is
+  // refused, so a missing agreement stops the recording being kept, never
+  // the meeting.
+  const agreement = await currentAgreement(who.db, who.userId);
+  if (!agreement) {
+    return NextResponse.json({ error: AGREEMENT_REQUIRED, needsAgreement: true }, { status: 409 });
   }
 
   const title = (body.title ?? '').trim();
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
     p_title: title,
     p_engagement_type: body.engagementType ?? 'discovery',
     p_criteria_version: body.criteriaVersion ?? 1,
-    p_consent_statement: CONSENT_STATEMENTS.live,
+    p_consent_statement: liveConsentStatement(agreement),
     // Omitted when the caller did not name a company: the function then
     // resolves the one company they belong to, and raises 22023 if there is
     // more than one. Sending null says the same thing; leaving it out is what

@@ -223,6 +223,7 @@ async function loadSetup() {
   chosenScorecard = result.engagementType ?? null;
   chosenAccount = result.account?.id ?? null;
   askPlaceholder();
+  showAgreement();
   el('nextCall').textContent = result.prep
     ? `${result.prep.person}${result.account ? `, ${result.account.name}` : ''}`
     : result.account
@@ -274,9 +275,6 @@ async function startSession() {
     engagementType: state?.criteriaSet?.engagementType ?? 'discovery',
     criteriaVersion: state?.criteriaSet?.version ?? 1,
     ...(chosenAccount ? { accountId: chosenAccount } : {}),
-    // Only reachable with the box ticked; the server refuses without it, and
-    // a refusal leaves the call running unsaved rather than stopping it.
-    consent: el('consent').checked,
   });
 
   if (result.error || !result.conversationId) {
@@ -445,7 +443,6 @@ function startListening() {
     listening = false;
     askPlaceholder();
     el('listen').textContent = 'Start';
-    el('consent').disabled = false;
     // What Cluely hands over when the meeting ends: here, the follow-up email,
     // drafted in the dashboard when the seller asks for it there.
     const ended = conversationId;
@@ -465,9 +462,6 @@ function startListening() {
   // prep's questions beside it.
   el('brief').hidden = true;
   render();
-  // Fixed for the length of the call: unticking mid-call would not unrecord
-  // what was already said.
-  el('consent').disabled = true;
   setStatus('listening');
 
   // Not awaited. The first utterance can be detected before the conversation
@@ -475,10 +469,28 @@ function startListening() {
   void startSession();
 }
 
-// Each call is a different set of people, so the box starts unticked and is
-// never remembered.
-el('consent').addEventListener('change', () => {
-  el('listen').disabled = (!el('consent').checked || !signedIn) && !listening;
+/*
+ * The one-time recording agreement (ADR 0020). Shown until the person agrees,
+ * once; from then on Start is one press. The words come from the server, which
+ * keeps what was agreed to as the record every call cites.
+ */
+let agreed = false;
+function showAgreement() {
+  agreed = Boolean(setup?.agreement);
+  el('agreementText').textContent = setup?.agreementText ?? '';
+  el('agreement').hidden = agreed || !signedIn;
+  el('listen').disabled = (!agreed || !signedIn) && !listening;
+}
+el('agreeButton').addEventListener('click', async () => {
+  el('agreeButton').disabled = true;
+  const result = await api.agree();
+  el('agreeButton').disabled = false;
+  if (result.error) {
+    setStatus(result.error);
+    return;
+  }
+  setup = { ...(setup ?? {}), agreement: { agreedAt: result.agreedAt, termsVersion: result.termsVersion } };
+  showAgreement();
 });
 
 el('listen').addEventListener('click', () => {
@@ -486,7 +498,7 @@ el('listen').addEventListener('click', () => {
     recognition?.stop();
     return;
   }
-  if (!el('consent').checked || !signedIn) return;
+  if (!agreed || !signedIn) return;
   // Set up afresh: the next call may have changed in the dashboard since.
   void loadSetup()
     .then(() => loadCriteria())
@@ -537,7 +549,7 @@ el('hide').addEventListener('click', () => void api.hide());
 
 /*
  * A call started or ended (main/calls): say so, and offer the next step.
- * Starting is the seller's: Start needs the consent box ticked, as always.
+ * Starting is the seller's: Start needs the one-time agreement, as always.
  */
 let callAction = null;
 function showCall(text, label, action) {
@@ -555,9 +567,9 @@ api.onCall((call) => {
   if (!signedIn) return;
   if (call.active && !listening) {
     showCall(`${call.app} is using your microphone — a call?`, 'Start', () => {
-      if (!el('consent').checked) {
-        el('callText').textContent = 'Tick that everyone agreed, then Start.';
-        el('consent').focus();
+      if (!agreed) {
+        el('callText').textContent = 'Agree once to record your calls (below), then Start.';
+        el('agreeButton').focus();
         return;
       }
       el('callBanner').hidden = true;
@@ -853,6 +865,9 @@ function renderToAsk(card) {
 
 function showSignedOut(remembers) {
   signedIn = false;
+  agreed = false;
+  el('agreement').hidden = true;
+  el('listen').disabled = true;
   el('assist').hidden = true;
   el('nextCall').textContent = '';
   el('brief').hidden = true;
@@ -874,7 +889,6 @@ el('signin').addEventListener('submit', async (event) => {
   el('signinButton').disabled = false;
   if (result.ok) {
     showSignedIn(result.email);
-    el('listen').disabled = !el('consent').checked;
   } else {
     el('password').value = '';
     el('signinError').textContent = result.message;

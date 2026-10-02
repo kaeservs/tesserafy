@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@tesserafy/db';
 import { companyDefaultScorecard, myCompanyId } from './company';
+import { currentAgreement, RECORDING_AGREEMENT, type Agreement } from './consent';
 import { PREP_COLUMNS, readBrief, type PrepRow } from './prep';
 
 /**
@@ -23,6 +24,10 @@ export interface LiveSetup {
   readonly screen: boolean;
   /** Whether the overlay shows itself, offering Start, when a call starts. */
   readonly detectCalls: boolean;
+  /** The person's one-time recording agreement under the current Terms, or null: Start asks for it first. */
+  readonly agreement: Agreement | null;
+  /** The words of that agreement, for the overlay to show; the server keeps what is agreed to. */
+  readonly agreementText: string;
 }
 
 /** Of a person's own preps, the one whose call is nearest now, within the window. */
@@ -85,6 +90,8 @@ export async function liveSetup(db: SupabaseClient, userId: string, now = new Da
     prep: prep ? { id: prep.id, person: prep.person_name, callAt: prep.call_at, chosen } : null,
     screen: company?.screen_assist ?? false,
     detectCalls: preferences?.detect_calls ?? true,
+    agreement: await currentAgreement(db, userId),
+    agreementText: RECORDING_AGREEMENT,
   };
 }
 

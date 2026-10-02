@@ -229,6 +229,8 @@
       .answer li { margin: 2px 0; font-size: 12px; }
       .answer .quote { display: block; font-size: 10px; color: var(--dim); }
       .consent-note { margin: 2px 0 0 22px; font-size: 11px; -webkit-app-region: no-drag; }
+      #agreement { flex-direction: column; gap: 4px; }
+      #agreement .consent-note { margin: 0; display: flex; gap: 8px; align-items: center; }
       .answer .link { background: none; border: 0; padding: 0; color: var(--dim); text-decoration: underline; cursor: pointer; font: inherit; font-size: 10px; }
       .consent-note .link { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }
     </style>
@@ -324,20 +326,18 @@
       <button type="button" id="signout">Sign out</button>
     </div>
 
-    <!-- Asked before the first word: listening starts the recording. The
-         sentence is the one the server stores with the call, word for word;
-         the overlay only says it was ticked. -->
-    <label class="consent">
-      <input type="checkbox" id="consent" />
-      <span>Everyone on this call has been told it is being recorded, transcribed and analysed, and has agreed to it.</span>
-    </label>
-    <!-- Tesserafy never announces itself in a meeting, so telling the others
-         is the seller's to do; the Terms say so, and this says it where it
-         is decided. Only the seller ever sees it. -->
-    <p class="consent-note muted">
-      Tesserafy never tells the others on the call; asking them is yours to do.
-      <button type="button" class="link" id="termsLink">Terms</button>
-    </p>
+    <!-- Agreed once, before the first recorded call, then never asked again
+         (ADR 0020): Tesserafy never announces itself in a meeting, so telling
+         the others is the seller's to do, and this is where they take that on.
+         The words are the server's and are kept as the record. Only the seller
+         ever sees it; content protection keeps it out of any screen share. -->
+    <div class="consent" id="agreement" hidden>
+      <span id="agreementText"></span>
+      <p class="consent-note">
+        <button type="button" id="agreeButton">I agree</button>
+        <button type="button" class="link" id="termsLink">Terms</button>
+      </p>
+    </div>
 
     <!-- The customer's brief, before the call. Which customer, and which
          scorecard, come from the dashboard (the prep chosen as the next

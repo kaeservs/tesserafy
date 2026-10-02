@@ -8,6 +8,13 @@
  * everyone and getting their agreement falls to whoever uses it. The
  * overlay and the live microphone link here from the consent confirmation.
  */
+/**
+ * The version of the Terms a recording agreement is made under (ADR 0020).
+ * Raise it when the Terms or RECORDING_AGREEMENT change in substance: every
+ * person then agrees again before their next recorded call.
+ */
+export const TERMS_VERSION = '2026-10-02';
+
 export function legalUrl(which: 'terms' | 'privacy'): string | null {
   const value = process.env[which === 'terms' ? 'TERMS_URL' : 'PRIVACY_URL']?.trim();
   return value && /^https:\/\//i.test(value) ? value : null;

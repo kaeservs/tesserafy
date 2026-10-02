@@ -5,7 +5,7 @@ import { apply, initialState, score, type CriteriaSet, type DetectorEvent } from
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Shortfall } from '@/components/criterion-shortfall';
-import { CONSENT_STATEMENTS } from '@/lib/consent';
+
 import { LiveSession, type LiveSessionState } from '@/lib/live-session';
 
 /**
@@ -81,14 +81,35 @@ function percentile(samples: readonly number[], p: number): number | null {
 export function LiveMicrophone({
   prompts,
   scorecard,
+  agreedInitially,
+  agreementText,
 }: {
   prompts: CriterionPrompt[];
   scorecard: CriteriaSet;
+  /** Whether the person has made the one-time recording agreement under the current Terms. */
+  agreedInitially: boolean;
+  /** Its words, from the server. */
+  agreementText: string;
 }) {
   const [supported, setSupported] = useState<boolean | null>(null);
   const [listening, setListening] = useState(false);
-  // Not remembered between visits: each call is a different set of people.
-  const [consented, setConsented] = useState(false);
+  // The one-time recording agreement (ADR 0020): made here or in the
+  // overlay, once, and then every call cites it.
+  const [agreed, setAgreed] = useState(agreedInitially);
+  const [agreeing, setAgreeing] = useState(false);
+  const [agreeError, setAgreeError] = useState<string | null>(null);
+  async function agree() {
+    setAgreeing(true);
+    setAgreeError(null);
+    const response = await fetch('/api/live/agreement', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ surface: 'web' }),
+    });
+    setAgreeing(false);
+    if (response.ok) setAgreed(true);
+    else setAgreeError(((await response.json().catch(() => ({}))) as { error?: string }).error ?? 'That did not work.');
+  }
   const [speaker, setSpeaker] = useState<'customer' | 'me'>('customer');
   const [interim, setInterim] = useState('');
   const [utterances, setUtterances] = useState<Utterance[]>([]);
@@ -188,7 +209,7 @@ export function LiveMicrophone({
   );
 
   const start = useCallback(() => {
-    if (!consented) return;
+    if (!agreed) return;
     const engine = recogniser();
     if (!engine) return;
 
@@ -199,7 +220,6 @@ export function LiveMicrophone({
       `Live call — ${new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}`,
       scorecard.engagementType,
       scorecard.version,
-      consented,
     );
 
     engine.continuous = true;
@@ -268,7 +288,7 @@ export function LiveMicrophone({
     setError(null);
     engine.start();
     setListening(true);
-  }, [consented, detect, scorecard.engagementType, scorecard.version]);
+  }, [agreed, detect, scorecard.engagementType, scorecard.version]);
 
   const stop = useCallback(() => {
     recognition.current?.stop();
@@ -296,32 +316,24 @@ export function LiveMicrophone({
   return (
     <div>
       {/*
-        Asked before the first word, not after: the recording starts the
-        moment the button is pressed. The words are the ones stored with the
-        call.
+        Agreed once, before the first recorded call, not ticked every call
+        (ADR 0020). Tesserafy never tells the others on a call, so telling
+        them is the person's to do; this is where they take that on.
       */}
-      <div className="field consent">
-        <label>
-          <input
-            type="checkbox"
-            checked={consented}
-            disabled={listening}
-            onChange={(event) => setConsented(event.target.checked)}
-          />{' '}
-          {CONSENT_STATEMENTS.live}
-        </label>
-        {/* Tesserafy never announces itself on a call, so telling the others is
-            the person's own to do; the Terms say so, and this says it where it
-            is decided. */}
-        <span className="muted" style={{ fontSize: '0.8rem' }}>
-          Tesserafy never tells the others on the call; asking them is yours to do.{' '}
+      {agreed ? null : (
+        <div className="field consent">
+          <p style={{ marginTop: 0 }}>{agreementText}</p>
+          <button type="button" onClick={() => void agree()} disabled={agreeing}>
+            {agreeing ? 'Saving…' : 'I agree'}
+          </button>{' '}
           <a href="/terms" target="_blank" rel="noopener noreferrer">
             Terms
           </a>
-        </span>
-      </div>
+          {agreeError ? <p role="alert">{agreeError}</p> : null}
+        </div>
+      )}
       <div className="toolbar">
-        <button type="button" onClick={listening ? stop : start} disabled={!listening && !consented}>
+        <button type="button" onClick={listening ? stop : start} disabled={!listening && !agreed}>
           {listening ? 'Stop listening' : 'Start listening'}
         </button>
         <button type="button" onClick={() => setSpeaker((s) => (s === 'customer' ? 'me' : 'customer'))}>

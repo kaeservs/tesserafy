@@ -3,6 +3,7 @@ import { liveAvailable, myCompany, myCompanyId } from '@/lib/company';
 import { fetchCriteria, fetchCriteriaSets } from '@tesserafy/db';
 import { LiveMicrophone } from '@/components/live-microphone';
 import { toPrompts, toScorecard } from '@/lib/criteria';
+import { currentAgreement, RECORDING_AGREEMENT } from '@/lib/consent';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -33,6 +34,10 @@ export default async function LiveMicPage({
   if (!liveAvailable((await myCompany(supabase))?.plan)) return <LiveComingSoon />;
 
   const companyId = await myCompanyId(supabase);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const agreed = user ? (await currentAgreement(supabase, user.id)) !== null : false;
   const sets = await fetchCriteriaSets(supabase, companyId);
   const chosen =
     sets.find(
@@ -96,6 +101,8 @@ export default async function LiveMicPage({
         key={`${chosen.engagementType}/${chosen.version}`}
         prompts={toPrompts(criteria)}
         scorecard={toScorecard(criteria)}
+        agreedInitially={agreed}
+        agreementText={RECORDING_AGREEMENT}
       />
     </main>
   );

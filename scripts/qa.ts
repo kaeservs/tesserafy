@@ -498,19 +498,18 @@ async function checkLiveCapture(baseUrl: string, token: string): Promise<void> {
   let conversationId: string | null = null;
 
   try {
-    // Refused before anything is created: a call nobody confirmed consent for
-    // is not kept. Nothing to erase if this passes.
-    const unconfirmed = await post('/api/live/sessions', { title: 'QA PROBE — must be refused' });
+    // The one-time recording agreement (ADR 0020): made once, kept the same
+    // after. Without one a call is refused — the database test proves that,
+    // since this account, having agreed, cannot un-agree.
+    const agreed = await post('/api/live/agreement', { surface: 'web' });
+    const agreement = (await agreed.json()) as { agreedAt?: string; termsVersion?: string; error?: string };
     record(
-      'a live call without recording consent is not kept',
-      unconfirmed.status === 400,
-      `${unconfirmed.status}`,
+      'the recording agreement is made once and kept',
+      agreed.ok && Boolean(agreement.agreedAt) && Boolean(agreement.termsVersion),
+      agreement.error ?? `agreed ${agreement.agreedAt?.slice(0, 10)} under Terms ${agreement.termsVersion}`,
     );
 
-    const started = await post('/api/live/sessions', {
-      title: 'QA PROBE — erased immediately',
-      consent: true,
-    });
+    const started = await post('/api/live/sessions', { title: 'QA PROBE — erased immediately' });
     const startedBody = (await started.json()) as { conversationId?: string; error?: string };
     conversationId = startedBody.conversationId ?? null;
     record(

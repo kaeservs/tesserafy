@@ -98,6 +98,7 @@ contextBridge.exposeInMainWorld('overlay', {
   update: (): Promise<UpdateState> => ipcRenderer.invoke('overlay:update'),
   openUpdate: (): Promise<void> => ipcRenderer.invoke('overlay:open-update'),
   openTerms: (): Promise<void> => ipcRenderer.invoke('overlay:open-terms'),
+  agree: (): Promise<{ agreedAt?: string; termsVersion?: string; error?: string }> => ipcRenderer.invoke('overlay:agree'),
   openFollowUp: (conversationId: string): Promise<void> => ipcRenderer.invoke('overlay:open-follow-up', conversationId),
   onUpdate: (listener: (state: UpdateState) => void): void => {
     ipcRenderer.on('overlay:update', (_event, state: UpdateState) =>

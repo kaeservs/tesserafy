@@ -169,9 +169,14 @@ capture (`setContentProtection`; Windows reports display affinity 0x11 and a
 screen capture of its area matches one with it hidden, pixel for pixel), and
 it is out of the taskbar, Alt-Tab, the Dock, Cmd-Tab and Mission Control.
 Telling everyone on the call is the user's legal responsibility, set out in
-the Terms (`/terms`, `TERMS_URL`) and confirmed per call in a checkbox only
-the user sees — that record is what places the responsibility on them, so it
-stays. Undetectable to the meeting, never to the computer: the process keeps
+the Terms (`/terms`, `TERMS_URL`) and agreed to once, Cluely-style, in the
+overlay or on the web (ADR 0020): the words, the Terms version and when are
+kept in `recording_agreements` — outliving the account, read by the person,
+their owners and operators (console → Agreements) — and every live call's
+consent cites that agreement. `start_live_conversation` refuses anyone
+without one; raising `TERMS_VERSION` asks everyone again. That record is what
+places the responsibility on them, so it stays. Imports keep their per-upload
+box: it is about one recording that already happened. Undetectable to the meeting, never to the computer: the process keeps
 its own name in Task Manager, and nothing is built to evade monitoring or
 proctoring software. Call audio and transcripts are never used for
 Tesserafy's own purposes (the Otter.ai wiretap suits turned partly on that).

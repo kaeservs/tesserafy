@@ -229,7 +229,8 @@ async function captureScreen(): Promise<{ mediaType: 'image/jpeg'; data: string 
  * A call starting: on Windows, a meeting app taking the microphone (./calls).
  * Checked every few seconds; when one starts, the overlay comes up — without
  * taking focus from the meeting — and the page offers Start. It never starts
- * listening by itself: the consent confirmation comes first. Off when the
+ * listening by itself: the person presses Start, under their recording
+ * agreement (ADR 0020). Off when the
  * person switched it off in the dashboard (Account → Overlay).
  */
 let detectCalls = true;
@@ -697,6 +698,10 @@ void app.whenReady().then(async () => {
       ? shell.openExternal(new URL(href, BASE_URL).toString())
       : undefined,
   );
+
+  // The one-time recording agreement (ADR 0020): the server chooses the words
+  // and the Terms version; the overlay only says it was agreed, and where.
+  ipcMain.handle('overlay:agree', () => post('/api/live/agreement', { surface: 'overlay' }));
 
   ipcMain.handle('overlay:live-start', async (_event, body: unknown) =>
     post('/api/live/sessions', body),

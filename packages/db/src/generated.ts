@@ -2012,6 +2012,47 @@ export type Database = {
         }
         Relationships: []
       }
+      recording_agreements: {
+        Row: {
+          agreed_at: string
+          company_id: string
+          email: string
+          id: string
+          statement: string
+          surface: string
+          terms_version: string
+          user_id: string
+        }
+        Insert: {
+          agreed_at?: string
+          company_id: string
+          email: string
+          id?: string
+          statement: string
+          surface: string
+          terms_version: string
+          user_id: string
+        }
+        Update: {
+          agreed_at?: string
+          company_id?: string
+          email?: string
+          id?: string
+          statement?: string
+          surface?: string
+          terms_version?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recording_agreements_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scorecard_purposes: {
         Row: {
           company_id: string
@@ -2744,6 +2785,14 @@ export type Database = {
           role: string
           user_id: string
         }[]
+      }
+      agree_to_recording: {
+        Args: {
+          p_statement: string
+          p_surface: string
+          p_terms_version: string
+        }
+        Returns: string
       }
       append_live_segment: {
         Args: {

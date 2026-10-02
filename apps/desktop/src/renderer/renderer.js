@@ -222,6 +222,7 @@ async function loadSetup() {
   if (result.screen !== true) setScreen(false);
   chosenScorecard = result.engagementType ?? null;
   chosenAccount = result.account?.id ?? null;
+  askPlaceholder();
   el('nextCall').textContent = result.prep
     ? `${result.prep.person}${result.account ? `, ${result.account.name}` : ''}`
     : result.account
@@ -442,6 +443,7 @@ function startListening() {
   };
   recognition.onend = () => {
     listening = false;
+    askPlaceholder();
     el('listen').textContent = 'Start';
     el('consent').disabled = false;
     // What Cluely hands over when the meeting ends: here, the follow-up email,
@@ -457,6 +459,7 @@ function startListening() {
 
   recognition.start();
   listening = true;
+  askPlaceholder();
   el('listen').textContent = 'Stop';
   // The brief was for walking in; the scorecard is for the call, with the
   // prep's questions beside it.
@@ -503,11 +506,19 @@ void api.platform().then((p) => {
 // ours — another app may own them (see src/main/shortcuts.ts). The tray lists
 // them all; the ask box says the one for Assist.
 let keys = { visible: null, clickThrough: null, assist: null, move: null };
-void api.config().then((config) => {
-  keys = config.shortcuts;
+// Before a call the box asks past calls; during one, this call (askForm).
+function askPlaceholder() {
+  if (!listening && utterances.length === 0) {
+    el('askInput').placeholder = setup?.account ? `Ask about past calls with ${setup.account.name}` : 'Ask about your past calls';
+    return;
+  }
   el('askInput').placeholder = keys.assist?.available
     ? `Ask about the call — or ${keys.assist.keys} for Assist`
     : 'Ask about the call — or Ctrl+Enter here for Assist';
+}
+void api.config().then((config) => {
+  keys = config.shortcuts;
+  askPlaceholder();
 });
 
 function showSwitches(state) {
@@ -648,12 +659,71 @@ api.onAssistPart((part) => {
 for (const button of document.querySelectorAll('[data-assist]')) {
   button.addEventListener('click', () => void runAssist(button.dataset.assist));
 }
+/*
+ * Before a call, the box asks past calls ("Ask your calls"): what this
+ * customer said last time, what was promised, what the documents say. It is
+ * seconds rather than one, which is fine while getting ready and not while
+ * someone is talking — so once listening, or once anything was said, the box
+ * is Assist's Ask, about this call.
+ */
+function askPointItem(point) {
+  const li = document.createElement('li');
+  li.textContent = point.text;
+  const quote = document.createElement('span');
+  quote.className = 'quote';
+  const where = point.call
+    ? `${point.call.speaker ?? 'Someone'}, ${point.call.title}${point.call.occurredAt ? `, ${new Date(point.call.occurredAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}` : ''}`
+    : point.document ?? '';
+  quote.textContent = `“${point.quote}”${where ? ` — ${where}` : ''}`;
+  li.append(quote);
+  if (point.href) {
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'link';
+    open.textContent = 'Open';
+    open.addEventListener('click', () => void api.openCall(point.href));
+    li.append(' ', open);
+  }
+  return li;
+}
+
+async function runAskCalls(question) {
+  if (!signedIn) return;
+  const seq = ++assistSeq;
+  const about = setup?.account ? `Past calls with ${setup.account.name}` : 'Past calls';
+  el('answer').hidden = false;
+  el('answerTitle').textContent = `${about} · looking…`;
+  el('answerPoints').replaceChildren();
+  const result = await api.askCalls(question, setup?.account?.id ?? null, seq);
+  if (seq !== assistSeq) return;
+  if (result.error) {
+    el('answerTitle').textContent = `${about} · ${result.error}`;
+    return;
+  }
+  el('answerTitle').textContent = `${about} · ${question}`;
+  const items = (result.points ?? []).map(askPointItem);
+  if (result.note || items.length === 0) {
+    const li = document.createElement('li');
+    li.textContent = result.note || 'Nothing in your past calls answers that.';
+    items.push(li);
+  }
+  el('answerPoints').replaceChildren(...items);
+}
+
+// What the agent is doing, in the title while it works.
+api.onAskStep((step) => {
+  if (step.seq !== assistSeq) return;
+  const about = setup?.account ? `Past calls with ${setup.account.name}` : 'Past calls';
+  el('answerTitle').textContent = `${about} · ${step.text}…`;
+});
+
 el('askForm').addEventListener('submit', (event) => {
   event.preventDefault();
   const question = el('askInput').value.trim();
   if (!question) return;
   el('askInput').value = '';
-  void runAssist('ask', question);
+  if (!listening && utterances.length === 0) void runAskCalls(question);
+  else void runAssist('ask', question);
 });
 // Ctrl+Enter in the box is Assist, as in Cluely; the global shortcut is for
 // when the meeting, not the overlay, has the keyboard.

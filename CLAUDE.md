@@ -192,7 +192,11 @@ point as soon as `PointStream` sees it whole and its quote is found, then the
 finished answer checked whole (anything else gets the whole answer, as older
 overlays expect), and the route's gates and lookups run side by side. A point
 may also quote the prepared brief ("brief", shown as from your prep), never
-in a recap, which is of what was said.
+in a recap, which is of what was said. Before a call, nothing has been said, so the
+ask box asks past calls instead ("Ask your calls", `/api/ask`), narrowed to
+the next call's customer when the prep names one: what they said last time,
+what was promised. Seconds rather than one, which suits getting ready; once
+listening, the box is Assist's Ask about this call.
 
 A company's knowledge — the documents its sellers answer from, added by
 owners on the Knowledge page (PDF, Word, text, Markdown, or pasted) — is

@@ -647,6 +647,57 @@ void app.whenReady().then(async () => {
     return finished;
   });
 
+  // Before a call: a question answered from past calls and the company's
+  // documents ("Ask your calls", /api/ask, ADR 0018), narrowed to the next
+  // call's customer when the prep names one. Slower than Assist (seconds,
+  // not one), so it is offered before Start, when there is time; each step
+  // the agent takes is sent as it happens ('overlay:ask-step').
+  ipcMain.handle('overlay:ask-calls', async (event, question: unknown, accountId: unknown, seq: unknown) => {
+    if (typeof question !== 'string' || question.trim().length < 3 || question.length > 500) {
+      return { error: 'A question is 3 to 500 characters.' };
+    }
+    const response = await session.fetch('/api/ask', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ question: question.trim(), ...(isId(accountId) ? { accountId } : {}) }),
+    });
+    if (!response) return NOT_SIGNED_IN;
+    if (!response.ok || !response.body) {
+      const failed = (await response.json().catch(() => ({}))) as { error?: unknown };
+      return { error: typeof failed.error === 'string' ? failed.error : `/api/ask failed: ${response.status}` };
+    }
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finished: unknown = { error: 'The answer was cut off.' };
+    for await (const chunk of response.body as unknown as AsyncIterable<Uint8Array>) {
+      buffer += decoder.decode(chunk, { stream: true });
+      let newline: number;
+      while ((newline = buffer.indexOf('\n')) >= 0) {
+        const line = buffer.slice(0, newline).trim();
+        buffer = buffer.slice(newline + 1);
+        if (!line) continue;
+        let part: { type?: unknown; text?: unknown; error?: unknown };
+        try {
+          part = JSON.parse(line) as typeof part;
+        } catch {
+          continue;
+        }
+        if (part.type === 'step' && typeof part.text === 'string') event.sender.send('overlay:ask-step', { seq, text: part.text });
+        else if (part.type === 'answer') finished = part;
+        else if (part.type === 'error') finished = { error: typeof part.error === 'string' ? part.error : 'That did not work.' };
+      }
+    }
+    return finished;
+  });
+
+  // A point's moment, in the dashboard. Only a call's page at one of its
+  // lines, on the product's own site: the page can open nothing else.
+  ipcMain.handle('overlay:open-call', (_event, href: unknown) =>
+    typeof href === 'string' && /^\/conversations\/[0-9a-f-]{36}#segment-[0-9a-f-]{36}$/i.test(href)
+      ? shell.openExternal(new URL(href, BASE_URL).toString())
+      : undefined,
+  );
+
   ipcMain.handle('overlay:live-start', async (_event, body: unknown) =>
     post('/api/live/sessions', body),
   );

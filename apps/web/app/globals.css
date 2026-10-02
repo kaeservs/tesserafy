@@ -1903,3 +1903,15 @@ main.auth {
   padding: 0.65rem;
   margin-top: 0.35rem;
 }
+
+/* Two cards side by side, equal: the next call and the last one. */
+.split-even {
+  display: grid;
+  gap: var(--gap);
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+}
+
+.split-even .card h2,
+.stats-row + .split-even h2 {
+  margin-top: 0;
+}

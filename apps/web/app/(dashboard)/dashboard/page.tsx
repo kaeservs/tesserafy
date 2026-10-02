@@ -14,8 +14,17 @@ import { CallTypeForm } from '@/components/guidance-forms';
 import { defaultPurpose } from '@/lib/guidance';
 import { myCompanyId } from '@/lib/company';
 import { createClient } from '@/lib/supabase/server';
+import { Icon } from '@/components/icons';
+import { callsThisWeek, followUps, myCalls } from '@/lib/home-calls';
+import { liveSetup } from '@/lib/live-setup';
 
 /**
+ * Home. It leads with the seller's own calls, the way the product is used
+ * now (Cluely-style, around the call): the next one and what is prepared for
+ * it, the last one and its follow-up email, the follow-ups still to send, and
+ * a question to ask of every past call. Below that, the team's numbers, as
+ * before:
+ *
  * The dashboard: every meeting, how each one scored, and what the criteria
  * look like across all of them.
  *
@@ -232,9 +241,167 @@ export default async function DashboardPage() {
   const recent = conversations.slice(0, RECENT);
   const approved = insights.filter((insight) => insight.status === 'approved').length;
 
+  // ---- The seller's own calls, for the top of the page.
+  const mine = user ? myCalls(rows, user.id) : [];
+  const recentMine = mine.filter((call) => (call.occurred_at ?? call.created_at) >= new Date(now.getTime() - 14 * 86_400_000).toISOString());
+  const last = mine[0] ?? null;
+  const [{ data: draftedRows }, lastActions, setup] = await Promise.all([
+    recentMine.length > 0 || last
+      ? supabase
+          .from('follow_ups')
+          .select('conversation_id')
+          .in('conversation_id', [...new Set([...recentMine.map((call) => call.id), ...(last ? [last.id] : [])])])
+      : Promise.resolve({ data: [] as { conversation_id: string }[] }),
+    last
+      ? supabase.from('action_items').select('id', { count: 'exact', head: true }).eq('conversation_id', last.id)
+      : Promise.resolve({ count: 0 }),
+    user ? liveSetup(supabase, user.id, now) : Promise.resolve(null),
+  ]);
+  const drafted = new Set((draftedRows ?? []).map((row) => row.conversation_id));
+  const toSend = followUps(mine, drafted, accountName, now);
+  const waiting = toSend.filter((row) => !row.drafted).length;
+  const lastCard = last ? scores.get(last.id) : undefined;
+  const lastScored = lastCard?.scorecard.criteria.some((c) => c.status !== 'unobserved') ?? false;
+  const local = (user?.email ?? '').split('@')[0] ?? '';
+  const name = (local.split(/[._-]/)[0] ?? local).replace(/^./, (first) => first.toUpperCase()) || 'there';
+  const prep = setup?.prep ?? null;
+
   return (
     <main className="wide">
-      <h1>Dashboard</h1>
+      <h1>Hello {name} 👋,</h1>
+      <p className="muted">
+        {now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })}
+      </p>
+
+      <div className="grid stats-row" style={{ marginTop: '1.25rem' }}>
+        <div className="card stat-card">
+          <span className="stat-icon"><Icon name="calls" size={28} /></span>
+          <span>
+            <span className="stat-label">Your calls this week</span>
+            <span className="stat-value">{callsThisWeek(mine, now)}</span>
+          </span>
+        </div>
+        <div className="card stat-card">
+          <span className="stat-icon"><Icon name="prepare" size={28} /></span>
+          <span>
+            <span className="stat-label">Follow-ups to send</span>
+            <span className="stat-value">{waiting}</span>
+          </span>
+        </div>
+        <div className="card stat-card">
+          <span className="stat-icon"><Icon name="insights" size={28} /></span>
+          <span>
+            <span className="stat-label">Your open to-dos</span>
+            <span className="stat-value">{(actionRows ?? []).length}</span>
+          </span>
+        </div>
+      </div>
+
+      <div className="split-even" style={{ marginTop: '1.25rem' }}>
+        <section className="card" aria-labelledby="next-heading">
+          <h2 id="next-heading">Your next call</h2>
+          {prep ? (
+            <>
+              <p style={{ marginBottom: '0.25rem' }}>
+                <strong>{prep.person}</strong>
+                {setup?.account ? <> · {setup.account.name}</> : null}
+              </p>
+              <p className="muted" style={{ marginTop: 0 }}>
+                {prep.callAt
+                  ? new Date(prep.callAt).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC'
+                  : 'No time set'}
+                {prep.chosen ? ' · set for the overlay' : ''}
+              </p>
+              <p className="toolbar" style={{ marginBottom: 0 }}>
+                <Link href="/prep">The prep and its questions</Link>
+                <Link href="/overlay">Open the overlay</Link>
+              </p>
+            </>
+          ) : (
+            <p className="muted" style={{ marginBottom: 0 }}>
+              Nothing prepared. <Link href="/prep">Prepare for a call</Link> and mark it “Use for my next call”: the
+              overlay then knows who it is with, the scorecard and what to ask.
+            </p>
+          )}
+        </section>
+
+        <section className="card" aria-labelledby="last-heading">
+          <h2 id="last-heading">Your last call</h2>
+          {last ? (
+            <>
+              <p style={{ marginBottom: '0.25rem' }}>
+                <Link href={`/conversations/${last.id}`}>{last.title}</Link>
+              </p>
+              <p className="muted" style={{ marginTop: 0 }}>
+                {when(last.occurred_at ?? last.created_at)}
+                {last.account_id && accountName.get(last.account_id) ? ` · ${accountName.get(last.account_id)}` : ''}
+                {' · '}
+                {lastScored && lastCard ? `scored ${Math.round(lastCard.scorecard.score)}` : 'not scored yet'}
+                {' · '}
+                {lastActions.count ?? 0} action item{lastActions.count === 1 ? '' : 's'}
+              </p>
+              <p className="toolbar" style={{ marginBottom: 0 }}>
+                <span className={`pill ${drafted.has(last.id) ? 'pill-on' : 'pill-off'}`}>
+                  {drafted.has(last.id) ? 'Follow-up drafted' : 'No follow-up yet'}
+                </span>
+                <Link href={`/conversations/${last.id}#follow-up`}>
+                  {drafted.has(last.id) ? 'Open the follow-up email' : 'Draft the follow-up email'}
+                </Link>
+              </p>
+            </>
+          ) : (
+            <p className="muted" style={{ marginBottom: 0 }}>
+              No calls of yours yet. Run the overlay on your next call, or <Link href="/conversations/new">import one</Link>.
+            </p>
+          )}
+        </section>
+      </div>
+
+      {toSend.length > 0 ? (
+        <section className="card" aria-labelledby="followups-heading" style={{ marginTop: '1.25rem' }}>
+          <h2 id="followups-heading">Follow-ups, last two weeks</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Call</th>
+                <th>Customer</th>
+                <th>When</th>
+                <th>Follow-up</th>
+              </tr>
+            </thead>
+            <tbody>
+              {toSend.map((row) => (
+                <tr key={row.id}>
+                  <td>
+                    <Link href={`/conversations/${row.id}#follow-up`}>{row.title}</Link>
+                  </td>
+                  <td className="muted">{row.customer ?? '—'}</td>
+                  <td className="muted">{when(row.date)}</td>
+                  <td>
+                    <span className={`pill ${row.drafted ? 'pill-on' : 'pill-off'}`}>{row.drafted ? 'Drafted' : 'To send'}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ) : null}
+
+      <section className="card" aria-labelledby="ask-heading" style={{ marginTop: '1.25rem' }}>
+        <h2 id="ask-heading">Ask your calls</h2>
+        <form action="/ask" method="get" className="toolbar">
+          <input
+            name="q"
+            className="grow"
+            placeholder="What do customers say slows their reporting down?"
+            aria-label="A question about your calls"
+            maxLength={500}
+          />
+          <button type="submit">Ask</button>
+        </form>
+      </section>
+
+      <h2 style={{ marginTop: '2.5rem' }}>Across the team</h2>
       <p className="muted">
         Every meeting your company has imported, scored against its criteria. Each score is worked
         out from the quoted evidence behind it, every time this page loads.

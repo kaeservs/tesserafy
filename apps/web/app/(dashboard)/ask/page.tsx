@@ -10,7 +10,8 @@ export const metadata = { title: 'Ask · Tesserafy' };
  * answered by an agent that searches them — and its documents — and quotes
  * what it found. Search finds a sentence; this answers a question.
  */
-export default async function AskPage() {
+export default async function AskPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const { q } = await searchParams;
   const supabase = await createClient();
   const { data: accounts } = await supabase.from('accounts').select('id, name').order('name');
   return (
@@ -20,7 +21,7 @@ export default async function AskPage() {
         Ask anything about what customers have said. It searches your calls and your documents, reads around what it
         finds, and answers with quotes — each linked to the moment it was said. Anything it cannot quote, it leaves out.
       </p>
-      <AskBox maxLength={QUESTION_MAX_CHARS} accounts={accounts ?? []} periods={ASK_PERIODS} />
+      <AskBox maxLength={QUESTION_MAX_CHARS} accounts={accounts ?? []} periods={ASK_PERIODS} initialQuestion={(q ?? '').slice(0, QUESTION_MAX_CHARS)} />
     </main>
   );
 }

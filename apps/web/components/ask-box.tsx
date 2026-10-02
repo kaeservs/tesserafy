@@ -27,13 +27,16 @@ export function AskBox({
   maxLength,
   accounts,
   periods,
+  initialQuestion = '',
 }: {
   maxLength: number;
   /** The company's accounts, to narrow a question to one's calls. */
   accounts: readonly { id: string; name: string }[];
   periods: readonly number[];
+  /** A question carried from the home page's box; asked when the person presses Ask. */
+  initialQuestion?: string;
 }) {
-  const [question, setQuestion] = useState('');
+  const [question, setQuestion] = useState(initialQuestion);
   const [accountId, setAccountId] = useState('');
   const [days, setDays] = useState('');
   const [busy, setBusy] = useState(false);

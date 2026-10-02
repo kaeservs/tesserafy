@@ -23,6 +23,8 @@ async function signIn(page: Page): Promise<void> {
 
 test('Scorecards lists the templates and shows what each criterion means, without an editor for a member', async ({ page }) => {
   await signIn(page);
+  // Scorecards sits in the sidebar's Setup group.
+  await page.getByRole('button', { name: 'Setup' }).click();
   await page.getByRole('link', { name: 'Scorecards' }).click();
   await page.waitForURL((url) => url.pathname === '/scorecards');
   await expect(page.getByRole('heading', { name: 'Tesserafy templates' })).toBeVisible();

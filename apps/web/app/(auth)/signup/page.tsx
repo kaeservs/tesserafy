@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Icon } from '@/components/icons';
 import { createClient } from '@/lib/supabase/server';
 import { SignupForm } from './signup-form';
 
@@ -17,8 +18,13 @@ export default async function SignupPage() {
   const { data: open } = await supabase.rpc('signup_is_open');
 
   return (
-    <main style={{ maxWidth: '28rem' }}>
-      <h1>Create your Tesserafy account</h1>
+    <main className="auth">
+      <div className="auth-card">
+      <span className="brand auth-brand">
+        <Icon name="logo" size={28} />
+        <span>Tesserafy</span>
+      </span>
+      <h1>Create your account</h1>
       {open === true ? (
         <>
           <p className="muted">
@@ -35,6 +41,7 @@ export default async function SignupPage() {
       <p className="muted">
         Already have an account? <Link href="/login">Sign in</Link>
       </p>
+      </div>
     </main>
   );
 }

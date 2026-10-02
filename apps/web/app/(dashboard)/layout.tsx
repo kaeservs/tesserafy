@@ -3,18 +3,17 @@ import { liveAvailable, myCompany } from '@/lib/company';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { NavLink } from '@/components/nav-link';
-import { SiteMenu } from '@/components/site-menu';
+import { Icon } from '@/components/icons';
+import { Sidebar } from '@/components/sidebar';
 import { supportBanner } from '@/lib/support-banner';
 import { supportSessionEnded } from '@/lib/support-session';
 import { createClient } from '@/lib/supabase/server';
 
 /**
- * The shell every signed-in page sits in.
- *
- * The header is sticky because the nav is how you get from a meeting to the
- * insight it fed, and scrolling back up a long transcript to reach it is
- * friction on the one journey this product is about.
+ * The shell every signed-in page sits in: the sidebar (the product in seven
+ * places, the plan, you), and a top bar with search and notifications. The
+ * sidebar stays put while the page scrolls, because it is how you get from a
+ * meeting to the insight it fed.
  */
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient();
@@ -55,57 +54,38 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     .gt('expires_at', new Date().toISOString());
   const banner = supportBanner(access ?? []);
   const company = await myCompany(supabase);
-  // Unread, for the header. A count only; the page reads the rest.
-  const { count: unread } = await supabase
-    .from('notifications')
-    .select('id', { count: 'exact', head: true })
-    .is('read_at', null);
+  // Unread, for the bell. A count only; the page reads the rest.
+  const [{ count: unread }, { data: membership }] = await Promise.all([
+    supabase.from('notifications').select('id', { count: 'exact', head: true }).is('read_at', null),
+    supabase.from('company_members').select('role').eq('user_id', user.id).limit(1).maybeSingle(),
+  ]);
+  const email = user.email ?? '';
+  // No name is kept for a person yet; the address's first part reads as one.
+  const local = email.split('@')[0] ?? '';
+  const name = (local.split(/[._-]/)[0] ?? local).replace(/^./, (first) => first.toUpperCase()) || 'You';
 
   return (
-    <>
-      {banner ? (
-        <div className="support-banner" role="status">
-          <strong>{banner.headline}.</strong> {banner.detail}
-        </div>
-      ) : null}
-      <header className="app-header">
-        <span className="brand">Tesserafy</span>
-        <SiteMenu unread={unread ?? 0}>
-        <nav className="nav" aria-label="Sections">
-          <NavLink href="/dashboard">Dashboard</NavLink>
-          <NavLink href="/week">This week</NavLink>
-          <NavLink href="/conversations">Meetings</NavLink>
-          <NavLink href="/accounts">Accounts</NavLink>
-          <NavLink href="/prep">Prepare</NavLink>
-          <NavLink href="/insights">Insights</NavLink>
-          <NavLink href="/reports">Reports</NavLink>
-          <NavLink href="/examples">Examples</NavLink>
-          <NavLink href="/coaching">Coaching</NavLink>
-          <NavLink href="/scorecards">Scorecards</NavLink>
-          <NavLink href="/guidance">AI guidance</NavLink>
-          <NavLink href="/knowledge">Knowledge</NavLink>
-          <NavLink href="/ask">Ask</NavLink>
-          <NavLink href="/search">Search</NavLink>
-          {liveAvailable(company?.plan) ? <NavLink href="/live/mic">Live</NavLink> : null}
-          <NavLink href="/settings">Settings</NavLink>
-        </nav>
-        <form action="/auth/sign-out" method="post" className="toolbar">
+    <div className="shell">
+      <Sidebar email={email} name={name} role={membership?.role ?? 'member'} plan={company?.plan ?? null} live={liveAvailable(company?.plan)} />
+      <div className="shell-main">
+        {banner ? (
+          <div className="support-banner" role="status">
+            <strong>{banner.headline}.</strong> {banner.detail}
+          </div>
+        ) : null}
+        <header className="topbar">
+          <form action="/search" method="get" className="topbar-search" role="search">
+            <Icon name="search" size={18} />
+            <input type="search" name="q" placeholder="Search what was said" aria-label="Search what was said" />
+          </form>
           <FeedbackLink />
-          <Link
-            href="/notifications"
-            className="notifications-link"
-            aria-label={unread ? `Notifications, ${unread} new` : 'Notifications'}
-          >
-            Notifications{unread ? <span className="count">{unread > 99 ? '99+' : unread}</span> : null}
+          <Link href="/notifications" className="bell" aria-label={unread ? `Notifications, ${unread} new` : 'Notifications'}>
+            <Icon name="bell" />
+            {unread ? <span className="count">{unread > 99 ? '99+' : unread}</span> : null}
           </Link>
-          <Link href="/account" className="muted">
-            {user.email}
-          </Link>
-          <button type="submit">Sign out</button>
-        </form>
-        </SiteMenu>
-      </header>
-      {children}
-    </>
+        </header>
+        {children}
+      </div>
+    </div>
   );
 }

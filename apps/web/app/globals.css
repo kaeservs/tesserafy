@@ -17,46 +17,64 @@
 :root {
   color-scheme: light dark;
 
-  --bg: #fafaf9;
+  /* The look (2026-10): a lavender-white page, white cards that float on a
+     soft blue-grey shadow, one purple, and status as green and red pills. */
+  --bg: #fafbff;
   --surface: #ffffff;
   /* One step up from the page, for a panel that sits on it. Never a third. */
   --raised: #ffffff;
-  --fg: #1c1917;
-  --muted: #78716c;
-  --border: #e7e5e4;
-  --accent: #4338ca;
-  --accent-soft: #eef2ff;
+  --fg: #292d32;
+  /* Darker than the reference's #9197B3, which reads at 2.9:1 on white; this
+     keeps the tone and passes AA for small text. */
+  --muted: #6b6f8e;
+  --border: #eef0f6;
+  --accent: #5932ea;
+  --accent-soft: #f1edff;
+  --accent-fg: #ffffff;
 
   /* Criterion states. Never the only signal — see .state below. */
-  --confirmed: #15803d;
+  /* Darker than the reference's #008767: small uppercase state labels need
+     4.5:1 on a tinted card, and that green gave 4.4. */
+  --confirmed: #006b4f;
   --candidate: #b45309;
-  --contradicted: #b91c1c;
-  --unobserved: #d6d3d1;
+  --contradicted: #d10303;
+  --unobserved: #d6d8e4;
 
-  --radius: 8px;
-  --radius-lg: 12px;
-  --gap: 0.75rem;
+  /* Status pills: on, off. */
+  --ok-bg: #d8f5ec;
+  --ok-line: #00b087;
+  --bad-bg: #ffe2e2;
+  --bad-line: #df0404;
 
-  /* Barely there in light, doing real work in dark, where a border alone
-     cannot separate two near-black surfaces. */
-  --lift: 0 1px 2px rgb(28 25 23 / 0.04), 0 1px 1px rgb(28 25 23 / 0.03);
+  --radius: 10px;
+  --radius-lg: 20px;
+  --gap: 1rem;
+
+  --lift: 0 10px 60px rgb(226 236 249 / 0.55);
+  --sidebar: 16.5rem;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0c0a09;
-    --surface: #161312;
-    --raised: #1c1917;
-    --fg: #f5f5f4;
-    --muted: #a8a29e;
-    --border: #292524;
-    --accent: #a5b4fc;
-    --accent-soft: #1e1b3a;
+    --bg: #0f0e17;
+    --surface: #17151f;
+    --raised: #1c1a26;
+    --fg: #f2f1f7;
+    --muted: #a3a1b8;
+    --border: #2a2738;
+    --accent: #a594f9;
+    --accent-soft: #241f3d;
+    --accent-fg: #0f0e17;
 
     --confirmed: #4ade80;
     --candidate: #fbbf24;
     --contradicted: #f87171;
-    --unobserved: #44403c;
+    --unobserved: #3b3850;
+
+    --ok-bg: #12352b;
+    --ok-line: #34d399;
+    --bad-bg: #3b1717;
+    --bad-line: #f87171;
 
     --lift: none;
   }
@@ -70,29 +88,37 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
-  font: 15px/1.6 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font: 15px/1.6 var(--font-sans, system-ui), system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
 main {
-  max-width: 44rem;
-  margin: 0 auto;
-  padding: 2rem 1rem 4rem;
+  max-width: 52rem;
+  padding: 1.75rem 2.5rem 4rem;
+}
+
+@media (max-width: 900px) {
+  main {
+    padding: 1.25rem 1rem 3rem;
+  }
 }
 
 /* Reading width is 44rem because prose is read at 44rem. A dashboard is
    scanned, not read, and scanning wants the columns side by side. */
 main.wide {
-  max-width: 68rem;
+  max-width: 76rem;
 }
 
 h1 {
-  font-size: 1.5rem;
+  font-size: 1.55rem;
+  font-weight: 500;
   line-height: 1.3;
+  letter-spacing: -0.01em;
   margin: 0 0 0.5rem;
 }
 
 h2 {
-  font-size: 1.05rem;
+  font-size: 1.1rem;
+  font-weight: 600;
   margin: 2rem 0 0.5rem;
 }
 
@@ -109,12 +135,24 @@ button {
   padding: 0.5rem 0.75rem;
   border-radius: var(--radius);
   border: 1px solid var(--border);
-  background: transparent;
+  background: var(--surface);
   color: inherit;
 }
 
 button {
   cursor: pointer;
+  font-weight: 500;
+}
+
+/* A form's own action, in the accent: what pressing Enter would do. */
+button[type='submit']:not(.link-button):not(.danger) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}
+
+button[type='submit']:not(.link-button):not(.danger):hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 88%, black);
 }
 
 button:hover:not(:disabled) {
@@ -433,15 +471,6 @@ mark {
    Layout odds and ends
    -------------------------------------------------------------------------- */
 
-.app-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--border);
-}
-
 .grow {
   flex: 1 1 16rem;
 }
@@ -492,102 +521,335 @@ mark {
 }
 
 /* --------------------------------------------------------------------------
-   The shell
+   The shell: sidebar, top bar, page
    -------------------------------------------------------------------------- */
 
 /*
- * Sticky, because the nav is how you get between a meeting and the insight it
- * fed, and scrolling a long transcript to reach it is friction on the one
- * journey this product is about.
+ * The sidebar stays put while the page scrolls: it is how you get between a
+ * meeting and the insight it fed, and scrolling a long transcript to reach it
+ * is friction on the one journey this product is about.
  */
-.app-header {
+.shell {
+  display: grid;
+  grid-template-columns: var(--sidebar) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
   position: sticky;
   top: 0;
-  z-index: 10;
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
-  backdrop-filter: blur(8px);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 1.6rem 1.1rem 1.1rem;
+}
+
+.sidebar-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.75rem;
 }
 
 .brand {
-  font-weight: 650;
-  letter-spacing: -0.01em;
-  margin-right: 0.5rem;
-}
-
-.nav {
-  display: flex;
-  gap: 0.25rem;
+  display: inline-flex;
   align-items: center;
-  flex-wrap: wrap;
-}
-
-.nav-link {
-  padding: 0.3rem 0.6rem;
-  border-radius: var(--radius);
-  color: var(--muted);
+  gap: 0.55rem;
+  font-weight: 600;
+  font-size: 1.3rem;
+  letter-spacing: -0.01em;
+  color: var(--fg);
   text-decoration: none;
 }
 
-.nav-link:hover {
-  color: var(--fg);
-  background: color-mix(in srgb, var(--fg) 5%, transparent);
-}
-
-/* Where you are is stated, not implied by colour: a nav whose current item is
-   only a shade darker is a nav that reads as broken on a bad screen. */
-.nav-link[aria-current='page'] {
-  color: var(--fg);
-  background: var(--accent-soft);
-  font-weight: 600;
-}
-
-/* The header's links and account controls: laid straight into the header on a
-   wide screen, behind the Menu button on a phone (components/site-menu.tsx). */
-.menu-button {
+.sidebar-menu {
   display: none;
 }
 
-.menu-panel {
-  display: contents;
-}
-
-.app-header .nav {
+.sidebar-body {
+  display: flex;
+  flex-direction: column;
   flex: 1;
+  min-height: 0;
 }
 
-@media (max-width: 720px) {
-  .app-header {
-    flex-wrap: wrap;
-  }
+.sidebar-body nav {
+  flex: 1;
+  overflow-y: auto;
+}
 
-  .menu-button {
-    display: inline-block;
-    margin-left: auto;
-  }
+.side-nav,
+.side-sub {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
 
-  .menu-panel {
-    display: none;
-    flex-basis: 100%;
-  }
+.side-nav > li + li {
+  margin-top: 0.3rem;
+}
 
-  .menu-panel.open {
+.side-link {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 400;
+  text-align: left;
+  text-decoration: none;
+}
+
+.side-link:hover {
+  color: var(--fg);
+  background: var(--accent-soft);
+}
+
+/* Where you are is stated (aria-current), and shown in the accent. */
+.side-link[aria-current='page'] {
+  color: var(--accent-fg);
+  background: var(--accent);
+}
+
+.side-group.holds-current {
+  color: var(--fg);
+}
+
+.side-link .chevron {
+  margin-left: auto;
+  display: inline-flex;
+  transition: transform 0.15s ease;
+}
+
+.side-group[aria-expanded='true'] .chevron {
+  transform: rotate(90deg);
+}
+
+.side-sub {
+  margin: 0.2rem 0 0.4rem 2.6rem;
+}
+
+.side-sublink {
+  display: block;
+  padding: 0.4rem 0.7rem;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  text-decoration: none;
+}
+
+.side-sublink:hover {
+  color: var(--fg);
+}
+
+.side-sublink[aria-current='page'] {
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 500;
+}
+
+.sidebar-foot {
+  margin-top: 1rem;
+}
+
+/* The plan, as the reference shows it: a gradient card with one action. */
+.promo {
+  padding: 1.1rem 1rem;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, #b45cc0 0%, #4623e9 100%);
+  color: #ffffff;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.promo p {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.promo-button {
+  display: inline-block;
+  padding: 0.5rem 1.25rem;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #4623e9;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.profile summary {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.4rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  list-style: none;
+}
+
+.profile summary::-webkit-details-marker {
+  display: none;
+}
+
+.profile summary:hover {
+  background: var(--accent-soft);
+}
+
+.profile .chevron {
+  margin-left: auto;
+  display: inline-flex;
+  color: var(--muted);
+  transform: rotate(90deg);
+}
+
+.profile[open] .chevron {
+  transform: rotate(-90deg);
+}
+
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+  flex: none;
+}
+
+.profile-name {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  font-size: 0.85rem;
+  min-width: 0;
+}
+
+.profile-name strong {
+  font-weight: 500;
+}
+
+.profile-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.6rem 0.4rem 0.2rem;
+  font-size: 0.88rem;
+}
+
+.profile-email {
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.shell-main {
+  min-width: 0;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1.25rem;
+  padding: 1.25rem 2.5rem 0;
+}
+
+.topbar-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: auto;
+  max-width: 22rem;
+  flex: 1;
+  padding: 0 0.8rem;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+  box-shadow: var(--lift);
+}
+
+.topbar-search input[type='search'] {
+  border: 0;
+  padding: 0.6rem 0;
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+}
+
+.topbar-search input:focus-visible {
+  outline: none;
+}
+
+.topbar-search:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.bell {
+  position: relative;
+  display: inline-flex;
+  color: var(--muted);
+}
+
+.bell .count {
+  position: absolute;
+  top: -0.45rem;
+  right: -0.6rem;
+  min-width: 1.15rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 0.7rem;
+  line-height: 1.15rem;
+  text-align: center;
+}
+
+/* On a phone: a bar with the brand and Menu; the sidebar opens beneath it. */
+@media (max-width: 900px) {
+  .shell {
     display: block;
-    padding-top: 0.5rem;
   }
 
-  .menu-panel .nav {
-    flex-direction: column;
-    align-items: stretch;
+  .sidebar {
+    z-index: 10;
+    height: auto;
+    padding: 0.75rem 1rem;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
   }
 
-  .menu-panel .nav-link {
-    padding: 0.55rem 0.6rem;
+  .sidebar-top {
+    margin-bottom: 0;
   }
 
-  .menu-panel .toolbar {
-    margin-top: 0.5rem;
-    padding-top: 0.5rem;
-    border-top: 1px solid var(--border);
+  .sidebar-menu {
+    display: inline-block;
+  }
+
+  .sidebar-body {
+    display: none;
+  }
+
+  .sidebar.open .sidebar-body {
+    display: flex;
+    max-height: calc(100vh - 4rem);
+    overflow-y: auto;
+    padding-top: 1rem;
+  }
+
+  .topbar {
+    padding: 1rem 1rem 0;
   }
 }
 
@@ -599,8 +861,15 @@ mark {
   background: var(--raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 1rem 1.15rem;
+  padding: 1.4rem 1.6rem;
   box-shadow: var(--lift);
+}
+
+@media (prefers-color-scheme: light) {
+  /* In light, the shadow is the edge; a border on top of it reads as a box. */
+  .card {
+    border-color: transparent;
+  }
 }
 
 .card > :first-child { margin-top: 0; }
@@ -1493,4 +1762,144 @@ input[type='search'] {
 
 .next-call {
   margin: 0.25rem 0 0.75rem;
+}
+
+
+/* --------------------------------------------------------------------------
+   The look's tables, pills and stats (2026-10)
+   -------------------------------------------------------------------------- */
+
+/* Any table on a card: grey headings, a hairline between rows. */
+.card table {
+  width: 100%;
+}
+
+.card th {
+  text-align: left;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--muted);
+  padding: 0 0.75rem 0.7rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.card td {
+  padding: 0.75rem 0.75rem 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.card tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Status as a pill, green for on and red for off, as the reference shows it.
+   The word is always there too: colour is never the only signal. */
+.pill {
+  display: inline-block;
+  padding: 0.15rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid var(--unobserved);
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.pill-on {
+  background: var(--ok-bg);
+  border-color: var(--ok-line);
+  color: var(--confirmed);
+}
+
+.pill-off {
+  background: var(--bad-bg);
+  border-color: var(--bad-line);
+  color: var(--contradicted);
+}
+
+/* A big number with its label, on a card, beside a round icon. */
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+}
+
+.stat-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 4.2rem;
+  height: 4.2rem;
+  border-radius: 50%;
+  background: linear-gradient(200deg, #d3ffe7 0%, #effff6 100%);
+  color: #00ac4f;
+  flex: none;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.stat-value {
+  display: block;
+  font-size: 1.85rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* A download, on the Get the overlay page. */
+.download {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  text-decoration: none;
+  color: var(--fg);
+}
+
+.download:hover {
+  border-color: var(--accent);
+}
+
+/* Pages outside the shell — terms, privacy, welcome — sit centred. */
+body > main {
+  margin: 0 auto;
+}
+
+/* Sign in and sign up: one white card in the middle of the lavender page. */
+main.auth {
+  min-height: 100vh;
+  max-width: none;
+  display: grid;
+  place-items: center;
+  padding: 2rem 1rem;
+}
+
+.auth-card {
+  width: min(100%, 27rem);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--lift);
+  padding: 2.25rem 2rem 1.75rem;
+}
+
+.auth-brand {
+  margin-bottom: 1.75rem;
+  color: var(--accent);
+}
+
+.auth-brand span {
+  color: var(--fg);
+}
+
+.auth-card .field {
+  max-width: none;
+}
+
+.auth-card form > button[type='submit'] {
+  width: 100%;
+  padding: 0.65rem;
+  margin-top: 0.35rem;
 }

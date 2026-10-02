@@ -81,16 +81,19 @@ test('the dashboard opens on what needs you', async ({ page }) => {
 
 test('Prepare opens with a form that asks for the profile, not for LinkedIn access', async ({ page }) => {
   await signIn(page);
-  await page.getByRole('link', { name: 'Prepare' }).click();
+  // Call preps sits in the sidebar's Prepare group.
+  await page.getByRole('button', { name: 'Prepare' }).click();
+  await page.getByRole('link', { name: 'Call preps' }).click();
   await page.waitForURL((url) => url.pathname === '/prep');
   await expect(page.getByLabel('Who is the call with?')).toBeVisible();
   await expect(page.getByLabel('Their LinkedIn profile (optional)')).toBeVisible();
   await expect(page.getByLabel('What their profile says (optional)')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Prepare' })).toBeDisabled();
+  await expect(page.getByRole('main').getByRole('button', { name: 'Prepare' })).toBeDisabled();
 });
 
 test('Coaching opens for a member, with what is assigned to them', async ({ page }) => {
   await signIn(page);
+  await page.getByRole('button', { name: 'Team' }).click();
   await page.getByRole('link', { name: 'Coaching' }).click();
   await page.waitForURL((url) => url.pathname === '/coaching');
   await expect(page.getByRole('heading', { name: 'For you' })).toBeVisible();
@@ -100,6 +103,7 @@ test('Coaching opens for a member, with what is assigned to them', async ({ page
 
 test('AI guidance shows a member what the AI was taught, without letting them change it', async ({ page }) => {
   await signIn(page);
+  await page.getByRole('button', { name: 'Setup' }).click();
   await page.getByRole('link', { name: 'AI guidance' }).click();
   await page.waitForURL((url) => url.pathname === '/guidance');
   await expect(page.getByRole('heading', { name: 'Call types' })).toBeVisible();
@@ -110,6 +114,7 @@ test('AI guidance shows a member what the AI was taught, without letting them ch
 
 test('Examples and Themes over time open for a member', async ({ page }) => {
   await signIn(page);
+  await page.getByRole('button', { name: 'Team' }).click();
   await page.getByRole('link', { name: 'Examples' }).click();
   await page.waitForURL((url) => url.pathname === '/examples');
   await expect(page.getByRole('heading', { name: 'Examples', level: 1 })).toBeVisible();

@@ -304,8 +304,10 @@ export default async function SettingsPage() {
           </h2>
           <p className="muted">
             One JSON file with every call&apos;s transcript, the quoted evidence behind its score,
-            the signals and insights read from it, your team, and the log of deleted calls. Each
-            export is recorded here, with who took it.
+            the signals and insights read from it, and everything else your company made here:
+            customers, action items, follow-up emails, call preps, coaching, AI guidance and your own
+            scorecards. Also your team and the log of deleted calls. Each export is recorded here,
+            with who took it.
           </p>
           {/* A form, not a link: a link can be followed from any other site
               with the owner's session, and each export is recorded. */}

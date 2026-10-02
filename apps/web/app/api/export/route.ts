@@ -15,6 +15,8 @@ import {
   type SegmentRow,
   type SignalEvidenceRow,
   type SignalRow,
+  type WorkRow,
+  WORK_TABLES,
 } from '@/lib/export';
 import { allowance, tooMany } from '@/lib/rate-limit';
 import { scoreConversations } from '@/lib/scorecard';
@@ -159,6 +161,20 @@ export async function POST(request: NextRequest) {
       ),
     ]);
 
+    // Everything else the company made (lib/export WORK_TABLES), paged like the rest.
+    const work = Object.fromEntries(
+      await Promise.all(
+        WORK_TABLES.map(async (spec) => {
+          const rows = await readAll<WorkRow>((from, to) => {
+            let query = db.from(spec.table).select(spec.columns);
+            if ('ownOnly' in spec) query = query.not('company_id', 'is', null);
+            return query.order('order' in spec ? spec.order : 'id').range(from, to).returns<WorkRow[]>();
+          }, `Exporting ${spec.key}`);
+          return [spec.key, rows] as const;
+        }),
+      ),
+    );
+
     if (company.error) throw new Error(`Exporting the company failed: ${company.error.message}`);
     if (team.error) throw new Error(`Exporting the team failed: ${team.error.message}`);
 
@@ -196,7 +212,8 @@ export async function POST(request: NextRequest) {
       notes,
       edits,
       people: new Map((team.data ?? []).map((person) => [person.user_id, person.email])),
-      accounts: new Map(((await db.from('accounts').select('id, name')).data ?? []).map((row) => [row.id, row.name])),
+      accounts: new Map((work['customers'] ?? []).map((row) => [String(row['id']), String(row['name'])])),
+      work,
       scores,
     });
 

@@ -16,6 +16,12 @@ insert into public.company_members (company_id, user_id, role) values
 create temporary table made (label text, id uuid) on commit drop;
 grant all on made to authenticated;
 
+-- Every member here has agreed once to tell everyone on the calls they record (ADR 0020).
+insert into public.recording_agreements (user_id, email, company_id, terms_version, statement, surface)
+select m.user_id, 'test@test.tesserafy.local', m.company_id, 'test', 'I will tell everyone on every call I record.', 'overlay'
+  from public.company_members m
+on conflict do nothing;
+
 set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"afaf0001-0000-4000-8000-000000000001","role":"authenticated"}', true);

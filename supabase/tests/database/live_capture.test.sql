@@ -19,6 +19,12 @@ values ('77777777-7777-4777-8777-777777777777', 'live-a@test.tesserafy.local',
 insert into public.company_members (company_id, user_id)
 values ('00000000-0000-4000-8000-00000000000a', '77777777-7777-4777-8777-777777777777');
 
+-- Every member here has agreed once to tell everyone on the calls they record (ADR 0020).
+insert into public.recording_agreements (user_id, email, company_id, terms_version, statement, surface)
+select m.user_id, 'test@test.tesserafy.local', m.company_id, 'test', 'I will tell everyone on every call I record.', 'overlay'
+  from public.company_members m
+on conflict do nothing;
+
 set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"77777777-7777-4777-8777-777777777777","role":"authenticated"}', true);

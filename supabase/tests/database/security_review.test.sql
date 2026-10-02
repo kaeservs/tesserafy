@@ -47,6 +47,12 @@ values ('00000000-0000-4000-8000-00000000000a', 'prep', 'example', 'Too blunt.',
 
 create temporary table spent (label text, result jsonb);
 grant all on spent to authenticated;
+-- Every member here has agreed once to tell everyone on the calls they record (ADR 0020).
+insert into public.recording_agreements (user_id, email, company_id, terms_version, statement, surface)
+select m.user_id, 'test@test.tesserafy.local', m.company_id, 'test', 'I will tell everyone on every call I record.', 'overlay'
+  from public.company_members m
+on conflict do nothing;
+
 set local role authenticated;
 
 -- 1. A refund needs the token its spending returned.

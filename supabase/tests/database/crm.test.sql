@@ -66,7 +66,7 @@ reset role;
 delete from public.conversations where id = '00000000-0000-4000-8000-0000000000a1';
 select is((select count(*)::int from public.crm_logs), 0, 'erasing a call erases its log');
 
-update public.companies set closed_at = now() where id = '00000000-0000-4000-8000-00000000000a';
+update public.companies set closed_at = now(), closed_reason = 'test' where id = '00000000-0000-4000-8000-00000000000a';
 select is((select count(*)::int from public.company_crms), 0, 'closing the company forgets its CRM');
 select is((select string_agg(action, ',' order by at, action) from public.crm_events), 'connected,disconnected',
   'and the CRM log says so');

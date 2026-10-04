@@ -67,6 +67,24 @@ export async function conversationPipeline(
 }
 
 /**
+ * One call's pipeline state: the same function as the list's, filtered to the
+ * call on the server, so a call page does not page through the company's.
+ */
+export async function conversationStage(db: SupabaseClient, conversationId: string): Promise<PipelineState | undefined> {
+  const { data, error } = await db.rpc('conversation_pipeline', {}).eq('conversation_id', conversationId).maybeSingle();
+  if (error) throw new Error(`Could not read pipeline state: ${error.message}`);
+  return data
+    ? {
+        segments: data.segments,
+        embedded: data.embedded,
+        signals: data.signals,
+        criterionRows: data.criterion_rows,
+        extractionRuns: data.extraction_runs,
+      }
+    : undefined;
+}
+
+/**
  * The furthest stage a conversation has reached.
  *
  * Deliberately the *furthest*, not a checklist: a reader wants one word for

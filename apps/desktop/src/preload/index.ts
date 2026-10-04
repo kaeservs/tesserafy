@@ -33,6 +33,8 @@ contextBridge.exposeInMainWorld('overlay', {
     detectCalls?: boolean;
     // 'deepgram' when both sides of the call can be transcribed (ADR 0022).
     transcription?: 'deepgram' | null;
+    // The next meeting with someone outside, from the calendar, and its prep.
+    meeting?: { id: string; title: string; startsAt: string; prepId: string | null } | null;
     appearance?: Appearance;
     error?: string;
   }> => ipcRenderer.invoke('overlay:setup'),
@@ -119,6 +121,9 @@ contextBridge.exposeInMainWorld('overlay', {
     });
   },
   openFollowUp: (conversationId: string): Promise<void> => ipcRenderer.invoke('overlay:open-follow-up', conversationId),
+  prepareMeeting: (eventId: string): Promise<{ prepId?: string; error?: string }> => ipcRenderer.invoke('overlay:prepare-meeting', eventId),
+  openPrep: (prepId: string): Promise<void> => ipcRenderer.invoke('overlay:open-prep', prepId),
+  surface: (): Promise<void> => ipcRenderer.invoke('overlay:surface'),
   onUpdate: (listener: (state: UpdateState) => void): void => {
     ipcRenderer.on('overlay:update', (_event, state: UpdateState) =>
       listener({

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { liveAllowedFor } from '@/lib/live-input';
+import { syncCalendars } from '@/lib/calendar-sync';
 import { liveSetup } from '@/lib/live-setup';
 import { overlayClient } from '@/lib/overlay-client';
 import { caller } from '@/lib/supabase/caller';
@@ -18,6 +19,9 @@ export async function GET(request: NextRequest) {
   // Which overlay this is, for the console's "who needs to update". Recorded
   // beside the setup, never instead of it: a failure here must not stop a call.
   const client = overlayClient(request.headers.get('x-tesserafy-overlay'));
+  // The calendar, if it has not been read in a quarter of an hour, so the
+  // overlay knows the meeting about to start (lib/calendar-sync).
+  await syncCalendars(who.db, who.userId);
   const [setup, live] = await Promise.all([
     liveSetup(who.db, who.userId),
     liveAllowedFor(who.db, who.userId),

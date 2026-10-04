@@ -35,6 +35,10 @@ the words and nudges a seller who has done most of the talking lately
 (Windows), it stops by itself after 15 seconds — "Keep listening" cancels — and
 offers the follow-up email.
 
+Before a call it knows the next meeting from the calendar: how soon, and its
+prep — opened in the dashboard, or made in one press. Two minutes before the
+meeting it comes up, without taking focus, as it does when a call starts.
+
 The session token never reaches the page. Detection and criteria are fetched
 by the main process, so the renderer holds no credential: a renderer is a
 browser, and a browser is where a credential gets read by something nobody

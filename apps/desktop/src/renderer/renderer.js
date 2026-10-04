@@ -288,8 +288,62 @@ async function loadSetup() {
       ? result.account.name
       : 'No call prepared — set one up in Tesserafy';
   void showBrief(chosenAccount);
+  showMeeting();
   return true;
 }
+
+/*
+ * The next meeting, from the calendar (lib/live-setup): "Northwind discovery
+ * in 5 min", with its prep — opened in the dashboard, or made in one press if
+ * there is none. The setup is read again every two minutes while not on a
+ * call, so a meeting coming up is noticed; two minutes before it starts the
+ * overlay comes up, without taking focus, once a meeting.
+ */
+const SURFACE_BEFORE_MS = 2 * 60_000;
+let surfacedFor = null;
+function meetingWhen(startsAt) {
+  const minutes = Math.round((Date.parse(startsAt) - Date.now()) / 60_000);
+  return minutes > 0 ? `in ${minutes} min` : 'now';
+}
+function showMeeting() {
+  const meeting = setup?.meeting ?? null;
+  const banner = el('meetingBanner');
+  if (!meeting || listening || !signedIn) {
+    banner.hidden = true;
+    return;
+  }
+  el('meetingText').textContent = `${meeting.title} ${meetingWhen(meeting.startsAt)}`;
+  el('meetingAction').textContent = meeting.prepId ? 'Open prep' : 'Prepare';
+  banner.hidden = false;
+  if (surfacedFor !== meeting.id && Date.parse(meeting.startsAt) - Date.now() <= SURFACE_BEFORE_MS) {
+    surfacedFor = meeting.id;
+    void api.surface();
+  }
+}
+el('meetingAction').addEventListener('click', async () => {
+  const meeting = setup?.meeting;
+  if (!meeting) return;
+  if (meeting.prepId) {
+    void api.openPrep(meeting.prepId);
+    return;
+  }
+  el('meetingAction').disabled = true;
+  const made = await api.prepareMeeting(meeting.id);
+  el('meetingAction').disabled = false;
+  if (made.error || !made.prepId) {
+    setStatus(made.error ?? 'That meeting could not be prepared.');
+    return;
+  }
+  // The prep is now the call's: read the setup again so the bar says so.
+  await loadSetup();
+  setStatus('Prepared. Write its brief in Tesserafy, from Open prep.');
+});
+setInterval(() => {
+  if (signedIn && !listening) void loadSetup();
+}, 2 * 60_000);
+setInterval(() => {
+  if (!el('meetingBanner').hidden) showMeeting();
+}, 30_000);
 
 async function loadCriteria() {
   const result = await api.criteria(chosenScorecard ?? undefined);
@@ -492,6 +546,7 @@ async function startListening() {
 
 function began(status) {
   listening = true;
+  el('meetingBanner').hidden = true;
   askPlaceholder();
   el('listen').textContent = 'Stop';
   // The brief was for walking in; the scorecard is for the call, with the

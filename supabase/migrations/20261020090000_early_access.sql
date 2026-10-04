@@ -28,6 +28,10 @@ comment on table public.early_access is
 
 alter table public.early_access enable row level security;
 
+-- A visitor writes only through the function below and never touches the
+-- table itself; RLS would only hide the rows, this refuses the table.
+revoke all on public.early_access from anon;
+
 create policy "operators read the early-access list"
   on public.early_access for select to authenticated
   using ((select private.is_platform_admin()));

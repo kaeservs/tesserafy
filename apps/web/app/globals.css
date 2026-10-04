@@ -2381,3 +2381,16 @@ main.auth {
     gap: 1rem;
   }
 }
+
+/* Calendars on the Account page, and meetings from them on Prepare. */
+.calendar-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.calendar-list .button-secondary {
+  padding: 0.35rem 0.9rem;
+}

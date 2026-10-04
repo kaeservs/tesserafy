@@ -253,6 +253,16 @@ greeting, opening and closing are told to carry no facts; and it promises no
 price, date or term the call did not say, because the email goes out in the
 seller's name. One draft a call, charged like action items.
 
+Calendars are each person's own (ADR 0021): Google or Microsoft, read-only,
+connected on the Account page. A sync keeps only the next 14 days' meetings
+with someone outside the person's email domain — title, time, those attendees,
+an https meeting link; never descriptions — and only for that person (RLS).
+Prepare and Home re-read a calendar not read in 15 minutes; one click turns a
+meeting into a prep (who, customer by domain, when) but never writes its
+brief, which spends allowance. Refresh tokens are sealed by the web server
+(`lib/sealed.ts`, `CALENDAR_TOKEN_KEY`; tracker tokens use the same module
+with their own key). Off until the provider apps are registered.
+
 "Ask your calls" (`/ask`) is the one agent: LangGraph runs its loop
 (`packages/ai/src/agents/ask-calls.ts`), and nothing else of LangChain is
 used — the model is called with our own client inside the graph's nodes, so

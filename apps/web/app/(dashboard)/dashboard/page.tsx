@@ -17,6 +17,8 @@ import { createClient } from '@/lib/supabase/server';
 import { Icon } from '@/components/icons';
 import { callsThisWeek, followUps, myCalls } from '@/lib/home-calls';
 import { liveSetup } from '@/lib/live-setup';
+import { syncCalendars } from '@/lib/calendar-sync';
+import { prepareFromEvent } from '../prep/calendar-actions';
 
 /**
  * Home. It leads with the seller's own calls, the way the product is used
@@ -265,6 +267,20 @@ export default async function DashboardPage() {
   const local = (user?.email ?? '').split('@')[0] ?? '';
   const name = (local.split(/[._-]/)[0] ?? local).replace(/^./, (first) => first.toUpperCase()) || 'there';
   const prep = setup?.prep ?? null;
+  // With nothing prepared, the next customer meeting from the calendar, if one is connected.
+  if (!prep && user) await syncCalendars(supabase, user.id, { now });
+  const { data: nextMeeting } = prep
+    ? { data: null }
+    : await supabase
+        .from('calendar_events')
+        .select('id, title, starts_at, attendees, prep_id')
+        .gte('ends_at', now.toISOString())
+        .order('starts_at')
+        .limit(1)
+        .maybeSingle();
+  const meetingWith = Array.isArray(nextMeeting?.attendees)
+    ? (nextMeeting.attendees as { email?: string; name?: string | null }[]).map((a) => a.name || a.email).filter(Boolean).slice(0, 2).join(', ')
+    : '';
 
   return (
     <main className="wide">
@@ -317,10 +333,30 @@ export default async function DashboardPage() {
                 <Link href="/overlay">Open the overlay</Link>
               </p>
             </>
+          ) : nextMeeting ? (
+            <>
+              <p style={{ marginBottom: '0.25rem' }}>
+                <strong>{nextMeeting.title}</strong>
+                {meetingWith ? <> · {meetingWith}</> : null}
+              </p>
+              <p className="muted" style={{ marginTop: 0 }}>
+                {new Date(nextMeeting.starts_at).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })}{' '}
+                UTC · from your calendar, not prepared yet
+              </p>
+              {nextMeeting.prep_id ? (
+                <Link href={`/prep/${nextMeeting.prep_id}`}>Open the prep</Link>
+              ) : (
+                <form action={prepareFromEvent} className="inline-form">
+                  <input type="hidden" name="eventId" value={nextMeeting.id} />
+                  <button type="submit">Prepare it</button>
+                </form>
+              )}
+            </>
           ) : (
             <p className="muted" style={{ marginBottom: 0 }}>
               Nothing prepared. <Link href="/prep">Prepare for a call</Link> and mark it “Use for my next call”: the
-              overlay then knows who it is with, the scorecard and what to ask.
+              overlay then knows who it is with, the scorecard and what to ask.{' '}
+              <Link href="/account#calendar-heading">Connect your calendar</Link> and your next customer meeting shows here.
             </p>
           )}
         </section>

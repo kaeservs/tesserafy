@@ -472,6 +472,107 @@ export type Database = {
         }
         Relationships: []
       }
+      calendar_connections: {
+        Row: {
+          account_email: string
+          company_id: string
+          connected_at: string
+          last_error: string | null
+          last_synced_at: string | null
+          provider: string
+          token_ciphertext: string
+          user_id: string
+        }
+        Insert: {
+          account_email: string
+          company_id: string
+          connected_at?: string
+          last_error?: string | null
+          last_synced_at?: string | null
+          provider: string
+          token_ciphertext: string
+          user_id: string
+        }
+        Update: {
+          account_email?: string
+          company_id?: string
+          connected_at?: string
+          last_error?: string | null
+          last_synced_at?: string | null
+          provider?: string
+          token_ciphertext?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_connections_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_events: {
+        Row: {
+          attendees: Json
+          company_id: string
+          ends_at: string
+          external_id: string
+          id: string
+          meeting_url: string | null
+          prep_id: string | null
+          provider: string
+          starts_at: string
+          synced_at: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          attendees?: Json
+          company_id: string
+          ends_at: string
+          external_id: string
+          id?: string
+          meeting_url?: string | null
+          prep_id?: string | null
+          provider: string
+          starts_at: string
+          synced_at?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          attendees?: Json
+          company_id?: string
+          ends_at?: string
+          external_id?: string
+          id?: string
+          meeting_url?: string | null
+          prep_id?: string | null
+          provider?: string
+          starts_at?: string
+          synced_at?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_prep_id_fkey"
+            columns: ["prep_id"]
+            isOneToOne: false
+            referencedRelation: "call_preps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_preps: {
         Row: {
           account_id: string | null
@@ -2938,6 +3039,14 @@ export type Database = {
         Args: { p_assignment_id: string; p_reply?: string }
         Returns: undefined
       }
+      connect_calendar: {
+        Args: {
+          p_account_email: string
+          p_provider: string
+          p_token_ciphertext: string
+        }
+        Returns: undefined
+      }
       connect_tracker: {
         Args: {
           p_provider: string
@@ -3014,6 +3123,7 @@ export type Database = {
         Returns: undefined
       }
       delete_segment_note: { Args: { p_note_id: string }; Returns: undefined }
+      disconnect_calendar: { Args: { p_provider: string }; Returns: undefined }
       disconnect_tracker: { Args: never; Returns: undefined }
       dispute_criterion: {
         Args: {
@@ -3104,6 +3214,10 @@ export type Database = {
           p_title: string
         }
         Returns: string
+      }
+      link_calendar_event: {
+        Args: { p_event_id: string; p_prep_id: string }
+        Returns: undefined
       }
       mark_notifications_read: { Args: { p_ids?: string[] }; Returns: number }
       match_knowledge: {
@@ -3233,6 +3347,15 @@ export type Database = {
           p_model: string
         }
         Returns: Json
+      }
+      record_calendar_sync: {
+        Args: {
+          p_error?: string
+          p_events: Json
+          p_provider: string
+          p_token_ciphertext?: string
+        }
+        Returns: number
       }
       record_company_export: { Args: never; Returns: string }
       record_conversation_view: {

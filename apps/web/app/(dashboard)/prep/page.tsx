@@ -5,6 +5,8 @@ import { engagementLabel, myCompanyId } from '@/lib/company';
 import { PREP_COLUMNS, readBrief, type PrepRow } from '@/lib/prep';
 import { researchAvailable } from '@/lib/apify';
 import { createClient } from '@/lib/supabase/server';
+import { syncCalendars } from '@/lib/calendar-sync';
+import { prepareFromEvent } from './calendar-actions';
 
 export const metadata = { title: 'Prepare · Tesserafy' };
 
@@ -22,6 +24,17 @@ export default async function PrepPage({ searchParams }: { searchParams: Promise
   const { account } = await searchParams;
   const supabase = await createClient();
   const companyId = await myCompanyId(supabase);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  // The calendar, read again if it has not been for a while (lib/calendar-sync).
+  if (user) await syncCalendars(supabase, user.id);
+  const { data: meetings } = await supabase
+    .from('calendar_events')
+    .select('id, title, starts_at, attendees, meeting_url, prep_id')
+    .gte('ends_at', new Date().toISOString())
+    .order('starts_at')
+    .limit(20);
   const [{ data: preps }, { data: accounts }, sets] = await Promise.all([
     supabase.from('call_preps').select(PREP_COLUMNS).order('call_at', { ascending: true, nullsFirst: false }).limit(200).returns<PrepRow[]>(),
     supabase.from('accounts').select('id, name').order('name').limit(500),
@@ -63,6 +76,55 @@ export default async function PrepPage({ searchParams }: { searchParams: Promise
         Say who you are meeting and paste what their LinkedIn profile says. The brief quotes their profile, aims its questions
         at what you have not yet found out with their company, and reminds you what they said last time.
       </p>
+      {(meetings ?? []).length > 0 ? (
+        <section aria-labelledby="calendar-heading" className="card">
+          <h2 id="calendar-heading" style={{ marginTop: 0 }}>
+            From your calendar
+          </h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Meeting</th>
+                <th>With</th>
+                <th>When</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {(meetings ?? []).map((meeting) => {
+                const people = Array.isArray(meeting.attendees)
+                  ? (meeting.attendees as { email?: string; name?: string | null }[]).map((a) => a.name || a.email).filter(Boolean)
+                  : [];
+                return (
+                  <tr key={meeting.id}>
+                    <td>{meeting.title}</td>
+                    <td className="muted">
+                      {people.slice(0, 2).join(', ')}
+                      {people.length > 2 ? ` +${people.length - 2}` : ''}
+                    </td>
+                    <td className="muted">{when(meeting.starts_at)}</td>
+                    <td>
+                      {meeting.prep_id ? (
+                        <Link href={`/prep/${meeting.prep_id}`}>Open prep</Link>
+                      ) : (
+                        <form action={prepareFromEvent} className="inline-form">
+                          <input type="hidden" name="eventId" value={meeting.id} />
+                          <button type="submit">Prepare</button>
+                        </form>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </section>
+      ) : (
+        <p className="muted">
+          <Link href="/account#calendar-heading">Connect your calendar</Link> and your upcoming customer meetings appear here,
+          one click from a prep.
+        </p>
+      )}
       <section className="card">
         <PrepForm initial={{ accountId: account ?? null }} accounts={accounts ?? []} scorecards={scorecards} researchReady={researchAvailable()} />
       </section>

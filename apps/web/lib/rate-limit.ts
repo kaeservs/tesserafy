@@ -131,6 +131,13 @@ export const LIMITS: Record<string, readonly Window[]> = {
     { seconds: 3_600, limit: 3 },
     { seconds: 86_400, limit: 10 },
   ],
+  // Logging a call to the company's CRM (ADR 0024): a few requests to their
+  // CRM each, on its API limits rather than ours. A person logs a call or
+  // two at a time; this stops a loop from using up their CRM's daily quota.
+  'api/crm': [
+    { seconds: 60, limit: 10 },
+    { seconds: 86_400, limit: 300 },
+  ],
 };
 
 /**

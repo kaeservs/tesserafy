@@ -41,12 +41,14 @@ export const WORK_TABLES = [
   { key: 'insight_events', table: 'insight_events', columns: 'id, insight_id, kind, detail, actor, at' },
   { key: 'insight_tickets', table: 'insight_tickets', columns: 'id, insight_id, provider, external_id, url, created_by, created_at' },
   { key: 'tracker', table: 'company_trackers', columns: 'provider, target, connected_by, connected_at', order: 'provider' },
+  { key: 'crm', table: 'company_crms', columns: 'provider, account_ref, connected_by, connected_at', order: 'provider' },
+  { key: 'crm_notes', table: 'crm_logs', columns: 'id, conversation_id, provider, external_id, crm_company_id, crm_company_name, logged_by, logged_at' },
 ] as const;
 
 /** Columns that hold a person: exported as their address, as everywhere in the file. */
 const PERSON_COLUMNS = new Set([
   'created_by', 'done_by', 'drafted_by', 'assigned_by', 'assigned_to', 'saved_by',
-  'published_by', 'set_by', 'added_by', 'author', 'actor', 'connected_by',
+  'published_by', 'set_by', 'added_by', 'author', 'actor', 'connected_by', 'logged_by',
 ]);
 
 export type WorkRow = Record<string, unknown>;

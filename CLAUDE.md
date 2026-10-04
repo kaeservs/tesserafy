@@ -263,6 +263,16 @@ brief, which spends allowance. Refresh tokens are sealed by the web server
 (`lib/sealed.ts`, `CALENDAR_TOKEN_KEY`; tracker tokens use the same module
 with their own key). Off until the provider apps are registered.
 
+A company can log calls to its own CRM, HubSpot first (ADR 0024): the owner
+pastes a HubSpot private app token on Settings, checked with HubSpot and
+sealed under `CRM_TOKEN_KEY` exactly as a tracker's token is (ADR 0015);
+`crm_for_call` is the one path to it, never for a support session. Pressing
+Log on a call page writes one note on the HubSpot company whose domain is the
+call's customer's — the score, each met criterion's quote, the action items,
+a link back, everything escaped, no transcript — and logging again rewrites
+that note (`crm_logs`). No customer domain or no matching company is refused
+with a reason, never put on a guessed record.
+
 "Ask your calls" (`/ask`) is the one agent: LangGraph runs its loop
 (`packages/ai/src/agents/ask-calls.ts`), and nothing else of LangChain is
 used — the model is called with our own client inside the graph's nodes, so

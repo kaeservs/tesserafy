@@ -762,6 +762,47 @@ export type Database = {
           },
         ]
       }
+      company_crms: {
+        Row: {
+          account_ref: string
+          company_id: string
+          connected_at: string
+          connected_by: string | null
+          last_error: string | null
+          provider: string
+          token_ciphertext: string
+          token_hint: string
+        }
+        Insert: {
+          account_ref: string
+          company_id: string
+          connected_at?: string
+          connected_by?: string | null
+          last_error?: string | null
+          provider: string
+          token_ciphertext: string
+          token_hint: string
+        }
+        Update: {
+          account_ref?: string
+          company_id?: string
+          connected_at?: string
+          connected_by?: string | null
+          last_error?: string | null
+          provider?: string
+          token_ciphertext?: string
+          token_hint?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_crms_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_exports: {
         Row: {
           company_id: string
@@ -1194,6 +1235,98 @@ export type Database = {
           },
         ]
       }
+      crm_events: {
+        Row: {
+          account_ref: string
+          action: string
+          actor: string | null
+          at: string
+          company_id: string
+          id: string
+          provider: string
+        }
+        Insert: {
+          account_ref: string
+          action: string
+          actor?: string | null
+          at?: string
+          company_id: string
+          id?: string
+          provider: string
+        }
+        Update: {
+          account_ref?: string
+          action?: string
+          actor?: string | null
+          at?: string
+          company_id?: string
+          id?: string
+          provider?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_logs: {
+        Row: {
+          company_id: string
+          contacts: number
+          conversation_id: string
+          crm_company_id: string | null
+          crm_company_name: string | null
+          external_id: string
+          id: string
+          logged_at: string
+          logged_by: string | null
+          provider: string
+        }
+        Insert: {
+          company_id: string
+          contacts?: number
+          conversation_id: string
+          crm_company_id?: string | null
+          crm_company_name?: string | null
+          external_id: string
+          id?: string
+          logged_at?: string
+          logged_by?: string | null
+          provider: string
+        }
+        Update: {
+          company_id?: string
+          contacts?: number
+          conversation_id?: string
+          crm_company_id?: string | null
+          crm_company_name?: string | null
+          external_id?: string
+          id?: string
+          logged_at?: string
+          logged_by?: string | null
+          provider?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_logs_company_id_conversation_id_fkey"
+            columns: ["company_id", "conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "crm_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       early_access: {
         Row: {
           company: string | null
@@ -1363,6 +1496,72 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "segments"
             referencedColumns: ["company_id", "id"]
+          },
+        ]
+      }
+      follow_up_sends: {
+        Row: {
+          body: string
+          company_id: string
+          conversation_id: string
+          created_at: string
+          error: string | null
+          from_name: string
+          id: string
+          provider_id: string | null
+          recipients: string[]
+          reply_to: string
+          sent_by: string | null
+          settled_at: string | null
+          status: string
+          subject: string
+        }
+        Insert: {
+          body: string
+          company_id: string
+          conversation_id: string
+          created_at?: string
+          error?: string | null
+          from_name: string
+          id?: string
+          provider_id?: string | null
+          recipients: string[]
+          reply_to: string
+          sent_by?: string | null
+          settled_at?: string | null
+          status?: string
+          subject: string
+        }
+        Update: {
+          body?: string
+          company_id?: string
+          conversation_id?: string
+          created_at?: string
+          error?: string | null
+          from_name?: string
+          id?: string
+          provider_id?: string | null
+          recipients?: string[]
+          reply_to?: string
+          sent_by?: string | null
+          settled_at?: string | null
+          status?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_up_sends_company_id_conversation_id_fkey"
+            columns: ["company_id", "conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "follow_up_sends_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2991,6 +3190,16 @@ export type Database = {
         Args: { p_insight_id: string; p_user_id?: string }
         Returns: undefined
       }
+      begin_follow_up_send: {
+        Args: {
+          p_body: string
+          p_conversation_id: string
+          p_from_name: string
+          p_recipients: string[]
+          p_subject: string
+        }
+        Returns: Json
+      }
       cancel_plan: { Args: never; Returns: undefined }
       change_plan: { Args: { p_plan: string }; Returns: string }
       claim_insight_ticket: { Args: { p_insight_id: string }; Returns: boolean }
@@ -3047,6 +3256,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      connect_crm: {
+        Args: {
+          p_account_ref: string
+          p_provider: string
+          p_token_ciphertext: string
+          p_token_hint: string
+        }
+        Returns: undefined
+      }
       connect_tracker: {
         Args: {
           p_provider: string
@@ -3094,6 +3312,15 @@ export type Database = {
         Returns: string
       }
       create_my_company: { Args: { p_name: string }; Returns: string }
+      crm_for_call: {
+        Args: { p_conversation_id: string }
+        Returns: {
+          account_ref: string
+          company_id: string
+          provider: string
+          token_ciphertext: string
+        }[]
+      }
       decide_insight: {
         Args: { p_insight_id: string; p_status: string }
         Returns: {
@@ -3124,6 +3351,7 @@ export type Database = {
       }
       delete_segment_note: { Args: { p_note_id: string }; Returns: undefined }
       disconnect_calendar: { Args: { p_provider: string }; Returns: undefined }
+      disconnect_crm: { Args: never; Returns: undefined }
       disconnect_tracker: { Args: never; Returns: undefined }
       dispute_criterion: {
         Args: {
@@ -3186,6 +3414,10 @@ export type Database = {
       }
       fail_knowledge_document: {
         Args: { p_document_id: string; p_error: string }
+        Returns: undefined
+      }
+      finish_follow_up_send: {
+        Args: { p_error?: string; p_id: string; p_provider_id?: string }
         Returns: undefined
       }
       import_conversation: {
@@ -3365,6 +3597,18 @@ export type Database = {
       record_criterion_events: {
         Args: { p_conversation_id: string; p_events: Json }
         Returns: Json
+      }
+      record_crm_error: { Args: { p_error: string }; Returns: undefined }
+      record_crm_log: {
+        Args: {
+          p_contacts?: number
+          p_conversation_id: string
+          p_crm_company_id?: string
+          p_crm_company_name?: string
+          p_external_id: string
+          p_provider: string
+        }
+        Returns: undefined
       }
       record_extracted_signals: {
         Args: {

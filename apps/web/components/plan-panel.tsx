@@ -80,12 +80,22 @@ export function PlanPanel({
   catalog,
   isOwner,
   liveAvailable,
+  billing = 'free',
+  returnedFromCheckout = false,
 }: {
   overview: PlanOverview;
   catalog: CatalogPlan[];
   isOwner: boolean;
   /** False until live scorecards launch for this company: the minutes are shown as coming. */
   liveAvailable: boolean;
+  /**
+   * How the plan is paid for (ADR 0025): free until payments are on; then a
+   * paid plan starts at Stripe's checkout; once paying, everything is in
+   * Stripe's billing page.
+   */
+  billing?: 'free' | 'checkout' | 'stripe';
+  /** Back from checkout: Stripe has the payment, and its word may be seconds behind. */
+  returnedFromCheckout?: boolean;
 }) {
   // One action for every button, so the message below is always about the
   // last one pressed.
@@ -122,7 +132,60 @@ export function PlanPanel({
         </table>
       </TableScroll>
 
-      {isOwner && !granted ? (
+      {returnedFromCheckout ? (
+        <p role="status">
+          Stripe has your payment. The plan starts as soon as Stripe confirms it, usually within seconds; refresh if it
+          has not.
+        </p>
+      ) : null}
+
+      {isOwner && !granted && billing === 'stripe' ? (
+        <form action={act}>
+          <input type="hidden" name="intent" value="billing" />
+          <button type="submit" disabled={busy}>
+            Manage billing
+          </button>{' '}
+          <span className="muted">Change plan, card or invoices, or cancel, in Stripe&apos;s billing page.</span>
+        </form>
+      ) : null}
+
+      {isOwner && !granted && billing === 'checkout' ? (
+        <div className="plan-choices">
+          {catalog.map((plan) => {
+            const current = overview.plan === plan.id;
+            const start = overview.plan === 'trial' || overview.plan === 'none';
+            const label = start ? `Start ${plan.name}` : current ? `Pay for ${plan.name} to keep it` : `Switch to ${plan.name}`;
+            return (
+              <div className="card" key={plan.id}>
+                <h3 style={{ marginTop: 0 }}>
+                  {plan.name} — {dollars(plan.price_usd_cents)} a month {current ? <span className="muted">(yours)</span> : null}
+                </h3>
+                <p className="muted" style={{ marginBottom: '0.5rem' }}>
+                  {plan.calls} imported calls, {plan.extractions} “Find insights in this call”,{' '}
+                  {plan.pattern_runs} “Look for patterns”, {plan.questions} questions to Ask,{' '}
+                  {plan.live_minutes} live minutes
+                  {liveAvailable ? '' : ' (when live launches)'} — a month.
+                </p>
+                <form action={act}>
+                  <input type="hidden" name="intent" value="checkout" />
+                  <input type="hidden" name="plan" value={plan.id} />
+                  <button type="submit" disabled={busy}>
+                    {label}
+                  </button>
+                </form>
+              </div>
+            );
+          })}
+          <p className="muted">
+            Paid monthly through Stripe. Once you pay, change plan or cancel any time in billing.
+            {overview.plan === 'basic' || overview.plan === 'pro'
+              ? ` The free plan you have runs to ${day(overview.period_end)}.`
+              : ''}
+          </p>
+        </div>
+      ) : null}
+
+      {isOwner && !granted && billing === 'free' ? (
         <div className="plan-choices">
           {catalog.map((plan) => {
             const current = overview.plan === plan.id;

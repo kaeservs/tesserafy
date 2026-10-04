@@ -9,6 +9,7 @@ import { TrackerPanel } from '@/components/tracker-panel';
 import { CrmPanel } from '@/components/crm-panel';
 import { crmKeyAvailable } from '@/lib/crm';
 import { PURGE_TIME_UTC, describeRetention } from '@/lib/retention';
+import { stripeAvailable } from '@/lib/stripe';
 import { createClient } from '@/lib/supabase/server';
 import { setScreenAssist } from './actions';
 import { trackerKeyAvailable } from '@/lib/tracker-secret';
@@ -28,7 +29,7 @@ function day(iso: string): string {
   return new Date(iso).toLocaleDateString('en-GB', { dateStyle: 'medium', timeZone: 'UTC' });
 }
 
-export default async function SettingsPage() {
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ billing?: string }> }) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -50,14 +51,21 @@ export default async function SettingsPage() {
 
   // Where the company stands on its plan; rolled over first if a period
   // ended, so this never shows a trial that has already run out.
-  const [{ data: overview }, { data: catalog }] = await Promise.all([
+  const [{ data: overview }, { data: catalog }, { data: paymentsReady }, { data: subscription }, { billing: returned }] = await Promise.all([
     supabase.rpc('plan_overview'),
     supabase
       .from('plans')
       .select('id, name, price_usd_cents, calls, extractions, pattern_runs, questions, live_minutes')
       .eq('self_serve', true)
       .order('rank'),
+    supabase.rpc('payments_ready'),
+    supabase.from('subscriptions').select('provider').eq('company_id', companyId).maybeSingle(),
+    searchParams,
   ]);
+  // How the plan is paid for (ADR 0025): through Stripe's billing once a
+  // company pays there; through checkout once payments are on; free before.
+  const billing =
+    subscription?.provider === 'stripe' ? 'stripe' : paymentsReady === true && stripeAvailable() ? 'checkout' : 'free';
 
   // Addresses come through company_team(): auth.users is not readable by a
   // signed-in user, and the function returns this company's people only.
@@ -127,6 +135,8 @@ export default async function SettingsPage() {
             catalog={(catalog ?? []) as CatalogPlan[]}
             isOwner={isOwner}
             liveAvailable={liveAvailable(company?.plan)}
+            billing={billing}
+            returnedFromCheckout={returned === 'started'}
           />
         ) : (
           <p className="muted">The plan could not be read just now.</p>

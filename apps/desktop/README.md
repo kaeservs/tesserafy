@@ -28,6 +28,13 @@ repeats what the customer just said is dropped (`src/renderer/hearing.ts`).
 Where the deployment has no Deepgram key, the browser engine inside Electron
 hears the microphone alone, as before.
 
+While listening it captions the last few lines, each side named
+(`src/renderer/captions.ts`), and, with both sides, shows each side's share of
+the words and nudges a seller who has done most of the talking lately
+(`src/renderer/talk-time.ts`). When the meeting app lets go of the microphone
+(Windows), it stops by itself after 15 seconds — "Keep listening" cancels — and
+offers the follow-up email.
+
 The session token never reaches the page. Detection and criteria are fetched
 by the main process, so the renderer holds no credential: a renderer is a
 browser, and a browser is where a credential gets read by something nobody

@@ -76,6 +76,14 @@
       h1 { font-size: 11px; margin: 0; font-weight: 600; letter-spacing: 0.08em; flex: none; max-width: 40%;
            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: uppercase; color: var(--dim); }
       /* No transition: nothing on this card moves by itself (see the top). */
+      .captions { margin-top: 8px; padding: 6px 8px; border-radius: 8px; background: var(--field);
+                  font-size: 11px; line-height: 1.35; }
+      .captions p { margin: 0; }
+      .captions p + p { margin-top: 3px; }
+      .captions .side { font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); margin-right: 4px; }
+      .captions .live { color: var(--dim); }
+      .talk { margin: 6px 0 0; font-size: 10px; color: var(--dim); }
+      .nudge { margin: 6px 0 0; font-size: 11px; color: var(--warn); }
       .meter { flex: 1; height: 6px; border-radius: 3px; background: rgba(var(--line), 0.25); overflow: hidden; }
       .meter-fill { height: 100%; width: 0; background: rgb(var(--accent-rgb)); }
       .score { font-size: 13px; font-weight: 700; line-height: 1; min-width: 2em; text-align: right; color: rgb(var(--accent-rgb)); }
@@ -277,6 +285,11 @@
 
     <ul id="criteria" aria-live="polite"></ul>
 
+    <!-- Who is doing the talking, when both sides are heard (talk-time.ts),
+         and a nudge when it has been mostly the seller lately. -->
+    <p class="talk" id="talkTime" hidden></p>
+    <p class="nudge" id="talkNudge" role="status" hidden></p>
+
     <!-- The prep's questions, kept on screen through the call. One is struck
          through when the scorecard confirms the criterion it was asked for. -->
     <section class="to-ask" id="toAsk" aria-label="To ask" hidden></section>
@@ -288,6 +301,11 @@
       <p class="suggestion-ask" id="suggestionAsk"></p>
       <p class="suggestion-why muted" id="suggestionWhy"></p>
     </aside>
+
+    <!-- The last few lines, as they are said, each side named (captions.ts).
+         Not announced to a screen reader line by line: that would talk over
+         the call. -->
+    <section class="captions" id="captions" aria-label="Live transcript" hidden></section>
 
     <!-- Cluely's four buttons and ask box. What comes back says what it
          rests on: a point about the call quotes the call (t2-assist). -->

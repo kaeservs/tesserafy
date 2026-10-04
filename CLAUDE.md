@@ -243,7 +243,15 @@ microphone line that repeats what the customer just said is dropped. Without
 a key the browser engine hears the microphone alone, as before. Deepgram bills
 per streamed minute a side and the server never sees the audio, so the
 overlay stops after four hours and the Deepgram project needs a spending
-limit.
+limit. The overlay shows the last few lines as they are said, each side
+named (`captions.ts`; the microphone's guess is hidden while the customer is
+talking, since it is their words again), and with both sides it shows each
+side's share of the words and nudges a seller who has done 65% or more of the
+talking in the last five minutes (`talk-time.ts` — arithmetic, never the
+model; not in the first three minutes, not on fewer than 120 words, not again
+for five minutes). When the last meeting app lets go of the microphone while
+listening, the overlay stops by itself after 15 seconds unless the call comes
+back or the seller presses Keep listening, and offers the follow-up.
 
 On Windows the overlay notices a call starting: Windows records which app is
 using the microphone now (`HKCU\…\CapabilityAccessManager\ConsentStore\microphone`,

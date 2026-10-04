@@ -19,6 +19,8 @@
 import { apply, defineCriteriaSet, initialState, score } from '@tesserafy/scoring';
 import { questionsToAsk } from './to-ask';
 import { EchoCheck, SELLER_HOLD_MS } from './hearing';
+import { Captions } from './captions';
+import { TalkMeter } from './talk-time';
 
 const api = window.overlay;
 const WINDOW_SIZE = 3;
@@ -38,6 +40,54 @@ let capture = null;
 let micOnly = false;
 let echoes = new EchoCheck();
 const MAX_CALL_MS = 4 * 60 * 60 * 1000;
+// The live transcript on screen, and who is doing the talking (both sides only).
+const captions = new Captions(3);
+let talk = null;
+let nudgeTimer = null;
+const SIDE_NAME = { me: 'You', them: 'Them' };
+
+function showCaptions() {
+  const lines = captions.lines(performance.now());
+  const box = el('captions');
+  box.replaceChildren(
+    ...lines.map((line) => {
+      const p = document.createElement('p');
+      if (line.side) {
+        const side = document.createElement('span');
+        side.className = 'side';
+        side.textContent = SIDE_NAME[line.side];
+        p.append(side);
+      }
+      const words = document.createElement('span');
+      if (line.live) words.className = 'live';
+      words.textContent = line.text;
+      p.append(words);
+      return p;
+    }),
+  );
+  box.hidden = !listening || lines.length === 0;
+}
+
+function showTalk() {
+  if (!talk) {
+    el('talkTime').hidden = true;
+    return;
+  }
+  const now = performance.now();
+  const shares = talk.shares();
+  // A share of a handful of words says nothing yet.
+  el('talkTime').hidden = shares.words < 30;
+  el('talkTime').textContent = `You ${Math.round(shares.me * 100)}% · Them ${Math.round(shares.them * 100)}% of the talking`;
+  const nudge = talk.nudge(now);
+  if (nudge) {
+    el('talkNudge').textContent = nudge;
+    el('talkNudge').hidden = false;
+    clearTimeout(nudgeTimer);
+    nudgeTimer = setTimeout(() => {
+      el('talkNudge').hidden = true;
+    }, 20_000);
+  }
+}
 let sessionStart = 0;
 const latencies = [];
 // Which suggestion request is the current one. Speech does not wait for the
@@ -417,6 +467,10 @@ function heardLine(text, speaker, detecting) {
     text,
   };
   utterances.push(utterance);
+  if (talk && speaker) {
+    talk.heard(speaker === 'seller' ? 'me' : 'them', text, endedAt);
+    showTalk();
+  }
 
   // Alongside detection, not before it: saving an utterance must never
   // sit between somebody finishing a sentence and the score moving.
@@ -454,6 +508,12 @@ function began(status) {
 /** The call is over, however it ended. */
 function ended() {
   listening = false;
+  cancelAutoStop();
+  captions.clear();
+  showCaptions();
+  talk = null;
+  showTalk();
+  el('talkNudge').hidden = true;
   askPlaceholder();
   el('listen').textContent = 'Start';
   // What Cluely hands over when the meeting ends: here, the follow-up email,
@@ -541,6 +601,9 @@ async function startBothSides() {
 
   micOnly = system === null;
   echoes = new EchoCheck();
+  captions.clear();
+  // Talk time needs the two sides apart; one microphone cannot say whose.
+  talk = micOnly ? null : new TalkMeter(performance.now());
   const recorders = [record(mic, 'me'), ...(system ? [record(system, 'them')] : [])];
   // A stream costs for as long as it is open, and nothing on the server can
   // see how long that is; a call forgotten with Stop unpressed ends here.
@@ -562,6 +625,13 @@ async function startBothSides() {
 }
 
 api.onTranscript(({ channel, kind, text }) => {
+  const side = micOnly ? null : channel;
+  // The seller's finished line waits for the echo check below before it is a
+  // caption; everything else shows as it comes.
+  if (kind === 'interim' || side !== 'me') {
+    captions.heard(side, kind, text, performance.now());
+    showCaptions();
+  }
   if (kind !== 'utterance' || text.length === 0) return;
   if (micOnly) {
     // One microphone cannot say whose line it is.
@@ -577,7 +647,11 @@ api.onTranscript(({ channel, kind, text }) => {
   const at = performance.now();
   const check = echoes;
   setTimeout(() => {
-    if (!check.isEcho(text, at)) heardLine(text, 'seller', false);
+    const echo = check.isEcho(text, at);
+    // An echo is the customer's sentence again: its live guess goes, and no line stays.
+    captions.heard('me', echo ? 'interim' : 'utterance', echo ? '' : text, performance.now());
+    showCaptions();
+    if (!echo) heardLine(text, 'seller', false);
   }, SELLER_HOLD_MS);
 });
 
@@ -602,6 +676,8 @@ function startEngine() {
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const result = event.results[i];
       const text = result[0].transcript.trim();
+      captions.heard(null, result.isFinal ? 'utterance' : 'interim', text, performance.now());
+      showCaptions();
       if (!result.isFinal || text.length === 0) continue;
       heardLine(text, 'customer', true);
     }
@@ -712,6 +788,41 @@ el('callAction').addEventListener('click', () => callAction?.());
 el('callDismiss').addEventListener('click', () => {
   el('callBanner').hidden = true;
 });
+/*
+ * The meeting app let go of the microphone while we were listening: the call
+ * is over, so the overlay stops by itself after a short grace — a dropped
+ * connection or a device switch comes back within it — and offers the
+ * follow-up. "Keep listening" cancels it. Only where calls are noticed at all
+ * (Windows, and not switched off in the dashboard).
+ */
+const AUTO_STOP_S = 15;
+let autoStop = null;
+function cancelAutoStop() {
+  if (autoStop) clearInterval(autoStop);
+  autoStop = null;
+}
+function startAutoStop() {
+  cancelAutoStop();
+  let left = AUTO_STOP_S;
+  const say = () => {
+    el('callText').textContent = `The call ended. Stopping in ${left} s.`;
+  };
+  showCall('', 'Keep listening', () => {
+    cancelAutoStop();
+    el('callBanner').hidden = true;
+  });
+  say();
+  autoStop = setInterval(() => {
+    left -= 1;
+    if (left > 0) {
+      say();
+      return;
+    }
+    cancelAutoStop();
+    if (listening) stopListening();
+  }, 1_000);
+}
+
 api.onCall((call) => {
   if (!signedIn) return;
   if (call.active && !listening) {
@@ -724,11 +835,14 @@ api.onCall((call) => {
       el('callBanner').hidden = true;
       el('listen').click();
     });
-  } else if (!call.active && listening) {
-    showCall('The call seems to have ended.', 'Stop', () => {
+  } else if (call.active && listening) {
+    // Back on the call before the countdown ran out: keep listening.
+    if (autoStop) {
+      cancelAutoStop();
       el('callBanner').hidden = true;
-      if (listening) el('listen').click();
-    });
+    }
+  } else if (!call.active && listening) {
+    startAutoStop();
   } else if (!call.active) {
     el('callBanner').hidden = true;
   }

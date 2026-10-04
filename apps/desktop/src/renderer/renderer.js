@@ -28,6 +28,10 @@ const WINDOW_SIZE = 3;
 let state = null;
 let prompts = [];
 const utterances = [];
+// Where the current call's lines begin: one sitting can hold several calls,
+// and what Assist reads, or a recap sums up, is this call's alone.
+let callStart = 0;
+const thisCall = () => utterances.slice(callStart);
 let protection = true;
 let clickThrough = false;
 let listening = false;
@@ -411,7 +415,7 @@ async function saveEvents(events, detector, model) {
 }
 
 async function detect(endedAt) {
-  const window_ = utterances.slice(-WINDOW_SIZE);
+  const window_ = thisCall().slice(-WINDOW_SIZE);
   const result = await api.detect({ criteria: prompts, window: window_ });
   if (result.error) {
     setStatus(result.error);
@@ -492,6 +496,7 @@ async function startListening() {
 
 function began(status) {
   listening = true;
+  callStart = utterances.length;
   askPlaceholder();
   el('listen').textContent = 'Stop';
   // The brief was for walking in; the scorecard is for the call, with the
@@ -506,8 +511,25 @@ function began(status) {
 }
 
 /** The call is over, however it ended. */
+/*
+ * When a call ends: what was said, what was agreed, what is still open — the
+ * Recap button's answer, every point quoting the call, without pressing it.
+ * After a moment, so the last words still arriving from the streams are in
+ * it, and only for a call with something to sum up. Not charged to the plan,
+ * as the button is not.
+ */
+const RECAP_AFTER_MS = 2_500;
+const RECAP_LINES = 4;
+function recapCall() {
+  setTimeout(() => {
+    if (listening || !signedIn || thisCall().length < RECAP_LINES) return;
+    void runAssist('call-recap');
+  }, RECAP_AFTER_MS);
+}
+
 function ended() {
   listening = false;
+  recapCall();
   cancelAutoStop();
   captions.clear();
   showCaptions();
@@ -860,6 +882,7 @@ const ASSIST_TITLE = {
   followups: 'Follow-up questions',
   recap: 'Recap',
   ask: 'Answer',
+  'call-recap': 'Call recap',
 };
 let assistSeq = 0;
 let withScreen = false;
@@ -881,9 +904,9 @@ async function runAssist(mode, question) {
   el('answerPoints').replaceChildren();
   el('answerPoints').replaceChildren();
   const result = await api.assist({
-    mode,
+    mode: mode === 'call-recap' ? 'recap' : mode,
     ...(question ? { question } : {}),
-    transcript: utterances.map(({ id, speaker, text }) => ({ id, speaker, text })),
+    transcript: thisCall().map(({ id, speaker, text }) => ({ id, speaker, text })),
     criteria: state ? score(state).criteria.map((c) => ({ key: c.key, label: c.label, status: c.status })) : [],
     ...(setup?.prep ? { prepId: setup.prep.id } : {}),
     engagementType: chosenScorecard ?? state?.criteriaSet?.engagementType ?? 'discovery',
@@ -897,7 +920,7 @@ async function runAssist(mode, question) {
   const points = result.points ?? [];
   if (points.length === 0) {
     const li = document.createElement('li');
-    li.textContent = utterances.length === 0 ? 'Nothing said yet to go on.' : 'Nothing worth saying yet.';
+    li.textContent = thisCall().length === 0 ? 'Nothing said yet to go on.' : 'Nothing worth saying yet.';
     el('answerPoints').replaceChildren(li);
     return;
   }

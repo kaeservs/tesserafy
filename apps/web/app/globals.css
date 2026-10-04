@@ -1915,3 +1915,425 @@ main.auth {
 .stats-row + .split-even h2 {
   margin-top: 0;
 }
+
+/* --------------------------------------------------------------------------
+   The landing page (/, signed out): the same look, at marketing scale
+   -------------------------------------------------------------------------- */
+
+.landing {
+  min-height: 100vh;
+}
+
+.landing-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem;
+}
+
+.landing-links {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.landing-links a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.92rem;
+}
+
+.landing-links a:hover {
+  color: var(--fg);
+}
+
+.landing-nav .landing-links {
+  margin-left: auto;
+}
+
+.landing-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.landing-actions > a:first-child {
+  color: var(--fg);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.button-primary,
+.button-secondary {
+  display: inline-block;
+  padding: 0.7rem 1.3rem;
+  border-radius: var(--radius);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.button-primary {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.button-primary:hover {
+  background: color-mix(in srgb, var(--accent) 88%, black);
+}
+
+.button-secondary {
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--border);
+}
+
+.button-secondary:hover {
+  border-color: var(--accent);
+}
+
+.landing-main {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1rem 1.5rem 4rem;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 3rem;
+  align-items: center;
+  padding: 3rem 0 2rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.75rem;
+  color: var(--accent);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.hero h1 {
+  font-size: clamp(2rem, 4.2vw, 3.1rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 0 0 1rem;
+}
+
+.hero-lede {
+  font-size: 1.08rem;
+  color: var(--muted);
+  max-width: 34rem;
+  margin: 0 0 1.75rem;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  list-style: none;
+  padding: 0;
+  margin: 1.75rem 0 0;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.trust li::before {
+  content: '✓ ';
+  color: var(--confirmed);
+  font-weight: 600;
+}
+
+/* The overlay, drawn in its own dark glass, floating on the lavender page. */
+.mock {
+  background: rgb(22 22 30 / 0.94);
+  color: #f2f1f7;
+  border-radius: 18px;
+  padding: 1rem 1.1rem 1.15rem;
+  box-shadow: 0 30px 80px rgb(89 50 234 / 0.25);
+  font-size: 0.82rem;
+  transform: rotate(-1.2deg);
+}
+
+.mock-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.mock-pill {
+  padding: 0.2rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid #4b4860;
+}
+
+.mock-muted {
+  color: #a3a1b8;
+}
+
+.mock-score {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.mock-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: #2f2c40;
+  overflow: hidden;
+}
+
+.mock-fill {
+  display: block;
+  width: 62%;
+  height: 100%;
+  background: #a594f9;
+}
+
+.mock-chips,
+.mock-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.65rem;
+}
+
+.mock-chip {
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid #4b4860;
+  color: #a3a1b8;
+}
+
+.mock-chip.on {
+  border-color: #34d399;
+  color: #6ee7b7;
+}
+
+.mock-buttons span {
+  padding: 0.3rem 0.6rem;
+  border-radius: 8px;
+  background: #2a2738;
+}
+
+.mock-answer {
+  border-top: 1px solid #2f2c40;
+  padding-top: 0.6rem;
+}
+
+.mock-answer p {
+  margin: 0 0 0.35rem;
+}
+
+.mock-title {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.7rem;
+  color: #a3a1b8;
+}
+
+.mock-quote {
+  color: #a3a1b8;
+  font-size: 0.75rem;
+}
+
+.landing-section {
+  padding: 3.5rem 0 0;
+}
+
+.landing-section > h2,
+.evidence h2,
+.cta h2 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.5rem;
+}
+
+.section-lede {
+  color: var(--muted);
+  max-width: 40rem;
+  margin: 0 0 1.75rem;
+}
+
+.feature-grid,
+.price-grid {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+}
+
+.feature h3,
+.steps h3,
+.price h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 1rem 0 0.4rem;
+}
+
+.feature p {
+  margin: 0;
+}
+
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0 0;
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+}
+
+.steps h3 {
+  margin-top: 0.75rem;
+}
+
+.steps p {
+  margin: 0;
+}
+
+.step-number {
+  display: inline-grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+
+.evidence {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 2.5rem;
+  align-items: center;
+}
+
+.evidence-card blockquote {
+  margin: 0.75rem 0;
+  padding-left: 1rem;
+  border-left: 3px solid var(--accent);
+  font-size: 1.05rem;
+}
+
+.privacy-list {
+  display: grid;
+  gap: 1rem 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  list-style: none;
+  padding: 0;
+  margin: 1.25rem 0 0;
+}
+
+.privacy-list li {
+  color: var(--muted);
+}
+
+.privacy-list strong {
+  display: block;
+  color: var(--fg);
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+}
+
+.price-figure {
+  font-size: 2.2rem;
+  font-weight: 600;
+  margin: 0.25rem 0 0.75rem;
+}
+
+.price-figure .muted {
+  font-size: 0.95rem;
+  font-weight: 400;
+}
+
+.price ul {
+  padding-left: 1.1rem;
+  margin: 0 0 1.25rem;
+  color: var(--muted);
+}
+
+.price.featured {
+  outline: 2px solid var(--accent);
+}
+
+.faq {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 48rem;
+}
+
+.faq summary {
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.faq p {
+  margin: 0.6rem 0 0;
+}
+
+.cta {
+  margin: 4rem 0 0;
+  padding: 2.5rem 2rem;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, #b45cc0 0%, #4623e9 100%);
+  color: #ffffff;
+  text-align: center;
+}
+
+.cta h2 {
+  color: #ffffff;
+  margin-bottom: 1.25rem;
+}
+
+.landing-footer {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 3rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 900px) {
+  .hero,
+  .evidence {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
+  }
+
+  .landing-nav .landing-links {
+    display: none;
+  }
+
+  .landing-actions {
+    margin-left: auto;
+  }
+
+  .mock {
+    transform: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .landing-actions .button-primary {
+    display: none;
+  }
+}

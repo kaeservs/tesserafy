@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { liveTranscript, TRANSCRIPT_CHARS } from '../lib/live-input';
-import { nearestPrep } from '../lib/live-setup';
+import { nearestPrep, nextMeeting } from '../lib/live-setup';
 import { DEFAULT_LOOK, readLook } from '../lib/overlay-look';
 
 const now = new Date('2026-10-05T10:00:00Z');
@@ -45,5 +45,17 @@ describe('the call so far', () => {
   it('is refused when it is not a transcript', () => {
     expect(liveTranscript('text')).toBeNull();
     expect(liveTranscript([{ id: 'u0', speaker: 'Dana', text: 'x'.repeat(5_000) }])).toBeNull();
+  });
+});
+
+describe('nextMeeting', () => {
+  const now = new Date('2026-10-05T10:00:00Z');
+  const meeting = (id: string, starts: string, ends: string) => ({ id, starts_at: starts, ends_at: ends });
+  it('is the meeting on now, or the soonest starting within half an hour', () => {
+    expect(nextMeeting([meeting('later', '2026-10-05T10:20:00Z', '2026-10-05T11:00:00Z'), meeting('now', '2026-10-05T09:45:00Z', '2026-10-05T10:15:00Z')], now)?.id).toBe('now');
+    expect(nextMeeting([meeting('soon', '2026-10-05T10:25:00Z', '2026-10-05T11:00:00Z')], now)?.id).toBe('soon');
+  });
+  it('is none when the only meetings have ended or are more than half an hour away', () => {
+    expect(nextMeeting([meeting('over', '2026-10-05T09:00:00Z', '2026-10-05T09:30:00Z'), meeting('far', '2026-10-05T10:45:00Z', '2026-10-05T11:30:00Z')], now)).toBeNull();
   });
 });

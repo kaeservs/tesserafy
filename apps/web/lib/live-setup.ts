@@ -15,6 +15,8 @@ import { PREP_COLUMNS, readBrief, type PrepRow } from './prep';
 
 const BEFORE_MS = 2 * 3_600_000;
 const AHEAD_MS = 12 * 3_600_000;
+/** A meeting is "next" from half an hour before it starts until it ends. */
+export const MEETING_AHEAD_MS = 30 * 60_000;
 
 export interface LiveSetup {
   readonly look: Record<string, unknown>;
@@ -31,6 +33,21 @@ export interface LiveSetup {
   readonly agreement: Agreement | null;
   /** The words of that agreement, for the overlay to show; the server keeps what is agreed to. */
   readonly agreementText: string;
+  /**
+   * The person's next meeting with someone outside, from their calendar: on
+   * now, or starting within half an hour. With the prep made from it, if any
+   * — which then is the call's prep unless another was chosen.
+   */
+  readonly meeting: { id: string; title: string; startsAt: string; prepId: string | null } | null;
+}
+
+/** Of a person's calendar meetings, the one on now or starting soonest within the window. */
+export function nextMeeting<T extends { starts_at: string; ends_at: string }>(events: readonly T[], now: Date): T | null {
+  return (
+    events
+      .filter((event) => Date.parse(event.ends_at) > now.getTime() && Date.parse(event.starts_at) - now.getTime() <= MEETING_AHEAD_MS)
+      .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at))[0] ?? null
+  );
 }
 
 /** Of a person's own preps, the one whose call is nearest now, within the window. */
@@ -52,6 +69,14 @@ export async function liveSetup(db: SupabaseClient, userId: string, now = new Da
     .eq('user_id', userId)
     .maybeSingle();
 
+  const { data: events } = await db
+    .from('calendar_events')
+    .select('id, title, starts_at, ends_at, prep_id')
+    .eq('user_id', userId)
+    .gt('ends_at', now.toISOString())
+    .lte('starts_at', new Date(now.getTime() + MEETING_AHEAD_MS).toISOString());
+  const meeting = nextMeeting(events ?? [], now);
+
   let prep: PrepRow | null = null;
   let chosen = false;
   if (preferences?.next_prep_id && companyId) {
@@ -64,6 +89,17 @@ export async function liveSetup(db: SupabaseClient, userId: string, now = new Da
       .maybeSingle();
     prep = data ?? null;
     chosen = prep !== null;
+  }
+  // The meeting about to happen is the call, when a prep was made from it.
+  if (!prep && meeting?.prep_id && companyId) {
+    const { data } = await db
+      .from('call_preps')
+      .select(PREP_COLUMNS)
+      .eq('id', meeting.prep_id)
+      .eq('company_id', companyId)
+      .returns<PrepRow[]>()
+      .maybeSingle();
+    prep = data ?? null;
   }
   if (!prep && companyId) {
     const { data } = await db
@@ -96,6 +132,7 @@ export async function liveSetup(db: SupabaseClient, userId: string, now = new Da
     transcription: transcriptionAvailable() ? 'deepgram' : null,
     agreement: await currentAgreement(db, userId),
     agreementText: RECORDING_AGREEMENT,
+    meeting: meeting ? { id: meeting.id, title: meeting.title, startsAt: meeting.starts_at, prepId: meeting.prep_id } : null,
   };
 }
 

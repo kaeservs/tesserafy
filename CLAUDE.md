@@ -191,7 +191,12 @@ Tesserafy's own purposes (the Otter.ai wiretap suits turned partly on that).
 The overlay's settings live in the dashboard: its look (per person) and the
 call prep marked "Use for my next call", which gives the call its customer,
 scorecard and questions (`/api/live/setup`); where it sits stays each
-computer's. Its four buttons and ask box are `/api/assist` (t2-assist): a
+computer's. The setup also carries the person's next meeting from their
+calendar (on now, or within half an hour; the calendar is re-read if stale):
+the overlay says "Northwind discovery in 5 min", the prep made from it is the
+call's unless another was chosen, "Prepare" makes one in a press (never its
+brief, which spends allowance), and two minutes before it the overlay comes
+up without taking focus — not when the person switched call detection off. Its four buttons and ask box are `/api/assist` (t2-assist): a
 point about the call quotes the call or is dropped, and the model is told it
 does not know the seller's product, so it never states a price or a rollout
 time (measured: before that rule Haiku said "4-6 weeks" and Sonnet "a few

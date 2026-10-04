@@ -1093,6 +1093,36 @@ export type Database = {
           },
         ]
       }
+      early_access: {
+        Row: {
+          company: string | null
+          created_at: string
+          email: string
+          id: string
+          invited_at: string | null
+          invited_by: string | null
+          use_case: string | null
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          use_case?: string | null
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          use_case?: string | null
+        }
+        Relationships: []
+      }
       erasure_events: {
         Row: {
           company_id: string
@@ -1928,6 +1958,27 @@ export type Database = {
           },
         ]
       }
+      overlay_seen: {
+        Row: {
+          platform: string
+          seen_at: string
+          user_id: string
+          version: string
+        }
+        Insert: {
+          platform: string
+          seen_at?: string
+          user_id: string
+          version: string
+        }
+        Update: {
+          platform?: string
+          seen_at?: string
+          user_id?: string
+          version?: string
+        }
+        Relationships: []
+      }
       plans: {
         Row: {
           calls: number | null
@@ -2747,9 +2798,24 @@ export type Database = {
           speakers_marked: number
         }[]
       }
+      admin_mark_early_access: {
+        Args: { p_id: string; p_invited: boolean }
+        Returns: undefined
+      }
       admin_operator_mfa: { Args: never; Returns: Json }
       admin_ops_token: { Args: never; Returns: Json }
+      admin_overlay_seen: {
+        Args: never
+        Returns: {
+          company: string
+          email: string
+          platform: string
+          seen_at: string
+          version: string
+        }[]
+      }
       admin_overview: { Args: never; Returns: Json }
+      admin_remove_early_access: { Args: { p_id: string }; Returns: undefined }
       admin_revoke_ops_token: { Args: never; Returns: undefined }
       admin_set_feedback_status: {
         Args: { p_feedback_id: string; p_status: string }
@@ -3271,6 +3337,10 @@ export type Database = {
         }
         Returns: string
       }
+      record_overlay_seen: {
+        Args: { p_platform: string; p_version: string }
+        Returns: undefined
+      }
       record_segment_embeddings: {
         Args: { p_conversation_id: string; p_model: string; p_rows: Json }
         Returns: number
@@ -3323,6 +3393,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      request_early_access: {
+        Args: { p_company?: string; p_email: string; p_use_case?: string }
+        Returns: boolean
       }
       request_teammate: {
         Args: { p_email: string; p_note?: string; p_role: string }

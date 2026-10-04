@@ -1816,6 +1816,21 @@ input[type='search'] {
   color: var(--contradicted);
 }
 
+/* Sending the follow-up from the call page, and what was sent. */
+.follow-up-send {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.follow-up-sent {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
 /* A big number with its label, on a card, beside a round icon. */
 .stat-card {
   display: flex;

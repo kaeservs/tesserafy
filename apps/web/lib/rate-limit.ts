@@ -131,6 +131,14 @@ export const LIMITS: Record<string, readonly Window[]> = {
     { seconds: 3_600, limit: 3 },
     { seconds: 86_400, limit: 10 },
   ],
+  // An email from a call page goes out from our sending address (ADR 0023),
+  // so what one session can send is a reputation question as well as a cost
+  // one: a seller sends one or two a call; a stolen session should not be
+  // able to send a campaign. The database caps a company at thirty an hour.
+  'api/follow-up/send': [
+    { seconds: 60, limit: 5 },
+    { seconds: 86_400, limit: 40 },
+  ],
 };
 
 /**

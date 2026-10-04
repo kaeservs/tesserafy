@@ -251,7 +251,14 @@ as everything else: the recap and the next steps are lines each quoting a
 segment, checked in code and again by `record_follow_up`; the subject,
 greeting, opening and closing are told to carry no facts; and it promises no
 price, date or term the call did not say, because the email goes out in the
-seller's name. One draft a call, charged like action items.
+seller's name. One draft a call, charged like action items. It can be sent
+from the call page (ADR 0023): through Resend, from our `EMAIL_FROM` with the
+name the seller types, replies to the seller and the seller copied, plain
+text — never with the seller's address in From, which would be forging it.
+`begin_follow_up_send` records it before it leaves (a draft exists, one to
+ten addresses, not a support session, thirty a company an hour) and its id is
+Resend's idempotency key; `finish_follow_up_send` settles it. Without
+`RESEND_API_KEY`, Copy and "Open in your email app" are all there is.
 
 Calendars are each person's own (ADR 0021): Google or Microsoft, read-only,
 connected on the Account page. A sync keeps only the next 14 days' meetings

@@ -1366,6 +1366,72 @@ export type Database = {
           },
         ]
       }
+      follow_up_sends: {
+        Row: {
+          body: string
+          company_id: string
+          conversation_id: string
+          created_at: string
+          error: string | null
+          from_name: string
+          id: string
+          provider_id: string | null
+          recipients: string[]
+          reply_to: string
+          sent_by: string | null
+          settled_at: string | null
+          status: string
+          subject: string
+        }
+        Insert: {
+          body: string
+          company_id: string
+          conversation_id: string
+          created_at?: string
+          error?: string | null
+          from_name: string
+          id?: string
+          provider_id?: string | null
+          recipients: string[]
+          reply_to: string
+          sent_by?: string | null
+          settled_at?: string | null
+          status?: string
+          subject: string
+        }
+        Update: {
+          body?: string
+          company_id?: string
+          conversation_id?: string
+          created_at?: string
+          error?: string | null
+          from_name?: string
+          id?: string
+          provider_id?: string | null
+          recipients?: string[]
+          reply_to?: string
+          sent_by?: string | null
+          settled_at?: string | null
+          status?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_up_sends_company_id_conversation_id_fkey"
+            columns: ["company_id", "conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "follow_up_sends_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       follow_ups: {
         Row: {
           closing: string
@@ -2991,6 +3057,16 @@ export type Database = {
         Args: { p_insight_id: string; p_user_id?: string }
         Returns: undefined
       }
+      begin_follow_up_send: {
+        Args: {
+          p_body: string
+          p_conversation_id: string
+          p_from_name: string
+          p_recipients: string[]
+          p_subject: string
+        }
+        Returns: Json
+      }
       cancel_plan: { Args: never; Returns: undefined }
       change_plan: { Args: { p_plan: string }; Returns: string }
       claim_insight_ticket: { Args: { p_insight_id: string }; Returns: boolean }
@@ -3186,6 +3262,10 @@ export type Database = {
       }
       fail_knowledge_document: {
         Args: { p_document_id: string; p_error: string }
+        Returns: undefined
+      }
+      finish_follow_up_send: {
+        Args: { p_error?: string; p_id: string; p_provider_id?: string }
         Returns: undefined
       }
       import_conversation: {

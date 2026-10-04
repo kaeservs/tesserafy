@@ -16,6 +16,7 @@ import { CallViewers } from '@/components/call-viewers';
 import { CopyMomentLink } from '@/components/copy-moment-link';
 import { ActionItems } from '@/components/action-items';
 import { FollowUp } from '@/components/follow-up';
+import { emailAvailable, sendingAddress } from '@/lib/email';
 import { followUpText } from '@tesserafy/ai';
 import { AssignCoaching } from '@/components/coaching-forms';
 import { OurSpeaker } from '@/components/our-speaker';
@@ -344,7 +345,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
     examplesOf.set(moment.segment_id, list);
   }
   const criterionOptions = card.criteria.map((criterion) => ({ key: criterion.key, label: criterion.label }));
-  const [{ data: actionRows }, { data: followUpRow }] = await Promise.all([
+  const [{ data: actionRows }, { data: followUpRow }, { data: sendRows }] = await Promise.all([
     supabase
       .from('action_items')
       .select('id, action, owner_side, owner_name, due, done, segment_id, quote')
@@ -355,6 +356,12 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
       .select('id, subject, greeting, opening, closing, created_at, follow_up_lines(position, kind, text, segment_id, quote)')
       .eq('conversation_id', id)
       .maybeSingle(),
+    supabase
+      .from('follow_up_sends')
+      .select('recipients, status, created_at, sent_by')
+      .eq('conversation_id', id)
+      .order('created_at', { ascending: false })
+      .limit(10),
   ]);
   const followUpLines = [...(followUpRow?.follow_up_lines ?? [])]
     .sort((a, b) => a.position - b.position)
@@ -438,6 +445,13 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
         lines: followUpLines.map((line) => ({ ...line, at: clock(startedAt.get(line.segmentId) ?? 0) })),
       }
     : null;
+  const sends = (sendRows ?? []).map((row) => ({
+    recipients: row.recipients,
+    when: stamp(row.created_at),
+    byYou: row.sent_by === user?.id,
+    status: row.status === 'sent' ? ('sent' as const) : row.status === 'failed' ? ('failed' as const) : ('sending' as const),
+  }));
+  const from = emailAvailable() ? sendingAddress() : null;
   const talk = talkStats(segments);
   const split = sideShares(talk.speakers, ours);
   const { title, occurred_at: occurredAt } = conversation as {
@@ -692,7 +706,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
 
       <section aria-labelledby="follow-up-heading" id="follow-up">
         <h2 id="follow-up-heading">Follow-up email</h2>
-        <FollowUp conversationId={id} draft={followUp} />
+        <FollowUp conversationId={id} draft={followUp} sending={from ? { from } : null} sends={sends} />
       </section>
 
       <section aria-labelledby="signals-heading">

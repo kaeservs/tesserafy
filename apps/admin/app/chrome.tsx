@@ -17,13 +17,14 @@ import { ConsoleSidebar } from './console-sidebar';
  * every page, as the things most likely to be forgotten. Zero if a count
  * cannot be read: a missing badge is not worth breaking a page for.
  */
-async function waitingCounts(): Promise<{ requests: number; feedback: number }> {
+async function waitingCounts(): Promise<{ requests: number; feedback: number; early: number }> {
   const db = await createClient();
-  const [{ data: requests }, { count: feedback }] = await Promise.all([
+  const [{ data: requests }, { count: feedback }, { count: early }] = await Promise.all([
     db.rpc('admin_access_requests'),
     db.from('feedback').select('id', { count: 'exact', head: true }).eq('status', 'new'),
+    db.from('early_access').select('id', { count: 'exact', head: true }).is('invited_at', null),
   ]);
-  return { requests: (requests ?? []).length, feedback: feedback ?? 0 };
+  return { requests: (requests ?? []).length, feedback: feedback ?? 0, early: early ?? 0 };
 }
 
 export async function Chrome({ email, children }: { email: string; children: ReactNode }) {

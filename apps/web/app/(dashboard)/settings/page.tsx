@@ -6,6 +6,8 @@ import { RemoveMember } from '@/components/remove-member';
 import { RequestTeammate } from '@/components/request-teammate';
 import { RetentionForm } from '@/components/retention-form';
 import { TrackerPanel } from '@/components/tracker-panel';
+import { CrmPanel } from '@/components/crm-panel';
+import { crmKeyAvailable } from '@/lib/crm';
 import { PURGE_TIME_UTC, describeRetention } from '@/lib/retention';
 import { stripeAvailable } from '@/lib/stripe';
 import { createClient } from '@/lib/supabase/server';
@@ -106,6 +108,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const { data: tracker } = await supabase
     .from('company_trackers')
     .select('provider, target, token_hint, connected_by, connected_at')
+    .eq('company_id', companyId)
+    .maybeSingle();
+  // Where calls are logged (ADR 0024); the token is a column no customer can select.
+  const { data: crm } = await supabase
+    .from('company_crms')
+    .select('account_ref, token_hint, connected_by, connected_at, last_error')
     .eq('company_id', companyId)
     .maybeSingle();
   const emailOf = new Map((team ?? []).map((person) => [person.user_id, person.email]));
@@ -299,6 +307,27 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           connectedDate={tracker ? day(tracker.connected_at) : null}
           isOwner={isOwner}
           available={trackerKeyAvailable()}
+        />
+      </section>
+
+      <section aria-labelledby="crm-heading" className="card">
+        <h2 id="crm-heading" style={{ marginTop: 0 }}>
+          Where calls are logged
+        </h2>
+        <CrmPanel
+          connected={
+            crm
+              ? {
+                  accountRef: crm.account_ref,
+                  tokenHint: crm.token_hint,
+                  connectedBy: crm.connected_by ? (emailOf.get(crm.connected_by) ?? 'a former member') : null,
+                  lastError: crm.last_error,
+                }
+              : null
+          }
+          connectedDate={crm ? day(crm.connected_at) : null}
+          isOwner={isOwner}
+          available={crmKeyAvailable()}
         />
       </section>
 

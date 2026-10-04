@@ -16,6 +16,8 @@ import { CallViewers } from '@/components/call-viewers';
 import { CopyMomentLink } from '@/components/copy-moment-link';
 import { ActionItems } from '@/components/action-items';
 import { FollowUp } from '@/components/follow-up';
+import { LogToCrm } from '@/components/log-to-crm';
+import { emailAvailable, sendingAddress } from '@/lib/email';
 import { followUpText } from '@tesserafy/ai';
 import { AssignCoaching } from '@/components/coaching-forms';
 import { OurSpeaker } from '@/components/our-speaker';
@@ -306,7 +308,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
     supabase.rpc('company_team'),
     mayEdit ? fetchCriteriaSets(supabase, conversation.company_id) : Promise.resolve([]),
   ]);
-  const { data: accountRows } = await supabase.from('accounts').select('id, name').order('name').limit(500);
+  const { data: accountRows } = await supabase.from('accounts').select('id, name, domain').order('name').limit(500);
   const emailOf = new Map((team ?? []).map((person) => [person.user_id, person.is_you ? 'You' : person.email]));
   const nameOf = (userId: string | null) => (userId ? (emailOf.get(userId) ?? 'A former member') : 'A former member');
   // People's corrections to the score: evidence like any other, with who and why.
@@ -330,7 +332,14 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
     by: nameOf(row.recorded_by),
     mayWithdraw: isOwner || (user !== null && row.recorded_by === user.id),
   }));
-  const accountName = (accountRows ?? []).find((row) => row.id === conversation.account_id)?.name ?? null;
+  const account = (accountRows ?? []).find((row) => row.id === conversation.account_id) ?? null;
+  const accountName = account?.name ?? null;
+  // Where the call can be logged: the company's CRM, if an owner connected one
+  // (ADR 0024), and the note already made for this call.
+  const [{ data: crm }, { data: crmLog }] = await Promise.all([
+    supabase.from('company_crms').select('provider').eq('company_id', conversation.company_id).maybeSingle(),
+    supabase.from('crm_logs').select('crm_company_name, logged_by, logged_at').eq('conversation_id', id).maybeSingle(),
+  ]);
   // Which speakers are this company's own people, and which lines are already examples.
   const [{ data: ourRows }, { data: momentRows }] = await Promise.all([
     supabase.from('our_speakers').select('name'),
@@ -344,7 +353,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
     examplesOf.set(moment.segment_id, list);
   }
   const criterionOptions = card.criteria.map((criterion) => ({ key: criterion.key, label: criterion.label }));
-  const [{ data: actionRows }, { data: followUpRow }] = await Promise.all([
+  const [{ data: actionRows }, { data: followUpRow }, { data: sendRows }] = await Promise.all([
     supabase
       .from('action_items')
       .select('id, action, owner_side, owner_name, due, done, segment_id, quote')
@@ -355,6 +364,12 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
       .select('id, subject, greeting, opening, closing, created_at, follow_up_lines(position, kind, text, segment_id, quote)')
       .eq('conversation_id', id)
       .maybeSingle(),
+    supabase
+      .from('follow_up_sends')
+      .select('recipients, status, created_at, sent_by')
+      .eq('conversation_id', id)
+      .order('created_at', { ascending: false })
+      .limit(10),
   ]);
   const followUpLines = [...(followUpRow?.follow_up_lines ?? [])]
     .sort((a, b) => a.position - b.position)
@@ -438,6 +453,13 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
         lines: followUpLines.map((line) => ({ ...line, at: clock(startedAt.get(line.segmentId) ?? 0) })),
       }
     : null;
+  const sends = (sendRows ?? []).map((row) => ({
+    recipients: row.recipients,
+    when: stamp(row.created_at),
+    byYou: row.sent_by === user?.id,
+    status: row.status === 'sent' ? ('sent' as const) : row.status === 'failed' ? ('failed' as const) : ('sending' as const),
+  }));
+  const from = emailAvailable() ? sendingAddress() : null;
   const talk = talkStats(segments);
   const split = sideShares(talk.speakers, ours);
   const { title, occurred_at: occurredAt } = conversation as {
@@ -692,8 +714,21 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
 
       <section aria-labelledby="follow-up-heading" id="follow-up">
         <h2 id="follow-up-heading">Follow-up email</h2>
-        <FollowUp conversationId={id} draft={followUp} />
+        <FollowUp conversationId={id} draft={followUp} sending={from ? { from } : null} sends={sends} />
       </section>
+
+      {crm ? (
+        <section aria-labelledby="crm-heading" id="crm">
+          <h2 id="crm-heading">HubSpot</h2>
+          <LogToCrm
+            conversationId={id}
+            hasCustomer={Boolean(account?.domain)}
+            logged={
+              crmLog ? { when: stamp(crmLog.logged_at), companyName: crmLog.crm_company_name, by: nameOf(crmLog.logged_by) } : null
+            }
+          />
+        </section>
+      ) : null}
 
       <section aria-labelledby="signals-heading">
         <h2 id="signals-heading">Signals</h2>

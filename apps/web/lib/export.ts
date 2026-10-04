@@ -28,6 +28,7 @@ export const WORK_TABLES = [
   { key: 'action_items', table: 'action_items', columns: 'id, conversation_id, segment_id, quote, action, owner_side, owner_name, due, done, done_by, done_at, created_at' },
   { key: 'follow_ups', table: 'follow_ups', columns: 'id, conversation_id, subject, greeting, opening, closing, drafted_by, created_at' },
   { key: 'follow_up_lines', table: 'follow_up_lines', columns: 'id, follow_up_id, position, kind, text, segment_id, quote' },
+  { key: 'follow_ups_sent', table: 'follow_up_sends', columns: 'id, conversation_id, sent_by, from_name, reply_to, recipients, subject, body, status, created_at, settled_at' },
   { key: 'call_preps', table: 'call_preps', columns: 'id, account_id, person_name, person_title, linkedin_url, call_at, engagement_type, profile_text, research, research_at, brief, brief_at, created_by, created_at' },
   { key: 'coaching', table: 'coaching_assignments', columns: 'id, conversation_id, segment_id, assigned_by, assigned_to, note, reply, status, created_at, done_at' },
   { key: 'examples', table: 'moments', columns: 'id, conversation_id, segment_id, criterion_key, engagement_type, note, saved_by, created_at' },
@@ -41,12 +42,14 @@ export const WORK_TABLES = [
   { key: 'insight_events', table: 'insight_events', columns: 'id, insight_id, kind, detail, actor, at' },
   { key: 'insight_tickets', table: 'insight_tickets', columns: 'id, insight_id, provider, external_id, url, created_by, created_at' },
   { key: 'tracker', table: 'company_trackers', columns: 'provider, target, connected_by, connected_at', order: 'provider' },
+  { key: 'crm', table: 'company_crms', columns: 'provider, account_ref, connected_by, connected_at', order: 'provider' },
+  { key: 'crm_notes', table: 'crm_logs', columns: 'id, conversation_id, provider, external_id, crm_company_id, crm_company_name, logged_by, logged_at' },
 ] as const;
 
 /** Columns that hold a person: exported as their address, as everywhere in the file. */
 const PERSON_COLUMNS = new Set([
   'created_by', 'done_by', 'drafted_by', 'assigned_by', 'assigned_to', 'saved_by',
-  'published_by', 'set_by', 'added_by', 'author', 'actor', 'connected_by',
+  'published_by', 'set_by', 'added_by', 'author', 'actor', 'connected_by', 'sent_by', 'logged_by',
 ]);
 
 export type WorkRow = Record<string, unknown>;
@@ -211,7 +214,7 @@ export function assembleExport(parts: ExportParts) {
       'Scores are not stored anywhere. Each one here was computed at export time from criterion_evidence by the scoring rules for the call\'s criteria version, as the product computes them on every page.',
       'Every signal and every insight cites quotes that appear word for word in the transcript segment they name.',
       'erasures lists calls that were deleted: when and why, never what they contained.',
-      'work holds everything else the company made: customers, action items, follow-up emails, call preps, coaching, saved examples, AI guidance, its own scorecards and goals, knowledge documents (their details; the files are the ones you uploaded), and the work on insights. People are named by address; someone no longer in the company appears as "a former member".',
+      'work holds everything else the company made: customers, action items, follow-up emails and the ones sent, call preps, coaching, saved examples, AI guidance, its own scorecards and goals, knowledge documents (their details; the files are the ones you uploaded), and the work on insights. People are named by address; someone no longer in the company appears as "a former member".',
     ],
     team: parts.team,
     conversations: parts.conversations.map((conversation) => {

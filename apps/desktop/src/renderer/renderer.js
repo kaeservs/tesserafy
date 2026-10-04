@@ -5,10 +5,11 @@
  * which is what invariant 5's no-runtime-dependencies rule buys. The overlay
  * cannot invent a score any more than the browser can.
  *
- * Transcription is the browser engine inside Electron, a stand-in until spike
- * S2 chooses a streaming transcriber that can run under our own terms. Audio
- * leaving the machine is why the README calls this an instrument, not a
- * product.
+ * Transcription hears both sides (ADR 0022): the seller's microphone and the
+ * computer's sound output — what the meeting app plays — each streamed to
+ * Deepgram by the main process, each line labelled with its side. Where the
+ * deployment has no transcriber yet, the browser engine inside Electron hears
+ * the microphone alone, as before.
  *
  * The token is never here. Detection and criteria go through the main process,
  * so this page holds no credential — a renderer is a browser, and a browser is
@@ -17,6 +18,7 @@
  */
 import { apply, defineCriteriaSet, initialState, score } from '@tesserafy/scoring';
 import { questionsToAsk } from './to-ask';
+import { EchoCheck, SELLER_HOLD_MS } from './hearing';
 
 const api = window.overlay;
 const WINDOW_SIZE = 3;
@@ -30,6 +32,12 @@ let listening = false;
 // Whether the main process holds a session. Listen is offered only then.
 let signedIn = false;
 let recognition = null;
+// Both sides being transcribed: how to stop the capture, and whether only the
+// microphone could be had (then no line can be said to be either side's).
+let capture = null;
+let micOnly = false;
+let echoes = new EchoCheck();
+const MAX_CALL_MS = 4 * 60 * 60 * 1000;
 let sessionStart = 0;
 const latencies = [];
 // Which suggestion request is the current one. Speech does not wait for the
@@ -398,7 +406,187 @@ function showSuggestion(suggestion) {
   box.hidden = false;
 }
 
-function startListening() {
+/** One line heard, kept and — when it is the customer's — detected on. */
+function heardLine(text, speaker, detecting) {
+  const endedAt = performance.now();
+  const utterance = {
+    id: `u${utterances.length}`,
+    speaker,
+    startMs: Math.round(endedAt - sessionStart),
+    endMs: Math.round(endedAt - sessionStart),
+    text,
+  };
+  utterances.push(utterance);
+
+  // Alongside detection, not before it: saving an utterance must never
+  // sit between somebody finishing a sentence and the score moving.
+  appendSegment(utterance);
+  // The seller's own lines are in the window for context, and are not worth
+  // a detector call of their own: the criteria are about what the customer
+  // says, and the customer's next line is detected with them in view.
+  if (detecting) void detect(endedAt);
+}
+
+async function startListening() {
+  sessionStart = performance.now();
+  if (setup?.transcription === 'deepgram' && (await startBothSides())) {
+    began(micOnly ? 'listening — your microphone only' : 'listening to both sides');
+    return;
+  }
+  startEngine();
+}
+
+function began(status) {
+  listening = true;
+  askPlaceholder();
+  el('listen').textContent = 'Stop';
+  // The brief was for walking in; the scorecard is for the call, with the
+  // prep's questions beside it.
+  el('brief').hidden = true;
+  render();
+  setStatus(status);
+
+  // Not awaited. The first utterance can be detected before the conversation
+  // exists; its write simply finds no session and is skipped.
+  void startSession();
+}
+
+/** The call is over, however it ended. */
+function ended() {
+  listening = false;
+  askPlaceholder();
+  el('listen').textContent = 'Start';
+  // What Cluely hands over when the meeting ends: here, the follow-up email,
+  // drafted in the dashboard when the seller asks for it there.
+  const call = conversationId;
+  if (call) {
+    showCall('Call saved. Draft the follow-up email?', 'Follow-up', () => {
+      el('callBanner').hidden = true;
+      void api.openFollowUp(call);
+    });
+  }
+}
+
+function stopListening() {
+  if (capture) {
+    const stopping = capture;
+    capture = null;
+    // The last quarter-second reaches the stream before it is closed, and
+    // the last words heard come back as the streams close.
+    void stopping.stop().then(() => api.transcribeStop());
+    ended();
+    return;
+  }
+  recognition?.stop();
+}
+
+/*
+ * Both sides (ADR 0022). The microphone is the seller; the computer's sound
+ * output — asked for as a capture of this page with the system's sound, the
+ * picture dropped at once — is the meeting app playing the customer. Each is compressed here and sent to
+ * the main process a quarter-second at a time; the main process holds the
+ * streams and says what was heard. Nothing is recorded or kept: audio goes
+ * to the transcriber for this call's text and nowhere else.
+ */
+function stopTracks(stream) {
+  for (const track of stream?.getTracks() ?? []) track.stop();
+}
+
+function record(stream, channel) {
+  const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus', audioBitsPerSecond: 32_000 });
+  // In order: a stream of compressed audio is one file cut in pieces.
+  let sent = Promise.resolve();
+  recorder.ondataavailable = (event) => {
+    if (event.data.size === 0) return;
+    sent = sent
+      .then(() => event.data.arrayBuffer())
+      .then((buffer) => api.sendAudio(channel, buffer))
+      .catch(() => {});
+  };
+  const stopped = new Promise((resolve) => {
+    recorder.onstop = () => resolve(sent);
+  });
+  recorder.start(250);
+  return { recorder, stopped };
+}
+
+async function startBothSides() {
+  let mic = null;
+  try {
+    mic = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+  } catch {
+    setStatus('the microphone is not available');
+    return false;
+  }
+  let system = null;
+  try {
+    const shared = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: true });
+    for (const track of shared.getVideoTracks()) track.stop();
+    if (shared.getAudioTracks().length > 0) system = new MediaStream(shared.getAudioTracks());
+  } catch {
+    // Some systems give no sound output to capture. The microphone alone
+    // still hears the seller, and the customer too when on speakers.
+    system = null;
+  }
+
+  const opened = await api.transcribeStart();
+  if (opened.error) {
+    stopTracks(mic);
+    stopTracks(system);
+    setStatus(opened.error);
+    return false;
+  }
+
+  micOnly = system === null;
+  echoes = new EchoCheck();
+  const recorders = [record(mic, 'me'), ...(system ? [record(system, 'them')] : [])];
+  // A stream costs for as long as it is open, and nothing on the server can
+  // see how long that is; a call forgotten with Stop unpressed ends here.
+  const forgotten = setTimeout(() => {
+    if (!capture) return;
+    stopListening();
+    setStatus('stopped listening after four hours');
+  }, MAX_CALL_MS);
+  capture = {
+    stop: async () => {
+      clearTimeout(forgotten);
+      for (const { recorder } of recorders) if (recorder.state !== 'inactive') recorder.stop();
+      await Promise.all(recorders.map(({ stopped }) => stopped));
+      stopTracks(mic);
+      stopTracks(system);
+    },
+  };
+  return true;
+}
+
+api.onTranscript(({ channel, kind, text }) => {
+  if (kind !== 'utterance' || text.length === 0) return;
+  if (micOnly) {
+    // One microphone cannot say whose line it is.
+    heardLine(text, null, true);
+    return;
+  }
+  if (channel === 'them') {
+    echoes.heardThem(text, performance.now());
+    heardLine(text, 'customer', true);
+    return;
+  }
+  // The seller's line waits for the customer's copy of it, in case it is one.
+  const at = performance.now();
+  const check = echoes;
+  setTimeout(() => {
+    if (!check.isEcho(text, at)) heardLine(text, 'seller', false);
+  }, SELLER_HOLD_MS);
+});
+
+// A stream that drops mid-call is said, not hidden; the call carries on with
+// whatever side still has one.
+api.onTranscriptTrouble(({ message }) => setStatus(message));
+
+/** The browser engine: the microphone alone, as one unnamed side. */
+function startEngine() {
   const Engine = window.SpeechRecognition ?? window.webkitSpeechRecognition;
   if (!Engine) {
     setStatus('no speech recognition in this build');
@@ -409,28 +597,13 @@ function startListening() {
   recognition.continuous = true;
   recognition.interimResults = true;
   recognition.lang = 'en-GB';
-  sessionStart = performance.now();
 
   recognition.onresult = (event) => {
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const result = event.results[i];
       const text = result[0].transcript.trim();
       if (!result.isFinal || text.length === 0) continue;
-
-      const endedAt = performance.now();
-      const utterance = {
-        id: `u${utterances.length}`,
-        speaker: 'customer',
-        startMs: Math.round(endedAt - sessionStart),
-        endMs: Math.round(endedAt - sessionStart),
-        text,
-      };
-      utterances.push(utterance);
-
-      // Alongside detection, not before it: saving an utterance must never
-      // sit between somebody finishing a sentence and the score moving.
-      appendSegment(utterance);
-      void detect(endedAt);
+      heardLine(text, 'customer', true);
     }
   };
 
@@ -439,34 +612,10 @@ function startListening() {
   recognition.onerror = (event) => {
     if (event.error !== 'no-speech') setStatus(`speech: ${event.error}`);
   };
-  recognition.onend = () => {
-    listening = false;
-    askPlaceholder();
-    el('listen').textContent = 'Start';
-    // What Cluely hands over when the meeting ends: here, the follow-up email,
-    // drafted in the dashboard when the seller asks for it there.
-    const ended = conversationId;
-    if (ended) {
-      showCall('Call saved. Draft the follow-up email?', 'Follow-up', () => {
-        el('callBanner').hidden = true;
-        void api.openFollowUp(ended);
-      });
-    }
-  };
+  recognition.onend = () => ended();
 
   recognition.start();
-  listening = true;
-  askPlaceholder();
-  el('listen').textContent = 'Stop';
-  // The brief was for walking in; the scorecard is for the call, with the
-  // prep's questions beside it.
-  el('brief').hidden = true;
-  render();
-  setStatus('listening');
-
-  // Not awaited. The first utterance can be detected before the conversation
-  // exists; its write simply finds no session and is skipped.
-  void startSession();
+  began('listening');
 }
 
 /*
@@ -495,7 +644,7 @@ el('agreeButton').addEventListener('click', async () => {
 
 el('listen').addEventListener('click', () => {
   if (listening) {
-    recognition?.stop();
+    stopListening();
     return;
   }
   if (!agreed || !signedIn) return;
@@ -815,7 +964,7 @@ const card = document.querySelector('.card');
 new ResizeObserver(() => void api.fit(card.getBoundingClientRect().height)).observe(card);
 
 el('quit').addEventListener('click', () => {
-  if (listening) recognition?.stop();
+  if (listening) stopListening();
   void api.quit();
 });
 
@@ -897,7 +1046,7 @@ el('signin').addEventListener('submit', async (event) => {
 
 el('signout').addEventListener('click', async () => {
   // A call in progress is not carried across accounts.
-  if (listening) recognition?.stop();
+  if (listening) stopListening();
   await api.signOut();
   state = null;
   const session = await api.session();

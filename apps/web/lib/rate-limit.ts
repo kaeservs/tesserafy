@@ -54,6 +54,12 @@ export const LIMITS: Record<string, readonly Window[]> = {
     { seconds: 60, limit: 60 },
     { seconds: 86_400, limit: 3000 },
   ],
+  // A transcription token opens a call's two streams; a call needs one, a
+  // dropped connection another. Generous for a person, a ceiling on a loop.
+  'api/live/transcription': [
+    { seconds: 60, limit: 10 },
+    { seconds: 86_400, limit: 200 },
+  ],
   'api/suggest': [
     { seconds: 60, limit: 20 },
     { seconds: 86_400, limit: 600 },
@@ -130,6 +136,21 @@ export const LIMITS: Record<string, readonly Window[]> = {
   'api/export': [
     { seconds: 3_600, limit: 3 },
     { seconds: 86_400, limit: 10 },
+  ],
+  // An email from a call page goes out from our sending address (ADR 0023),
+  // so what one session can send is a reputation question as well as a cost
+  // one: a seller sends one or two a call; a stolen session should not be
+  // able to send a campaign. The database caps a company at thirty an hour.
+  'api/follow-up/send': [
+    { seconds: 60, limit: 5 },
+    { seconds: 86_400, limit: 40 },
+  ],
+  // Logging a call to the company's CRM (ADR 0024): a few requests to their
+  // CRM each, on its API limits rather than ours. A person logs a call or
+  // two at a time; this stops a loop from using up their CRM's daily quota.
+  'api/crm': [
+    { seconds: 60, limit: 10 },
+    { seconds: 86_400, limit: 300 },
   ],
 };
 

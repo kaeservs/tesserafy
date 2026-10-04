@@ -9,7 +9,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(25);
+select plan(26);
 
 insert into auth.users (id, email, aud, role) values
   ('9a000000-0000-4000-8000-000000000001', 'owner@acme.test', 'authenticated', 'authenticated'),
@@ -110,6 +110,11 @@ update public.subscriptions set period_end = now() - interval '1 minute' where c
 select private.roll_subscription('00000000-0000-4000-8000-00000000000b');
 select is((select plan from public.companies where id = '00000000-0000-4000-8000-00000000000b'), 'none',
   'once payments are on, a free plan from before ends with its period instead of renewing');
+
+-- Stripe signs as Node's crypto does (a vector made with it), UTF-8 and all.
+select ok(private.stripe_signature_ok('{"id":"evt_vector","note":"Café ☕ — £40k"}',
+  't=1791000000,v1=43ef2c9fa7dce2323603bdb5cc551e98e4252ae60a0c757edda72edcdc5e624f', 'whsec_vectorSecret', to_timestamp(1791000000)),
+  'the signature check agrees with Stripe''s HMAC, byte for byte');
 
 select * from finish();
 rollback;

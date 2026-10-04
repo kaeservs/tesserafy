@@ -534,6 +534,36 @@ as $$
   select case when jsonb_typeof(p_value) = 'number' then to_timestamp((p_value)::text::double precision) end;
 $$;
 
+-- Whether a Stripe-Signature header signs this exact payload with the secret,
+-- at a time within five minutes of p_now. Stripe-Signature is
+-- t=<unix time>,v1=<hex HMAC-SHA256 of "<t>.<payload>">[,v1=…], the key being
+-- the whole signing secret, the bytes UTF-8 — as Stripe's own libraries do.
+create function private.stripe_signature_ok(p_payload text, p_signature text, p_secret text, p_now timestamptz)
+returns boolean
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+  v_time text;
+  v_sigs text[];
+begin
+  select split_part(part, '=', 2) into v_time
+    from unnest(string_to_array(p_signature, ',')) as part where split_part(part, '=', 1) = 't' limit 1;
+  select array_agg(substr(part, 4)) into v_sigs
+    from unnest(string_to_array(p_signature, ',')) as part where part like 'v1=%';
+  if v_time is null or v_time !~ '^[0-9]{1,12}$' or v_sigs is null then
+    return false;
+  end if;
+  if abs(extract(epoch from p_now) - v_time::bigint) > 300 then
+    return false;
+  end if;
+  return encode(extensions.hmac(convert_to(v_time || '.' || p_payload, 'UTF8'), convert_to(p_secret, 'UTF8'), 'sha256'), 'hex') = any (v_sigs);
+end;
+$$;
+
+revoke all on function private.stripe_signature_ok(text, text, text, timestamptz) from public, anon, authenticated;
+
 -- Callable by anyone, because Stripe is nobody to us: what makes an event
 -- count is its signature, checked here before anything in it is read.
 create function public.stripe_event(p_payload text, p_signature text)
@@ -544,8 +574,6 @@ set search_path = ''
 as $$
 declare
   v_secret   text;
-  v_time     text;
-  v_sigs     text[];
   v_event    jsonb;
   v_obj      jsonb;
   v_type     text;
@@ -563,19 +591,8 @@ begin
     raise exception 'stripe_event: not a Stripe event' using errcode = '28000';
   end if;
 
-  -- Stripe-Signature: t=<unix time>,v1=<hex HMAC-SHA256 of "t.payload">[,v1=…]
-  select split_part(part, '=', 2) into v_time
-    from unnest(string_to_array(p_signature, ',')) as part where split_part(part, '=', 1) = 't' limit 1;
-  select array_agg(substr(part, 4)) into v_sigs
-    from unnest(string_to_array(p_signature, ',')) as part where part like 'v1=%';
-  if v_time is null or v_time !~ '^[0-9]{1,12}$' or v_sigs is null then
-    raise exception 'stripe_event: not signed' using errcode = '28000';
-  end if;
-  if abs(extract(epoch from now()) - v_time::bigint) > 300 then
-    raise exception 'stripe_event: signed too long ago' using errcode = '28000';
-  end if;
-  if not (encode(extensions.hmac(convert_to(v_time || '.' || p_payload, 'UTF8'), convert_to(v_secret, 'UTF8'), 'sha256'), 'hex') = any (v_sigs)) then
-    raise exception 'stripe_event: the signature does not match' using errcode = '28000';
+  if not private.stripe_signature_ok(p_payload, p_signature, v_secret, now()) then
+    raise exception 'stripe_event: not signed by Stripe, or not just now' using errcode = '28000';
   end if;
 
   v_event := p_payload::jsonb;

@@ -54,6 +54,12 @@ export const LIMITS: Record<string, readonly Window[]> = {
     { seconds: 60, limit: 60 },
     { seconds: 86_400, limit: 3000 },
   ],
+  // A transcription token opens a call's two streams; a call needs one, a
+  // dropped connection another. Generous for a person, a ceiling on a loop.
+  'api/live/transcription': [
+    { seconds: 60, limit: 10 },
+    { seconds: 86_400, limit: 200 },
+  ],
   'api/suggest': [
     { seconds: 60, limit: 20 },
     { seconds: 86_400, limit: 600 },

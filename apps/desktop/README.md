@@ -18,10 +18,15 @@ underneath it. Suggestions are fetched only after the score is on screen, and
 a stale one is cleared rather than left up: a seller asking about something
 from two minutes ago is worse than a seller with no prompt at all.
 
-It listens, detects and scores. Speech recognition is the browser engine
-inside Electron — a stand-in until spike S2 chooses a streaming transcriber
-that can run under our own terms, because this one sends audio off the
-machine.
+It hears both sides of the call (ADR 0022): the microphone is the seller, the
+computer's sound output — what the meeting app plays — is the customer. Each
+is its own Deepgram stream, opened by the main process with a one-minute
+token from the web app (`src/main/transcribe.ts`); the page captures the audio
+and sends it over IPC, and never opens a connection or sees the token. On
+speakers the microphone hears the customer too, and a microphone line that
+repeats what the customer just said is dropped (`src/renderer/hearing.ts`).
+Where the deployment has no Deepgram key, the browser engine inside Electron
+hears the microphone alone, as before.
 
 The session token never reaches the page. Detection and criteria are fetched
 by the main process, so the renderer holds no credential: a renderer is a

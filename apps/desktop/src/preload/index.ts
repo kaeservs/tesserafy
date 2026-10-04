@@ -31,6 +31,8 @@ contextBridge.exposeInMainWorld('overlay', {
     live?: boolean;
     screen?: boolean;
     detectCalls?: boolean;
+    // 'deepgram' when both sides of the call can be transcribed (ADR 0022).
+    transcription?: 'deepgram' | null;
     appearance?: Appearance;
     error?: string;
   }> => ipcRenderer.invoke('overlay:setup'),
@@ -99,6 +101,23 @@ contextBridge.exposeInMainWorld('overlay', {
   openUpdate: (): Promise<void> => ipcRenderer.invoke('overlay:open-update'),
   openTerms: (): Promise<void> => ipcRenderer.invoke('overlay:open-terms'),
   agree: (): Promise<{ agreedAt?: string; termsVersion?: string; error?: string }> => ipcRenderer.invoke('overlay:agree'),
+  // Both sides of the call as text (ADR 0022): the main process holds the
+  // streams; the page sends audio and is told what was heard.
+  transcribeStart: (): Promise<{ ok?: boolean; error?: string }> => ipcRenderer.invoke('overlay:transcribe-start'),
+  transcribeStop: (): Promise<void> => ipcRenderer.invoke('overlay:transcribe-stop'),
+  sendAudio: (channel: 'me' | 'them', chunk: ArrayBuffer): void => ipcRenderer.send('overlay:audio', channel, chunk),
+  onTranscript: (listener: (heard: { channel: 'me' | 'them'; kind: 'interim' | 'utterance'; text: string }) => void): void => {
+    ipcRenderer.on('overlay:transcript', (_event, heard: { channel?: unknown; kind?: unknown; text?: unknown }) => {
+      if ((heard.channel === 'me' || heard.channel === 'them') && (heard.kind === 'interim' || heard.kind === 'utterance') && typeof heard.text === 'string') {
+        listener({ channel: heard.channel, kind: heard.kind, text: heard.text });
+      }
+    });
+  },
+  onTranscriptTrouble: (listener: (trouble: { channel: string; message: string }) => void): void => {
+    ipcRenderer.on('overlay:transcript-trouble', (_event, trouble: { channel?: unknown; message?: unknown }) => {
+      if (typeof trouble.message === 'string') listener({ channel: String(trouble.channel), message: trouble.message });
+    });
+  },
   openFollowUp: (conversationId: string): Promise<void> => ipcRenderer.invoke('overlay:open-follow-up', conversationId),
   onUpdate: (listener: (state: UpdateState) => void): void => {
     ipcRenderer.on('overlay:update', (_event, state: UpdateState) =>

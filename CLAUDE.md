@@ -225,6 +225,19 @@ or PNG by its bytes, under 1.5 MB. Owners can switch it off for the company
 screen", not as a verified quote: there is no stored text to check them
 against. Tests send the model a rendered slide, never a real screen.
 
+The overlay hears both sides (ADR 0022): the microphone is the seller and the
+computer's sound output — `getDisplayMedia` with `loopback` audio, whose
+picture is the overlay's own page, dropped — is the customer, each its own Deepgram stream held by the overlay's
+main process with a one-minute token from `/api/live/transcription-token`
+(`DEEPGRAM_API_KEY` stays on the server; every stream sends `mip_opt_out`).
+Lines are saved as `seller` and `customer`, and only the customer's start a
+detector call. On speakers the microphone hears the customer too, so a
+microphone line that repeats what the customer just said is dropped. Without
+a key the browser engine hears the microphone alone, as before. Deepgram bills
+per streamed minute a side and the server never sees the audio, so the
+overlay stops after four hours and the Deepgram project needs a spending
+limit.
+
 On Windows the overlay notices a call starting: Windows records which app is
 using the microphone now (`HKCU\…\CapabilityAccessManager\ConsentStore\microphone`,
 an app whose LastUsedTimeStop is 0), which covers Zoom and Teams and, as

@@ -31,7 +31,7 @@ select throws_ok($$ select * from public.admin_overlay_seen() $$, '42501', null,
 select set_config('request.jwt.claims', '{"sub":"0e000001-0000-4000-8000-000000000003","role":"authenticated"}', true);
 select is((select version from public.admin_overlay_seen() where email = 'seller@acme.test'), '0.1.15', 'an operator sees who runs which');
 select is((select company from public.admin_overlay_seen() where email = 'seller@acme.test'),
-  (select name from public.companies where id = '00000000-0000-4000-8000-00000000000a'), 'and their company');
+  'Acme Robotics', 'and their company');
 
 select * from finish();
 rollback;

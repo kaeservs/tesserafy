@@ -30,3 +30,4 @@ accepted ADR to change the decision; write a new one that supersedes it.
 | 0018 | "Ask your calls" is an agent, and LangGraph runs its loop | proposed |
 | 0019 | Alerts read a digest of counts, with a token, not the service-role key | proposed |
 | 0020 | Recording consent is agreed once, Cluely-style, and kept as a record | proposed |
+| 0021 | Each person connects their own calendar, read-only, and only customer meetings are kept | proposed |

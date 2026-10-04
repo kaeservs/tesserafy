@@ -225,6 +225,19 @@ or PNG by its bytes, under 1.5 MB. Owners can switch it off for the company
 screen", not as a verified quote: there is no stored text to check them
 against. Tests send the model a rendered slide, never a real screen.
 
+The overlay hears both sides (ADR 0022): the microphone is the seller and the
+computer's sound output — `getDisplayMedia` with `loopback` audio, whose
+picture is the overlay's own page, dropped — is the customer, each its own Deepgram stream held by the overlay's
+main process with a one-minute token from `/api/live/transcription-token`
+(`DEEPGRAM_API_KEY` stays on the server; every stream sends `mip_opt_out`).
+Lines are saved as `seller` and `customer`, and only the customer's start a
+detector call. On speakers the microphone hears the customer too, so a
+microphone line that repeats what the customer just said is dropped. Without
+a key the browser engine hears the microphone alone, as before. Deepgram bills
+per streamed minute a side and the server never sees the audio, so the
+overlay stops after four hours and the Deepgram project needs a spending
+limit.
+
 On Windows the overlay notices a call starting: Windows records which app is
 using the microphone now (`HKCU\…\CapabilityAccessManager\ConsentStore\microphone`,
 an app whose LastUsedTimeStop is 0), which covers Zoom and Teams and, as
@@ -251,7 +264,14 @@ as everything else: the recap and the next steps are lines each quoting a
 segment, checked in code and again by `record_follow_up`; the subject,
 greeting, opening and closing are told to carry no facts; and it promises no
 price, date or term the call did not say, because the email goes out in the
-seller's name. One draft a call, charged like action items.
+seller's name. One draft a call, charged like action items. It can be sent
+from the call page (ADR 0023): through Resend, from our `EMAIL_FROM` with the
+name the seller types, replies to the seller and the seller copied, plain
+text — never with the seller's address in From, which would be forging it.
+`begin_follow_up_send` records it before it leaves (a draft exists, one to
+ten addresses, not a support session, thirty a company an hour) and its id is
+Resend's idempotency key; `finish_follow_up_send` settles it. Without
+`RESEND_API_KEY`, Copy and "Open in your email app" are all there is.
 
 Calendars are each person's own (ADR 0021): Google or Microsoft, read-only,
 connected on the Account page. A sync keeps only the next 14 days' meetings

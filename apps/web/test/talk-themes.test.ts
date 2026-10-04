@@ -4,7 +4,7 @@
  * and a dismissed insight is not a theme.
  */
 import { describe, expect, it } from 'vitest';
-import { countQuestions, sideShares, speakerKey, talkBySeller, talkStats } from '@/lib/talk';
+import { countQuestions, ourSpeakerNames, sideShares, speakerKey, talkBySeller, talkStats } from '@/lib/talk';
 import { themesOverTime, trendOf } from '@/lib/themes';
 
 const seg = (speaker: string | null, start: number, end: number, text: string) => ({ speaker, start_ms: start, end_ms: end, text });
@@ -112,5 +112,16 @@ describe('themesOverTime', () => {
 
   it('calls a theme new when nothing came before it', () => {
     expect([trendOf(2, 0), trendOf(3, 1), trendOf(1, 3), trendOf(0, 0)]).toEqual(['new', 'rising', 'falling', 'steady']);
+  });
+});
+
+describe('ourSpeakerNames', () => {
+  it('counts the overlay’s seller as yours on a call it heard both sides of', () => {
+    expect(ourSpeakerNames([{ name: 'Priya' }], [{ speaker: 'seller' }, { speaker: 'customer' }])).toEqual(['Priya', 'seller']);
+  });
+  it('adds nothing to a call without it, or when it is already marked', () => {
+    expect(ourSpeakerNames([{ name: 'Priya' }], [{ speaker: 'Priya' }, { speaker: 'Dana' }])).toEqual(['Priya']);
+    expect(ourSpeakerNames([{ name: 'Seller' }], [{ speaker: 'seller' }])).toEqual(['Seller']);
+    expect(ourSpeakerNames(null, [])).toEqual([]);
   });
 });

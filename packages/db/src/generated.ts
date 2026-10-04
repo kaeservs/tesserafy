@@ -2279,6 +2279,30 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_setting_events: {
+        Row: {
+          actor: string | null
+          at: string
+          detail: string
+          id: string
+          setting: string
+        }
+        Insert: {
+          actor?: string | null
+          at?: string
+          detail: string
+          id?: string
+          setting: string
+        }
+        Update: {
+          actor?: string | null
+          at?: string
+          detail?: string
+          id?: string
+          setting?: string
+        }
+        Relationships: []
+      }
       plans: {
         Row: {
           calls: number | null
@@ -2291,6 +2315,7 @@ export type Database = {
           questions: number | null
           rank: number
           self_serve: boolean
+          stripe_price_id: string | null
           trial_days: number | null
         }
         Insert: {
@@ -2304,6 +2329,7 @@ export type Database = {
           questions?: number | null
           rank: number
           self_serve?: boolean
+          stripe_price_id?: string | null
           trial_days?: number | null
         }
         Update: {
@@ -2317,6 +2343,7 @@ export type Database = {
           questions?: number | null
           rank?: number
           self_serve?: boolean
+          stripe_price_id?: string | null
           trial_days?: number | null
         }
         Relationships: []
@@ -2649,6 +2676,38 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "conversations"
             referencedColumns: ["company_id", "id"]
+          },
+        ]
+      }
+      stripe_events: {
+        Row: {
+          company_id: string | null
+          id: string
+          outcome: string
+          received_at: string
+          type: string
+        }
+        Insert: {
+          company_id?: string | null
+          id: string
+          outcome?: string
+          received_at?: string
+          type: string
+        }
+        Update: {
+          company_id?: string | null
+          id?: string
+          outcome?: string
+          received_at?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3115,6 +3174,7 @@ export type Database = {
         }[]
       }
       admin_overview: { Args: never; Returns: Json }
+      admin_payments_status: { Args: never; Returns: Json }
       admin_remove_early_access: { Args: { p_id: string }; Returns: undefined }
       admin_revoke_ops_token: { Args: never; Returns: undefined }
       admin_set_feedback_status: {
@@ -3133,7 +3193,15 @@ export type Database = {
         Args: { p_company_id: string; p_plan: string }
         Returns: undefined
       }
+      admin_set_plan_price: {
+        Args: { p_plan: string; p_price_id: string }
+        Returns: undefined
+      }
       admin_set_signup_open: { Args: { p_open: boolean }; Returns: undefined }
+      admin_set_stripe_webhook_secret: {
+        Args: { p_secret: string }
+        Returns: undefined
+      }
       admin_spend_by_week: {
         Args: { p_weeks?: number }
         Returns: {
@@ -3200,6 +3268,8 @@ export type Database = {
         }
         Returns: Json
       }
+      billing_checkout: { Args: { p_plan: string }; Returns: Json }
+      billing_customer: { Args: never; Returns: string }
       cancel_plan: { Args: never; Returns: undefined }
       change_plan: { Args: { p_plan: string }; Returns: string }
       claim_insight_ticket: { Args: { p_insight_id: string }; Returns: boolean }
@@ -3561,6 +3631,7 @@ export type Database = {
         }
       }
       ops_digest: { Args: { p_hours?: number; p_token: string }; Returns: Json }
+      payments_ready: { Args: never; Returns: boolean }
       plan_has_allowance: { Args: { p_meter: string }; Returns: boolean }
       plan_overview: { Args: never; Returns: Json }
       publish_scorecard: {
@@ -3902,6 +3973,10 @@ export type Database = {
           p_signals: Json
         }
         Returns: string[]
+      }
+      stripe_event: {
+        Args: { p_payload: string; p_signature: string }
+        Returns: string
       }
       support_session_ended: { Args: never; Returns: boolean }
       take_plan_allowance: {

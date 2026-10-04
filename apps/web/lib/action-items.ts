@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { awaitableDatabaseSink, extractActionItems, T3_ACTIONS_DETECTOR } from '@tesserafy/ai';
 import type { SupabaseClient } from '@tesserafy/db';
+import { ourSpeakerNames } from '@/lib/talk';
 import { loadGuidance, purposeOf } from './guidance';
 
 /**
@@ -35,7 +36,7 @@ export async function findActionItems(
   const result = await extractActionItems(segments, {
     client,
     guidance,
-    ourSpeakers: (ours ?? []).map((row) => row.name),
+    ourSpeakers: ourSpeakerNames(ours, segments),
     onUsage: usage.sink,
   });
   await usage.settled();

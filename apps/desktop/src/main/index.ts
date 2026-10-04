@@ -34,6 +34,7 @@ import { nudged } from './nudge';
 import { ASSIST_SHORTCUT, MOVE_SHORTCUTS, SHORTCUTS, shortcutLabel, type MoveDirection } from './shortcuts';
 import { createTray, type OverlayTray } from './tray';
 import { isNewer, latestOverlayRelease, RELEASES_API, type Release } from './updates';
+import { isChannel, MAX_CHUNK_BYTES, Streams, type OpenSocket } from './transcribe';
 
 let overlay: BrowserWindow | null = null;
 let tray: OverlayTray | null = null;
@@ -322,12 +323,26 @@ function createOverlay(): BrowserWindow {
   window.webContents.on('will-navigate', (event) => event.preventDefault());
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   const own = (url: string) => url.startsWith('file://');
+  // The microphone, and the computer's sound output for transcribing the other
+  // side (ADR 0022): only for the overlay's own page, never anything else.
+  const allowed = (permission: string) => permission === 'media' || permission === 'display-capture';
   window.webContents.session.setPermissionRequestHandler((contents, permission, allow) =>
-    allow(contents === window.webContents && permission === 'media' && own(contents.getURL())),
+    allow(contents === window.webContents && allowed(permission) && own(contents.getURL())),
   );
   window.webContents.session.setPermissionCheckHandler((contents, permission) =>
-    contents === window.webContents && permission === 'media' && own(contents?.getURL() ?? ''),
+    contents === window.webContents && allowed(permission) && own(contents?.getURL() ?? ''),
   );
+  // What getDisplayMedia gets: the system's sound output — "loopback", what
+  // the meeting app plays. The picture it insists on is the overlay's own
+  // page, dropped at once, so no screen is captured and nothing on it is
+  // marked as being captured. Never stored; only the sound is used.
+  window.webContents.session.setDisplayMediaRequestHandler((request, callback) => {
+    if (!request.frame || !own(request.frame.url)) {
+      callback({});
+      return;
+    }
+    callback({ video: request.frame, audio: 'loopback' });
+  });
 
   // The claim under test, and whatever the switches say now.
   window.setContentProtection(protection);
@@ -702,6 +717,30 @@ void app.whenReady().then(async () => {
   // The one-time recording agreement (ADR 0020): the server chooses the words
   // and the Terms version; the overlay only says it was agreed, and where.
   ipcMain.handle('overlay:agree', () => post('/api/live/agreement', { surface: 'overlay' }));
+
+  // Both sides of the call as text (ADR 0022). The token is fetched and the
+  // streams are held here; the page sends audio and gets words back.
+  const openSocket: OpenSocket = (url, protocols) => new WebSocket(url, protocols) as unknown as ReturnType<OpenSocket>;
+  const streams = new Streams(
+    openSocket,
+    (channel, heard) => overlay?.webContents.send('overlay:transcript', { channel, kind: heard.kind, text: heard.text }),
+    (channel, message) => overlay?.webContents.send('overlay:transcript-trouble', { channel, message }),
+  );
+  ipcMain.handle('overlay:transcribe-start', async () => {
+    if (typeof WebSocket === 'undefined') return { error: 'This build cannot open a transcription stream.' };
+    const granted = (await post('/api/live/transcription-token', {})) as { token?: unknown; url?: unknown; error?: string };
+    if (typeof granted.token !== 'string' || typeof granted.url !== 'string' || !granted.url.startsWith('wss://api.deepgram.com/')) {
+      return { error: granted.error ?? 'Transcription could not start.' };
+    }
+    streams.start(granted.url, granted.token);
+    return { ok: true };
+  });
+  ipcMain.on('overlay:audio', (event, channel: unknown, data: unknown) => {
+    if (event.sender !== overlay?.webContents || !isChannel(channel)) return;
+    const chunk = data instanceof ArrayBuffer ? data : ArrayBuffer.isView(data) ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) : null;
+    if (chunk && chunk.byteLength <= MAX_CHUNK_BYTES) streams.send(channel, chunk as ArrayBuffer);
+  });
+  ipcMain.handle('overlay:transcribe-stop', () => streams.stop());
 
   ipcMain.handle('overlay:live-start', async (_event, body: unknown) =>
     post('/api/live/sessions', body),

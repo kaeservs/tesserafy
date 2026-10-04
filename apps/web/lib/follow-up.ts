@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { awaitableDatabaseSink, draftFollowUp, T3_FOLLOW_UP_DRAFTER } from '@tesserafy/ai';
 import type { SupabaseClient } from '@tesserafy/db';
+import { ourSpeakerNames } from '@/lib/talk';
 
 /**
  * Drafting a call's follow-up email, as the person who asked: their RLS
@@ -33,7 +34,7 @@ export async function draftCallFollowUp(
   const usage = awaitableDatabaseSink({ db, companyId: call.company_id, conversationId, detector: T3_FOLLOW_UP_DRAFTER });
   const draft = await draftFollowUp(segments, {
     client,
-    ourSpeakers: (ours ?? []).map((row) => row.name),
+    ourSpeakers: ourSpeakerNames(ours, segments),
     onUsage: usage.sink,
   });
   await usage.settled();

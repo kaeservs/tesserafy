@@ -360,7 +360,7 @@ void app.whenReady().then(async () => {
   // an installed build; this covers a development run.
   if (process.platform === 'darwin') app.dock?.hide();
   if (!firstInstance) return;
-  const session = new Session(BASE_URL, encryptedStore());
+  const session = new Session(BASE_URL, encryptedStore(), Date.now, `${app.getVersion()} ${process.platform}`);
   // Before the window asks who is signed in, so a returning user is not shown
   // a sign-in form for the half-second a refresh takes.
   const resumed = session.resume().catch(() => false);

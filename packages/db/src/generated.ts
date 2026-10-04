@@ -1928,6 +1928,27 @@ export type Database = {
           },
         ]
       }
+      overlay_seen: {
+        Row: {
+          platform: string
+          seen_at: string
+          user_id: string
+          version: string
+        }
+        Insert: {
+          platform: string
+          seen_at?: string
+          user_id: string
+          version: string
+        }
+        Update: {
+          platform?: string
+          seen_at?: string
+          user_id?: string
+          version?: string
+        }
+        Relationships: []
+      }
       plans: {
         Row: {
           calls: number | null
@@ -2749,6 +2770,16 @@ export type Database = {
       }
       admin_operator_mfa: { Args: never; Returns: Json }
       admin_ops_token: { Args: never; Returns: Json }
+      admin_overlay_seen: {
+        Args: never
+        Returns: {
+          company: string
+          email: string
+          platform: string
+          seen_at: string
+          version: string
+        }[]
+      }
       admin_overview: { Args: never; Returns: Json }
       admin_revoke_ops_token: { Args: never; Returns: undefined }
       admin_set_feedback_status: {
@@ -3270,6 +3301,10 @@ export type Database = {
           p_tier: string
         }
         Returns: string
+      }
+      record_overlay_seen: {
+        Args: { p_platform: string; p_version: string }
+        Returns: undefined
       }
       record_segment_embeddings: {
         Args: { p_conversation_id: string; p_model: string; p_rows: Json }

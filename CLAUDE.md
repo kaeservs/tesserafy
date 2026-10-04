@@ -160,8 +160,15 @@ a trial has three imported calls and a demonstration should not cost one, so
 the app's own sample text. Plan
 changes all go through `private.apply_plan`: owners start, upgrade (now),
 downgrade or cancel (at period end); the operator sets any plan; a nightly
-job rolls periods over. Payments do not exist yet and plans are free until
-they do; when Stripe lands its webhook calls the same function.
+job rolls periods over. Payments are Stripe (ADR 0025), and plans stay free
+until an operator sets the webhook's signing secret and both prices (console
+→ Payments) and the web app has `STRIPE_SECRET_KEY`. Then a paid plan starts
+only at checkout (`billing_checkout`, owners only), a paying company changes
+and cancels in Stripe's billing page, and a free plan from before ends with
+its period. Stripe's webhook (`/api/stripe/webhook`) is forwarded byte for
+byte, as nobody, to `stripe_event`, which checks Stripe's HMAC itself against
+a secret in the private schema — nothing gains the service-role key, and an
+unsigned, altered, stale or repeated event changes nothing.
 
 The overlay is meant to be Cluely-like, and undetectable in the meeting the
 way Cluely is: no bot joins, nothing announces it, it is excluded from screen

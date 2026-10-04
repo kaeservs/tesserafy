@@ -6,6 +6,13 @@ import { siteUrl } from '../site-url';
 const PUBLIC_PATHS = ['/login', '/signup', '/auth/', '/terms', '/privacy'];
 
 /**
+ * API routes whose caller is never signed in, because they are not a person:
+ * Stripe's webhook proves itself by its signature, which the database checks
+ * before reading anything (ADR 0025). Exact paths, never prefixes.
+ */
+const SIGNED_API_PATHS = new Set(['/api/stripe/webhook']);
+
+/**
  * Refreshes the auth session cookie and turns signed-out visitors away from
  * everything except the login flow.
  *
@@ -49,7 +56,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   // ever saw the header. Every route under /api must therefore authenticate;
   // an unauthenticated one without a token still gets 401 from here.
   if (pathname.startsWith('/api/')) {
-    if (!user && !request.headers.get('authorization')) {
+    if (!user && !request.headers.get('authorization') && !SIGNED_API_PATHS.has(pathname)) {
       return NextResponse.json({ error: 'not signed in' }, { status: 401 });
     }
     return response;

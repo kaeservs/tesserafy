@@ -1,6 +1,10 @@
 'use server';
 
+import { recordFailure } from '@tesserafy/ai';
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { createBillingPortal, createCheckout, stripeAvailable } from '@/lib/stripe';
 import { createClient } from '@/lib/supabase/server';
 
 export type PlanActionState =
@@ -62,6 +66,73 @@ async function cancelPlan(): Promise<PlanActionState> {
   };
 }
 
+/** Where Stripe sends the owner back to: this deployment, as the owner reached it. */
+async function settingsUrl(query = ''): Promise<string> {
+  const h = await headers();
+  const host = h.get('x-forwarded-host') ?? h.get('host') ?? 'localhost:3000';
+  const proto = h.get('x-forwarded-proto') ?? (host.startsWith('localhost') || host.startsWith('127.') ? 'http' : 'https');
+  return `${proto}://${host}/settings${query}`;
+}
+
+/**
+ * Checkout for a paid plan (ADR 0025): `billing_checkout` decides whether the
+ * caller may and which price it is; Stripe's page takes the payment; Stripe's
+ * webhook, checked by the database, starts the plan.
+ */
+async function checkout(formData: FormData): Promise<PlanActionState> {
+  if (!stripeAvailable()) return { status: 'error', message: 'Payments are not switched on for this deployment yet.' };
+  const supabase = await createClient();
+  const plan = text(formData, 'plan');
+  const { data, error } = await supabase.rpc('billing_checkout', { p_plan: plan });
+  if (error) {
+    return {
+      status: 'error',
+      message:
+        error.code === '42501'
+          ? 'Only an owner can choose what the company pays for.'
+          : error.message.replace(/^billing_checkout: /, ''),
+    };
+  }
+  const target = data as { company_id: string; price_id: string; customer_id: string | null; email: string | null };
+  let url: string;
+  try {
+    ({ url } = await createCheckout({
+      companyId: target.company_id,
+      plan,
+      priceId: target.price_id,
+      customerId: target.customer_id,
+      email: target.email,
+      successUrl: await settingsUrl('?billing=started'),
+      cancelUrl: await settingsUrl(),
+    }));
+  } catch (failed) {
+    const failure = recordFailure(failed, { db: supabase, source: 'settings/checkout' });
+    return { status: 'error', message: failure.said };
+  }
+  redirect(url);
+}
+
+/** Stripe's billing page, for a company paying through Stripe. */
+async function billing(): Promise<PlanActionState> {
+  if (!stripeAvailable()) return { status: 'error', message: 'Payments are not switched on for this deployment yet.' };
+  const supabase = await createClient();
+  const { data: customer, error } = await supabase.rpc('billing_customer');
+  if (error || !customer) {
+    return {
+      status: 'error',
+      message: error?.code === '42501' ? 'Only an owner can open billing.' : 'The company has not paid through Stripe.',
+    };
+  }
+  let url: string;
+  try {
+    ({ url } = await createBillingPortal(customer, await settingsUrl()));
+  } catch (failed) {
+    const failure = recordFailure(failed, { db: supabase, source: 'settings/billing' });
+    return { status: 'error', message: failure.said };
+  }
+  redirect(url);
+}
+
 /**
  * Every plan button goes through here, so the message the page shows is
  * always the answer to the last thing the owner did. With one action per
@@ -69,5 +140,8 @@ async function cancelPlan(): Promise<PlanActionState> {
  * change" — the opposite of what had just happened.
  */
 export async function planAction(_prev: PlanActionState, formData: FormData): Promise<PlanActionState> {
-  return text(formData, 'intent') === 'cancel' ? cancelPlan() : changePlan(formData);
+  const intent = text(formData, 'intent');
+  if (intent === 'checkout') return checkout(formData);
+  if (intent === 'billing') return billing();
+  return intent === 'cancel' ? cancelPlan() : changePlan(formData);
 }

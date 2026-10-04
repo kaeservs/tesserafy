@@ -51,6 +51,14 @@ describe('updateSession on /api routes', () => {
     await expect(response.json()).resolves.toEqual({ error: 'not signed in' });
   });
 
+  it('lets Stripe’s webhook through unsigned-in — its signature is checked further in — and nothing beside it', async () => {
+    signedIn = false;
+
+    expect((await updateSession(request('/api/stripe/webhook'))).status).toBe(200);
+    expect((await updateSession(request('/api/stripe/webhook/x'))).status).toBe(401);
+    expect((await updateSession(request('/api/stripe'))).status).toBe(401);
+  });
+
   it('lets a signed-in browser caller through', async () => {
     signedIn = true;
 

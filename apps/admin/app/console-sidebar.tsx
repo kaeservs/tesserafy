@@ -28,6 +28,7 @@ const GROUPS: readonly { label: string; items: readonly { label: string; href: s
       { label: 'Adoption', href: '/adoption' },
       { label: 'Overlays', href: '/overlays' },
       { label: 'Spend', href: '/spend' },
+      { label: 'Payments', href: '/payments' },
       { label: 'Activity', href: '/activity' },
     ],
   },

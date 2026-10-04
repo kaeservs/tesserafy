@@ -384,6 +384,8 @@ async function loadCriteria() {
   return true;
 }
 
+// The call being created on the server; ended() waits for it before offering the follow-up.
+let sessionStarting = Promise.resolve();
 async function startSession() {
   const when = new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
   const result = await api.liveStart({
@@ -562,7 +564,7 @@ function began(status) {
 
   // Not awaited. The first utterance can be detected before the conversation
   // exists; its write simply finds no session and is skipped.
-  void startSession();
+  sessionStarting = startSession();
 }
 
 /** The call is over, however it ended. */
@@ -594,14 +596,16 @@ function ended() {
   askPlaceholder();
   el('listen').textContent = 'Start';
   // What Cluely hands over when the meeting ends: here, the follow-up email,
-  // drafted in the dashboard when the seller asks for it there.
-  const call = conversationId;
-  if (call) {
+  // drafted in the dashboard when the seller asks for it there. After the call
+  // has been created on the server, however short it was.
+  void sessionStarting.then(() => {
+    const call = conversationId;
+    if (!call || listening) return;
     showCall('Call saved. Draft the follow-up email?', 'Follow-up', () => {
       el('callBanner').hidden = true;
       void api.openFollowUp(call);
     });
-  }
+  });
 }
 
 function stopListening() {

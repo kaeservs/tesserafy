@@ -296,7 +296,12 @@ Prepare and Home re-read a calendar not read in 15 minutes; one click turns a
 meeting into a prep (who, customer by domain, when) but never writes its
 brief, which spends allowance. Refresh tokens are sealed by the web server
 (`lib/sealed.ts`, `CALENDAR_TOKEN_KEY`; tracker tokens use the same module
-with their own key). Off until the provider apps are registered.
+with their own key). Off until the provider apps are registered. When a call
+starts (or is imported), `link_call_to_meeting` finds the caller's own
+meeting at that time and copies its outside attendees onto the call
+(`call_attendees`, ADR 0026), where colleagues can read them: the follow-up's
+To starts with them, the HubSpot note goes on those who are contacts, and
+their domain stands in for the call's customer when it has none.
 
 A company can log calls to its own CRM, HubSpot first (ADR 0024): the owner
 pastes a HubSpot private app token on Settings, checked with HubSpot and

@@ -46,12 +46,15 @@ export function FollowUp({
   draft,
   sending = null,
   sends = [],
+  attendees = [],
 }: {
   conversationId: string;
   draft: ShownFollowUp | null;
   /** Where email is sent from, when this deployment sends it; null when it does not. */
   sending?: { from: string } | null;
   sends?: readonly ShownSend[];
+  /** Who from outside was invited to the call's meeting (ADR 0026): the first To. */
+  attendees?: readonly string[];
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -59,7 +62,7 @@ export function FollowUp({
   const [subject, setSubject] = useState(draft?.subject ?? '');
   const [body, setBody] = useState(draft?.text ?? '');
   const [copied, setCopied] = useState(false);
-  const [to, setTo] = useState(sends[0]?.recipients.join(', ') ?? '');
+  const [to, setTo] = useState(sends[0]?.recipients.join(', ') ?? attendees.join(', '));
   const [fromName, setFromName] = useState('');
   const [sendingNow, setSendingNow] = useState(false);
 

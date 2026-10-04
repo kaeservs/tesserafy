@@ -10,8 +10,9 @@
 
 const API = 'https://api.hubapi.com';
 
-/** HubSpot's own association types: a note on a company record. */
+/** HubSpot's own association types: a note on a company record, and on a contact. */
 const NOTE_TO_COMPANY = 190;
+const NOTE_TO_CONTACT = 202;
 
 export class HubSpotRefused extends Error {
   override readonly name = 'HubSpotRefused';
@@ -82,20 +83,47 @@ export async function findCompanyByDomain(
 }
 
 /**
+ * The people on the call who are contacts in HubSpot, by their addresses
+ * (ADR 0026): ten at most, and only exact matches.
+ */
+export async function findContactsByEmail(token: string, emails: readonly string[], doFetch: typeof fetch = fetch): Promise<string[]> {
+  if (emails.length === 0) return [];
+  const found = await call<{ results?: { id: string }[] }>(
+    token,
+    '/crm/v3/objects/contacts/search',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        filterGroups: [{ filters: [{ propertyName: 'email', operator: 'IN', values: emails.slice(0, 10) }] }],
+        properties: ['email'],
+        limit: 10,
+      }),
+    },
+    doFetch,
+  );
+  return (found.results ?? []).map((contact) => contact.id);
+}
+
+/**
  * The call's note: rewritten when it exists, made on the company record when
  * it does not — or when someone deleted it in HubSpot since.
  */
 export async function writeNote(
   token: string,
-  note: { existingId: string | null; html: string; at: string; companyId: string },
+  note: { existingId: string | null; html: string; at: string; companyId: string; contactIds?: readonly string[] },
   doFetch: typeof fetch = fetch,
 ): Promise<string> {
+  const contactIds = note.contactIds ?? [];
   if (note.existingId) {
     try {
       await call(token, `/crm/v3/objects/notes/${note.existingId}`, {
         method: 'PATCH',
         body: JSON.stringify({ properties: { hs_note_body: note.html, hs_timestamp: note.at } }),
       }, doFetch);
+      // People found since the note was made are put on it too; HubSpot keeps one link however often it is asked.
+      for (const contactId of contactIds) {
+        await call(token, `/crm/v4/objects/note/${note.existingId}/associations/default/contact/${contactId}`, { method: 'PUT' }, doFetch);
+      }
       return note.existingId;
     } catch (error) {
       if (!(error instanceof HubSpotRefused) || error.status !== 404) throw error;
@@ -110,6 +138,7 @@ export async function writeNote(
         properties: { hs_note_body: note.html, hs_timestamp: note.at },
         associations: [
           { to: { id: note.companyId }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: NOTE_TO_COMPANY }] },
+          ...contactIds.map((id) => ({ to: { id }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: NOTE_TO_CONTACT }] })),
         ],
       }),
     },

@@ -63,6 +63,8 @@ export class Session {
     private readonly baseUrl: string,
     private readonly store: Store,
     private readonly now: () => number = Date.now,
+    /** Said on every API call: which overlay this is ("0.1.15 win32"), so the console can show who needs to update. */
+    private readonly client: string | null = null,
   ) {}
 
   get signedInAs(): string | null {
@@ -173,7 +175,11 @@ export class Session {
     const call = async (token: string) =>
       fetch(new URL(path, this.baseUrl), {
         ...init,
-        headers: { ...(init.headers as Record<string, string>), authorization: `Bearer ${token}` },
+        headers: {
+          ...(init.headers as Record<string, string>),
+          authorization: `Bearer ${token}`,
+          ...(this.client ? { 'x-tesserafy-overlay': this.client } : {}),
+        },
       });
 
     const token = await this.bearer();

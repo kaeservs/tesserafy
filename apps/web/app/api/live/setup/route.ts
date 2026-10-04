@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { liveAllowedFor } from '@/lib/live-input';
 import { liveSetup } from '@/lib/live-setup';
+import { overlayClient } from '@/lib/overlay-client';
 import { caller } from '@/lib/supabase/caller';
 
 /**
@@ -14,6 +15,13 @@ export const runtime = 'nodejs';
 export async function GET(request: NextRequest) {
   const who = await caller(request);
   if (!who) return NextResponse.json({ error: 'not signed in' }, { status: 401 });
-  const setup = await liveSetup(who.db, who.userId);
-  return NextResponse.json({ ...setup, live: await liveAllowedFor(who.db, who.userId) });
+  // Which overlay this is, for the console's "who needs to update". Recorded
+  // beside the setup, never instead of it: a failure here must not stop a call.
+  const client = overlayClient(request.headers.get('x-tesserafy-overlay'));
+  const [setup, live] = await Promise.all([
+    liveSetup(who.db, who.userId),
+    liveAllowedFor(who.db, who.userId),
+    client ? who.db.rpc('record_overlay_seen', { p_version: client.version, p_platform: client.platform }) : null,
+  ]);
+  return NextResponse.json({ ...setup, live });
 }

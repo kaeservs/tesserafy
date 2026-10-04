@@ -5,7 +5,7 @@
  * scorecard does not have are left out; guided results say so.
  */
 import { describe, expect, it } from 'vitest';
-import { renderInstructions, renderScoringGuidance, type Guidance } from '../src/tiers/guidance';
+import { isEmpty as guidanceIsEmpty, renderInstructions, renderScoringGuidance, type Guidance } from '../src/tiers/guidance';
 import { systemPrompt } from '../src/tiers/t1-detect';
 
 const criteria = [
@@ -68,8 +68,9 @@ describe('results marked not right', () => {
     ],
   };
 
-  it('counts as guidance, so a guided result says so', async () => {
-    const { guidanceIsEmpty } = await import('../src/index');
+  // Imported directly, not through the package index: loading the whole index
+  // (LangGraph included) inside a test could pass the 5-second limit on a busy runner.
+  it('counts as guidance, so a guided result says so', () => {
     expect(guidanceIsEmpty(rejected)).toBe(false);
     expect(guidanceIsEmpty({ instructions: [], examples: [], rejected: [] })).toBe(true);
   });

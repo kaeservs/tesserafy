@@ -25,6 +25,7 @@ const GROUPS: readonly { label: string; items: readonly { label: string; href: s
     label: 'Usage',
     items: [
       { label: 'Adoption', href: '/adoption' },
+      { label: 'Overlays', href: '/overlays' },
       { label: 'Spend', href: '/spend' },
       { label: 'Activity', href: '/activity' },
     ],

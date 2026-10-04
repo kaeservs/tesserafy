@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requireAdmin } from '@/lib/admin';
 import { utc } from '@/lib/time';
+import { behind, newestOverlayVersion } from '@/lib/overlay-release';
 import { Chrome } from './chrome';
 
 /**
@@ -38,7 +39,7 @@ function Stat({ value, label }: { value: string | number; label: string }) {
 
 export default async function OverviewPage() {
   const admin = await requireAdmin();
-  const [{ data, error }, { data: deletionRequests }, { data: week }] = await Promise.all([
+  const [{ data, error }, { data: deletionRequests }, { data: week }, { data: seen }, newest] = await Promise.all([
     admin.db.rpc('admin_overview'),
     admin.db
       .from('account_deletion_requests')
@@ -47,7 +48,11 @@ export default async function OverviewPage() {
       .order('requested_at'),
     // The Cluely-style features over the last week, every company together.
     admin.db.rpc('admin_feature_adoption', { p_days: 7 }),
+    admin.db.rpc('admin_overlay_seen'),
+    newestOverlayVersion(),
   ]);
+  const overlays = seen ?? [];
+  const overlaysBehind = overlays.filter((row) => behind(row.version, newest)).length;
   // Open companies only, as Adoption shows by default: closed and test companies are not usage.
   const weekRows = (week ?? []).filter((row) => (row.closed_at as string | null) === null);
   const sum = (key: 'live_calls' | 'overlay_help' | 'questions' | 'follow_ups') =>
@@ -162,6 +167,20 @@ export default async function OverviewPage() {
         </div>
         <p className="muted" style={{ marginBottom: 0 }}>
           Every company, the last 7 days. <Link className="link" href="/adoption">By company</Link>
+        </p>
+        <p className="muted" style={{ marginBottom: 0 }}>
+          {overlays.length} {overlays.length === 1 ? 'person has' : 'people have'} reported a version
+          {newest ? (
+            <>
+              {' '}· newest release {newest} ·{' '}
+              <span className={`tag${overlaysBehind > 0 ? ' open' : ' admin'}`}>
+                {overlaysBehind > 0 ? `${overlaysBehind} behind` : 'all up to date'}
+              </span>
+            </>
+          ) : null}{' '}
+          <Link className="link" href="/overlays">
+            Who runs which
+          </Link>
         </p>
       </section>
 

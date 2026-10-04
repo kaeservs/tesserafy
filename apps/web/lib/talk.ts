@@ -92,6 +92,21 @@ export function speakerKey(name: string): string {
   return name.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
+/** What the overlay names the seller when it hears both sides of a call (ADR 0022). */
+export const LIVE_SELLER = 'seller';
+
+/**
+ * The speakers a call's drafts should treat as yours: the names marked as
+ * yours, and the overlay's own label for the seller when the call has it —
+ * a line the overlay heard from the microphone is the seller's by where it
+ * came from, with no one needing to say so.
+ */
+export function ourSpeakerNames(marked: readonly { name: string }[] | null, segments: readonly { speaker: string | null }[]): string[] {
+  const names = (marked ?? []).map((row) => row.name);
+  const live = segments.some((segment) => segment.speaker === LIVE_SELLER);
+  return live && !names.some((name) => speakerKey(name) === LIVE_SELLER) ? [...names, LIVE_SELLER] : names;
+}
+
 /**
  * Your side against everyone else, once someone has said which names are
  * yours. Null until the call has words on both sides — a call where nobody is

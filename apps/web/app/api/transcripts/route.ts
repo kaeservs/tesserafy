@@ -170,6 +170,9 @@ export async function POST(request: NextRequest) {
   // Who the call was with, when the form said.
   const accountName = (form.get('account') as string | null)?.trim();
   if (accountName) await linkAccount(who.db, conversationId, { name: accountName });
+  // A recording from a meeting still in the uploader's calendar gets its
+  // attendees too (ADR 0026); older ones have left the calendar.
+  await who.db.rpc('link_call_to_meeting', { p_conversation_id: conversationId });
 
   // A bulk import asks to wait for the score before the answer, so the page
   // sends the next file only when this one is finished: forty files arriving

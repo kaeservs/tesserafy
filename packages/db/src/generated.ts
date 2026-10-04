@@ -573,6 +573,45 @@ export type Database = {
           },
         ]
       }
+      call_attendees: {
+        Row: {
+          company_id: string
+          conversation_id: string
+          email: string
+          meeting_title: string | null
+          name: string | null
+        }
+        Insert: {
+          company_id: string
+          conversation_id: string
+          email: string
+          meeting_title?: string | null
+          name?: string | null
+        }
+        Update: {
+          company_id?: string
+          conversation_id?: string
+          email?: string
+          meeting_title?: string | null
+          name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_attendees_company_id_conversation_id_fkey"
+            columns: ["company_id", "conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "call_attendees_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_preps: {
         Row: {
           account_id: string | null
@@ -3520,6 +3559,10 @@ export type Database = {
       link_calendar_event: {
         Args: { p_event_id: string; p_prep_id: string }
         Returns: undefined
+      }
+      link_call_to_meeting: {
+        Args: { p_conversation_id: string }
+        Returns: number
       }
       mark_notifications_read: { Args: { p_ids?: string[] }; Returns: number }
       match_knowledge: {

@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@tesserafy/db';
 import { engagementLabel } from './company';
 import { noteHtml } from './crm-note';
-import { companyRecordUrl, findCompanyByDomain, HubSpotRefused, writeNote } from './hubspot';
+import { companyRecordUrl, findCompanyByDomain, findContactsByEmail, HubSpotRefused, writeNote } from './hubspot';
 import { scoreConversation } from './scorecard';
 import { sealer, SealKeyMissing } from './sealed';
 
@@ -61,10 +61,14 @@ export async function logCallToCrm(
     .eq('id', conversationId)
     .maybeSingle();
   if (!call) return { status: 'not_connected' };
-  const { data: customer } = call.account_id
-    ? await db.from('accounts').select('domain').eq('id', call.account_id).maybeSingle()
-    : { data: null };
-  const domain = customer?.domain?.trim().toLowerCase();
+  const [{ data: customer }, { data: attendeeRows }] = await Promise.all([
+    call.account_id ? db.from('accounts').select('domain').eq('id', call.account_id).maybeSingle() : Promise.resolve({ data: null }),
+    db.from('call_attendees').select('email').eq('conversation_id', conversationId),
+  ]);
+  const attendees = (attendeeRows ?? []).map((row) => row.email);
+  // The customer's domain, or else the domain the people on the call write
+  // from (ADR 0026).
+  const domain = customer?.domain?.trim().toLowerCase() || attendees[0]?.split('@')[1];
   if (!domain) return { status: 'no_customer' };
 
   const [scored, { data: actionRows }, { data: logged }] = await Promise.all([
@@ -90,9 +94,16 @@ export async function logCallToCrm(
   try {
     const record = await findCompanyByDomain(token, domain, doFetch);
     if (!record) return { status: 'no_record', domain };
+    const contactIds = await findContactsByEmail(token, attendees, doFetch);
     const noteId = await writeNote(
       token,
-      { existingId: logged?.external_id ?? null, html, at: new Date(call.occurred_at ?? call.created_at).toISOString(), companyId: record.id },
+      {
+        existingId: logged?.external_id ?? null,
+        html,
+        at: new Date(call.occurred_at ?? call.created_at).toISOString(),
+        companyId: record.id,
+        contactIds,
+      },
       doFetch,
     );
     const { error } = await db.rpc('record_crm_log', {
@@ -101,6 +112,7 @@ export async function logCallToCrm(
       p_external_id: noteId,
       p_crm_company_id: record.id,
       p_crm_company_name: record.name,
+      p_contacts: contactIds.length,
     });
     if (error) throw new Error(`Recording the CRM note failed: ${error.message}`);
     return { status: 'logged', companyName: record.name, url: companyRecordUrl(crm.account_ref, record.id), updated: noteId === logged?.external_id };

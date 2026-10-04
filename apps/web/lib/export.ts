@@ -28,6 +28,7 @@ export const WORK_TABLES = [
   { key: 'action_items', table: 'action_items', columns: 'id, conversation_id, segment_id, quote, action, owner_side, owner_name, due, done, done_by, done_at, created_at' },
   { key: 'follow_ups', table: 'follow_ups', columns: 'id, conversation_id, subject, greeting, opening, closing, drafted_by, created_at' },
   { key: 'follow_up_lines', table: 'follow_up_lines', columns: 'id, follow_up_id, position, kind, text, segment_id, quote' },
+  { key: 'call_attendees', table: 'call_attendees', columns: 'conversation_id, email, name, meeting_title', order: 'conversation_id' },
   { key: 'follow_ups_sent', table: 'follow_up_sends', columns: 'id, conversation_id, sent_by, from_name, reply_to, recipients, subject, body, status, created_at, settled_at' },
   { key: 'call_preps', table: 'call_preps', columns: 'id, account_id, person_name, person_title, linkedin_url, call_at, engagement_type, profile_text, research, research_at, brief, brief_at, created_by, created_at' },
   { key: 'coaching', table: 'coaching_assignments', columns: 'id, conversation_id, segment_id, assigned_by, assigned_to, note, reply, status, created_at, done_at' },

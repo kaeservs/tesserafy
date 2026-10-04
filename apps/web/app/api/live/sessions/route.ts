@@ -80,6 +80,9 @@ export async function POST(request: NextRequest) {
   if (typeof body.accountId === 'string' && /^[0-9a-f-]{36}$/i.test(body.accountId)) {
     await linkAccount(who.db, data, { id: body.accountId });
   }
+  // Who from outside is in the meeting this call is, from the caller's own
+  // calendar (ADR 0026). Best effort: a call is a call without it.
+  await who.db.rpc('link_call_to_meeting', { p_conversation_id: data });
 
   return NextResponse.json({ conversationId: data });
 }

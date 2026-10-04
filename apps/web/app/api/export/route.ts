@@ -166,9 +166,14 @@ export async function POST(request: NextRequest) {
       await Promise.all(
         WORK_TABLES.map(async (spec) => {
           const rows = await readAll<WorkRow>((from, to) => {
-            let query = db.from(spec.table).select(spec.columns);
+            // Typed as one table on purpose: typed per table, the union of
+            // every listed table's query is more than the compiler will build
+            // (TS2590). Each is read the same way, into untyped rows, and the
+            // names and columns come from WORK_TABLES, not from a caller.
+            const table = spec.table as 'accounts';
+            let query = db.from(table).select(spec.columns as 'id');
             if ('ownOnly' in spec) query = query.not('company_id', 'is', null);
-            return query.order('order' in spec ? spec.order : 'id').range(from, to).returns<WorkRow[]>();
+            return query.order(('order' in spec ? spec.order : 'id') as 'id').range(from, to).returns<WorkRow[]>();
           }, `Exporting ${spec.key}`);
           return [spec.key, rows] as const;
         }),

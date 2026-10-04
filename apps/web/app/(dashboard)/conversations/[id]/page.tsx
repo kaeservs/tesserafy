@@ -336,10 +336,13 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
   const accountName = account?.name ?? null;
   // Where the call can be logged: the company's CRM, if an owner connected one
   // (ADR 0024), and the note already made for this call.
-  const [{ data: crm }, { data: crmLog }] = await Promise.all([
+  const [{ data: crm }, { data: crmLog }, { data: attendeeRows }] = await Promise.all([
     supabase.from('company_crms').select('provider').eq('company_id', conversation.company_id).maybeSingle(),
     supabase.from('crm_logs').select('crm_company_name, logged_by, logged_at').eq('conversation_id', id).maybeSingle(),
+    // Who from outside was invited, from the caller's calendar (ADR 0026).
+    supabase.from('call_attendees').select('email, name, meeting_title').eq('conversation_id', id).order('email'),
   ]);
+  const attendees = attendeeRows ?? [];
   // Which speakers are this company's own people, and which lines are already examples.
   const [{ data: ourRows }, { data: momentRows }] = await Promise.all([
     supabase.from('our_speakers').select('name'),
@@ -483,6 +486,13 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
       {internal ? (
         <p className="muted">
           <Link href={`/live/${id}`}>Replay as a live scorecard →</Link>
+        </p>
+      ) : null}
+      {attendees.length > 0 ? (
+        <p className="muted">
+          {attendees[0]?.meeting_title ? `“${attendees[0].meeting_title}”, with ` : 'With '}
+          {attendees.map((attendee) => (attendee.name ? `${attendee.name} (${attendee.email})` : attendee.email)).join(', ')}
+          {' '}— from the calendar of whoever started the call.
         </p>
       ) : null}
       <p className="muted">
@@ -714,7 +724,13 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
 
       <section aria-labelledby="follow-up-heading" id="follow-up">
         <h2 id="follow-up-heading">Follow-up email</h2>
-        <FollowUp conversationId={id} draft={followUp} sending={from ? { from } : null} sends={sends} />
+        <FollowUp
+          conversationId={id}
+          draft={followUp}
+          sending={from ? { from } : null}
+          sends={sends}
+          attendees={attendees.map((attendee) => attendee.email)}
+        />
       </section>
 
       {crm ? (
@@ -722,7 +738,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
           <h2 id="crm-heading">HubSpot</h2>
           <LogToCrm
             conversationId={id}
-            hasCustomer={Boolean(account?.domain)}
+            hasCustomer={Boolean(account?.domain) || attendees.length > 0}
             logged={
               crmLog ? { when: stamp(crmLog.logged_at), companyName: crmLog.crm_company_name, by: nameOf(crmLog.logged_by) } : null
             }

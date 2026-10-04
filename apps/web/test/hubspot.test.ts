@@ -6,7 +6,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { noteHtml } from '../lib/crm-note';
-import { checkHubSpot, companyRecordUrl, findCompanyByDomain, writeNote } from '../lib/hubspot';
+import { checkHubSpot, companyRecordUrl, findCompanyByDomain, findContactsByEmail, writeNote } from '../lib/hubspot';
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
 
@@ -59,6 +59,25 @@ describe('logging a call', () => {
 
     const gone = fakeHubSpot([json(404, {}), json(201, { id: '9002' })]);
     expect(await writeNote('t', { existingId: '9001', html: 'y', at: 'a', companyId: '501' }, gone.doFetch)).toBe('9002');
+  });
+
+  it('puts the note on the people from the call who are contacts, on a new note and on one logged before', async () => {
+    const { doFetch, sent } = fakeHubSpot([json(200, { results: [{ id: '71' }, { id: '72' }] }), json(201, { id: '9003' })]);
+    const contacts = await findContactsByEmail('t', ['dana@northwind.com', 'lee@northwind.com'], doFetch);
+    expect(contacts).toEqual(['71', '72']);
+    await writeNote('t', { existingId: null, html: 'x', at: 'a', companyId: '501', contactIds: contacts }, doFetch);
+    const [search, create] = sent();
+    expect(search?.body).toMatchObject({ filterGroups: [{ filters: [{ propertyName: 'email', operator: 'IN', values: ['dana@northwind.com', 'lee@northwind.com'] }] }] });
+    expect((create?.body as { associations: { to: { id: string }; types: { associationTypeId: number }[] }[] }).associations.map((a) => [a.to.id, a.types[0]?.associationTypeId])).toEqual([
+      ['501', 190],
+      ['71', 202],
+      ['72', 202],
+    ]);
+
+    const again = fakeHubSpot([json(200, { id: '9003' }), json(200, {})]);
+    await writeNote('t', { existingId: '9003', html: 'y', at: 'a', companyId: '501', contactIds: ['73'] }, again.doFetch);
+    expect(again.sent()[1]).toMatchObject({ url: 'https://api.hubapi.com/crm/v4/objects/note/9003/associations/default/contact/73', method: 'PUT' });
+    expect(await findContactsByEmail('t', [], again.doFetch)).toEqual([]);
   });
 
   it('says nothing was found rather than guessing a record', async () => {

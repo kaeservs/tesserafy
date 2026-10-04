@@ -10,7 +10,7 @@ import { usePathname } from 'next/navigation';
  * to say so.
  */
 
-const GROUPS: readonly { label: string; items: readonly { label: string; href: string; count?: 'requests' | 'feedback' }[] }[] = [
+const GROUPS: readonly { label: string; items: readonly { label: string; href: string; count?: 'requests' | 'feedback' | 'early' }[] }[] = [
   { label: '', items: [{ label: 'Overview', href: '/' }] },
   {
     label: 'Customers',
@@ -19,6 +19,7 @@ const GROUPS: readonly { label: string; items: readonly { label: string; href: s
       { label: 'People', href: '/people' },
       { label: 'Add people', href: '/onboard', count: 'requests' },
       { label: 'Agreements', href: '/agreements' },
+      { label: 'Early access', href: '/early-access', count: 'early' },
     ],
   },
   {
@@ -47,7 +48,7 @@ const GROUPS: readonly { label: string; items: readonly { label: string; href: s
   },
 ];
 
-export function ConsoleSidebar({ counts, footer }: { counts: { requests: number; feedback: number }; footer: React.ReactNode }) {
+export function ConsoleSidebar({ counts, footer }: { counts: { requests: number; feedback: number; early: number }; footer: React.ReactNode }) {
   const pathname = usePathname();
   const current = (href: string) => (href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`));
   return (

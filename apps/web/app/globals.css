@@ -2337,3 +2337,46 @@ main.auth {
     display: none;
   }
 }
+
+/* The early-access form, while sign-up is closed. */
+.early {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 2.5rem;
+  align-items: start;
+}
+
+.early-form .field {
+  max-width: none;
+}
+
+.early-form button[type='submit'] {
+  width: 100%;
+  padding: 0.7rem;
+}
+
+.early-note {
+  font-size: 0.82rem;
+  margin-bottom: 0;
+}
+
+.early-done {
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Off-screen rather than display:none, which some bots know to skip. */
+.early-hidden {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  .early {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+}

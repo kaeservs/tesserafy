@@ -5,7 +5,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(9);
+select plan(11);
 
 insert into auth.users (id, email, aud, role) values
   ('ea000001-0000-4000-8000-000000000001', 'operator@test.tesserafy.local', 'authenticated', 'authenticated'),
@@ -41,6 +41,12 @@ select set_config('request.jwt.claims', '{"sub":"ea000001-0000-4000-8000-0000000
 select public.admin_mark_early_access((select id from public.early_access where email = 'dana@northwind.test'), true);
 select ok((select invited_at is not null from public.early_access where email = 'dana@northwind.test'),
   'an operator reads it and marks who was invited');
+
+select public.admin_remove_early_access((select id from public.early_access where email = 'dana@northwind.test'));
+select is((select count(*)::int from public.early_access where email = 'dana@northwind.test'), 0, 'and removes an entry, which is gone');
+
+select set_config('request.jwt.claims', '{"sub":"ea000001-0000-4000-8000-000000000002","role":"authenticated"}', true);
+select throws_ok($$ select public.admin_remove_early_access(gen_random_uuid()) $$, '42501', null, 'a customer cannot remove anyone');
 
 select * from finish();
 rollback;

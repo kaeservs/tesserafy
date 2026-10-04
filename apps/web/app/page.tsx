@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { EarlyAccessForm } from '@/components/early-access-form';
 import { Icon, type IconName } from '@/components/icons';
 import { createClient } from '@/lib/supabase/server';
 
@@ -128,6 +129,8 @@ export default async function Landing() {
   const trial = plans.find((plan) => plan.id === 'trial') ?? null;
   const onSale = plans.filter((plan) => plan.price_usd_cents !== null);
   const start = open === true ? (trial?.trial_days ? `Start your ${trial.trial_days}-day trial` : 'Start your trial') : 'Get early access';
+  // While sign-up is closed (until email works), the same buttons take an address instead.
+  const startHref = open === true ? '/signup' : '#early-access';
 
   return (
     <div className="landing">
@@ -144,7 +147,7 @@ export default async function Landing() {
         </nav>
         <div className="landing-actions">
           <Link href="/login">Sign in</Link>
-          <Link href="/signup" className="button-primary">
+          <Link href={startHref} className="button-primary">
             {start}
           </Link>
         </div>
@@ -160,7 +163,7 @@ export default async function Landing() {
               what to say or ask, and drafts your follow-up when you hang up. Every point quotes what was actually said.
             </p>
             <div className="hero-actions">
-              <Link href="/signup" className="button-primary">
+              <Link href={startHref} className="button-primary">
                 {start}
               </Link>
               <Link href="/login" className="button-secondary">
@@ -294,7 +297,7 @@ export default async function Landing() {
                       <li key={line}>{line}</li>
                     ))}
                   </ul>
-                  <Link href="/signup" className={plan.id === 'pro' ? 'button-primary' : 'button-secondary'}>
+                  <Link href={startHref} className={plan.id === 'pro' ? 'button-primary' : 'button-secondary'}>
                     {start}
                   </Link>
                 </div>
@@ -315,9 +318,24 @@ export default async function Landing() {
           </div>
         </section>
 
+        {open === true ? null : (
+          <section id="early-access" className="landing-section early" aria-labelledby="early-heading">
+            <div>
+              <h2 id="early-heading">Get early access</h2>
+              <p className="section-lede">
+                Tesserafy is opening to a few teams at a time. Leave your work email and we will tell you when there is a
+                place for yours.
+              </p>
+            </div>
+            <div className="card">
+              <EarlyAccessForm />
+            </div>
+          </section>
+        )}
+
         <section className="cta" aria-labelledby="cta-heading">
           <h2 id="cta-heading">Your next call, with a second brain beside it.</h2>
-          <Link href="/signup" className="promo-button">
+          <Link href={startHref} className="promo-button">
             {start}
           </Link>
         </section>

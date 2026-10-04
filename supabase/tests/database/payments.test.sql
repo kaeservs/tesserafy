@@ -9,7 +9,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(24);
+select plan(25);
 
 insert into auth.users (id, email, aud, role) values
   ('9a000000-0000-4000-8000-000000000001', 'owner@acme.test', 'authenticated', 'authenticated'),
@@ -101,6 +101,15 @@ reset role;
 select is((select c.plan || ':' || s.provider || ':' || coalesce(s.provider_customer_id, '-')
              from public.companies c join public.subscriptions s on s.company_id = c.id where c.id = '00000000-0000-4000-8000-00000000000a'),
   'none:none:cus_A', 'the end of the subscription is the end of the plan, and the customer is kept for the next');
+
+-- Another company on a free Pro from before payments: its period ends, and it
+-- does not renew for free.
+reset role;
+select private.apply_plan('00000000-0000-4000-8000-00000000000b', 'pro', 'set_by_operator', 'operator', null);
+update public.subscriptions set period_end = now() - interval '1 minute' where company_id = '00000000-0000-4000-8000-00000000000b';
+select private.roll_subscription('00000000-0000-4000-8000-00000000000b');
+select is((select plan from public.companies where id = '00000000-0000-4000-8000-00000000000b'), 'none',
+  'once payments are on, a free plan from before ends with its period instead of renewing');
 
 select * from finish();
 rollback;

@@ -401,6 +401,50 @@ end;
 $$;
 
 
+-- Once payments are on, a free Basic or Pro from before runs to the end of
+-- the period it has and then stops, rather than renewing for free: the owner
+-- keeps it by paying at checkout. The rest of the roll is as it was.
+create or replace function private.roll_subscription(p_company_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_sub   public.subscriptions;
+  v_plan  text;
+begin
+  select * into v_sub from public.subscriptions where company_id = p_company_id for update;
+  if v_sub.company_id is null or v_sub.provider <> 'none' or v_sub.period_end > now() then
+    return;
+  end if;
+  select c.plan into v_plan from public.companies c where c.id = p_company_id;
+
+  if v_sub.status = 'trialing' then
+    perform private.apply_plan(p_company_id, 'none', 'trial_ended', 'system', null);
+  elsif v_sub.cancel_at_period_end then
+    perform private.apply_plan(p_company_id, 'none', 'canceled', 'system', null);
+  elsif private.payments_ready() and exists (select 1 from public.plans p where p.id = v_plan and p.self_serve) then
+    perform private.apply_plan(p_company_id, 'none', 'canceled', 'system', null);
+  elsif v_sub.scheduled_plan is not null then
+    perform private.apply_plan(p_company_id, v_sub.scheduled_plan, 'downgraded', 'system', null);
+  else
+    -- Renewal keeps the plan and moves the period on from where it ended, not
+    -- from now: a period is a month of allowance, not a month since the job ran.
+    update public.subscriptions
+       set period_start = v_sub.period_end,
+           period_end = greatest(v_sub.period_end + interval '1 month', now() + interval '1 day'),
+           updated_at = now()
+     where company_id = p_company_id;
+    insert into public.subscription_events (company_id, kind, from_plan, to_plan, source)
+    values (p_company_id, 'renewed', v_plan, v_plan, 'system');
+  end if;
+end;
+$$;
+
+revoke all on function private.roll_subscription(uuid) from public, anon, authenticated;
+
+
 -- ---------------------------------------------------------------------------
 -- Stripe's webhook
 -- ---------------------------------------------------------------------------

@@ -56,7 +56,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Start Supabase (applies migrations and seed)
-        run: pnpm exec supabase start
+        # Only what the tests use: the database, its API (PostgREST behind
+        # Kong) and Auth. Every other image is one more pull from a registry
+        # that rate-limits CI runners, which failed this job twice running.
+        run: pnpm exec supabase start -x realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
 
       - name: Export connection details
         # `status -o env` prints KEY="value"; $GITHUB_ENV would keep the quotes

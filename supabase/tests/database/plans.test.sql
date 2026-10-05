@@ -152,15 +152,15 @@ select set_config('request.jwt.claims',
   '{"sub":"abab0001-0000-4000-8000-000000000001","role":"authenticated"}', true);
 
 select is(
-  (public.take_plan_allowance('calls') ->> 'allowed')::boolean,
-  false,
-  'past the end of a cancelled period there is nothing to spend'
+  (public.take_plan_allowance('calls') ->> 'limit')::integer,
+  2,
+  'past the end of a cancelled period there is only Free''s allowance to spend (ADR 0027)'
 );
 select is(
   (select c.plan || '/' || s.status from public.companies c join public.subscriptions s on s.company_id = c.id
     where c.id = '00000000-0000-4000-8000-00000000000a'),
-  'none/canceled',
-  'the company has no plan, and knows it the moment it asks'
+  'free/active',
+  'the company is on Free, and knows it the moment it asks'
 );
 
 select is(public.change_plan('basic'), 'started', 'and can start one again');
@@ -192,8 +192,8 @@ select set_config('request.jwt.claims', '', true);
 select public.roll_subscription_periods();
 select is(
   (select plan from public.companies where id = '00000000-0000-4000-8000-0000000000cc'),
-  'none',
-  'a trial that runs out ends'
+  'free',
+  'a trial that runs out lands on Free'
 );
 
 select is(

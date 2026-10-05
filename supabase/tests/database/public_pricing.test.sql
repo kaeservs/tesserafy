@@ -12,8 +12,8 @@ select set_config('request.jwt.claims', '{"role":"anon"}', true);
 
 select set_eq(
   $$ select id from public.plans $$,
-  $$ values ('trial'), ('basic'), ('pro') $$,
-  'a visitor reads the trial and the plans on sale'
+  $$ values ('free'), ('trial'), ('basic'), ('pro'), ('incognito') $$,
+  'a visitor reads Free, the trial and the plans on sale'
 );
 select is_empty(
   $$ select 1 from public.plans where id in ('pilot', 'internal', 'none') $$,

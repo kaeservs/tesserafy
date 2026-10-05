@@ -47,11 +47,12 @@ select public.admin_set_stripe_webhook_secret('whsec_testsecret');
 select is(public.payments_ready(), false, 'a secret without prices is not payments');
 select public.admin_set_plan_price('basic', 'price_Basic1');
 select public.admin_set_plan_price('pro', 'price_Pro1');
+select public.admin_set_plan_price('incognito', 'price_Incog1');
 select throws_ok($$ select public.admin_set_plan_price('pilot', 'price_X') $$, '22023', null, 'only Basic and Pro are sold');
 select is(public.payments_ready(), true, 'with both prices, payments are on');
 select is((select admin_payments_status() ->> 'webhook_secret_hint'), 'cret', 'the console sees the secret''s end, never the secret');
 select is((select string_agg(setting || ':' || detail, ' | ' order by at, detail) from public.payment_setting_events),
-  'price:basic: price_Basic1 | price:pro: price_Pro1 | webhook_secret:set, ending cret', 'what operators changed is recorded');
+  'price:basic: price_Basic1 | price:incognito: price_Incog1 | price:pro: price_Pro1 | webhook_secret:set, ending cret', 'what operators changed is recorded');
 
 select set_config('request.jwt.claims', '{"sub":"9a000000-0000-4000-8000-000000000001","role":"authenticated"}', true);
 select throws_ok($$ select public.change_plan('basic') $$, '22023', 'change_plan: a paid plan starts at checkout',
@@ -100,7 +101,7 @@ select public.stripe_event((select payload from ev where name = 'deleted'), (sel
 reset role;
 select is((select c.plan || ':' || s.provider || ':' || coalesce(s.provider_customer_id, '-')
              from public.companies c join public.subscriptions s on s.company_id = c.id where c.id = '00000000-0000-4000-8000-00000000000a'),
-  'none:none:cus_A', 'the end of the subscription is the end of the plan, and the customer is kept for the next');
+  'free:none:cus_A', 'the end of the subscription is the end of the paid plan — Free — and the customer is kept for the next');
 
 -- Another company on a free Pro from before payments: its period ends, and it
 -- does not renew for free.
@@ -108,8 +109,8 @@ reset role;
 select private.apply_plan('00000000-0000-4000-8000-00000000000b', 'pro', 'set_by_operator', 'operator', null);
 update public.subscriptions set period_end = now() - interval '1 minute' where company_id = '00000000-0000-4000-8000-00000000000b';
 select private.roll_subscription('00000000-0000-4000-8000-00000000000b');
-select is((select plan from public.companies where id = '00000000-0000-4000-8000-00000000000b'), 'none',
-  'once payments are on, a free plan from before ends with its period instead of renewing');
+select is((select plan from public.companies where id = '00000000-0000-4000-8000-00000000000b'), 'free',
+  'once payments are on, a free plan from before ends with its period instead of renewing, on Free');
 
 -- Stripe signs as Node's crypto does (a vector made with it), UTF-8 and all.
 select ok(private.stripe_signature_ok('{"id":"evt_vector","note":"Café ☕ — £40k"}',

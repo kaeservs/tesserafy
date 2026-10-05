@@ -567,6 +567,16 @@ void app.whenReady().then(async () => {
 
   const NOT_SIGNED_IN = { error: 'not signed in' };
 
+  // What the server said when it refused, in its words; and, when it was the
+  // plan's allowance (402), that there is a page to change the plan on.
+  const refused = async (response: Response, path: string) => {
+    const body = (await response.json().catch(() => ({}))) as { error?: unknown };
+    return {
+      error: typeof body.error === 'string' ? body.error : `${path} failed: ${response.status}`,
+      ...(response.status === 402 ? { upgrade: true } : {}),
+    };
+  };
+
   // The renderer never sees the token: it asks the main process to make the
   // call, and gets back only what the endpoint returned.
   ipcMain.handle('overlay:detect', async (_event, body: unknown) => {
@@ -576,9 +586,7 @@ void app.whenReady().then(async () => {
       body: JSON.stringify(body),
     });
     if (!response) return NOT_SIGNED_IN;
-    if (!response.ok) {
-      return { error: `detect failed: ${response.status} ${await response.text()}` };
-    }
+    if (!response.ok) return refused(response, '/api/detect');
     return response.json();
   });
 
@@ -616,9 +624,7 @@ void app.whenReady().then(async () => {
       body: JSON.stringify(body),
     });
     if (!response) return NOT_SIGNED_IN;
-    if (!response.ok) {
-      return { error: `${path} failed: ${response.status}` };
-    }
+    if (!response.ok) return refused(response, path);
     return response.json();
   };
 
@@ -647,10 +653,7 @@ void app.whenReady().then(async () => {
       body: JSON.stringify(payload),
     });
     if (!response) return NOT_SIGNED_IN;
-    if (!response.ok || !response.body) {
-      const failed = (await response.json().catch(() => ({}))) as { error?: unknown };
-      return { error: typeof failed.error === 'string' ? failed.error : `/api/assist failed: ${response.status}` };
-    }
+    if (!response.ok || !response.body) return refused(response, '/api/assist');
     const decoder = new TextDecoder();
     let buffer = '';
     let finished: unknown = { error: 'The answer was cut off.' };
@@ -725,6 +728,8 @@ void app.whenReady().then(async () => {
   ipcMain.handle('overlay:prepare-meeting', (_event, eventId: unknown) =>
     isId(eventId) ? post('/api/live/meeting-prep', { eventId }) : { error: 'which meeting?' },
   );
+  // An allowance ran out: the plan, in the dashboard, where an owner changes it.
+  ipcMain.handle('overlay:open-plan', () => shell.openExternal(new URL('/profile#membership', BASE_URL).toString()));
   ipcMain.handle('overlay:open-prep', (_event, prepId: unknown) =>
     isId(prepId) ? shell.openExternal(new URL(`/prep/${prepId}`, BASE_URL).toString()) : undefined,
   );

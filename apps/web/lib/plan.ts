@@ -79,7 +79,17 @@ const NOUN: Record<Meter, [string, string]> = {
   live_seconds: ['live minute', 'live minutes'],
 };
 
-const PLAN_NAME: Record<string, string> = { trial: 'trial', basic: 'Basic plan', pro: 'Pro plan' };
+const PLAN_NAME: Record<string, string> = {
+  free: 'Free plan',
+  trial: 'trial',
+  basic: 'Starter plan',
+  pro: 'Pro plan',
+  incognito: 'Incognito plan',
+};
+
+/** Where an owner changes the plan, in the words of the page (ADR 0027). */
+export const PLAN_PAGE = '/profile#membership';
+const WHERE = 'Profile → Your membership';
 
 function day(iso: string | null): string {
   if (!iso) return '';
@@ -90,18 +100,21 @@ function day(iso: string | null): string {
 export function describeRefusal(spent: Extract<Spent, { allowed: false }>): string {
   if (spent.error) return 'Your plan could not be checked just now, so nothing was run. Try again shortly.';
   if (spent.plan === 'none') {
-    return 'Your company has no plan at the moment. An owner can choose one under Settings → Plan.';
+    return `Your company has no plan at the moment. An owner can choose one on ${WHERE}.`;
   }
   const limit = spent.meter === 'live_seconds' ? Math.round((spent.limit ?? 0) / 60) : (spent.limit ?? 0);
   const [one, many] = NOUN[spent.meter];
-  const what = `${limit} ${limit === 1 ? one : many}`;
   const plan = PLAN_NAME[spent.plan] ?? `${spent.plan} plan`;
+  if (limit === 0) {
+    return `${many.charAt(0).toUpperCase()}${many.slice(1)} are not on your ${plan}. An owner can choose Starter, Pro or Incognito on ${WHERE}.`;
+  }
+  const what = `${limit} ${limit === 1 ? one : many}`;
   const next =
-    spent.plan === 'pro'
-      ? `It resets on ${day(spent.resetsAt)}.`
-      : spent.plan === 'trial'
-        ? 'An owner can choose Basic or Pro under Settings → Plan.'
-        : `An owner can upgrade under Settings → Plan, or it resets on ${day(spent.resetsAt)}.`;
+    spent.plan === 'free' || spent.plan === 'trial'
+      ? `An owner can choose Starter, Pro or Incognito on ${WHERE}.`
+      : spent.plan === 'basic'
+        ? `An owner can upgrade or add seats on ${WHERE}, or it resets on ${day(spent.resetsAt)}.`
+        : `An owner can add seats on ${WHERE}, or it resets on ${day(spent.resetsAt)}.`;
   // The trial is fourteen days, not a month.
   const per = spent.plan === 'trial' ? '' : ' a month';
   return `Your ${plan} includes ${what}${per}, and they have all been used. ${next}`;
@@ -116,6 +129,8 @@ export function planExhausted(spent: Extract<Spent, { allowed: false }>): NextRe
       used: spent.used,
       limit: spent.limit,
       resetsAt: spent.resetsAt,
+      // Where an owner changes the plan: the overlay offers it as a button.
+      upgrade: PLAN_PAGE,
     },
     { status: spent.error ? 503 : 402 },
   );

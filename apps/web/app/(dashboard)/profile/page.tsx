@@ -55,7 +55,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         </p>
       </section>
 
-      <section aria-labelledby="membership-heading" className="card">
+      <section aria-labelledby="membership-heading" id="membership" className="card">
         <h2 id="membership-heading" style={{ marginTop: 0 }}>
           Your membership
         </h2>

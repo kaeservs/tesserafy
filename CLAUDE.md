@@ -170,8 +170,10 @@ The one AI path that is not charged is the sample call (`/api/sample-call`):
 a trial has three imported calls and a demonstration should not cost one, so
 `import_sample_call` allows one per company, ever, and the route sends only
 the app's own sample text. Plan
-changes are made on Settings or on each person's Profile (`/profile`, the
-same plan panel: owners start, upgrade, move down, cancel or open Stripe's
+changes are made on Settings or on each person's Profile (`/profile`, linked
+as "Plan and billing"; Home shows a plan strip on Free or near a limit; every
+402 names Profile → Your membership and carries `upgrade`, which the overlay
+offers as a button; the same plan panel: owners start, upgrade, move down, cancel or open Stripe's
 billing; members see the plan and which owners to ask — a plan is the
 company's), and all go through `private.apply_plan`: owners start, upgrade (now),
 downgrade or cancel (at period end); the operator sets any plan; a nightly

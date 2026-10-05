@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { clock, splitByHighlights } from '@/lib/highlight';
 import { Shortfall } from '@/components/criterion-shortfall';
-import { conversationPipeline, nextCommand, stageOf } from '@/lib/pipeline';
+import { conversationStage, nextCommand, stageOf } from '@/lib/pipeline';
 import { scoreConversation } from '@/lib/scorecard';
 import { sideShares, speakerKey, talkStats } from '@/lib/talk';
 import { ExtractButton } from '@/components/extract-button';
@@ -195,73 +195,67 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
   const { id } = await params;
   const supabase = await createClient();
 
-  const { data: conversation } = await supabase
-    .from('conversations')
-    .select(
-      'id, company_id, title, occurred_at, created_at, engagement_type, criteria_version, consent_statement, consent_confirmed_by, consent_confirmed_at, added_by, outcome, account_id, is_sample',
-    )
-    .eq('id', id)
-    .maybeSingle();
+  // Two rounds to the database, not fifteen: everything this page reads needs
+  // only the call's id, or the call and who is asking. Each round crosses to
+  // wherever the database is, so the number of rounds is most of the wait.
+  const [{ data: conversation }, company, { error: unrecorded }, { data: auth }] = await Promise.all([
+    supabase
+      .from('conversations')
+      .select(
+        'id, company_id, title, occurred_at, created_at, engagement_type, criteria_version, consent_statement, consent_confirmed_by, consent_confirmed_at, added_by, outcome, account_id, is_sample',
+      )
+      .eq('id', id)
+      .maybeSingle(),
+    myCompany(supabase),
+    // Recorded before anything of the call is shown, and a failure to record
+    // is a failure to open — the rule support sessions already follow. An
+    // access trail with gaps where recording failed answers "did they look?"
+    // with "probably not", which is worse than no trail. Nothing is shown
+    // until this round is back, so running it alongside changes nothing.
+    supabase.rpc('record_conversation_view', { p_conversation_id: id }),
+    supabase.auth.getUser(),
+  ]);
 
   if (!conversation) notFound();
-  // Tesserafy's own company still sees the tools it tests with.
-  const internal = liveAvailable((await myCompany(supabase))?.plan);
-
-  // Recorded before anything of the call is shown, and a failure to record
-  // is a failure to open — the rule support sessions already follow. An
-  // access trail with gaps where recording failed answers "did they look?"
-  // with "probably not", which is worse than no trail. The same database
-  // serves this page, so a failure here is rarely a failure only here.
-  const { error: unrecorded } = await supabase.rpc('record_conversation_view', {
-    p_conversation_id: id,
-  });
   if (unrecorded) throw new Error(`Could not record opening this call: ${unrecorded.message}`);
+  // Tesserafy's own company still sees the tools it tests with.
+  const internal = liveAvailable(company?.plan);
+  const user = auth.user;
 
-  // Computed on read from the quoted spans in criterion_events, by the same
-  // two pure functions the live overlay runs. Nothing stored is a score
-  // (invariant 1), so this page and a call happening right now cannot
-  // disagree about what the evidence adds up to.
-  // Only an owner may delete a call; erase_conversation refuses anyone else.
-  // Read here so the section is not offered to someone it would refuse.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: ownership } = await supabase
-    .from('company_members')
-    .select('role')
-    .eq('user_id', user?.id ?? '')
-    .eq('role', 'owner')
-    .limit(1);
-  const isOwner = (ownership ?? []).length > 0;
-  // edit_conversation's own rule, asked here only so the form is not offered
-  // to someone it would refuse.
-  const mayEdit = isOwner || (user !== null && conversation.added_by === user.id);
-
-  const { data: viewerRows } = isOwner
-    ? await supabase.rpc('conversation_viewers', { p_conversation_id: id })
-    : { data: null };
-  const viewers = (viewerRows ?? []).map((row) => ({
-    email: row.email,
-    lastViewedAt: row.last_viewed_at,
-    views: Number(row.views),
-    duringSupport: row.during_support,
-  }));
-
-  const scored = await scoreConversation(supabase, conversation);
-  const card = scored.scorecard;
-  const pipeline = (await conversationPipeline(supabase)).get(id);
-  const stage = stageOf(pipeline);
-  const command = nextCommand(stage, id);
-  // Extraction has run if it stored anything or recorded any usage — a run
-  // that found nothing is still a run, and the button must not come back for
-  // it. Independent of embedding, which is a separate step.
-  const extracted = (pipeline?.signals ?? 0) > 0 || (pipeline?.extractionRuns ?? 0) > 0;
-  // Extraction ran and stored nothing. Worth saying plainly rather than
-  // leaving a reader to wonder whether the pass is still owed.
-  const foundNothing = extracted && (pipeline?.signals ?? 0) === 0;
-  const observed = card.criteria.some((criterion) => criterion.status !== 'unobserved');
-
-  const [segments, signals, notes, edits, { data: team }, sets] = await Promise.all([
+  const [
+    { data: ownership },
+    { data: viewerRows },
+    scored,
+    pipeline,
+    segments,
+    signals,
+    notes,
+    edits,
+    { data: team },
+    sets,
+    { data: accountRows },
+    { data: correctionRows },
+    { data: crm },
+    { data: crmLog },
+    { data: attendeeRows },
+    { data: ourRows },
+    { data: momentRows },
+    { data: actionRows },
+    { data: followUpRow },
+    { data: sendRows },
+  ] = await Promise.all([
+    // Only an owner may delete a call; erase_conversation refuses anyone else.
+    // Read here so the section is not offered to someone it would refuse.
+    supabase.from('company_members').select('role').eq('user_id', user?.id ?? '').eq('role', 'owner').limit(1),
+    // Who has opened the call: shown to owners only, and refused to anyone
+    // else by the function itself, so asking alongside costs a member nothing.
+    supabase.rpc('conversation_viewers', { p_conversation_id: id }),
+    // Computed on read from the quoted spans in criterion_events, by the same
+    // two pure functions the live overlay runs. Nothing stored is a score
+    // (invariant 1), so this page and a call happening right now cannot
+    // disagree about what the evidence adds up to.
+    scoreConversation(supabase, conversation),
+    conversationStage(supabase, id),
     readAll<SegmentRow>(
       (from, to) =>
         supabase
@@ -306,57 +300,26 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
       'Could not load the call history',
     ),
     supabase.rpc('company_team'),
-    mayEdit ? fetchCriteriaSets(supabase, conversation.company_id) : Promise.resolve([]),
-  ]);
-  const { data: accountRows } = await supabase.from('accounts').select('id, name, domain').order('name').limit(500);
-  const emailOf = new Map((team ?? []).map((person) => [person.user_id, person.is_you ? 'You' : person.email]));
-  const nameOf = (userId: string | null) => (userId ? (emailOf.get(userId) ?? 'A former member') : 'A former member');
-  // People's corrections to the score: evidence like any other, with who and why.
-  const { data: correctionRows } = await supabase
-    .from('criterion_events')
-    .select('id, criterion_key, kind, quote, segment_id, reason, recorded_by')
-    .eq('conversation_id', id)
-    .eq('detector', 'person')
-    .order('created_at');
-  const labelOf = new Map(card.criteria.map((criterion) => [criterion.key, criterion.label]));
-  const markedUnmet = new Set(
-    (correctionRows ?? []).filter((row) => row.kind === 'contradiction').map((row) => row.criterion_key),
-  );
-  const corrections: Correction[] = (correctionRows ?? []).map((row) => ({
-    id: row.id,
-    label: labelOf.get(row.criterion_key) ?? row.criterion_key,
-    kind: row.kind === 'contradiction' ? 'contradiction' : 'evidence',
-    quote: row.quote,
-    segmentId: row.segment_id,
-    reason: row.reason ?? '',
-    by: nameOf(row.recorded_by),
-    mayWithdraw: isOwner || (user !== null && row.recorded_by === user.id),
-  }));
-  const account = (accountRows ?? []).find((row) => row.id === conversation.account_id) ?? null;
-  const accountName = account?.name ?? null;
-  // Where the call can be logged: the company's CRM, if an owner connected one
-  // (ADR 0024), and the note already made for this call.
-  const [{ data: crm }, { data: crmLog }, { data: attendeeRows }] = await Promise.all([
+    // The scorecards the edit form offers; read for everyone and used only
+    // where the form is shown, rather than waiting on who may edit first.
+    fetchCriteriaSets(supabase, conversation.company_id),
+    supabase.from('accounts').select('id, name, domain').order('name').limit(500),
+    // People's corrections to the score: evidence like any other, with who and why.
+    supabase
+      .from('criterion_events')
+      .select('id, criterion_key, kind, quote, segment_id, reason, recorded_by')
+      .eq('conversation_id', id)
+      .eq('detector', 'person')
+      .order('created_at'),
+    // Where the call can be logged: the company's CRM, if an owner connected
+    // one (ADR 0024), and the note already made for this call.
     supabase.from('company_crms').select('provider').eq('company_id', conversation.company_id).maybeSingle(),
     supabase.from('crm_logs').select('crm_company_name, logged_by, logged_at').eq('conversation_id', id).maybeSingle(),
     // Who from outside was invited, from the caller's calendar (ADR 0026).
     supabase.from('call_attendees').select('email, name, meeting_title').eq('conversation_id', id).order('email'),
-  ]);
-  const attendees = attendeeRows ?? [];
-  // Which speakers are this company's own people, and which lines are already examples.
-  const [{ data: ourRows }, { data: momentRows }] = await Promise.all([
+    // Which speakers are this company's own people, and which lines are already examples.
     supabase.from('our_speakers').select('name'),
     supabase.from('moments').select('segment_id, criterion_key').eq('conversation_id', id),
-  ]);
-  const ours = new Set((ourRows ?? []).map((row) => speakerKey(row.name)));
-  const examplesOf = new Map<string, string[]>();
-  for (const moment of momentRows ?? []) {
-    const list = examplesOf.get(moment.segment_id) ?? [];
-    list.push(labelOf.get(moment.criterion_key) ?? moment.criterion_key);
-    examplesOf.set(moment.segment_id, list);
-  }
-  const criterionOptions = card.criteria.map((criterion) => ({ key: criterion.key, label: criterion.label }));
-  const [{ data: actionRows }, { data: followUpRow }, { data: sendRows }] = await Promise.all([
     supabase
       .from('action_items')
       .select('id, action, owner_side, owner_name, due, done, segment_id, quote')
@@ -374,6 +337,57 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
       .order('created_at', { ascending: false })
       .limit(10),
   ]);
+
+  const isOwner = (ownership ?? []).length > 0;
+  // edit_conversation's own rule, asked here only so the form is not offered
+  // to someone it would refuse.
+  const mayEdit = isOwner || (user !== null && conversation.added_by === user.id);
+  const viewers = (isOwner ? (viewerRows ?? []) : []).map((row) => ({
+    email: row.email,
+    lastViewedAt: row.last_viewed_at,
+    views: Number(row.views),
+    duringSupport: row.during_support,
+  }));
+
+  const card = scored.scorecard;
+  const stage = stageOf(pipeline);
+  const command = nextCommand(stage, id);
+  // Extraction has run if it stored anything or recorded any usage — a run
+  // that found nothing is still a run, and the button must not come back for
+  // it. Independent of embedding, which is a separate step.
+  const extracted = (pipeline?.signals ?? 0) > 0 || (pipeline?.extractionRuns ?? 0) > 0;
+  // Extraction ran and stored nothing. Worth saying plainly rather than
+  // leaving a reader to wonder whether the pass is still owed.
+  const foundNothing = extracted && (pipeline?.signals ?? 0) === 0;
+  const observed = card.criteria.some((criterion) => criterion.status !== 'unobserved');
+
+  const emailOf = new Map((team ?? []).map((person) => [person.user_id, person.is_you ? 'You' : person.email]));
+  const nameOf = (userId: string | null) => (userId ? (emailOf.get(userId) ?? 'A former member') : 'A former member');
+  const labelOf = new Map(card.criteria.map((criterion) => [criterion.key, criterion.label]));
+  const markedUnmet = new Set(
+    (correctionRows ?? []).filter((row) => row.kind === 'contradiction').map((row) => row.criterion_key),
+  );
+  const corrections: Correction[] = (correctionRows ?? []).map((row) => ({
+    id: row.id,
+    label: labelOf.get(row.criterion_key) ?? row.criterion_key,
+    kind: row.kind === 'contradiction' ? 'contradiction' : 'evidence',
+    quote: row.quote,
+    segmentId: row.segment_id,
+    reason: row.reason ?? '',
+    by: nameOf(row.recorded_by),
+    mayWithdraw: isOwner || (user !== null && row.recorded_by === user.id),
+  }));
+  const account = (accountRows ?? []).find((row) => row.id === conversation.account_id) ?? null;
+  const accountName = account?.name ?? null;
+  const attendees = attendeeRows ?? [];
+  const ours = new Set((ourRows ?? []).map((row) => speakerKey(row.name)));
+  const examplesOf = new Map<string, string[]>();
+  for (const moment of momentRows ?? []) {
+    const list = examplesOf.get(moment.segment_id) ?? [];
+    list.push(labelOf.get(moment.criterion_key) ?? moment.criterion_key);
+    examplesOf.set(moment.segment_id, list);
+  }
+  const criterionOptions = card.criteria.map((criterion) => ({ key: criterion.key, label: criterion.label }));
   const followUpLines = [...(followUpRow?.follow_up_lines ?? [])]
     .sort((a, b) => a.position - b.position)
     .map((line) => ({

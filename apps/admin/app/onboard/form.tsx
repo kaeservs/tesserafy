@@ -15,16 +15,35 @@ const START: ProvisionState = { status: 'idle' };
  * an hour — the project's OTP expiry — which the result says, because a link
  * that quietly expired overnight reads to the customer as a broken product.
  */
-export function ProvisionForm({ companies }: { companies: { id: string; name: string }[] }) {
+export interface Prefill {
+  readonly email?: string;
+  readonly companyName?: string;
+  readonly plan?: string;
+  /** The early-access entry this invites, marked invited once they are added. */
+  readonly earlyAccess?: string;
+}
+
+/** Plans a company can be started on here, cheapest first. */
+const PLANS = [
+  ['free', 'free'],
+  ['trial', 'trial'],
+  ['basic', 'basic (Starter)'],
+  ['pro', 'pro'],
+  ['incognito', 'incognito'],
+  ['pilot', 'pilot'],
+  ['internal', 'internal'],
+] as const;
+
+export function ProvisionForm({ companies, prefill = {} }: { companies: { id: string; name: string }[]; prefill?: Prefill }) {
   const [state, action, pending] = useActionState(provisionAccount, START);
   const [target, setTarget] = useState('new');
   // Held here so a refused attempt keeps what was typed: React resets a
   // form's uncontrolled fields after every action.
-  const [email, setEmail] = useState('');
-  const [companyName, setCompanyName] = useState('');
+  const [email, setEmail] = useState(prefill.email ?? '');
+  const [companyName, setCompanyName] = useState(prefill.companyName ?? '');
   // The selects too: reset to their defaults, a retried "paid" would quietly
   // go through as "pilot".
-  const [plan, setPlan] = useState('pilot');
+  const [plan, setPlan] = useState(prefill.plan ?? 'pilot');
   const [role, setRole] = useState('member');
 
   if (state.status === 'ready') {
@@ -33,6 +52,15 @@ export function ProvisionForm({ companies }: { companies: { id: string; name: st
 
   return (
     <form action={action} className="card">
+      {prefill.earlyAccess ? (
+        <>
+          <input type="hidden" name="earlyAccess" value={prefill.earlyAccess} />
+          <p className="muted" style={{ marginTop: 0 }}>
+            From the early-access list: a new company on Free with them as its owner, and marked invited once they are added.
+            Send them the link.
+          </p>
+        </>
+      ) : null}
       <div className="row">
         <div>
           <label htmlFor="email">Email</label>
@@ -85,11 +113,11 @@ export function ProvisionForm({ companies }: { companies: { id: string; name: st
               value={plan}
               onChange={(event) => setPlan(event.target.value)}
             >
-              <option value="pilot">pilot</option>
-              <option value="trial">trial</option>
-              <option value="basic">basic</option>
-              <option value="pro">pro</option>
-              <option value="internal">internal</option>
+              {PLANS.map(([id, label]) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
             </select>
           </div>
           <div className="go">

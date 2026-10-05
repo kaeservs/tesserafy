@@ -2,7 +2,7 @@ import { requireAdmin } from '@/lib/admin';
 import { listCompanies } from '@/lib/companies';
 import { utc } from '@/lib/time';
 import { Chrome } from '../chrome';
-import { ProvisionForm } from './form';
+import { ProvisionForm, type Prefill } from './form';
 import { RequestsPanel } from './request-actions';
 
 /**
@@ -14,8 +14,22 @@ import { RequestsPanel } from './request-actions';
  */
 export const dynamic = 'force-dynamic';
 
-export default async function Onboard() {
+const PREFILL_PLANS = new Set(['free', 'trial', 'basic', 'pro', 'incognito', 'pilot', 'internal']);
+
+export default async function Onboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ email?: string; company?: string; plan?: string; early?: string }>;
+}) {
   const admin = await requireAdmin();
+  // From "Invite to the beta" on Early access: who, their company, Free.
+  const { email, company, plan, early } = await searchParams;
+  const prefill: Prefill = {
+    ...(email ? { email } : {}),
+    ...(company ? { companyName: company } : {}),
+    ...(plan && PREFILL_PLANS.has(plan) ? { plan } : {}),
+    ...(early ? { earlyAccess: early } : {}),
+  };
   const [{ companies }, { data: log, error }, { data: requests }] = await Promise.all([
     // Through admin_companies, not the table: an operator is not a member of
     // the companies they look after, so RLS would show them none.
@@ -58,6 +72,7 @@ export default async function Onboard() {
       />
 
       <ProvisionForm
+        prefill={prefill}
         // A closed company cannot take anyone; the database would refuse.
         companies={companies
           .filter((c) => !c.closedAt)

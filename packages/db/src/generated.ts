@@ -2347,9 +2347,12 @@ export type Database = {
           calls: number | null
           extractions: number | null
           id: string
+          incognito: boolean
           live_minutes: number | null
+          max_seats: number | null
           name: string
           pattern_runs: number | null
+          per_seat: boolean
           price_usd_cents: number | null
           questions: number | null
           rank: number
@@ -2361,9 +2364,12 @@ export type Database = {
           calls?: number | null
           extractions?: number | null
           id: string
+          incognito?: boolean
           live_minutes?: number | null
+          max_seats?: number | null
           name: string
           pattern_runs?: number | null
+          per_seat?: boolean
           price_usd_cents?: number | null
           questions?: number | null
           rank: number
@@ -2375,9 +2381,12 @@ export type Database = {
           calls?: number | null
           extractions?: number | null
           id?: string
+          incognito?: boolean
           live_minutes?: number | null
+          max_seats?: number | null
           name?: string
           pattern_runs?: number | null
+          per_seat?: boolean
           price_usd_cents?: number | null
           questions?: number | null
           rank?: number
@@ -2815,6 +2824,7 @@ export type Database = {
           provider_customer_id: string | null
           provider_subscription_id: string | null
           scheduled_plan: string | null
+          seats: number
           status: string
           updated_at: string
         }
@@ -2827,6 +2837,7 @@ export type Database = {
           provider_customer_id?: string | null
           provider_subscription_id?: string | null
           scheduled_plan?: string | null
+          seats?: number
           status: string
           updated_at?: string
         }
@@ -2839,6 +2850,7 @@ export type Database = {
           provider_customer_id?: string | null
           provider_subscription_id?: string | null
           scheduled_plan?: string | null
+          seats?: number
           status?: string
           updated_at?: string
         }
@@ -3319,10 +3331,14 @@ export type Database = {
         }
         Returns: Json
       }
-      billing_checkout: { Args: { p_plan: string }; Returns: Json }
+      billing_checkout: {
+        Args: { p_plan: string; p_seats?: number }
+        Returns: Json
+      }
       billing_customer: { Args: never; Returns: string }
       cancel_plan: { Args: never; Returns: undefined }
       change_plan: { Args: { p_plan: string }; Returns: string }
+      change_seats: { Args: { p_seats: number }; Returns: number }
       claim_insight_ticket: { Args: { p_insight_id: string }; Returns: boolean }
       close_company: {
         Args: { p_company_id: string; p_confirm_name: string; p_reason: string }

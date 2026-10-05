@@ -1,7 +1,7 @@
 'use client';
 
 import { TableScroll } from '@/components/table-scroll';
-import { useActionState } from 'react';
+import { useActionState, useState, type ReactNode } from 'react';
 import { planAction, type PlanActionState } from '@/app/(dashboard)/settings/plan-actions';
 
 const START: PlanActionState = { status: 'idle' };
@@ -15,12 +15,21 @@ export interface PlanOverview {
   cancel_at_period_end: boolean;
   scheduled_plan: string | null;
   meters: { meter: string; limit: number | null; used: number }[];
+  /** Per seat (ADR 0027): priced and allowed per seat, how many it has, how many are used, the most it may have. */
+  per_seat?: boolean;
+  seats?: number;
+  members?: number;
+  seat_limit?: number | null;
+  /** Whether the overlay hides from screen sharing on this plan. */
+  incognito?: boolean;
 }
 
 export interface CatalogPlan {
   id: string;
   name: string;
   price_usd_cents: number;
+  rank: number;
+  incognito: boolean;
   calls: number;
   extractions: number;
   pattern_runs: number;
@@ -44,18 +53,30 @@ function dollars(cents: number): string {
   return `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
 }
 
+/** Plans an owner starts a paid plan from, rather than moves between. */
+const STARTING = new Set(['none', 'free', 'trial']);
+
 /** Where the company stands, in a sentence. */
-function standing(o: PlanOverview): string {
+function standing(o: PlanOverview, catalog: readonly CatalogPlan[]): string {
   if (o.plan === 'none') {
     return 'No plan. Reading, search, export and deleting still work; the AI features need a plan.';
   }
-  if (o.plan === 'trial') return `Trial — ends ${day(o.period_end)}. Choose Basic or Pro to keep the AI features after that.`;
+  if (o.plan === 'free') return 'Free — one seat and a small allowance each month. Starter, Pro or Incognito for more.';
+  if (o.plan === 'trial') return `Trial — ends ${day(o.period_end)}. After that you are on Free; choose a plan to keep more.`;
   if (o.plan === 'pilot' || o.plan === 'internal') return `${o.plan_name} — set by Tesserafy, with no monthly limits.`;
-  const price = o.price_usd_cents ? `${dollars(o.price_usd_cents)} a month, ` : '';
   if (o.cancel_at_period_end) {
-    return `${o.plan_name} — cancels on ${day(o.period_end)}. After that the AI features stop; your calls stay.`;
+    return `${o.plan_name} — cancels on ${day(o.period_end)}. After that you are on Free; your calls stay.`;
   }
-  if (o.scheduled_plan) return `${o.plan_name} — moves to ${o.scheduled_plan === 'basic' ? 'Basic' : o.scheduled_plan} on ${day(o.period_end)}.`;
+  if (o.scheduled_plan) {
+    const next = catalog.find((plan) => plan.id === o.scheduled_plan)?.name ?? o.scheduled_plan;
+    return `${o.plan_name} — moves to ${next} on ${day(o.period_end)}.`;
+  }
+  const seats = o.per_seat ? (o.seats ?? 1) : 1;
+  const price = o.price_usd_cents
+    ? o.per_seat
+      ? `${dollars(o.price_usd_cents)} a seat × ${seats} = ${dollars(o.price_usd_cents * seats)} a month, `
+      : `${dollars(o.price_usd_cents)} a month, `
+    : '';
   return `${o.plan_name} — ${price}renews ${day(o.period_end)}.`;
 }
 
@@ -67,13 +88,41 @@ function usage(meter: PlanOverview['meters'][number]): string {
   return `${used} of ${limit}`;
 }
 
+function PlanCard({
+  plan,
+  current,
+  liveAvailable,
+  children,
+}: {
+  plan: CatalogPlan;
+  current: boolean;
+  liveAvailable: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className="card">
+      <h3 style={{ marginTop: 0 }}>
+        {plan.name} — {dollars(plan.price_usd_cents)} a seat a month {current ? <span className="muted">(yours)</span> : null}
+      </h3>
+      <p className="muted" style={{ marginBottom: '0.5rem' }}>
+        Each seat: {plan.calls} imported calls, {plan.extractions} “Find insights in this call”, {plan.pattern_runs} “Look for
+        patterns”, {plan.questions} questions to Ask, {plan.live_minutes} live minutes
+        {liveAvailable ? '' : ' (when live opens)'} — a month.{' '}
+        {plan.incognito ? <strong>The overlay is hidden from screen sharing.</strong> : 'The overlay shows if you share your screen.'}
+      </p>
+      {children}
+    </div>
+  );
+}
+
 /**
  * The plan, what is left of it, and — for an owner — how to change it.
  *
  * Every member sees where the company stands: running out of calls
  * mid-month is something the person importing them should be able to see
  * coming. Only an owner is offered the buttons, because only an owner may
- * change what the company pays for.
+ * change what the company pays for. Paid plans are per seat (ADR 0027): each
+ * seat brings its allowance, and nobody joins without one.
  */
 export function PlanPanel({
   overview,
@@ -88,7 +137,7 @@ export function PlanPanel({
   overview: PlanOverview;
   catalog: CatalogPlan[];
   isOwner: boolean;
-  /** False until live scorecards launch for this company: the minutes are shown as coming. */
+  /** False until live calls open for this company: the minutes are shown as coming. */
   liveAvailable: boolean;
   /**
    * How the plan is paid for (ADR 0025): free until payments are on; then a
@@ -108,12 +157,22 @@ export function PlanPanel({
   const [result, act, busy] = useActionState(planAction, START);
   const granted = overview.plan === 'pilot' || overview.plan === 'internal';
   const pending = overview.cancel_at_period_end || overview.scheduled_plan !== null;
+  const members = Math.max(overview.members ?? 1, 1);
+  const [seats, setSeats] = useState(Math.max(overview.seats ?? 1, members));
+  const currentRank = catalog.find((plan) => plan.id === overview.plan)?.rank ?? -1;
+  const starting = STARTING.has(overview.plan);
 
   return (
     <div>
       <p>
-        <strong>{standing(overview)}</strong>
+        <strong>{standing(overview, catalog)}</strong>
       </p>
+      {overview.seat_limit != null ? (
+        <p className="muted">
+          Seats: {overview.members ?? 1} of {overview.seat_limit} used.
+          {(overview.members ?? 1) >= overview.seat_limit ? ' Add a seat before inviting anyone.' : ''}
+        </p>
+      ) : null}
       <TableScroll label="Plan allowance">
         <table className="team">
           <thead>
@@ -127,9 +186,7 @@ export function PlanPanel({
               <tr key={meter.meter}>
                 <td>
                   {METER_LABEL[meter.meter] ?? meter.meter}
-                  {meter.meter === 'live_seconds' && !liveAvailable ? (
-                    <span className="muted"> — live scorecards are coming soon</span>
-                  ) : null}
+                  {meter.meter === 'live_seconds' && !liveAvailable ? <span className="muted"> — live calls open soon</span> : null}
                 </td>
                 <td className="muted when">{usage(meter)}</td>
               </tr>
@@ -148,47 +205,64 @@ export function PlanPanel({
       {isOwner && !granted && billing === 'stripe' ? (
         <form action={act}>
           <input type="hidden" name="page" value={page} />
-                  <input type="hidden" name="intent" value="billing" />
+          <input type="hidden" name="intent" value="billing" />
           <button type="submit" disabled={busy}>
             Manage billing
           </button>{' '}
-          <span className="muted">Change plan, card or invoices, or cancel, in Stripe&apos;s billing page.</span>
+          <span className="muted">Change plan, seats, card or invoices, or cancel, in Stripe&apos;s billing page.</span>
         </form>
+      ) : null}
+
+      {isOwner && !granted && billing !== 'stripe' ? (
+        <div className="toolbar" style={{ marginBottom: '0.75rem' }}>
+          <label htmlFor={`seats${page.replace('/', '-')}`}>Seats</label>
+          <input
+            id={`seats${page.replace('/', '-')}`}
+            type="number"
+            min={members}
+            max={500}
+            value={seats}
+            onChange={(event) => setSeats(Math.max(members, Math.min(500, Number(event.target.value) || members)))}
+            style={{ width: '6rem' }}
+          />
+          <span className="muted">
+            {members} {members === 1 ? 'person' : 'people'} in the company. Each seat is priced, and brings its own allowance.
+          </span>
+          {overview.per_seat && billing === 'free' && seats !== (overview.seats ?? 1) ? (
+            <form action={act} style={{ display: 'inline' }}>
+              <input type="hidden" name="page" value={page} />
+              <input type="hidden" name="intent" value="seats" />
+              <input type="hidden" name="seats" value={seats} />
+              <button type="submit" disabled={busy}>
+                Set {seats} seats
+              </button>
+            </form>
+          ) : null}
+        </div>
       ) : null}
 
       {isOwner && !granted && billing === 'checkout' ? (
         <div className="plan-choices">
           {catalog.map((plan) => {
             const current = overview.plan === plan.id;
-            const start = overview.plan === 'trial' || overview.plan === 'none';
-            const label = start ? `Start ${plan.name}` : current ? `Pay for ${plan.name} to keep it` : `Switch to ${plan.name}`;
+            const label = starting ? `Start ${plan.name}` : current ? `Pay for ${plan.name} to keep it` : `Switch to ${plan.name}`;
             return (
-              <div className="card" key={plan.id}>
-                <h3 style={{ marginTop: 0 }}>
-                  {plan.name} — {dollars(plan.price_usd_cents)} a month {current ? <span className="muted">(yours)</span> : null}
-                </h3>
-                <p className="muted" style={{ marginBottom: '0.5rem' }}>
-                  {plan.calls} imported calls, {plan.extractions} “Find insights in this call”,{' '}
-                  {plan.pattern_runs} “Look for patterns”, {plan.questions} questions to Ask,{' '}
-                  {plan.live_minutes} live minutes
-                  {liveAvailable ? '' : ' (when live launches)'} — a month.
-                </p>
+              <PlanCard key={plan.id} plan={plan} current={current} liveAvailable={liveAvailable}>
                 <form action={act}>
                   <input type="hidden" name="page" value={page} />
                   <input type="hidden" name="intent" value="checkout" />
                   <input type="hidden" name="plan" value={plan.id} />
+                  <input type="hidden" name="seats" value={seats} />
                   <button type="submit" disabled={busy}>
-                    {label}
+                    {label} — {seats} {seats === 1 ? 'seat' : 'seats'}, {dollars(plan.price_usd_cents * seats)} a month
                   </button>
                 </form>
-              </div>
+              </PlanCard>
             );
           })}
           <p className="muted">
-            Paid monthly through Stripe. Once you pay, change plan or cancel any time in billing.
-            {overview.plan === 'basic' || overview.plan === 'pro'
-              ? ` The free plan you have runs to ${day(overview.period_end)}.`
-              : ''}
+            Paid monthly through Stripe, per seat. Once you pay, change plan, seats or cancel any time in billing.
+            {overview.per_seat && !starting ? ` The free plan you have runs to ${day(overview.period_end)}.` : ''}
           </p>
         </div>
       ) : null}
@@ -197,58 +271,45 @@ export function PlanPanel({
         <div className="plan-choices">
           {catalog.map((plan) => {
             const current = overview.plan === plan.id;
-            const upgrade = overview.plan === 'basic' && plan.id === 'pro';
-            const downgrade = overview.plan === 'pro' && plan.id === 'basic';
-            const start = overview.plan === 'trial' || overview.plan === 'none';
-            const keep = current && pending;
-            const label = start
+            const label = starting
               ? `Start ${plan.name}`
-              : upgrade
-                ? 'Upgrade to Pro'
-                : downgrade
-                  ? overview.scheduled_plan === 'basic'
+              : current
+                ? pending
+                  ? `Keep ${plan.name}`
+                  : null
+                : plan.rank > currentRank
+                  ? `Upgrade to ${plan.name}`
+                  : overview.scheduled_plan === plan.id
                     ? null
-                    : 'Move to Basic at the end of this period'
-                  : keep
-                    ? `Keep ${plan.name}`
-                    : null;
+                    : `Move to ${plan.name} at the end of this period`;
             return (
-              <div className="card" key={plan.id}>
-                <h3 style={{ marginTop: 0 }}>
-                  {plan.name} — {dollars(plan.price_usd_cents)} a month {current ? <span className="muted">(yours)</span> : null}
-                </h3>
-                <p className="muted" style={{ marginBottom: '0.5rem' }}>
-                  {plan.calls} imported calls, {plan.extractions} “Find insights in this call”,{' '}
-                  {plan.pattern_runs} “Look for patterns”, {plan.questions} questions to Ask,{' '}
-                  {plan.live_minutes} live minutes
-                  {liveAvailable ? '' : ' (when live launches)'} — a month.
-                </p>
+              <PlanCard key={plan.id} plan={plan} current={current} liveAvailable={liveAvailable}>
                 {label ? (
                   <form action={act}>
                     <input type="hidden" name="page" value={page} />
-                  <input type="hidden" name="intent" value="change" />
+                    <input type="hidden" name="intent" value="change" />
                     <input type="hidden" name="plan" value={plan.id} />
                     <button type="submit" disabled={busy}>
                       {label}
                     </button>
                   </form>
                 ) : null}
-              </div>
+              </PlanCard>
             );
           })}
-          {(overview.plan === 'basic' || overview.plan === 'pro') && !overview.cancel_at_period_end ? (
+          {overview.per_seat && !overview.cancel_at_period_end ? (
             <form action={act}>
               <input type="hidden" name="page" value={page} />
-                  <input type="hidden" name="intent" value="cancel" />
+              <input type="hidden" name="intent" value="cancel" />
               <button type="submit" disabled={busy}>
                 Cancel plan
               </button>{' '}
-              <span className="muted">It runs to {day(overview.period_end)}; your calls stay after that.</span>
+              <span className="muted">It runs to {day(overview.period_end)}; then you are on Free, and your calls stay.</span>
             </form>
           ) : null}
           <p className="muted">
-            Payments are not live yet: plans are free until checkout opens. Upgrades apply at once;
-            moving down or cancelling waits for the end of the period you have.
+            Payments are not live yet: plans are free until checkout opens. Upgrades apply at once; moving down or
+            cancelling waits for the end of the period you have.
           </p>
         </div>
       ) : null}

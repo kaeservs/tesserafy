@@ -1,4 +1,5 @@
 import { fetchCriteriaSets, type SupabaseClient } from '@tesserafy/db';
+import { transcriptionAvailable } from './transcription';
 
 /**
  * The signed-in person's company, as far as pages need it.
@@ -36,6 +37,21 @@ export async function myCompanyId(db: SupabaseClient, userId?: string): Promise<
  */
 export function liveAvailable(plan: string | undefined): boolean {
   return plan === 'internal';
+}
+
+/** The plans a customer's live calls come with: every plan with live minutes. */
+const LIVE_PLANS = new Set(['free', 'trial', 'basic', 'pro', 'incognito', 'pilot']);
+
+/**
+ * Whether live calls — the overlay listening, scoring and helping — are open
+ * to a company (ADR 0027). Customers get them once the transcriber that runs
+ * under our own terms is set up (Deepgram, ADR 0022): what kept Live to our
+ * own company was the browser's speech recognition sending customer audio to
+ * the browser vendor. Our own company always, as the test bench it is.
+ */
+export function liveCallsAvailable(plan: string | undefined | null): boolean {
+  if (plan === 'internal') return true;
+  return transcriptionAvailable() && plan != null && LIVE_PLANS.has(plan);
 }
 
 /** "discovery" → "Discovery", "quarterly_review" → "Quarterly review". */

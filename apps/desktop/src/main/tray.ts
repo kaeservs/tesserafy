@@ -44,6 +44,8 @@ export interface TrayControls {
   clickThrough(): boolean;
   setClickThrough(enabled: boolean): void;
   protection(): boolean;
+  /** Whether the plan hides the overlay from screen sharing at all (Incognito). */
+  incognito(): boolean;
   setProtection(enabled: boolean): void;
   /** This overlay's version, and a newer one if there is one. */
   version(): string;
@@ -102,8 +104,9 @@ export function createTray(controls: TrayControls): OverlayTray {
         },
         {
           label: 'Hidden from screen share',
-          sublabel: 'Always on at start. Off only to test that it works',
+          sublabel: controls.incognito() ? 'Always on at start. Off only to test that it works' : 'On the Incognito plan',
           type: 'checkbox',
+          enabled: controls.incognito(),
           checked: controls.protection(),
           click: (item) => controls.setProtection(item.checked),
         },

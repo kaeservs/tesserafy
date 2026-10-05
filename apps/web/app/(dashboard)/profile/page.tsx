@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { NameForm } from '@/components/name-form';
 import { PlanPanel, type CatalogPlan, type PlanOverview } from '@/components/plan-panel';
 import { billingMode } from '@/lib/billing';
-import { liveAvailable } from '@/lib/company';
+import { liveCallsAvailable } from '@/lib/company';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -24,7 +24,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
       supabase.rpc('plan_overview'),
       supabase
         .from('plans')
-        .select('id, name, price_usd_cents, calls, extractions, pattern_runs, questions, live_minutes')
+        .select('id, name, price_usd_cents, rank, incognito, calls, extractions, pattern_runs, questions, live_minutes')
         .eq('self_serve', true)
         .order('rank'),
       supabase.rpc('company_team'),
@@ -64,7 +64,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
             overview={overview as unknown as PlanOverview}
             catalog={(catalog ?? []) as CatalogPlan[]}
             isOwner={isOwner}
-            liveAvailable={liveAvailable(membership?.companies?.plan)}
+            liveAvailable={liveCallsAvailable(membership?.companies?.plan)}
             billing={billing}
             returnedFromCheckout={returned === 'started'}
             page="/profile"

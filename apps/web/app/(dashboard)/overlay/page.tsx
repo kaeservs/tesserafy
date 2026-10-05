@@ -16,8 +16,8 @@ export default async function OverlayPage() {
       <p className="muted">
         A small window that sits over your meeting — Zoom, Teams, Meet in a browser — and only you can see. It scores the
         call as it happens, answers Assist, What should I say?, Follow-up questions and Recap, and before a call answers
-        questions about your past calls with that customer. No bot joins the meeting and it never appears in a screen
-        share.
+        questions about your past calls with that customer. No bot joins the meeting. On Incognito it never appears
+        in a screen share; on the other plans it shows if you share your screen.
       </p>
 
       <section className="card" aria-labelledby="download-heading">

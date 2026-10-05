@@ -47,17 +47,25 @@ let tray: OverlayTray | null = null;
  */
 let protection = true;
 let clickThrough = false;
+/**
+ * Whether the account's plan hides the overlay from screen sharing (Incognito,
+ * ADR 0027). Until the setup says, it stays hidden — the safe way round for
+ * someone who pays for it; once it says otherwise, protection goes off and
+ * cannot be put back on, and the overlay shows in a share like any window.
+ */
+let incognito = true;
 /** The first measured height shows the window; after that, only the user does. */
 let shownOnce = false;
 
 function announce(): void {
-  overlay?.webContents.send('overlay:state', { protection, clickThrough });
+  overlay?.webContents.send('overlay:state', { protection, clickThrough, incognito });
   tray?.refresh();
 }
 
 function setProtection(enabled: boolean): void {
-  protection = enabled;
-  overlay?.setContentProtection(enabled);
+  // Hidden from screen sharing is the Incognito plan's (ADR 0027).
+  protection = enabled && incognito;
+  overlay?.setContentProtection(protection);
   announce();
 }
 
@@ -419,6 +427,7 @@ void app.whenReady().then(async () => {
     clickThrough: () => clickThrough,
     setClickThrough,
     protection: () => protection,
+    incognito: () => incognito,
     setProtection,
     version: () => app.getVersion(),
     update: () => available?.version ?? null,
@@ -471,8 +480,11 @@ void app.whenReady().then(async () => {
     const response = await session.fetch('/api/live/setup');
     if (!response) return NOT_SIGNED_IN;
     if (!response.ok) return { error: `setup failed: ${response.status}` };
-    const setup = (await response.json()) as { look?: Record<string, unknown>; detectCalls?: unknown };
+    const setup = (await response.json()) as { look?: Record<string, unknown>; detectCalls?: unknown; incognito?: unknown };
     detectCalls = setup.detectCalls !== false;
+    // The plan decides whether the overlay hides from screen sharing.
+    incognito = setup.incognito === true;
+    setProtection(incognito);
     const look = setup.look ?? {};
     // The dashboard is where the look is set, so what it leaves unset is the
     // default — not whatever the last person on this computer chose.

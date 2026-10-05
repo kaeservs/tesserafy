@@ -1,7 +1,7 @@
 import { redact } from '@tesserafy/ingest';
 import type { ScreenImage } from '@tesserafy/ai';
 import type { SupabaseClient } from '@tesserafy/db';
-import { liveAvailable, myCompanyId } from './company';
+import { liveCallsAvailable, myCompanyId } from './company';
 
 /**
  * What the live endpoints (/api/detect, /api/suggest, /api/live/*) accept.
@@ -112,12 +112,12 @@ const planCache = new Map<string, { plan: string | null; at: number }>();
  */
 export async function liveAllowedFor(db: SupabaseClient, userId: string): Promise<boolean> {
   const cached = planCache.get(userId);
-  if (cached && Date.now() - cached.at < PLAN_TTL_MS) return liveAvailable(cached.plan ?? undefined);
+  if (cached && Date.now() - cached.at < PLAN_TTL_MS) return liveCallsAvailable(cached.plan);
   const companyId = await myCompanyId(db, userId);
   const { data } = companyId ? await db.from('companies').select('plan').eq('id', companyId).maybeSingle() : { data: null };
   const plan = data?.plan ?? null;
   planCache.set(userId, { plan, at: Date.now() });
-  return liveAvailable(plan ?? undefined);
+  return liveCallsAvailable(plan);
 }
 
 /** About 1.5 MB decoded: a full-HD JPEG is a few hundred kilobytes. */

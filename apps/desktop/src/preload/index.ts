@@ -35,6 +35,10 @@ contextBridge.exposeInMainWorld('overlay', {
     transcription?: 'deepgram' | null;
     // The next meeting with someone outside, from the calendar, and its prep.
     meeting?: { id: string; title: string; startsAt: string; prepId: string | null } | null;
+    // The plan hides the overlay from screen sharing (Incognito), and whether
+    // the browser's speech recognition may stand in (our own company only).
+    incognito?: boolean;
+    engineFallback?: boolean;
     appearance?: Appearance;
     error?: string;
   }> => ipcRenderer.invoke('overlay:setup'),
@@ -135,9 +139,9 @@ contextBridge.exposeInMainWorld('overlay', {
   },
   // The switches changed, possibly from the tray. Only the two booleans cross;
   // the page is never handed the event or ipcRenderer itself.
-  onState: (listener: (state: { protection: boolean; clickThrough: boolean }) => void): void => {
-    ipcRenderer.on('overlay:state', (_event, state: { protection: boolean; clickThrough: boolean }) =>
-      listener({ protection: Boolean(state.protection), clickThrough: Boolean(state.clickThrough) }),
+  onState: (listener: (state: { protection: boolean; clickThrough: boolean; incognito: boolean }) => void): void => {
+    ipcRenderer.on('overlay:state', (_event, state: { protection: boolean; clickThrough: boolean; incognito?: boolean }) =>
+      listener({ protection: Boolean(state.protection), clickThrough: Boolean(state.clickThrough), incognito: state.incognito !== false }),
     );
   },
   setProtection: (enabled: boolean): Promise<boolean> =>

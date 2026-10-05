@@ -158,7 +158,10 @@ The one AI path that is not charged is the sample call (`/api/sample-call`):
 a trial has three imported calls and a demonstration should not cost one, so
 `import_sample_call` allows one per company, ever, and the route sends only
 the app's own sample text. Plan
-changes all go through `private.apply_plan`: owners start, upgrade (now),
+changes are made on Settings or on each person's Profile (`/profile`, the
+same plan panel: owners start, upgrade, move down, cancel or open Stripe's
+billing; members see the plan and which owners to ask — a plan is the
+company's), and all go through `private.apply_plan`: owners start, upgrade (now),
 downgrade or cancel (at period end); the operator sets any plan; a nightly
 job rolls periods over. Payments are Stripe (ADR 0025), and plans stay free
 until an operator sets the webhook's signing secret and both prices (console
@@ -243,7 +246,9 @@ picture is the overlay's own page, dropped — is the customer, each its own Dee
 main process with a one-minute token from `/api/live/transcription-token`
 (`DEEPGRAM_API_KEY` stays on the server; every stream sends `mip_opt_out`).
 Lines are saved as `seller` and `customer`, and only the customer's start a
-detector call. On speakers the microphone hears the customer too, so a
+detector call. The dashboard counts `seller` as your side everywhere
+talk is shown (`ourSpeakerKeys`), so the call page, Home and Reports say what
+the overlay said without anyone marking it. On speakers the microphone hears the customer too, so a
 microphone line that repeats what the customer just said is dropped. Without
 a key the browser engine hears the microphone alone, as before. Deepgram bills
 per streamed minute a side and the server never sees the audio, so the

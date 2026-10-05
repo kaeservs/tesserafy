@@ -94,10 +94,27 @@ function scorecardsOf(rows: readonly CriterionRow[]) {
   return [...byName.values()];
 }
 
+/** What admin_company_integrations returns: connections, counts and billing ids. */
+interface Integrations {
+  crm: { provider: string; account_ref: string; connected_at: string; last_error: string | null; notes: number } | null;
+  tracker: { provider: string; target: string; connected_at: string } | null;
+  calendars: number;
+  emails_sent: number;
+  billing: {
+    provider: string;
+    status: string;
+    customer_id: string | null;
+    subscription_id: string | null;
+    period_end: string | null;
+    cancel_at_period_end: boolean;
+  } | null;
+  last_stripe_event: { type: string; outcome: string; received_at: string } | null;
+}
+
 export default async function CompanyPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const admin = await requireAdmin();
-  const [{ data, error }, { data: people }, { data: roleChanges }, { data: criteria }, { data: agreements }] = await Promise.all([
+  const [{ data, error }, { data: people }, { data: roleChanges }, { data: criteria }, { data: agreements }, { data: integrationData }] = await Promise.all([
     admin.db.rpc('admin_company_detail', { p_company_id: id }),
     // The detail names members by address; changing a role needs their id.
     admin.db.rpc('admin_users'),
@@ -122,7 +139,10 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
       .select('email, terms_version, surface, agreed_at')
       .eq('company_id', id)
       .order('agreed_at', { ascending: false }),
+    // What it is connected to and how it pays: ids and counts, never a token.
+    admin.db.rpc('admin_company_integrations', { p_company_id: id }),
   ]);
+  const integrations = integrationData as unknown as Integrations | null;
   const agreementOf = new Map<string, { terms_version: string; surface: string; agreed_at: string }>();
   for (const row of agreements ?? []) if (!agreementOf.has(row.email.toLowerCase())) agreementOf.set(row.email.toLowerCase(), row);
   const scorecards = scorecardsOf(criteria ?? []);
@@ -186,6 +206,55 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
             Since {utc(d.subscription.period_start)}. Estimated AI spend, 30 days: $
             {Number(d.spend_30d).toFixed(2)}.
           </p>
+        </section>
+
+        <section className="card">
+          <h2 style={{ marginTop: 0 }}>Billing</h2>
+          {integrations?.billing?.provider === 'stripe' ? (
+            <>
+              <p>
+                <span className="tag">Stripe</span> {integrations.billing.status}
+                {integrations.billing.period_end
+                  ? `, ${integrations.billing.cancel_at_period_end ? 'cancels' : 'renews'} ${utc(integrations.billing.period_end)}`
+                  : ''}
+                .
+              </p>
+              <p className="muted" style={{ marginBottom: 0 }}>
+                Customer{' '}
+                <a href={`https://dashboard.stripe.com/customers/${integrations.billing.customer_id ?? ''}`} target="_blank" rel="noreferrer">
+                  {integrations.billing.customer_id}
+                </a>
+                . Closing the company or setting its plan here does not cancel this subscription: cancel it in Stripe.
+              </p>
+            </>
+          ) : (
+            <p style={{ marginBottom: 0 }}>
+              Not paying through Stripe{integrations?.billing?.customer_id ? ` (was customer ${integrations.billing.customer_id})` : ''}.
+            </p>
+          )}
+          {integrations?.last_stripe_event ? (
+            <p className="muted" style={{ marginBottom: 0 }}>
+              Last from Stripe: <code>{integrations.last_stripe_event.type}</code>, {integrations.last_stripe_event.outcome},{' '}
+              {utc(integrations.last_stripe_event.received_at)}.
+            </p>
+          ) : null}
+        </section>
+
+        <section className="card">
+          <h2 style={{ marginTop: 0 }}>Connected</h2>
+          <ul style={{ marginBottom: 0 }}>
+            <li>
+              CRM:{' '}
+              {integrations?.crm
+                ? `HubSpot account ${integrations.crm.account_ref}, since ${utc(integrations.crm.connected_at)} · ${integrations.crm.notes} call${integrations.crm.notes === 1 ? '' : 's'} logged${integrations.crm.last_error ? ` · needs attention: ${integrations.crm.last_error}` : ''}`
+                : 'none'}
+            </li>
+            <li>Tracker: {integrations?.tracker ? `${integrations.tracker.provider} ${integrations.tracker.target}` : 'none'}</li>
+            <li>
+              Calendars: {integrations?.calendars ?? 0} {integrations?.calendars === 1 ? 'person' : 'people'} connected
+            </li>
+            <li>Follow-up emails sent: {integrations?.emails_sent ?? 0}</li>
+          </ul>
         </section>
 
         <section className="card">

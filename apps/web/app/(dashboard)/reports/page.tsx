@@ -7,7 +7,7 @@ import { filterCalls, parseReportFilters, RANGES, reportQuery } from '@/lib/repo
 import { engagementLabel } from '@/lib/company';
 import { ScoreTrend } from '@/components/score-trend';
 import { buildReport, type Seller } from '@/lib/report';
-import { speakerKey, talkBySeller } from '@/lib/talk';
+import { ourSpeakerKeys, talkBySeller } from '@/lib/talk';
 import { teamHeatmap } from '@/lib/heatmap';
 import { GoalForm } from '@/components/goal-form';
 import { createClient } from '@/lib/supabase/server';
@@ -63,7 +63,7 @@ export default async function ReportsPage({
   const isOwner = membership?.role === 'owner';
   const filters = parseReportFilters(params, { isOwner });
   const goalOf = new Map((goalRows ?? []).map((row) => [`${row.engagement_type}/${row.criterion_key}`, Number(row.target)]));
-  const ours = new Set((ourRows ?? []).map((row) => speakerKey(row.name)));
+  const ours = ourSpeakerKeys(ourRows);
   // One list of calls for every table on the page, and for its CSVs.
   const selected = filterCalls(all, filters, user?.id ?? null);
   const now = new Date();
@@ -83,7 +83,7 @@ export default async function ReportsPage({
   const heat = isOwner && heatType ? teamHeatmap(selected, heatType) : null;
   // Who talked, per seller: only once someone has marked whose people are whose.
   const since = new Date(now.getTime() - filters.weeks * 7 * 86_400_000).toISOString();
-  const { data: talkRows } = ours.size > 0 ? await supabase.rpc('conversation_talk', { p_since: since }) : { data: [] };
+  const { data: talkRows } = await supabase.rpc('conversation_talk', { p_since: since });
   const selectedIds = new Set(selected.map((call) => call.id));
   const talk = talkBySeller(
     (talkRows ?? [])
@@ -251,9 +251,9 @@ export default async function ReportsPage({
         )}
         {sellers.length > 0 ? (
           <p className="muted" style={{ fontSize: '0.82rem' }}>
-            {ours.size === 0
-              ? 'Talked — your side’s share of the words — appears once someone marks who is one of yours under Who talked on a call.'
-              : 'Talked is your side’s share of the words, averaged over the calls where both sides are marked.'}
+            {(ourRows ?? []).length === 0
+              ? 'Talked is your side’s share of the words. Live calls that heard both sides count by themselves; an imported call counts once someone marks who is one of yours under Who talked on it.'
+              : 'Talked is your side’s share of the words, averaged over the calls where both sides are known.'}
           </p>
         ) : null}
         {isOwner ? null : (

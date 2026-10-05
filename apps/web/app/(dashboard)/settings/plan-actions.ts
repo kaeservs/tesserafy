@@ -66,12 +66,17 @@ async function cancelPlan(): Promise<PlanActionState> {
   };
 }
 
-/** Where Stripe sends the owner back to: this deployment, as the owner reached it. */
-async function settingsUrl(query = ''): Promise<string> {
+/** The page a plan button was pressed on: Settings or the person's Profile. */
+function pageOf(formData: FormData): '/settings' | '/profile' {
+  return text(formData, 'page') === '/profile' ? '/profile' : '/settings';
+}
+
+/** Where Stripe sends the owner back to: this deployment, as the owner reached it, on the page they left. */
+async function settingsUrl(page: string, query = ''): Promise<string> {
   const h = await headers();
   const host = h.get('x-forwarded-host') ?? h.get('host') ?? 'localhost:3000';
   const proto = h.get('x-forwarded-proto') ?? (host.startsWith('localhost') || host.startsWith('127.') ? 'http' : 'https');
-  return `${proto}://${host}/settings${query}`;
+  return `${proto}://${host}${page}${query}`;
 }
 
 /**
@@ -102,8 +107,8 @@ async function checkout(formData: FormData): Promise<PlanActionState> {
       priceId: target.price_id,
       customerId: target.customer_id,
       email: target.email,
-      successUrl: await settingsUrl('?billing=started'),
-      cancelUrl: await settingsUrl(),
+      successUrl: await settingsUrl(pageOf(formData), '?billing=started'),
+      cancelUrl: await settingsUrl(pageOf(formData)),
     }));
   } catch (failed) {
     const failure = recordFailure(failed, { db: supabase, source: 'settings/checkout' });
@@ -113,7 +118,7 @@ async function checkout(formData: FormData): Promise<PlanActionState> {
 }
 
 /** Stripe's billing page, for a company paying through Stripe. */
-async function billing(): Promise<PlanActionState> {
+async function billing(formData: FormData): Promise<PlanActionState> {
   if (!stripeAvailable()) return { status: 'error', message: 'Payments are not switched on for this deployment yet.' };
   const supabase = await createClient();
   const { data: customer, error } = await supabase.rpc('billing_customer');
@@ -125,7 +130,7 @@ async function billing(): Promise<PlanActionState> {
   }
   let url: string;
   try {
-    ({ url } = await createBillingPortal(customer, await settingsUrl()));
+    ({ url } = await createBillingPortal(customer, await settingsUrl(pageOf(formData))));
   } catch (failed) {
     const failure = recordFailure(failed, { db: supabase, source: 'settings/billing' });
     return { status: 'error', message: failure.said };
@@ -142,6 +147,8 @@ async function billing(): Promise<PlanActionState> {
 export async function planAction(_prev: PlanActionState, formData: FormData): Promise<PlanActionState> {
   const intent = text(formData, 'intent');
   if (intent === 'checkout') return checkout(formData);
-  if (intent === 'billing') return billing();
-  return intent === 'cancel' ? cancelPlan() : changePlan(formData);
+  if (intent === 'billing') return billing(formData);
+  const done = await (intent === 'cancel' ? cancelPlan() : changePlan(formData));
+  revalidatePath(pageOf(formData));
+  return done;
 }

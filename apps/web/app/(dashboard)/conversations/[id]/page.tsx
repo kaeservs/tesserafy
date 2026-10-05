@@ -10,7 +10,7 @@ import { clock, splitByHighlights } from '@/lib/highlight';
 import { Shortfall } from '@/components/criterion-shortfall';
 import { conversationStage, nextCommand, stageOf } from '@/lib/pipeline';
 import { scoreConversation } from '@/lib/scorecard';
-import { sideShares, speakerKey, talkStats } from '@/lib/talk';
+import { LIVE_SELLER, ourSpeakerKeys, sideShares, speakerKey, talkStats } from '@/lib/talk';
 import { ExtractButton } from '@/components/extract-button';
 import { CallViewers } from '@/components/call-viewers';
 import { CopyMomentLink } from '@/components/copy-moment-link';
@@ -243,6 +243,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
     { data: actionRows },
     { data: followUpRow },
     { data: sendRows },
+    { data: preferences },
   ] = await Promise.all([
     // Only an owner may delete a call; erase_conversation refuses anyone else.
     // Read here so the section is not offered to someone it would refuse.
@@ -336,6 +337,8 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
       .eq('conversation_id', id)
       .order('created_at', { ascending: false })
       .limit(10),
+    // The name on the person's profile, for the follow-up's sender.
+    supabase.from('user_preferences').select('display_name').eq('user_id', user?.id ?? '').maybeSingle(),
   ]);
 
   const isOwner = (ownership ?? []).length > 0;
@@ -380,7 +383,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
   const account = (accountRows ?? []).find((row) => row.id === conversation.account_id) ?? null;
   const accountName = account?.name ?? null;
   const attendees = attendeeRows ?? [];
-  const ours = new Set((ourRows ?? []).map((row) => speakerKey(row.name)));
+  const ours = ourSpeakerKeys(ourRows);
   const examplesOf = new Map<string, string[]>();
   for (const moment of momentRows ?? []) {
     const list = examplesOf.get(moment.segment_id) ?? [];
@@ -702,7 +705,8 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
                       {speaker.longestWords} words{speaker.longestMs >= 1000 ? `, ${duration(speaker.longestMs)}` : ''}
                     </td>
                     <td>
-                      {speaker.speaker !== null ? (
+                      {/* The overlay's seller is yours by where the words came from: nothing to mark. */}
+                      {speaker.speaker !== null && speakerKey(speaker.speaker) !== LIVE_SELLER ? (
                         <OurSpeaker conversationId={id} speaker={speaker.speaker} ours={ours.has(speakerKey(speaker.speaker))} />
                       ) : null}
                     </td>
@@ -744,6 +748,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
           sending={from ? { from } : null}
           sends={sends}
           attendees={attendees.map((attendee) => attendee.email)}
+          senderName={preferences?.display_name ?? ''}
         />
       </section>
 

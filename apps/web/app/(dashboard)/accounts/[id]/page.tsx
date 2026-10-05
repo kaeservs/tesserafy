@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { ManageAccount } from '@/components/account-forms';
 import { customerCoverage, scoreTrend, theirPeople } from '@/lib/account-story';
 import { accountBrief } from '@/lib/accounts';
-import { speakerKey } from '@/lib/talk';
+import { ourSpeakerKeys, speakerKey } from '@/lib/talk';
 import { batches } from '@tesserafy/db';
 import { engagementLabel } from '@/lib/company';
 import { OUTCOME_LABEL } from '@/lib/outcome';
@@ -55,7 +55,7 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
       ),
     ).then((parts) => parts.flat()),
   ]);
-  const ours = new Set((ourRows ?? []).map((row) => speakerKey(row.name)));
+  const ours = ourSpeakerKeys(ourRows);
   const people = theirPeople(
     (talkRows ?? [])
       .filter((row) => callIds.has(row.conversation_id))
@@ -182,7 +182,7 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
                   </li>
                 ))}
               </ul>
-              {ours.size === 0 ? (
+              {(ourRows ?? []).length === 0 ? (
                 <p className="muted" style={{ fontSize: '0.82rem' }}>
                   Your own people are listed too until someone marks them as one of yours, under Who talked on a call.
                 </p>

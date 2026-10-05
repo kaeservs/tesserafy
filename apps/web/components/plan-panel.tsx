@@ -82,6 +82,8 @@ export function PlanPanel({
   liveAvailable,
   billing = 'free',
   returnedFromCheckout = false,
+  page = '/settings',
+  owners = [],
 }: {
   overview: PlanOverview;
   catalog: CatalogPlan[];
@@ -96,6 +98,10 @@ export function PlanPanel({
   billing?: 'free' | 'checkout' | 'stripe';
   /** Back from checkout: Stripe has the payment, and its word may be seconds behind. */
   returnedFromCheckout?: boolean;
+  /** Where the panel is, so a press comes back to it. */
+  page?: '/settings' | '/profile';
+  /** Who can change the plan, for a member to ask. */
+  owners?: readonly string[];
 }) {
   // One action for every button, so the message below is always about the
   // last one pressed.
@@ -141,7 +147,8 @@ export function PlanPanel({
 
       {isOwner && !granted && billing === 'stripe' ? (
         <form action={act}>
-          <input type="hidden" name="intent" value="billing" />
+          <input type="hidden" name="page" value={page} />
+                  <input type="hidden" name="intent" value="billing" />
           <button type="submit" disabled={busy}>
             Manage billing
           </button>{' '}
@@ -167,6 +174,7 @@ export function PlanPanel({
                   {liveAvailable ? '' : ' (when live launches)'} — a month.
                 </p>
                 <form action={act}>
+                  <input type="hidden" name="page" value={page} />
                   <input type="hidden" name="intent" value="checkout" />
                   <input type="hidden" name="plan" value={plan.id} />
                   <button type="submit" disabled={busy}>
@@ -217,7 +225,8 @@ export function PlanPanel({
                 </p>
                 {label ? (
                   <form action={act}>
-                    <input type="hidden" name="intent" value="change" />
+                    <input type="hidden" name="page" value={page} />
+                  <input type="hidden" name="intent" value="change" />
                     <input type="hidden" name="plan" value={plan.id} />
                     <button type="submit" disabled={busy}>
                       {label}
@@ -229,7 +238,8 @@ export function PlanPanel({
           })}
           {(overview.plan === 'basic' || overview.plan === 'pro') && !overview.cancel_at_period_end ? (
             <form action={act}>
-              <input type="hidden" name="intent" value="cancel" />
+              <input type="hidden" name="page" value={page} />
+                  <input type="hidden" name="intent" value="cancel" />
               <button type="submit" disabled={busy}>
                 Cancel plan
               </button>{' '}
@@ -243,7 +253,10 @@ export function PlanPanel({
         </div>
       ) : null}
       {!isOwner && !granted ? (
-        <p className="muted">Only an owner can change the plan.</p>
+        <p className="muted">
+          The plan is your company&apos;s, so only an owner can change it
+          {owners.length > 0 ? `: ask ${owners.join(' or ')}.` : '.'}
+        </p>
       ) : null}
 
       {result.status === 'done' ? <p role="status">{result.message}</p> : null}

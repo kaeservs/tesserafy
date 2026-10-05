@@ -55,14 +55,16 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const banner = supportBanner(access ?? []);
   const company = await myCompany(supabase);
   // Unread, for the bell. A count only; the page reads the rest.
-  const [{ count: unread }, { data: membership }] = await Promise.all([
+  const [{ count: unread }, { data: membership }, { data: preferences }] = await Promise.all([
     supabase.from('notifications').select('id', { count: 'exact', head: true }).is('read_at', null),
     supabase.from('company_members').select('role').eq('user_id', user.id).limit(1).maybeSingle(),
+    supabase.from('user_preferences').select('display_name').eq('user_id', user.id).maybeSingle(),
   ]);
   const email = user.email ?? '';
-  // No name is kept for a person yet; the address's first part reads as one.
+  // The name set on the profile; until then, the address's first part reads as one.
   const local = email.split('@')[0] ?? '';
-  const name = (local.split(/[._-]/)[0] ?? local).replace(/^./, (first) => first.toUpperCase()) || 'You';
+  const name =
+    preferences?.display_name || (local.split(/[._-]/)[0] ?? local).replace(/^./, (first) => first.toUpperCase()) || 'You';
 
   return (
     <div className="shell">

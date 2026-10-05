@@ -39,12 +39,14 @@ comment on column public.plans.per_seat is 'Priced, and its allowance given, per
 comment on column public.plans.incognito is 'The overlay hides from screen sharing on this plan (ADR 0027).';
 comment on column public.plans.max_seats is 'The most people a company on this plan may have, whatever its seats. Null: as many as it pays for, or no limit.';
 
--- Room in the order for Free and Incognito (rank is unique).
+-- Room in the order for Free and Incognito (rank is unique, checked row by row):
+-- everything moves out of the way, the new rows arrive further out, then all
+-- take their places.
 update public.plans set rank = rank + 100;
 insert into public.plans (id, name, price_usd_cents, self_serve, rank, trial_days, calls, extractions, pattern_runs, questions, live_minutes, max_seats)
-values ('free', 'Free', null, false, 101, null, 2, 1, 0, 5, 10, 1);
+values ('free', 'Free', null, false, 201, null, 2, 1, 0, 5, 10, 1);
 insert into public.plans (id, name, price_usd_cents, self_serve, rank, trial_days, calls, extractions, pattern_runs, questions, live_minutes, per_seat, incognito)
-values ('incognito', 'Incognito', 5999, true, 104, null, 25, 25, 10, 100, 180, true, true);
+values ('incognito', 'Incognito', 5999, true, 204, null, 25, 25, 10, 100, 180, true, true);
 update public.plans set rank = case id
     when 'none' then 0 when 'free' then 1 when 'trial' then 2 when 'basic' then 3 when 'pro' then 4
     when 'incognito' then 5 when 'pilot' then 6 when 'internal' then 7 end;

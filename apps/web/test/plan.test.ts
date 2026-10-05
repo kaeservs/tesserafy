@@ -55,8 +55,8 @@ describe('liveSeconds', () => {
     expect(liveSeconds([{ startMs: 5000, endMs: 1000 }])).toBe(5);
   });
 
-  it('never more than two minutes, so a silence or one bad clock does not empty the month', () => {
-    expect(liveSeconds([{ startMs: 0, endMs: 3_600_000 }])).toBe(120);
+  it('never more than a minute — the most the database takes in one charge — so a silence or one bad clock does not empty the month', () => {
+    expect(liveSeconds([{ startMs: 0, endMs: 3_600_000 }])).toBe(60);
   });
 
   it('charges the call’s time since the last charge, the seller’s lines in between included', () => {

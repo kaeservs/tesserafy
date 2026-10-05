@@ -156,7 +156,7 @@ endpoints also check the plan server-side and bound what they are sent
 (`apps/web/lib/live-input.ts`): hiding Live in the pages was the only gate. Live
 minutes are minutes of call: each detection is charged the call's time since
 the last charge (`chargeFromMs`, which the overlay and the live page send;
-`liveSeconds`, 5 s to 2 min a charge), so the seller's lines in between are
+`liveSeconds`, 5 s to 1 min a charge, the most `take_plan_allowance` takes), so the seller's lines in between are
 paid for too — it used to charge each line five seconds, and a real hour cost
 twelve to twenty live minutes. Reading, search, export and deleting never need an allowance.
 The one AI path that is not charged is the sample call (`/api/sample-call`):

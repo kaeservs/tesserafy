@@ -136,13 +136,13 @@ export function planExhausted(spent: Extract<Spent, { allowed: false }>): NextRe
  * A caller that sends no `chargeFromMs` (an older overlay) is charged the
  * utterance's own span, as it was. The times come from the caller, so they
  * are bounded both ways: a floor so instant speech is not free, and a
- * ceiling of two minutes, so a silence or one bad clock does not empty an
- * allowance.
+ * ceiling of a minute — the most take_plan_allowance takes in one charge — so a
+ * silence or one bad clock does not empty an allowance.
  */
 export function liveSeconds(window: readonly { startMs: number; endMs: number }[], chargeFromMs?: unknown): number {
   const last = window.at(-1);
   if (!last) return 5;
   const from = typeof chargeFromMs === 'number' && Number.isFinite(chargeFromMs) && chargeFromMs <= last.endMs ? chargeFromMs : last.startMs;
   const seconds = Math.round((last.endMs - from) / 1000);
-  return Math.min(120, Math.max(5, Number.isFinite(seconds) ? seconds : 5));
+  return Math.min(60, Math.max(5, Number.isFinite(seconds) ? seconds : 5));
 }

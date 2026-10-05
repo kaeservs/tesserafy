@@ -28,8 +28,8 @@ export default async function SignupPage() {
       {open === true ? (
         <>
           <p className="muted">
-            Fourteen days free on the trial, then Basic at $9 or Pro at $20 a month. After you
-            confirm your email you will name your company.
+            Start on Free, one seat. Starter is $9.99, Pro $19.99 and Incognito $59.99 a seat a month when you
+            want more. After you confirm your email you will name your company.
           </p>
           <SignupForm />
         </>

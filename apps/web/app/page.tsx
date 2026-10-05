@@ -28,6 +28,7 @@ interface Plan {
   name: string;
   price_usd_cents: number | null;
   trial_days: number | null;
+  incognito: boolean;
   calls: number | null;
   extractions: number | null;
   pattern_runs: number | null;
@@ -77,7 +78,7 @@ const STEPS: readonly { title: string; body: string }[] = [
 const FAQ: readonly { q: string; a: string }[] = [
   {
     q: 'Can anyone on the call see it?',
-    a: 'No bot joins and nothing is announced. The overlay is excluded from screen capture, so it does not appear when you share your screen.',
+    a: 'No bot joins and nothing is announced. On Incognito the overlay is excluded from screen capture too, so it does not appear when you share your screen; on the other plans it shows in a share.',
   },
   {
     q: 'Do I have to tell people I am recording?',
@@ -108,6 +109,7 @@ function allowances(plan: Plan): string[] {
   add(plan.questions, 'question to Ask', 'questions to Ask');
   add(plan.extractions, 'call read — insights, prep or follow-up', 'call reads — insights, prep, follow-ups');
   add(plan.pattern_runs, 'pattern run', 'pattern runs');
+  lines.push(plan.incognito ? 'Overlay hidden from screen sharing' : 'Overlay shows in a screen share');
   return lines;
 }
 
@@ -122,13 +124,13 @@ export default async function Landing() {
     supabase.rpc('signup_is_open'),
     supabase
       .from('plans')
-      .select('id, name, price_usd_cents, trial_days, calls, extractions, pattern_runs, questions, live_minutes')
+      .select('id, name, price_usd_cents, trial_days, incognito, calls, extractions, pattern_runs, questions, live_minutes')
       .order('rank'),
   ]);
   const plans = (planRows ?? []) as Plan[];
-  const trial = plans.find((plan) => plan.id === 'trial') ?? null;
-  const onSale = plans.filter((plan) => plan.price_usd_cents !== null);
-  const start = open === true ? (trial?.trial_days ? `Start your ${trial.trial_days}-day trial` : 'Start your trial') : 'Get early access';
+  const free = plans.find((plan) => plan.id === 'free') ?? null;
+  const onSale = plans.filter((plan) => plan.price_usd_cents !== null || plan.id === 'free');
+  const start = open === true ? 'Start free' : 'Get early access';
   // While sign-up is closed (until email works), the same buttons take an address instead.
   const startHref = open === true ? '/signup' : '#early-access';
 
@@ -172,7 +174,7 @@ export default async function Landing() {
             </div>
             <ul className="trust">
               <li>No bot joins your meeting</li>
-              <li>Hidden from screen sharing</li>
+              <li>Hidden from screen sharing on Incognito</li>
               <li>Every point quotes the call</li>
             </ul>
           </div>
@@ -261,8 +263,8 @@ export default async function Landing() {
           <h2 id="privacy-heading">Private by design</h2>
           <ul className="privacy-list">
             <li>
-              <strong>Nothing joins the meeting.</strong> No bot, no announcement, and the overlay is kept out of screen
-              capture.
+              <strong>Nothing joins the meeting.</strong> No bot, no announcement — and on Incognito the overlay is kept
+              out of screen capture.
             </li>
             <li>
               <strong>Your calls stay yours.</strong> Never used for Tesserafy’s own purposes; export or delete any time.
@@ -282,15 +284,16 @@ export default async function Landing() {
           <section id="pricing" className="landing-section" aria-labelledby="pricing-heading">
             <h2 id="pricing-heading">Pricing</h2>
             <p className="section-lede">
-              {trial?.trial_days ? `${trial.trial_days} days free to start. ` : ''}Then a plan, by the month. Cancel any time.
+              {free ? 'Start on Free, one seat. ' : ''}Then a plan, per seat, by the month — every seat brings its own
+              allowance. Cancel any time.
             </p>
             <div className="price-grid">
               {onSale.map((plan) => (
                 <div key={plan.id} className={`card price${plan.id === 'pro' ? ' featured' : ''}`}>
                   <h3>{plan.name}</h3>
                   <p className="price-figure">
-                    ${((plan.price_usd_cents ?? 0) / 100).toFixed(0)}
-                    <span className="muted"> a month</span>
+                    {plan.price_usd_cents === null ? '$0' : `$${(plan.price_usd_cents / 100).toFixed(2)}`}
+                    <span className="muted">{plan.price_usd_cents === null ? ' — one seat' : ' a seat a month'}</span>
                   </p>
                   <ul>
                     {allowances(plan).map((line) => (

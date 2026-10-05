@@ -39,6 +39,14 @@ export interface LiveSetup {
    * — which then is the call's prep unless another was chosen.
    */
   readonly meeting: { id: string; title: string; startsAt: string; prepId: string | null } | null;
+  /** The plan hides the overlay from screen sharing (Incognito, ADR 0027); otherwise it shows in a share. */
+  readonly incognito: boolean;
+  /**
+   * Whether the browser's own speech recognition may stand in when Deepgram
+   * cannot start: only for our own company — it sends audio to the browser's
+   * vendor, which a customer's call never should.
+   */
+  readonly engineFallback: boolean;
 }
 
 /** Of a person's calendar meetings, the one on now or starting soonest within the window. */
@@ -119,7 +127,7 @@ export async function liveSetup(db: SupabaseClient, userId: string, now = new Da
   }
   const fallback = prep ? null : await companyDefaultScorecard(db, userId);
   const { data: company } = companyId
-    ? await db.from('companies').select('screen_assist').eq('id', companyId).maybeSingle()
+    ? await db.from('companies').select('screen_assist, plan, plans(incognito)').eq('id', companyId).maybeSingle()
     : { data: null };
   const look = preferences?.overlay_look;
   return {
@@ -133,6 +141,8 @@ export async function liveSetup(db: SupabaseClient, userId: string, now = new Da
     agreement: await currentAgreement(db, userId),
     agreementText: RECORDING_AGREEMENT,
     meeting: meeting ? { id: meeting.id, title: meeting.title, startsAt: meeting.starts_at, prepId: meeting.prep_id } : null,
+    incognito: company?.plans?.incognito === true,
+    engineFallback: company?.plan === 'internal',
   };
 }
 

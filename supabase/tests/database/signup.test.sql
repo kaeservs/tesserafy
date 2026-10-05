@@ -78,8 +78,8 @@ reset role;
 select is(
   (select c.name || '/' || c.plan || '/' || s.status from public.companies c
      join public.subscriptions s on s.company_id = c.id where c.id = (select id from made)),
-  'Brand New Co/trial/trialing',
-  'a confirmed brand gets its company, on the trial'
+  'Brand New Co/free/active',
+  'a confirmed brand gets its company, on Free (ADR 0027)'
 );
 select is(
   (select role from public.company_members

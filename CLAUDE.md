@@ -145,8 +145,15 @@ exactly the incident it exists for.
 
 On top of that, each company's plan has a monthly AI allowance: imported
 calls (scoring included), "Find insights in this call", "Look for patterns",
-and live minutes. The catalogue is the `plans` table — trial, Basic $9, Pro
-$20, pilot, internal — so a limit is a row, not a deploy. Every AI route
+and live minutes. The catalogue is the `plans` table — Free (one seat),
+Starter $9.99, Pro $19.99 and Incognito $59.99 a seat, the old trial, pilot,
+internal — so a limit is a row, not a deploy. Paid plans are per seat (ADR
+0027): a company's limit is the plan's per-seat allowance times its seats
+(`private.company_limit`), nobody joins a company without a seat (a trigger
+on `company_members`), and new, cancelled and ended plans land on Free.
+Incognito is the plan whose overlay hides from screen sharing; the others
+show in a share. Live calls open to every plan once `DEEPGRAM_API_KEY` is set
+(`liveCallsAvailable`). Every AI route
 spends through `apps/web/lib/plan.ts` after its rate limit, and refunds when
 the work fails; `take_plan_allowance` checks and charges in one locked
 statement. A refund needs the one-time token the charge returned to the
@@ -180,7 +187,7 @@ unsigned, altered, stale or repeated event changes nothing.
 
 The overlay is meant to be Cluely-like, and undetectable in the meeting the
 way Cluely is: no bot joins, nothing announces it, it is excluded from screen
-capture (`setContentProtection`; Windows reports display affinity 0x11 and a
+capture on the Incognito plan (ADR 0027; on the others it shows in a share) (`setContentProtection`; Windows reports display affinity 0x11 and a
 screen capture of its area matches one with it hidden, pixel for pixel), and
 it is out of the taskbar, Alt-Tab, the Dock, Cmd-Tab and Mission Control.
 Telling everyone on the call is the user's legal responsibility, set out in

@@ -26,7 +26,7 @@ export function CreateCompany() {
         />
       </div>
       <button type="submit" disabled={pending}>
-        {pending ? 'Creating…' : 'Create company and start the trial'}
+        {pending ? 'Creating…' : 'Create company and start on Free'}
       </button>
       {state.status === 'error' ? <p role="alert">{state.message}</p> : null}
     </form>

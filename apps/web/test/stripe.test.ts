@@ -23,6 +23,7 @@ const checkout = {
   companyId: '00000000-0000-4000-8000-00000000000a',
   plan: 'basic',
   priceId: 'price_Basic1',
+  quantity: 3,
   customerId: null,
   email: 'owner@acme.test',
   successUrl: 'https://app.test/settings?billing=started',
@@ -39,7 +40,7 @@ describe('createCheckout', () => {
     expect(fields).toEqual({
       mode: 'subscription',
       'line_items[0][price]': 'price_Basic1',
-      'line_items[0][quantity]': '1',
+      'line_items[0][quantity]': '3',
       client_reference_id: checkout.companyId,
       'metadata[company_id]': checkout.companyId,
       'metadata[plan]': 'basic',

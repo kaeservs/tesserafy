@@ -553,6 +553,12 @@ async function startListening() {
     began(micOnly ? 'listening — your microphone only' : 'listening to both sides');
     return;
   }
+  // The browser's own recognition sends the audio to its vendor: a stand-in
+  // for our own company only, never a customer's call.
+  if (setup?.engineFallback !== true) {
+    setStatus('Live transcription could not start. Try again in a moment.');
+    return;
+  }
   startEngine();
 }
 
@@ -850,6 +856,10 @@ function showSwitches(state) {
   protection = state.protection;
   clickThrough = state.clickThrough;
   el('unprotected').hidden = protection;
+  // Off on purpose (testing) on Incognito, or off because the plan shows it.
+  el('unprotected').textContent = state.incognito
+    ? 'PROTECTION OFF — VISIBLE IN A SHARE'
+    : 'Visible if you share your screen · Incognito hides it';
   // With click-through on nothing here can be clicked, so it says how to
   // turn it off; the switch itself is the shortcut and the tray.
   el('clickNote').hidden = !clickThrough;

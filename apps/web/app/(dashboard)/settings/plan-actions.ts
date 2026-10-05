@@ -66,6 +66,19 @@ async function cancelPlan(): Promise<PlanActionState> {
   };
 }
 
+/** Seats, while payments are off (ADR 0027); once paying, they are Stripe's quantity. */
+async function changeSeats(formData: FormData): Promise<PlanActionState> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('change_seats', { p_seats: Number(text(formData, 'seats')) });
+  if (error) {
+    return {
+      status: 'error',
+      message: error.code === '42501' ? 'Only an owner can change the seats.' : error.message.replace(/^change_seats: /, ''),
+    };
+  }
+  return { status: 'done', message: `${data} seats. Each brings its allowance from now on.` };
+}
+
 /** The page a plan button was pressed on: Settings or the person's Profile. */
 function pageOf(formData: FormData): '/settings' | '/profile' {
   return text(formData, 'page') === '/profile' ? '/profile' : '/settings';
@@ -88,7 +101,11 @@ async function checkout(formData: FormData): Promise<PlanActionState> {
   if (!stripeAvailable()) return { status: 'error', message: 'Payments are not switched on for this deployment yet.' };
   const supabase = await createClient();
   const plan = text(formData, 'plan');
-  const { data, error } = await supabase.rpc('billing_checkout', { p_plan: plan });
+  const wanted = Number(text(formData, 'seats'));
+  const { data, error } = await supabase.rpc('billing_checkout', {
+    p_plan: plan,
+    ...(Number.isInteger(wanted) && wanted > 0 ? { p_seats: wanted } : {}),
+  });
   if (error) {
     return {
       status: 'error',
@@ -98,13 +115,14 @@ async function checkout(formData: FormData): Promise<PlanActionState> {
           : error.message.replace(/^billing_checkout: /, ''),
     };
   }
-  const target = data as { company_id: string; price_id: string; customer_id: string | null; email: string | null };
+  const target = data as { company_id: string; price_id: string; quantity: number; customer_id: string | null; email: string | null };
   let url: string;
   try {
     ({ url } = await createCheckout({
       companyId: target.company_id,
       plan,
       priceId: target.price_id,
+      quantity: target.quantity,
       customerId: target.customer_id,
       email: target.email,
       successUrl: await settingsUrl(pageOf(formData), '?billing=started'),
@@ -148,6 +166,11 @@ export async function planAction(_prev: PlanActionState, formData: FormData): Pr
   const intent = text(formData, 'intent');
   if (intent === 'checkout') return checkout(formData);
   if (intent === 'billing') return billing(formData);
+  if (intent === 'seats') {
+    const done = await changeSeats(formData);
+    revalidatePath(pageOf(formData));
+    return done;
+  }
   const done = await (intent === 'cancel' ? cancelPlan() : changePlan(formData));
   revalidatePath(pageOf(formData));
   return done;

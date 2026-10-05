@@ -43,6 +43,8 @@ export interface Checkout {
   readonly companyId: string;
   readonly plan: string;
   readonly priceId: string;
+  /** Seats: Stripe bills the price per seat, times this (ADR 0027). */
+  readonly quantity: number;
   /** The company's Stripe customer from before, so a second subscription is not a second customer. */
   readonly customerId: string | null;
   readonly email: string | null;
@@ -62,7 +64,7 @@ export function createCheckout(checkout: Checkout, doFetch: typeof fetch = fetch
     {
       mode: 'subscription',
       'line_items[0][price]': checkout.priceId,
-      'line_items[0][quantity]': '1',
+      'line_items[0][quantity]': String(Math.max(1, Math.min(500, Math.round(checkout.quantity)))),
       client_reference_id: checkout.companyId,
       'metadata[company_id]': checkout.companyId,
       'metadata[plan]': checkout.plan,

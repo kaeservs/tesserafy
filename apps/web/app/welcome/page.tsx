@@ -74,9 +74,9 @@ export default async function Welcome() {
       {open === true ? (
         <>
           <p>
-            Name your company to start a fourteen-day trial: 3 imported calls, 3 “Find insights in
-            this call”, 1 “Look for patterns” and 15 live minutes. After that, Basic is $9 a month
-            and Pro $20.
+            Name your company to start on Free: one seat, and each month 2 imported calls, 1 “Find
+            insights in this call”, 5 questions to Ask and 10 live minutes. Starter is $9.99, Pro $19.99 and
+            Incognito $59.99 a seat a month.
           </p>
           <CreateCompany />
         </>

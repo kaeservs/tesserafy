@@ -1,7 +1,7 @@
 import { TableScroll } from '@/components/table-scroll';
 import { ChangeRole } from '@/components/change-role';
 import { PlanPanel, type CatalogPlan, type PlanOverview } from '@/components/plan-panel';
-import { liveAvailable } from '@/lib/company';
+import { liveCallsAvailable } from '@/lib/company';
 import { RemoveMember } from '@/components/remove-member';
 import { RequestTeammate } from '@/components/request-teammate';
 import { RetentionForm } from '@/components/retention-form';
@@ -55,7 +55,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     supabase.rpc('plan_overview'),
     supabase
       .from('plans')
-      .select('id, name, price_usd_cents, calls, extractions, pattern_runs, questions, live_minutes')
+      .select('id, name, price_usd_cents, rank, incognito, calls, extractions, pattern_runs, questions, live_minutes')
       .eq('self_serve', true)
       .order('rank'),
     billingMode(supabase, companyId),
@@ -129,7 +129,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             overview={overview as unknown as PlanOverview}
             catalog={(catalog ?? []) as CatalogPlan[]}
             isOwner={isOwner}
-            liveAvailable={liveAvailable(company?.plan)}
+            liveAvailable={liveCallsAvailable(company?.plan)}
             billing={billing}
             returnedFromCheckout={returned === 'started'}
           />

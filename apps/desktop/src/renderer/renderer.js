@@ -470,9 +470,15 @@ async function saveEvents(events, detector, model) {
   render();
 }
 
+// Where the last live charge ended, on this call's clock: each detection pays
+// for the call's time since (lib/plan liveSeconds), so live minutes are
+// minutes of call.
+let chargedTo = 0;
 async function detect(endedAt) {
   const window_ = thisCall().slice(-WINDOW_SIZE);
-  const result = await api.detect({ criteria: prompts, window: window_ });
+  const chargeFromMs = chargedTo;
+  chargedTo = window_.at(-1)?.endMs ?? chargedTo;
+  const result = await api.detect({ criteria: prompts, window: window_, chargeFromMs });
   if (result.error) {
     setStatus(result.error);
     return;
@@ -553,6 +559,7 @@ async function startListening() {
 function began(status) {
   listening = true;
   callStart = utterances.length;
+  chargedTo = 0;
   el('meetingBanner').hidden = true;
   askPlaceholder();
   el('listen').textContent = 'Stop';

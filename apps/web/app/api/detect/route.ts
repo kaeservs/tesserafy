@@ -39,6 +39,8 @@ interface DetectBody {
   criteria?: CriterionPrompt[];
   window?: DetectableSegment[];
   variant?: 'full' | 'compact';
+  /** Where the last live charge ended, on the call's clock (lib/plan liveSeconds). */
+  chargeFromMs?: unknown;
 }
 
 export async function POST(request: NextRequest) {
@@ -88,8 +90,8 @@ export async function POST(request: NextRequest) {
   const limit = await allowance(who.db, 'api/detect');
   if (!limit.allowed) return tooMany('api/detect', limit.retryAfterSeconds);
 
-  // The plan's live minutes, charged by the utterance just said.
-  const spent = await spend(who.db, 'live_seconds', liveSeconds(window));
+  // The plan's live minutes, charged by the call's time since the last charge.
+  const spent = await spend(who.db, 'live_seconds', liveSeconds(window, body.chargeFromMs));
   if (!spent.allowed) return planExhausted(spent);
 
   try {

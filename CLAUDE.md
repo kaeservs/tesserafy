@@ -153,7 +153,12 @@ statement. A refund needs the one-time token the charge returned to the
 server: the ledger id alone is readable by any member, and refunding by it
 made every plan limit decorative (security review, 2026-10-04). Live
 endpoints also check the plan server-side and bound what they are sent
-(`apps/web/lib/live-input.ts`): hiding Live in the pages was the only gate. Reading, search, export and deleting never need an allowance.
+(`apps/web/lib/live-input.ts`): hiding Live in the pages was the only gate. Live
+minutes are minutes of call: each detection is charged the call's time since
+the last charge (`chargeFromMs`, which the overlay and the live page send;
+`liveSeconds`, 5 s to 1 min a charge, the most `take_plan_allowance` takes), so the seller's lines in between are
+paid for too — it used to charge each line five seconds, and a real hour cost
+twelve to twenty live minutes. Reading, search, export and deleting never need an allowance.
 The one AI path that is not charged is the sample call (`/api/sample-call`):
 a trial has three imported calls and a demonstration should not cost one, so
 `import_sample_call` allows one per company, ever, and the route sends only

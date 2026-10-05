@@ -55,8 +55,22 @@ describe('liveSeconds', () => {
     expect(liveSeconds([{ startMs: 5000, endMs: 1000 }])).toBe(5);
   });
 
-  it('never more than thirty, so one bad clock does not empty the month', () => {
-    expect(liveSeconds([{ startMs: 0, endMs: 3_600_000 }])).toBe(30);
+  it('never more than a minute — the most the database takes in one charge — so a silence or one bad clock does not empty the month', () => {
+    expect(liveSeconds([{ startMs: 0, endMs: 3_600_000 }])).toBe(60);
+  });
+
+  it('charges the call’s time since the last charge, the seller’s lines in between included', () => {
+    // The customer finished at 40 s, the seller spoke, the customer finished again at 95 s.
+    expect(liveSeconds([{ startMs: 95_000, endMs: 95_000 }], 40_000)).toBe(55);
+    // An hour of conversation, one charge every 25 s, is an hour charged.
+    const charges = Array.from({ length: 144 }, (_, i) => liveSeconds([{ startMs: (i + 1) * 25_000, endMs: (i + 1) * 25_000 }], i * 25_000));
+    expect(charges.reduce((sum, s) => sum + s, 0)).toBe(3_600);
+  });
+
+  it('falls back to the line itself when the caller sends no charge point, or a nonsense one', () => {
+    expect(liveSeconds([{ startMs: 1000, endMs: 13_000 }], undefined)).toBe(12);
+    expect(liveSeconds([{ startMs: 1000, endMs: 13_000 }], 'yesterday')).toBe(12);
+    expect(liveSeconds([{ startMs: 1000, endMs: 13_000 }], 50_000)).toBe(12);
   });
 
   it('charges the floor for an empty or broken window', () => {

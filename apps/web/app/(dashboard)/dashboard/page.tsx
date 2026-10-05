@@ -7,7 +7,7 @@ import { accountsNeedingAttention } from '@/lib/accounts-attention';
 import { coachingCallsFrom, loadScoredCalls } from '@/lib/coaching-data';
 import { coverageBySet as coverageForSets } from '@/lib/coverage';
 import { goalStandings, homeAgenda, type AgendaItem } from '@/lib/home';
-import { speakerKey, talkBySeller } from '@/lib/talk';
+import { ourSpeakerKeys, talkBySeller } from '@/lib/talk';
 import { themesOverTime } from '@/lib/themes';
 import { fetchCriteriaSets, readAll } from '@tesserafy/db';
 import { CallTypeForm } from '@/components/guidance-forms';
@@ -226,10 +226,11 @@ export default async function DashboardPage() {
     themes,
   });
 
-  // Your side's share of the talking on your own calls, once names are marked.
-  const ours = new Set((ourRows ?? []).map((row) => speakerKey(row.name)));
+  // Your side's share of the talking on your own calls: live calls that heard
+  // both sides by themselves, others once names are marked.
+  const ours = ourSpeakerKeys(ourRows);
   const since = new Date(now.getTime() - 28 * 86_400_000).toISOString();
-  const { data: talkRows } = ours.size > 0 && user ? await supabase.rpc('conversation_talk', { p_since: since }) : { data: [] };
+  const { data: talkRows } = user ? await supabase.rpc('conversation_talk', { p_since: since }) : { data: [] };
   const talked = user
     ? talkBySeller(
         (talkRows ?? []).map((row) => ({ conversationId: row.conversation_id, speaker: row.speaker, words: Number(row.words) })),

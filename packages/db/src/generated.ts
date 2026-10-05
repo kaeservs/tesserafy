@@ -3025,6 +3025,7 @@ export type Database = {
       user_preferences: {
         Row: {
           detect_calls: boolean
+          display_name: string | null
           next_prep_id: string | null
           overlay_look: Json
           updated_at: string
@@ -3032,6 +3033,7 @@ export type Database = {
         }
         Insert: {
           detect_calls?: boolean
+          display_name?: string | null
           next_prep_id?: string | null
           overlay_look?: Json
           updated_at?: string
@@ -3039,6 +3041,7 @@ export type Database = {
         }
         Update: {
           detect_calls?: boolean
+          display_name?: string | null
           next_prep_id?: string | null
           overlay_look?: Json
           updated_at?: string
@@ -3158,6 +3161,10 @@ export type Database = {
           views_7d: number
         }[]
       }
+      admin_company_integrations: {
+        Args: { p_company_id: string }
+        Returns: Json
+      }
       admin_company_margin: {
         Args: { p_days?: number }
         Returns: {
@@ -3176,19 +3183,24 @@ export type Database = {
         Returns: {
           action_items: number
           agreed: number
+          calendars: number
           calls: number
           closed_at: string
           coaching: number
           company_id: string
           corrections: number
+          crm_logged: number
+          emails_sent: number
           examples: number
           feedback: number
           follow_ups: number
           goals: number
           knowledge_docs: number
           live_calls: number
+          meetings_found: number
           name: string
           overlay_help: number
+          pays_stripe: boolean
           plan: string
           preps: number
           questions: number
@@ -3973,6 +3985,7 @@ export type Database = {
         Returns: undefined
       }
       set_detect_calls: { Args: { p_on: boolean }; Returns: boolean }
+      set_display_name: { Args: { p_name: string }; Returns: undefined }
       set_member_role: {
         Args: { p_role: string; p_user_id: string }
         Returns: undefined

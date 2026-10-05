@@ -4,7 +4,7 @@
  * and a dismissed insight is not a theme.
  */
 import { describe, expect, it } from 'vitest';
-import { countQuestions, ourSpeakerNames, sideShares, speakerKey, talkBySeller, talkStats } from '@/lib/talk';
+import { countQuestions, ourSpeakerKeys, ourSpeakerNames, sideShares, speakerKey, talkBySeller, talkStats } from '@/lib/talk';
 import { themesOverTime, trendOf } from '@/lib/themes';
 
 const seg = (speaker: string | null, start: number, end: number, text: string) => ({ speaker, start_ms: start, end_ms: end, text });
@@ -123,5 +123,16 @@ describe('ourSpeakerNames', () => {
     expect(ourSpeakerNames([{ name: 'Priya' }], [{ speaker: 'Priya' }, { speaker: 'Dana' }])).toEqual(['Priya']);
     expect(ourSpeakerNames([{ name: 'Seller' }], [{ speaker: 'seller' }])).toEqual(['Seller']);
     expect(ourSpeakerNames(null, [])).toEqual([]);
+  });
+});
+
+describe('ourSpeakerKeys', () => {
+  it('counts the overlay’s seller as yours without anyone marking it, as the overlay did', () => {
+    const ours = ourSpeakerKeys([]);
+    expect(sideShares([{ speaker: 'seller', words: 60 }, { speaker: 'customer', words: 40 }], ours)).toEqual({ ours: 0.6, theirs: 0.4 });
+  });
+  it('leaves an imported call with nobody marked as it was: no split', () => {
+    expect(sideShares([{ speaker: 'Sam', words: 60 }, { speaker: 'Dana', words: 40 }], ourSpeakerKeys(null))).toBeNull();
+    expect(sideShares([{ speaker: 'Sam', words: 60 }, { speaker: 'Dana', words: 40 }], ourSpeakerKeys([{ name: 'sam' }]))).toEqual({ ours: 0.6, theirs: 0.4 });
   });
 });

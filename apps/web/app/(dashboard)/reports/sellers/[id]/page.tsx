@@ -7,7 +7,7 @@ import { loadCoachingCalls } from '@/lib/coaching-data';
 import { engagementLabel } from '@/lib/company';
 import { clock } from '@/lib/highlight';
 import { OUTCOME_LABEL } from '@/lib/outcome';
-import { speakerKey, talkBySeller } from '@/lib/talk';
+import { ourSpeakerKeys, talkBySeller } from '@/lib/talk';
 import { createClient } from '@/lib/supabase/server';
 
 export const metadata = { title: 'Seller · Tesserafy' };
@@ -56,7 +56,7 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
     supabase.from('our_speakers').select('name'),
   ]);
   const goalOf = new Map((goalRows ?? []).map((row) => [`${row.engagement_type}/${row.criterion_key}`, Number(row.target)]));
-  const ours = new Set((ourRows ?? []).map((row) => speakerKey(row.name)));
+  const ours = ourSpeakerKeys(ourRows);
   const profile = sellerProfile(calls, id);
   const theirs = calls
     .filter((call) => call.addedBy === id)
@@ -89,7 +89,7 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
   const startOf = new Map((noteSegments ?? []).map((segment) => [segment.id, segment.start_ms]));
   const titleOf = new Map(theirs.map((call) => [call.id, call.title]));
   const decided = profile.outcomes.won + profile.outcomes.lost;
-  const { data: talkRows } = ours.size > 0 ? await supabase.rpc('conversation_talk', { p_since: '1970-01-01T00:00:00Z' }) : { data: [] };
+  const { data: talkRows } = await supabase.rpc('conversation_talk', { p_since: '1970-01-01T00:00:00Z' });
   const theirIds = new Set(theirs.map((call) => call.id));
   const talked = talkBySeller(
     (talkRows ?? [])

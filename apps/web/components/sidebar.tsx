@@ -189,6 +189,7 @@ export function Sidebar({
             </summary>
             <div className="profile-menu">
               <span className="muted profile-email">{email}</span>
+              <Link href="/profile">Your profile and plan</Link>
               <Link href="/account">Your account and overlay</Link>
               <form action="/auth/sign-out" method="post">
                 <button type="submit" className="link-button">

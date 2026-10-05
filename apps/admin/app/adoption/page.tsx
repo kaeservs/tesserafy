@@ -42,6 +42,12 @@ const FEATURES = [
   { key: 'action_items', label: 'Action items' },
   { key: 'knowledge_docs', label: 'Knowledge docs' },
   { key: 'agreed', label: 'Agreed to record' },
+  // The newest (2026-10-05).
+  { key: 'emails_sent', label: 'Emails sent' },
+  { key: 'crm_logged', label: 'Logged to CRM' },
+  { key: 'calendars', label: 'Calendars' },
+  { key: 'meetings_found', label: 'Calls with meeting' },
+  { key: 'pays_stripe', label: 'Pays by Stripe' },
 ] as const;
 
 export default async function Adoption({ searchParams }: { searchParams: Promise<{ all?: string }> }) {
@@ -58,7 +64,9 @@ export default async function Adoption({ searchParams }: { searchParams: Promise
     .map((row) => ({
       companyId: row.company_id,
       name: row.name,
-      counts: FEATURES.map((feature) => (feature.key === 'sample_call' ? (row.sample_call ? 1 : 0) : Number(row[feature.key]))),
+      counts: FEATURES.map((feature) =>
+        feature.key === 'sample_call' ? (row.sample_call ? 1 : 0) : feature.key === 'pays_stripe' ? (row.pays_stripe ? 1 : 0) : Number(row[feature.key]),
+      ),
     }));
   const using = FEATURES.map((_, index) => features.filter((row) => row.counts[index]! > 0).length);
   const rows: AdoptionRow[] = (data ?? []).map((row) => ({
@@ -258,7 +266,7 @@ export default async function Adoption({ searchParams }: { searchParams: Promise
               </td>
               {row.counts.map((count, index) => (
                 <td key={FEATURES[index]!.key} className={`num${count === 0 ? ' muted' : ''}`}>
-                  {FEATURES[index]!.key === 'sample_call' ? (count ? 'yes' : '—') : count || '—'}
+                  {FEATURES[index]!.key === 'sample_call' || FEATURES[index]!.key === 'pays_stripe' ? (count ? 'yes' : '—') : count || '—'}
                 </td>
               ))}
             </tr>

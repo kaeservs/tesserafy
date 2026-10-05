@@ -96,6 +96,17 @@ export function speakerKey(name: string): string {
 export const LIVE_SELLER = 'seller';
 
 /**
+ * The speakers who are yours, everywhere a call is shown: the names someone
+ * marked, and the overlay's own label for the seller when it heard both sides
+ * (ADR 0022) — a line from the microphone is the seller's by where it came
+ * from, so the dashboard says what the overlay said without anyone marking
+ * it. A call without that label is unaffected: no words of it are "seller".
+ */
+export function ourSpeakerKeys(marked: readonly { name: string }[] | null): Set<string> {
+  return new Set([speakerKey(LIVE_SELLER), ...(marked ?? []).map((row) => speakerKey(row.name))]);
+}
+
+/**
  * The speakers a call's drafts should treat as yours: the names marked as
  * yours, and the overlay's own label for the seller when the call has it —
  * a line the overlay heard from the microphone is the seller's by where it

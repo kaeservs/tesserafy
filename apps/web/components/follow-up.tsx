@@ -47,6 +47,7 @@ export function FollowUp({
   sending = null,
   sends = [],
   attendees = [],
+  senderName = '',
 }: {
   conversationId: string;
   draft: ShownFollowUp | null;
@@ -55,6 +56,8 @@ export function FollowUp({
   sends?: readonly ShownSend[];
   /** Who from outside was invited to the call's meeting (ADR 0026): the first To. */
   attendees?: readonly string[];
+  /** The name on the person's profile: what Your name starts as. */
+  senderName?: string;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -67,7 +70,7 @@ export function FollowUp({
   const [sendingNow, setSendingNow] = useState(false);
 
   // The name is remembered in this browser only: a convenience, not a record.
-  useEffect(() => setFromName(rememberedName()), []);
+  useEffect(() => setFromName(rememberedName() || senderName), [senderName]);
 
   // A new draft replaces what was being edited.
   useEffect(() => {

@@ -171,7 +171,9 @@ a trial has three imported calls and a demonstration should not cost one, so
 `import_sample_call` allows one per company, ever, and the route sends only
 the app's own sample text. Plan
 changes are made on Settings or on each person's Profile (`/profile`, linked
-as "Plan and billing"; Home shows a plan strip on Free or near a limit; every
+as "Plan and billing"; Free has a banner on every page with its limits and
+Upgrade now, Home lists the plans above the company's with their prices, and
+shows a plan strip near a limit; every
 402 names Profile → Your membership and carries `upgrade`, which the overlay
 offers as a button; the same plan panel: owners start, upgrade, move down, cancel or open Stripe's
 billing; members see the plan and which owners to ask — a plan is the
@@ -360,8 +362,15 @@ back empty for lack of rows.
 Brands can sign up themselves (`/signup`) only when an operator opens it in
 the console: the switch is `app_settings.signup_open`, checked by
 `create_my_company` itself, so the database refuses a company while closed
-however it is asked. A confirmed address names its company and starts the
-trial; an account creates one company, ever. Closed until email works.
+however it is asked. A confirmed address names its company and starts on
+Free; an account creates one company, ever. Closed until email works.
+Everyone new is walked through three steps once — the overlay, a first call,
+their plan (price × seats on a paid one) — and after any change of plan each
+person is shown once what it changed: both are each person's own, in
+`user_preferences` (`onboarded_at`, `plan_seen`), and the popup compares the
+plan seen with the plan, so every path that changes a plan is announced
+without saying so (ADR 0028). What a plan includes is worded from `plans` by
+`lib/plan-catalog.ts`, never typed out.
 
 A failure that only reaches the caller has not been reported. Every catch that
 answers a request records through `recordFailure` in `packages/ai`, which

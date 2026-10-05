@@ -2415,3 +2415,174 @@ main.auth {
 .calendar-list .button-secondary {
   padding: 0.35rem 0.9rem;
 }
+
+/* --------------------------------------------------------------------------
+   First-run steps, the popup after a change of plan, the plans on Home, and
+   Free's banner. Same surfaces as everything else: a white card on the soft
+   shadow, the one purple, pills for status.
+   -------------------------------------------------------------------------- */
+
+.onboarding {
+  width: min(34rem, calc(100vw - 2rem));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem 1.75rem;
+  background: var(--raised);
+  color: var(--fg);
+  box-shadow: 0 24px 80px rgb(41 45 50 / 0.18);
+}
+
+.onboarding::backdrop {
+  background: rgb(41 45 50 / 0.35);
+}
+
+.onboarding h2 {
+  margin: 0.25rem 0 0.6rem;
+}
+
+.onboarding-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.onboarding-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.onboarding-progress {
+  display: flex;
+  gap: 0.4rem;
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 1.25rem;
+}
+
+.onboarding-progress li {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.onboarding-progress li.on {
+  background: var(--accent);
+}
+
+.onboarding-kicker {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.onboarding-kicker .pill {
+  margin-left: 0.4rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.onboarding-note {
+  background: var(--accent-soft);
+  border-radius: var(--radius);
+  padding: 0.7rem 0.9rem;
+  font-size: 0.9rem;
+}
+
+.onboarding-facts {
+  padding-left: 1.1rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.onboarding-facts li + li {
+  margin-top: 0.3rem;
+}
+
+.onboarding-price {
+  font-size: 1.05rem;
+}
+
+.onboarding-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+/* A <button> wearing the link-styled buttons' look keeps their edge. */
+button.button-primary {
+  border-color: var(--accent);
+}
+
+.plan-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  background: var(--accent-soft);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  padding: 0.55rem 1.25rem;
+  font-size: 0.9rem;
+}
+
+/* The words take the room and wrap; the button keeps to the right until a phone has no room for both. */
+.plan-banner > span {
+  flex: 1 1 0;
+  min-width: 16rem;
+}
+
+.plan-banner .button-primary {
+  padding: 0.4rem 1rem;
+}
+
+.pricing-card .onboarding-facts {
+  font-size: 0.9rem;
+}
+
+.pricing {
+  margin-top: 1.5rem;
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: var(--gap);
+  margin: 1rem 0;
+}
+
+.pricing-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.pricing-card h3 {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pricing-price {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+}
+
+.pricing-price span {
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.pricing-card form {
+  margin-top: auto;
+}

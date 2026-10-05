@@ -31,3 +31,10 @@ accepted ADR to change the decision; write a new one that supersedes it.
 | 0019 | Alerts read a digest of counts, with a token, not the service-role key | proposed |
 | 0020 | Recording consent is agreed once, Cluely-style, and kept as a record | proposed |
 | 0021 | Each person connects their own calendar, read-only, and only customer meetings are kept | proposed |
+| 0022 | The overlay hears both sides of a call, through Deepgram, without holding its key | proposed |
+| 0023 | Follow-ups are sent from our address in the seller's name, and every send is kept | proposed |
+| 0024 | Calls are logged to the company's own CRM, HubSpot first, as one note on the customer's record | proposed |
+| 0025 | Payments through Stripe, with the webhook's signature checked by the database itself | proposed |
+| 0026 | A call keeps who from outside was invited to its meeting | proposed |
+| 0027 | Plans per seat, a Free plan, and undetectability as the Incognito plan | proposed |
+| 0028 | First-run steps and plan announcements are each person's, kept in the database | proposed |

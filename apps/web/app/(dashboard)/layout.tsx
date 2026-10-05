@@ -4,7 +4,9 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Icon } from '@/components/icons';
+import { PlanChange } from '@/components/plan-change';
 import { Sidebar } from '@/components/sidebar';
+import { CATALOG_COLUMNS, planFacts } from '@/lib/plan-catalog';
 import { supportBanner } from '@/lib/support-banner';
 import { supportSessionEnded } from '@/lib/support-session';
 import { createClient } from '@/lib/supabase/server';
@@ -58,8 +60,20 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const [{ count: unread }, { data: membership }, { data: preferences }] = await Promise.all([
     supabase.from('notifications').select('id', { count: 'exact', head: true }).is('read_at', null),
     supabase.from('company_members').select('role').eq('user_id', user.id).limit(1).maybeSingle(),
-    supabase.from('user_preferences').select('display_name').eq('user_id', user.id).maybeSingle(),
+    supabase.from('user_preferences').select('display_name, onboarded_at, plan_seen').eq('user_id', user.id).maybeSingle(),
   ]);
+  const isOwner = membership?.role === 'owner';
+  // A change of plan since the person last saw theirs is shown once (components/plan-change);
+  // never on top of the first-run steps, which show the plan themselves.
+  const plan = company?.plan ?? null;
+  const seen = preferences?.plan_seen ?? null;
+  const changed = plan !== null && seen !== null && seen !== plan && preferences?.onboarded_at != null;
+  const wanted = [plan === 'free' || changed ? plan : null, changed ? seen : null].filter((id): id is string => id !== null);
+  const { data: planRows } =
+    wanted.length > 0 ? await supabase.from('plans').select(CATALOG_COLUMNS).in('id', wanted) : { data: [] };
+  const rowOf = (id: string | null) => planRows?.find((row) => row.id === id) ?? null;
+  const freeRow = plan === 'free' ? rowOf('free') : null;
+  const changedTo = changed ? rowOf(plan) : null;
   const email = user.email ?? '';
   // The name set on the profile; until then, the address's first part reads as one.
   const local = email.split('@')[0] ?? '';
@@ -75,6 +89,22 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             <strong>{banner.headline}.</strong> {banner.detail}
           </div>
         ) : null}
+        {freeRow ? (
+          <div className="plan-banner" role="status">
+            <span>
+              <strong>You&apos;re on Free:</strong> {planFacts(freeRow)[0]}, for one person, and the overlay shows if you
+              share your screen.
+            </span>
+            {isOwner ? (
+              <Link href="/dashboard#plans" className="button-primary">
+                Upgrade now
+              </Link>
+            ) : (
+              <span className="muted">Ask an owner to upgrade.</span>
+            )}
+          </div>
+        ) : null}
+        {changedTo ? <PlanChange from={rowOf(seen)} to={changedTo} isOwner={isOwner} /> : null}
         <header className="topbar">
           <form action="/search" method="get" className="topbar-search" role="search">
             <Icon name="search" size={18} />

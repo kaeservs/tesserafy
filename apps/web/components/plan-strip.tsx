@@ -25,8 +25,8 @@ export function nearestLimit(meters: readonly PlanStripMeter[]): { meter: PlanSt
 }
 
 /**
- * The plan on Home, when it is worth a line (ADR 0027): on Free or the old
- * trial, or with an allowance four-fifths used. An owner gets the way to
+ * The plan on Home, when it is worth a line (ADR 0027): on the old trial, or
+ * with an allowance four-fifths used. An owner gets the way to
  * upgrade; a member, who to ask. Silent otherwise — a plan with room is not
  * news.
  */
@@ -43,7 +43,8 @@ export function PlanStrip({
 }) {
   if (plan === 'pilot' || plan === 'internal') return null;
   const nearest = nearestLimit(meters);
-  const starting = plan === 'free' || plan === 'trial' || plan === 'none';
+  // Free has its banner across every page (the dashboard layout); here only when running out.
+  const starting = plan === 'trial' || plan === 'none';
   if (!starting && (!nearest || nearest.share < 0.8)) return null;
   const minutes = nearest?.meter.meter === 'live_seconds';
   const used = nearest ? (minutes ? Math.ceil(nearest.meter.used / 60) : nearest.meter.used) : 0;

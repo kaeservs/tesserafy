@@ -708,6 +708,20 @@ void app.whenReady().then(async () => {
 
   // A point's moment, in the dashboard. Only a call's page at one of its
   // lines, on the product's own site: the page can open nothing else.
+  // The meeting about to start, from the calendar: a prep made from it, and
+  // that prep's page in the dashboard (where its brief is written).
+  ipcMain.handle('overlay:prepare-meeting', (_event, eventId: unknown) =>
+    isId(eventId) ? post('/api/live/meeting-prep', { eventId }) : { error: 'which meeting?' },
+  );
+  ipcMain.handle('overlay:open-prep', (_event, prepId: unknown) =>
+    isId(prepId) ? shell.openExternal(new URL(`/prep/${prepId}`, BASE_URL).toString()) : undefined,
+  );
+  // A meeting is about to start: the overlay comes up without taking focus,
+  // as it does when a call starts — and not when the person switched that off.
+  ipcMain.handle('overlay:surface', () => {
+    if (overlay && detectCalls && !overlay.isVisible()) overlay.showInactive();
+  });
+
   ipcMain.handle('overlay:open-call', (_event, href: unknown) =>
     typeof href === 'string' && /^\/conversations\/[0-9a-f-]{36}#segment-[0-9a-f-]{36}$/i.test(href)
       ? shell.openExternal(new URL(href, BASE_URL).toString())

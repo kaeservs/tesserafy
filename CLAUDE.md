@@ -256,7 +256,11 @@ talking in the last five minutes (`talk-time.ts` — arithmetic, never the
 model; not in the first three minutes, not on fewer than 120 words, not again
 for five minutes). When the last meeting app lets go of the microphone while
 listening, the overlay stops by itself after 15 seconds unless the call comes
-back or the seller presses Keep listening, and offers the follow-up.
+back or the seller presses Keep listening, and offers the follow-up. When a
+call with four or more lines stops, the overlay asks for its Recap by itself
+(the same `/api/assist` recap, every point quoting the call, not charged), and
+Assist, the recap and live scoring read only the current call's lines — one
+sitting can hold several calls.
 
 On Windows the overlay notices a call starting: Windows records which app is
 using the microphone now (`HKCU\…\CapabilityAccessManager\ConsentStore\microphone`,

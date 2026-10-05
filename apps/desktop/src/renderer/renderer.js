@@ -480,7 +480,8 @@ async function detect(endedAt) {
   chargedTo = window_.at(-1)?.endMs ?? chargedTo;
   const result = await api.detect({ criteria: prompts, window: window_, chargeFromMs });
   if (result.error) {
-    setStatus(result.error);
+    if (result.upgrade) offerUpgrade(result.error);
+    else setStatus(result.error);
     return;
   }
 
@@ -689,7 +690,8 @@ async function startBothSides() {
   if (opened.error) {
     stopTracks(mic);
     stopTracks(system);
-    setStatus(opened.error);
+    if (opened.upgrade) offerUpgrade(opened.error);
+    else setStatus(opened.error);
     return false;
   }
 
@@ -883,6 +885,14 @@ function showCall(text, label, action) {
   el('callBanner').hidden = false;
 }
 el('callAction').addEventListener('click', () => callAction?.());
+
+/** The plan ran out of something: say so, and offer the page an owner changes it on. */
+function offerUpgrade(message) {
+  showCall(message, 'Upgrade', () => {
+    el('callBanner').hidden = true;
+    void api.openPlan();
+  });
+}
 el('callDismiss').addEventListener('click', () => {
   el('callBanner').hidden = true;
 });
@@ -990,6 +1000,7 @@ async function runAssist(mode, question) {
   if (seq !== assistSeq) return;
   if (result.error) {
     el('answerTitle').textContent = `${ASSIST_TITLE[mode]} · ${result.error}`;
+    if (result.upgrade) offerUpgrade(result.error);
     return;
   }
   el('answerTitle').textContent = question ? `${ASSIST_TITLE[mode]} · ${question}` : ASSIST_TITLE[mode];

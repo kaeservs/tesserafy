@@ -1,3 +1,4 @@
+import { PlanStrip, type PlanStripMeter } from '@/components/plan-strip';
 import { engagementLabel, sampleCallOffered } from '@/lib/company';
 import Link from 'next/link';
 import { GettingStarted } from '@/components/getting-started';
@@ -283,12 +284,19 @@ export default async function DashboardPage() {
     ? (nextMeeting.attendees as { email?: string; name?: string | null }[]).map((a) => a.name || a.email).filter(Boolean).slice(0, 2).join(', ')
     : '';
 
+  // The plan, for the strip that says when it is running out (components/plan-strip).
+  const { data: planData } = await supabase.rpc('plan_overview');
+  const planOverview = planData as unknown as { plan: string; plan_name: string; meters: PlanStripMeter[] } | null;
+
   return (
     <main className="wide">
       <h1>Hello {name} 👋,</h1>
       <p className="muted">
         {now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })}
       </p>
+      {planOverview ? (
+        <PlanStrip plan={planOverview.plan} planName={planOverview.plan_name} meters={planOverview.meters} isOwner={isOwner} />
+      ) : null}
 
       <div className="grid stats-row" style={{ marginTop: '1.25rem' }}>
         <div className="card stat-card">

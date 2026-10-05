@@ -12,21 +12,27 @@ const refusal = (overrides: Partial<Parameters<typeof describeRefusal>[0]> = {})
 });
 
 describe('describeRefusal', () => {
-  it('says what the plan includes, and what to do on Basic', () => {
+  it('says what the plan includes, and what to do on Starter', () => {
     expect(describeRefusal(refusal())).toBe(
-      'Your Basic plan includes 10 imported calls a month, and they have all been used. An owner can upgrade under Settings → Plan, or it resets on 25 October.',
+      'Your Starter plan includes 10 imported calls a month, and they have all been used. An owner can upgrade or add seats on Profile → Your membership, or it resets on 25 October.',
     );
   });
 
-  it('on Pro there is nothing to upgrade to, only a date', () => {
+  it('on Pro the way to more is seats, or the date', () => {
     expect(describeRefusal(refusal({ plan: 'pro', limit: 25, meter: 'extractions' }))).toBe(
-      'Your Pro plan includes 25 “Find insights” or call preps a month, and they have all been used. It resets on 25 October.',
+      'Your Pro plan includes 25 “Find insights” or call preps a month, and they have all been used. An owner can add seats on Profile → Your membership, or it resets on 25 October.',
     );
   });
 
-  it('on the trial it points at choosing a plan', () => {
-    expect(describeRefusal(refusal({ plan: 'trial', limit: 1, meter: 'pattern_runs' }))).toBe(
-      'Your trial includes 1 “Look for patterns” run, and they have all been used. An owner can choose Basic or Pro under Settings → Plan.',
+  it('on Free it points at choosing a plan', () => {
+    expect(describeRefusal(refusal({ plan: 'free', limit: 2 }))).toBe(
+      'Your Free plan includes 2 imported calls a month, and they have all been used. An owner can choose Starter, Pro or Incognito on Profile → Your membership.',
+    );
+  });
+
+  it('says plainly what a plan does not include at all', () => {
+    expect(describeRefusal(refusal({ plan: 'free', limit: 0, meter: 'pattern_runs' }))).toBe(
+      '“Look for patterns” runs are not on your Free plan. An owner can choose Starter, Pro or Incognito on Profile → Your membership.',
     );
   });
 
@@ -36,7 +42,7 @@ describe('describeRefusal', () => {
 
   it('with no plan at all, says so rather than quoting a limit of zero', () => {
     expect(describeRefusal(refusal({ plan: 'none', limit: 0 }))).toBe(
-      'Your company has no plan at the moment. An owner can choose one under Settings → Plan.',
+      'Your company has no plan at the moment. An owner can choose one on Profile → Your membership.',
     );
   });
 

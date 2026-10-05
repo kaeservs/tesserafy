@@ -70,6 +70,7 @@ function groups(live: boolean): Group[] {
         { label: 'AI guidance', href: '/guidance' },
         { label: 'Knowledge', href: '/knowledge' },
         { label: 'Settings', href: '/settings' },
+        { label: 'Plan and billing', href: '/profile' },
       ],
     },
   ];

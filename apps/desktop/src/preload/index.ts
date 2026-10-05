@@ -127,6 +127,7 @@ contextBridge.exposeInMainWorld('overlay', {
   openFollowUp: (conversationId: string): Promise<void> => ipcRenderer.invoke('overlay:open-follow-up', conversationId),
   prepareMeeting: (eventId: string): Promise<{ prepId?: string; error?: string }> => ipcRenderer.invoke('overlay:prepare-meeting', eventId),
   openPrep: (prepId: string): Promise<void> => ipcRenderer.invoke('overlay:open-prep', prepId),
+  openPlan: (): Promise<void> => ipcRenderer.invoke('overlay:open-plan'),
   surface: (): Promise<void> => ipcRenderer.invoke('overlay:surface'),
   onUpdate: (listener: (state: UpdateState) => void): void => {
     ipcRenderer.on('overlay:update', (_event, state: UpdateState) =>

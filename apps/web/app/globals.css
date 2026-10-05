@@ -1816,6 +1816,12 @@ input[type='search'] {
   color: var(--contradicted);
 }
 
+/* The plan on Home, when it is running out or is Free. */
+.plan-strip {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+}
+
 /* Sending the follow-up from the call page, and what was sent. */
 .follow-up-send {
   margin-top: 1rem;

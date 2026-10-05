@@ -122,16 +122,27 @@ export function planExhausted(spent: Extract<Spent, { allowed: false }>): NextRe
 }
 
 /**
- * Seconds of live time one detection spends: the utterance it was asked
- * about, from its own timestamps, held between 5 and 30 seconds.
+ * Seconds of live time one detection spends.
  *
- * The timestamps come from the caller, so they are bounded both ways: a
- * floor so a client cannot report every utterance as instant and never be
- * charged, and a ceiling so one bad clock does not empty an allowance.
- * Sixty live minutes is then at most 720 detections.
+ * The call's real time (2026-10-05): from where the caller says the last
+ * charge ended (`chargeFromMs`, on the call's own clock) to the end of the
+ * utterance just said. Only the customer's lines are detected, so each one
+ * pays for the conversation since the one before — the seller's lines in
+ * between included — and live minutes are minutes of call. Before this, each
+ * line paid for itself alone, and overlays sent a line's start as its end,
+ * so every line cost five seconds and a real hour was charged twelve to
+ * twenty minutes.
+ *
+ * A caller that sends no `chargeFromMs` (an older overlay) is charged the
+ * utterance's own span, as it was. The times come from the caller, so they
+ * are bounded both ways: a floor so instant speech is not free, and a
+ * ceiling of two minutes, so a silence or one bad clock does not empty an
+ * allowance.
  */
-export function liveSeconds(window: readonly { startMs: number; endMs: number }[]): number {
+export function liveSeconds(window: readonly { startMs: number; endMs: number }[], chargeFromMs?: unknown): number {
   const last = window.at(-1);
-  const seconds = last ? Math.round((last.endMs - last.startMs) / 1000) : 0;
-  return Math.min(30, Math.max(5, Number.isFinite(seconds) ? seconds : 5));
+  if (!last) return 5;
+  const from = typeof chargeFromMs === 'number' && Number.isFinite(chargeFromMs) && chargeFromMs <= last.endMs ? chargeFromMs : last.startMs;
+  const seconds = Math.round((last.endMs - from) / 1000);
+  return Math.min(120, Math.max(5, Number.isFinite(seconds) ? seconds : 5));
 }

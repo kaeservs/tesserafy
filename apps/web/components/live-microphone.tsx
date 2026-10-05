@@ -124,6 +124,8 @@ export function LiveMicrophone({
   const speechStart = useRef<number | null>(null);
   const firstPartial = useRef<number | null>(null);
   const window_ = useRef<Utterance[]>([]);
+  // Where the last live charge ended, on this call's clock.
+  const chargedTo = useRef(0);
   const speakerRef = useRef(speaker);
   // One per mounted page. A call is a session; reloading the page starts a
   // new one rather than appending to a conversation nobody is in any more.
@@ -147,11 +149,14 @@ export function LiveMicrophone({
   const detect = useCallback(
     async (utterance: Utterance, endedAt: number, partialMs: number | null) => {
       const recent = [...window_.current.slice(-WINDOW_SIZE)];
+      // Each detection pays for the call's time since the last (lib/plan liveSeconds).
+      const chargeFromMs = chargedTo.current;
+      chargedTo.current = recent.at(-1)?.endMs ?? chargedTo.current;
       try {
         const response = await fetch('/api/detect', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ criteria: prompts, window: recent }),
+          body: JSON.stringify({ criteria: prompts, window: recent, chargeFromMs }),
         });
         if (!response.ok) throw new Error(`detect failed: ${response.status}`);
         const body = (await response.json()) as {

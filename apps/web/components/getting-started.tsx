@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { SampleCallButton } from '@/components/sample-call-button';
 
 /**
@@ -10,10 +11,11 @@ import { SampleCallButton } from '@/components/sample-call-button';
  * say which parts happen by themselves — so nobody waits on a step that is
  * already running, or presses for one that needs no pressing.
  */
-export function GettingStarted({ offerSample = false }: { offerSample?: boolean }) {
+export function GettingStarted({ offerSample = false, tour = null }: { offerSample?: boolean; tour?: ReactNode }) {
   return (
     <div className="card">
       <h2 style={{ marginTop: 0 }}>Getting started</h2>
+      {tour}
       {offerSample ? (
         <>
           <p>No transcript to hand yet? See what a scored call looks like first.</p>

@@ -3039,7 +3039,9 @@ export type Database = {
           detect_calls: boolean
           display_name: string | null
           next_prep_id: string | null
+          onboarded_at: string | null
           overlay_look: Json
+          plan_seen: string | null
           updated_at: string
           user_id: string
         }
@@ -3047,7 +3049,9 @@ export type Database = {
           detect_calls?: boolean
           display_name?: string | null
           next_prep_id?: string | null
+          onboarded_at?: string | null
           overlay_look?: Json
+          plan_seen?: string | null
           updated_at?: string
           user_id: string
         }
@@ -3055,7 +3059,9 @@ export type Database = {
           detect_calls?: boolean
           display_name?: string | null
           next_prep_id?: string | null
+          onboarded_at?: string | null
           overlay_look?: Json
+          plan_seen?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -3065,6 +3071,13 @@ export type Database = {
             columns: ["next_prep_id"]
             isOneToOne: false
             referencedRelation: "call_preps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_preferences_plan_seen_fkey"
+            columns: ["plan_seen"]
+            isOneToOne: false
+            referencedRelation: "plans"
             referencedColumns: ["id"]
           },
         ]
@@ -3557,6 +3570,7 @@ export type Database = {
         Args: { p_error?: string; p_id: string; p_provider_id?: string }
         Returns: undefined
       }
+      finish_onboarding: { Args: never; Returns: undefined }
       import_conversation: {
         Args: {
           p_company_id?: string
@@ -3593,6 +3607,7 @@ export type Database = {
         Returns: number
       }
       mark_notifications_read: { Args: { p_ids?: string[] }; Returns: number }
+      mark_plan_seen: { Args: never; Returns: undefined }
       match_knowledge: {
         Args: {
           p_company_id: string

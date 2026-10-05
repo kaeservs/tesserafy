@@ -1,5 +1,10 @@
-import { PlanStrip, type PlanStripMeter } from '@/components/plan-strip';
-import { engagementLabel, sampleCallOffered } from '@/lib/company';
+import { PlanStrip, nearestLimit } from '@/components/plan-strip';
+import { engagementLabel, liveCallsAvailable, sampleCallOffered } from '@/lib/company';
+import { Onboarding, TourButton } from '@/components/onboarding';
+import type { PlanOverview } from '@/components/plan-panel';
+import { PricingCards } from '@/components/pricing-cards';
+import { billingMode } from '@/lib/billing';
+import { CATALOG_COLUMNS } from '@/lib/plan-catalog';
 import Link from 'next/link';
 import { GettingStarted } from '@/components/getting-started';
 import { ScorecardStrip } from '@/components/scorecard-strip';
@@ -286,7 +291,33 @@ export default async function DashboardPage() {
 
   // The plan, for the strip that says when it is running out (components/plan-strip).
   const { data: planData } = await supabase.rpc('plan_overview');
-  const planOverview = planData as unknown as { plan: string; plan_name: string; meters: PlanStripMeter[] } | null;
+  const planOverview = planData as unknown as PlanOverview | null;
+
+  // The plans above this one, and the first-run steps (components/pricing-cards, components/onboarding).
+  const [{ data: catalog }, { data: myPreferences }, { count: overlays }, offerSample, billing] = await Promise.all([
+    supabase.from('plans').select(CATALOG_COLUMNS).order('rank'),
+    supabase.from('user_preferences').select('onboarded_at').eq('user_id', user?.id ?? '').maybeSingle(),
+    supabase.from('overlay_seen').select('user_id', { count: 'exact', head: true }).eq('user_id', user?.id ?? ''),
+    sampleCallOffered(supabase),
+    companyId ? billingMode(supabase, companyId) : Promise.resolve('free' as const),
+  ]);
+  const currentPlan = catalog?.find((row) => row.id === planOverview?.plan) ?? null;
+  const upgrades = (catalog ?? []).filter(
+    (row) => row.per_seat && row.price_usd_cents !== null && row.rank > (currentPlan?.rank ?? 0),
+  );
+  const pricing = planOverview ? (
+    <PricingCards
+      plans={upgrades}
+      currentName={planOverview.plan_name}
+      seats={Math.max(planOverview.seats ?? 1, planOverview.members ?? 1)}
+      isOwner={isOwner}
+      billing={billing}
+    />
+  ) : null;
+  // First on Home while the plan is the small one or running out; at the foot otherwise.
+  const plansFirst =
+    planOverview !== null &&
+    (['none', 'free', 'trial'].includes(planOverview.plan) || (nearestLimit(planOverview.meters)?.share ?? 0) >= 0.8);
 
   return (
     <main className="wide">
@@ -297,6 +328,20 @@ export default async function DashboardPage() {
       {planOverview ? (
         <PlanStrip plan={planOverview.plan} planName={planOverview.plan_name} meters={planOverview.meters} isOwner={isOwner} />
       ) : null}
+      {plansFirst ? pricing : null}
+      <Onboarding
+        show={myPreferences?.onboarded_at == null}
+        isOwner={isOwner}
+        overlayInstalled={(overlays ?? 0) > 0}
+        hasCalls={conversations.length > 0}
+        offerSample={offerSample}
+        live={liveCallsAvailable(planOverview?.plan)}
+        plan={
+          currentPlan && planOverview
+            ? { row: currentPlan, seats: planOverview.seats ?? 1, members: planOverview.members ?? 1 }
+            : null
+        }
+      />
 
       <div className="grid stats-row" style={{ marginTop: '1.25rem' }}>
         <div className="card stat-card">
@@ -455,7 +500,7 @@ export default async function DashboardPage() {
       {/* The first page after a pilot's first sign-in; say what fills it. */}
       {conversations.length === 0 ? (
         <div style={{ marginTop: '1.5rem' }}>
-          <GettingStarted offerSample={await sampleCallOffered(supabase)} />
+          <GettingStarted offerSample={offerSample} tour={<TourButton />} />
         </div>
       ) : null}
 
@@ -647,6 +692,7 @@ export default async function DashboardPage() {
           </div>
         </section>
       </div>
+      {plansFirst ? null : <div style={{ marginTop: '2.5rem' }}>{pricing}</div>}
     </main>
   );
 }

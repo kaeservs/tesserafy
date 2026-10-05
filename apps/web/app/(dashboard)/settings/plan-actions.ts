@@ -79,9 +79,10 @@ async function changeSeats(formData: FormData): Promise<PlanActionState> {
   return { status: 'done', message: `${data} seats. Each brings its allowance from now on.` };
 }
 
-/** The page a plan button was pressed on: Settings or the person's Profile. */
-function pageOf(formData: FormData): '/settings' | '/profile' {
-  return text(formData, 'page') === '/profile' ? '/profile' : '/settings';
+/** The page a plan button was pressed on: Settings, the person's Profile, or the plans on Home. */
+function pageOf(formData: FormData): '/settings' | '/profile' | '/dashboard' {
+  const page = text(formData, 'page');
+  return page === '/profile' || page === '/dashboard' ? page : '/settings';
 }
 
 /** Where Stripe sends the owner back to: this deployment, as the owner reached it, on the page they left. */

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useActionState, useEffect, useState } from 'react';
 import { requestTeammate, type RequestState } from '@/app/(dashboard)/settings/team-actions';
 
@@ -11,8 +12,11 @@ const START: RequestState = { status: 'idle' };
  * A request, not an invitation: the account is created by Tesserafy's
  * operator console, which is the only place that may create one. What the
  * owner gets is a request on record and, below, what became of it.
+ *
+ * Nobody joins without a seat (ADR 0027). With every seat taken the request
+ * could not be granted, so the form says where to add one instead of taking it.
  */
-export function RequestTeammate() {
+export function RequestTeammate({ seatsFull = null }: { seatsFull?: { free: boolean; waiting: number } | null }) {
   const [state, action, pending] = useActionState(requestTeammate, START);
   // Held in state: React resets a form's uncontrolled fields after an action,
   // and a refused request should not wipe what was typed.
@@ -30,6 +34,18 @@ export function RequestTeammate() {
 
   return (
     <form action={action}>
+      {seatsFull ? (
+        <p role="status" className="card plan-strip">
+          {seatsFull.free
+            ? 'Free is one seat, and it is yours. Upgrade to add teammates: every paid seat brings its own allowance. '
+            : `Every seat is taken${
+                seatsFull.waiting > 0
+                  ? `, counting ${seatsFull.waiting} ${seatsFull.waiting === 1 ? 'request' : 'requests'} still waiting`
+                  : ''
+              }. Add a seat first: Tesserafy cannot add anyone without one. `}
+          <Link href="/profile#membership">Plan and billing</Link>
+        </p>
+      ) : null}
       <div className="toolbar" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <div className="field" style={{ marginBottom: 0 }}>
           <label htmlFor="request-email">Email</label>
@@ -61,7 +77,7 @@ export function RequestTeammate() {
             onChange={(event) => setNote(event.target.value)}
           />
         </div>
-        <button type="submit" disabled={pending}>
+        <button type="submit" disabled={pending || seatsFull !== null}>
           {pending ? 'Asking…' : 'Ask for them to be added'}
         </button>
       </div>

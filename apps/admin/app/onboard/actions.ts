@@ -105,12 +105,20 @@ export async function provisionAccount(
   const admin = await requireAdmin();
   const target = text(formData, 'target');
   const email = text(formData, 'email');
-  return provision(
+  const result = await provision(
     admin,
     target === 'new'
       ? { email, companyName: text(formData, 'companyName'), plan: text(formData, 'plan') }
       : { email, role: text(formData, 'role'), companyId: target },
   );
+  // Invited from the early-access list: marked invited once they are really in.
+  // If marking fails they are still added; the list keeps them as waiting, which is visible and harmless.
+  const earlyAccess = text(formData, 'earlyAccess');
+  if (result.status === 'ready' && earlyAccess) {
+    await admin.db.rpc('admin_mark_early_access', { p_id: earlyAccess, p_invited: true });
+    revalidatePath('/early-access');
+  }
+  return result;
 }
 
 /**

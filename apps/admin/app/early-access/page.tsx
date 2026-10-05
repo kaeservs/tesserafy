@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { requireAdmin } from '@/lib/admin';
 import { utc } from '@/lib/time';
 import { Chrome } from '../chrome';
@@ -28,7 +29,8 @@ export default async function EarlyAccess() {
       <h1>Early access</h1>
       <p className="lede">
         People who asked on the landing page to be told when Tesserafy opens. The form promised the address is used only for
-        that. Invite them once email works, then mark them here.
+        that. &ldquo;Invite to the beta&rdquo; opens Add people with them on Free; they are marked invited once added, and
+        you send the sign-in link it makes.
       </p>
       {error ? <p className="tag open">{error.message}</p> : null}
       <section className="card">
@@ -67,12 +69,26 @@ export default async function EarlyAccess() {
                     </form>
                   </td>
                   <td>
-                    <form action={removeEntry}>
-                      <input type="hidden" name="id" value={row.id} />
-                      <button type="submit" className="danger">
-                        Remove
-                      </button>
-                    </form>
+                    <div className="row" style={{ alignItems: 'center' }}>
+                      {row.invited_at ? null : (
+                        <Link
+                          href={`/onboard?${new URLSearchParams({
+                            email: row.email,
+                            plan: 'free',
+                            early: row.id,
+                            ...(row.company ? { company: row.company } : {}),
+                          }).toString()}`}
+                        >
+                          Invite to the beta
+                        </Link>
+                      )}
+                      <form action={removeEntry}>
+                        <input type="hidden" name="id" value={row.id} />
+                        <button type="submit" className="danger">
+                          Remove
+                        </button>
+                      </form>
+                    </div>
                   </td>
                 </tr>
               ))}

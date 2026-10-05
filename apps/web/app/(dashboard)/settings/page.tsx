@@ -73,6 +73,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         .order('created_at', { ascending: false })
         .limit(10)
     : { data: [] };
+  // Nobody joins without a seat (ADR 0027): with every seat taken, counting
+  // requests still waiting, a request could not be granted, so it says so first.
+  const plan = overview as unknown as PlanOverview | null;
+  const waitingRequests = (requests ?? []).filter((request) => request.resolution === null).length;
+  const seatLimit = plan?.seat_limit ?? null;
+  const seatsFull = seatLimit !== null && (plan?.members ?? 1) + waitingRequests >= seatLimit;
   const { data: exports } = isOwner
     ? await supabase
         .from('company_exports')
@@ -239,7 +245,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         </p>
         {isOwner ? (
           <>
-            <RequestTeammate />
+            <RequestTeammate seatsFull={seatsFull ? { free: plan?.plan === 'free', waiting: waitingRequests } : null} />
             {(requests ?? []).length > 0 ? (
               <ul className="muted">
                 {(requests ?? []).map((request) => (

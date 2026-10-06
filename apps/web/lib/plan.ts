@@ -88,8 +88,8 @@ const PLAN_NAME: Record<string, string> = {
 };
 
 /** Where an owner changes the plan, in the words of the page (ADR 0027). */
-export const PLAN_PAGE = '/profile#membership';
-const WHERE = 'Profile → Your membership';
+export const PLAN_PAGE = '/settings/membership';
+const WHERE = 'Settings → Membership';
 
 function day(iso: string | null): string {
   if (!iso) return '';

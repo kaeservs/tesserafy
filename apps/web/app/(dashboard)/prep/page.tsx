@@ -121,7 +121,7 @@ export default async function PrepPage({ searchParams }: { searchParams: Promise
         </section>
       ) : (
         <p className="muted">
-          <Link href="/account#calendar-heading">Connect your calendar</Link> and your upcoming customer meetings appear here,
+          <Link href="/account/calendar">Connect your calendar</Link> and your upcoming customer meetings appear here,
           one click from a prep.
         </p>
       )}

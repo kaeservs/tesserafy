@@ -187,7 +187,7 @@ function PlanStep({ plan, isOwner, onUpgrade }: { plan: OnboardingPlan; isOwner:
           Seats: {members} of {seats} used.{' '}
           {isOwner ? (
             <>
-              Add teammates on <Link href="/settings#team-heading">Settings</Link>
+              Add teammates on <Link href="/settings/team">Settings → Team</Link>
               {members >= seats ? ', after adding a seat on Plan and billing' : ''}; each seat brings its own allowance.
             </>
           ) : (
@@ -197,7 +197,7 @@ function PlanStep({ plan, isOwner, onUpgrade }: { plan: OnboardingPlan; isOwner:
       ) : null}
       {free && isOwner ? (
         <p>
-          <a className="button-secondary" href="#plans" onClick={onUpgrade}>
+          <a className="button-secondary" href="/settings/membership" onClick={onUpgrade}>
             See the plans
           </a>{' '}
           <span className="muted">Starter, Pro and Incognito, per seat.</span>

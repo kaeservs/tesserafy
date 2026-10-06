@@ -31,8 +31,8 @@ export async function disconnectCalendar(formData: FormData): Promise<void> {
     if (token) await revoke(provider, token);
   }
   await db.rpc('disconnect_calendar', { p_provider: provider });
-  revalidatePath('/account');
-  redirect('/account?calendar=disconnected#calendar-heading');
+  revalidatePath('/account/calendar');
+  redirect('/account/calendar?calendar=disconnected');
 }
 
 /** Read the calendars again now, rather than waiting for the next page to. */
@@ -43,6 +43,6 @@ export async function syncCalendarNow(): Promise<void> {
   } = await db.auth.getUser();
   if (!user) redirect('/login');
   await syncCalendars(db, user.id, { force: true });
-  revalidatePath('/account');
-  redirect('/account?calendar=synced#calendar-heading');
+  revalidatePath('/account/calendar');
+  redirect('/account/calendar?calendar=synced');
 }

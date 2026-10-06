@@ -96,7 +96,7 @@ export async function connectTracker(_prev: TrackerState, formData: FormData): P
       message: error.code === '42501' ? 'Only an owner can connect a tracker.' : error.message.replace(/^connect_tracker: /, ''),
     };
   }
-  revalidatePath('/settings');
+  revalidatePath('/settings', 'layout');
   return { status: 'connected', target: `${PROVIDER_NAME[provider]} ${checked.target}` };
 }
 
@@ -110,6 +110,6 @@ export async function disconnectTracker(_prev: TrackerState): Promise<TrackerSta
         error.code === '42501' ? 'Only an owner can disconnect a tracker.' : error.message.replace(/^disconnect_tracker: /, ''),
     };
   }
-  revalidatePath('/settings');
+  revalidatePath('/settings', 'layout');
   return { status: 'idle' };
 }

@@ -1,68 +1,34 @@
-import { DeleteMyAccount } from '@/components/delete-my-account';
+import { NameForm } from '@/components/name-form';
 import { PasswordForm } from '@/components/password-form';
-import { liveSetup } from '@/lib/live-setup';
-import { OVERLAY_ACCENTS, OVERLAY_MIN_OPACITY, OVERLAY_SIZES, OVERLAY_THEMES, readLook } from '@/lib/overlay-look';
+import { myMembership } from '@/lib/membership';
 import { createClient } from '@/lib/supabase/server';
-import { chooseNextCall, saveDetectCalls, saveOverlayLook } from './overlay-actions';
-import { calendarAvailable, PROVIDER_NAME, PROVIDERS, SYNC_DAYS } from '@/lib/calendar';
-import { disconnectCalendar, syncCalendarNow } from './calendar-actions';
-
-const CALENDAR_NOTE: Record<string, string> = {
-  connected: 'Calendar connected. Your upcoming customer meetings are on Prepare.',
-  disconnected: 'Calendar disconnected, and the meetings it brought in removed.',
-  synced: 'Read again.',
-  declined: 'Nothing was connected: the permission was not given.',
-  expired: 'That took too long or came from somewhere else. Try connecting again.',
-  failed: 'Connecting did not work. Try again in a moment.',
-  unavailable: 'Calendar sync is not switched on for this deployment yet.',
-};
 
 export const metadata = { title: 'Account · Tesserafy' };
 
 /**
- * The signed-in person's own account.
+ * Who you are: your name and your password.
  *
  * An operator-created account arrives here from its invitation link with no
  * password, and is asked to choose one before anything else; everyone else
- * reaches it from their address in the header, to change theirs.
+ * reaches it from their name in the sidebar, to change theirs.
  */
-export default async function AccountPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ invited?: string; overlay?: string; calendar?: string }>;
-}) {
-  const { invited, overlay: overlayNote, calendar: calendarNote } = await searchParams;
+export default async function AccountPage({ searchParams }: { searchParams: Promise<{ invited?: string }> }) {
+  const { invited } = await searchParams;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: membership } = await supabase
-    .from('company_members')
-    .select('role, companies(name)')
+  const { user, role, company } = await myMembership(supabase);
+  const welcome = invited === '1';
+  const { data: preferences } = await supabase
+    .from('user_preferences')
+    .select('display_name')
     .eq('user_id', user?.id ?? '')
-    .limit(1)
     .maybeSingle();
 
-  const welcome = invited === '1';
-  // Everything the overlay is told, set here rather than on it (lib/live-setup).
-  const setup = user ? await liveSetup(supabase, user.id) : null;
-  const look = readLook(setup?.look);
-  const { data: calendars } = user
-    ? await supabase
-        .from('calendar_connections')
-        .select('provider, account_email, last_synced_at, last_error')
-        .eq('user_id', user.id)
-    : { data: [] };
-
   return (
-    <main>
-      <h1>{welcome ? `Welcome to Tesserafy` : 'Your account'}</h1>
+    <>
       <p className="muted">
+        {welcome ? <strong>Welcome to Tesserafy. </strong> : null}
         Signed in as <strong>{user?.email}</strong>
-        {membership?.companies
-          ? ` · ${membership.role} of ${membership.companies.name}`
-          : ''}
+        {company ? ` · ${role === 'owner' ? 'Owner' : 'Member'} of ${company.name}` : ''}
       </p>
       <section aria-labelledby="password-heading" className="card">
         <h2 id="password-heading" style={{ marginTop: 0 }}>
@@ -70,184 +36,22 @@ export default async function AccountPage({
         </h2>
         {welcome ? (
           <p className="muted">
-            The link you followed works once. With a password you can sign in again from the sign-in
-            page whenever you like.
+            The link you followed works once. With a password you can sign in again from the sign-in page whenever you like.
           </p>
         ) : null}
         <PasswordForm invited={welcome} />
       </section>
-
-      {welcome || !setup ? null : (
-        <section aria-labelledby="overlay-heading" className="card">
-          <h2 id="overlay-heading" style={{ marginTop: 0 }}>
-            Overlay
-          </h2>
-          <p className="muted">
-            The desktop overlay is set up here, not on the overlay: it shows only what you need during a call. Where it sits is
-            each computer&apos;s own — drag it, or move it with Ctrl+Alt+Shift and the arrow keys.
-          </p>
-          <h3>Your next call</h3>
-          {setup.prep ? (
-            <p>
-              <a href={`/prep/${setup.prep.id}`}>{setup.prep.person}</a>
-              {setup.account ? `, ${setup.account.name}` : ''}
-              {setup.prep.callAt
-                ? ` · ${new Date(setup.prep.callAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' })} UTC`
-                : ''}
-              <span className="muted"> · {setup.prep.chosen ? 'chosen by you' : 'your prep with the nearest call'}</span>
-              {setup.prep.chosen ? (
-                <form action={chooseNextCall} className="inline-form">
-                  <input type="hidden" name="back" value="/account" />{' '}
-                  <button type="submit" className="link-button">
-                    Clear
-                  </button>
-                </form>
-              ) : null}
-            </p>
-          ) : (
-            <p className="muted">
-              None. Prepare a call under <a href="/prep">Prepare</a> and choose <em>Use for my next call</em>, or give it a time: the
-              overlay takes its customer, scorecard and questions from it.
-            </p>
-          )}
-          <h3>When a call starts</h3>
-          <form action={saveDetectCalls} className="inline-form">
-            <input type="hidden" name="on" value={setup.detectCalls ? 'off' : 'on'} />
-            <p>
-              {setup.detectCalls
-                ? 'The overlay comes up by itself when Zoom, Teams, Webex, Slack or your browser starts using your microphone, and offers Start.'
-                : 'The overlay stays where it is when a call starts; bring it up yourself.'}{' '}
-              <button type="submit" className="link-button">
-                {setup.detectCalls ? 'Switch off' : 'Switch on'}
-              </button>
-            </p>
-            <p className="muted" style={{ fontSize: '0.8rem' }}>
-              It never starts listening by itself: you confirm everyone agreed, then press Start. On Windows; on a Mac this comes
-              later.
-            </p>
-          </form>
-          <h3>How it looks</h3>
-          <form action={saveOverlayLook} className="overlay-look">
-            <label>
-              Theme{' '}
-              <select name="theme" defaultValue={look.theme}>
-                {OVERLAY_THEMES.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Accent{' '}
-              <select name="accent" defaultValue={look.accent}>
-                {OVERLAY_ACCENTS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Size{' '}
-              <select name="size" defaultValue={look.size}>
-                {OVERLAY_SIZES.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Background{' '}
-              <input type="number" name="opacity" min={OVERLAY_MIN_OPACITY} max={100} step={1} defaultValue={look.opacity} aria-describedby="opacity-note" />
-              %
-            </label>
-            <button type="submit">Save how it looks</button>
-          </form>
-          <p className="muted" id="opacity-note" style={{ fontSize: '0.8rem' }}>
-            The background fades to {OVERLAY_MIN_OPACITY}% at most; the text never does. The overlay picks up a change when it next
-            starts a call.
-          </p>
-          {overlayNote ? (
-            <p role="status" className="muted">
-              {overlayNote === 'saved' ? 'Saved.' : overlayNote}
-            </p>
-          ) : null}
-        </section>
-      )}
-
       {welcome ? null : (
-        <section aria-labelledby="calendar-heading" className="card">
-          <h2 id="calendar-heading" style={{ marginTop: 0 }}>
-            Calendar
+        <section aria-labelledby="you-heading" className="card">
+          <h2 id="you-heading" style={{ marginTop: 0 }}>
+            Your name
           </h2>
-          <p className="muted">
-            Connect your calendar and your upcoming meetings with customers appear on Prepare and Home, one click from a
-            call prep. Read-only. Only meetings with someone outside {user?.email?.split('@')[1] ?? 'your company'} are
-            kept — the title, time, who and the meeting link, for the next {SYNC_DAYS} days. Descriptions are never read.
+          <NameForm name={preferences?.display_name ?? ''} />
+          <p className="muted" style={{ marginBottom: 0 }}>
+            Shown in Tesserafy, and the name your follow-up emails go out under unless you type another.
           </p>
-          {calendarNote ? <p role="status">{CALENDAR_NOTE[calendarNote] ?? null}</p> : null}
-          <ul className="calendar-list">
-            {PROVIDERS.map((provider) => {
-              const connected = (calendars ?? []).find((row) => row.provider === provider);
-              return (
-                <li key={provider}>
-                  <strong>{PROVIDER_NAME[provider]}</strong>{' '}
-                  {connected ? (
-                    <>
-                      <span className="pill pill-on">Connected</span>{' '}
-                      <span className="muted">
-                        {connected.account_email}
-                        {connected.last_synced_at
-                          ? ` · read ${new Date(connected.last_synced_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' })} UTC`
-                          : ''}
-                      </span>
-                      {connected.last_error ? <p role="alert">{connected.last_error}</p> : null}
-                      <form action={disconnectCalendar} className="inline-form">
-                        <input type="hidden" name="provider" value={provider} />
-                        <button type="submit" className="link-button">
-                          Disconnect
-                        </button>
-                      </form>
-                    </>
-                  ) : calendarAvailable(provider) ? (
-                    <a href={`/api/calendar/connect/${provider}`} className="button-secondary">
-                      Connect
-                    </a>
-                  ) : (
-                    <span className="muted">Not switched on for this deployment yet.</span>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-          {(calendars ?? []).length > 0 ? (
-            <form action={syncCalendarNow}>
-              <button type="submit">Read my calendar now</button>
-            </form>
-          ) : null}
         </section>
       )}
-
-      {welcome ? null : (
-        <section aria-labelledby="delete-account-heading" className="card">
-          <h2 id="delete-account-heading" style={{ marginTop: 0 }}>
-            Delete your account
-          </h2>
-          {membership?.role === 'owner' ? (
-            <p className="muted" style={{ marginBottom: 0 }}>
-              You own {membership.companies?.name ?? 'your company'}, and a company needs an owner. To
-              delete your account, first make someone else an owner and step down to member, under{' '}
-              <a href="/settings">Settings → Who has access</a>; then this page offers it. If you are
-              the only person in the company, ask Tesserafy to close it instead, which deletes its
-              calls.
-            </p>
-          ) : (
-            <DeleteMyAccount email={user?.email ?? ''} company={membership?.companies?.name ?? null} />
-          )}
-        </section>
-      )}
-    </main>
+    </>
   );
 }

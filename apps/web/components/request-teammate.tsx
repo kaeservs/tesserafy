@@ -43,7 +43,7 @@ export function RequestTeammate({ seatsFull = null }: { seatsFull?: { free: bool
                   ? `, counting ${seatsFull.waiting} ${seatsFull.waiting === 1 ? 'request' : 'requests'} still waiting`
                   : ''
               }. Add a seat first: Tesserafy cannot add anyone without one. `}
-          <Link href="/profile#membership">Plan and billing</Link>
+          <Link href="/settings/membership">Settings → Membership</Link>
         </p>
       ) : null}
       <div className="toolbar" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>

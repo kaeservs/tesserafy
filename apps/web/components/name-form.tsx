@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState, useState } from 'react';
-import { saveName, type NameState } from '@/app/(dashboard)/profile/actions';
+import { saveName, type NameState } from '@/app/(dashboard)/account/name-actions';
 
 const START: NameState = { status: 'idle' };
 

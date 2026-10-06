@@ -20,10 +20,13 @@ test('a member sees how long calls are kept, and is not offered the choice', asy
   await page.getByRole('button', { name: 'Sign in' }).click();
   await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 30_000 });
 
-  // Settings sits in the sidebar's Setup group.
+  // Settings sits in the sidebar's Setup group, and opens on Membership;
+  // each section is a page of its own, reached by its tab.
   await page.getByRole('button', { name: 'Setup' }).click();
-  await page.getByRole('link', { name: 'Settings' }).click();
-  await page.waitForURL((url) => url.pathname === '/settings');
+  await page.getByRole('link', { name: 'Settings', exact: true }).click();
+  await page.waitForURL((url) => url.pathname === '/settings/membership');
+  await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Calls' }).click();
+  await page.waitForURL((url) => url.pathname === '/settings/calls');
 
   const section = page.getByRole('region', { name: 'How long calls are kept' });
   await expect(section.getByText(/^Calls are (kept|deleted)/)).toBeVisible();
@@ -38,7 +41,7 @@ test('a member sees who has access, themselves included, and cannot remove anyon
   await page.getByRole('button', { name: 'Sign in' }).click();
   await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 30_000 });
 
-  await page.goto('/settings');
+  await page.goto('/settings/team');
   const team = page.getByRole('region', { name: 'Who has access' });
   await expect(team.getByRole('row', { name: /\(you\)/ })).toContainText('member');
   // At least one owner, or nobody could ever remove anyone.

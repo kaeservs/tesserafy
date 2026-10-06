@@ -70,13 +70,17 @@ function groups(live: boolean): Group[] {
         { label: 'AI guidance', href: '/guidance' },
         { label: 'Knowledge', href: '/knowledge' },
         { label: 'Settings', href: '/settings' },
-        { label: 'Plan and billing', href: '/profile' },
+        { label: 'Plan and billing', href: '/settings/membership' },
       ],
     },
   ];
 }
 
 const here = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`);
+
+/** Of a group's links, the one this page is: the longest that matches, so Plan and billing is not also Settings. */
+const currentOf = (pathname: string, items: readonly { href: string }[]) =>
+  items.filter((item) => here(pathname, item.href)).sort((a, b) => b.href.length - a.href.length)[0]?.href ?? null;
 
 export function Sidebar({
   email,
@@ -153,7 +157,7 @@ export function Sidebar({
                     <ul className="side-sub">
                       {group.items?.map((item) => (
                         <li key={item.href}>
-                          <Link href={item.href} className="side-sublink" {...(here(pathname, item.href) ? { 'aria-current': 'page' as const } : {})}>
+                          <Link href={item.href} className="side-sublink" {...(currentOf(pathname, group.items ?? []) === item.href ? { 'aria-current': 'page' as const } : {})}>
                             {item.label}
                           </Link>
                         </li>
@@ -170,7 +174,7 @@ export function Sidebar({
           {upgrade ? (
             <div className="promo">
               <p>Upgrade to Pro for more calls, questions and live minutes.</p>
-              <Link href="/settings#plan-heading" className="promo-button">
+              <Link href="/settings/membership" className="promo-button">
                 See plans
               </Link>
             </div>
@@ -190,8 +194,8 @@ export function Sidebar({
             </summary>
             <div className="profile-menu">
               <span className="muted profile-email">{email}</span>
-              <Link href="/profile">Your profile and plan</Link>
-              <Link href="/account">Your account and overlay</Link>
+              <Link href="/account">Your account</Link>
+              <Link href="/settings/membership">Plan and billing</Link>
               <form action="/auth/sign-out" method="post">
                 <button type="submit" className="link-button">
                   Sign out

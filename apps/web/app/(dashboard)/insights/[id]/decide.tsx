@@ -77,7 +77,7 @@ export function Decide({
       {status === 'approved' && !raised && !trackerTarget && (
         <span className="muted">
           To turn this into a ticket, an owner connects your tracker under{' '}
-          <a href="/settings#tracker-heading">Settings → Where tickets go</a>.
+          <a href="/settings/integrations">Settings → Integrations</a>.
         </span>
       )}
 

@@ -131,7 +131,7 @@ export function PlanPanel({
   liveAvailable,
   billing = 'free',
   returnedFromCheckout = false,
-  page = '/settings',
+  page = '/settings/membership',
   owners = [],
 }: {
   overview: PlanOverview;
@@ -148,7 +148,7 @@ export function PlanPanel({
   /** Back from checkout: Stripe has the payment, and its word may be seconds behind. */
   returnedFromCheckout?: boolean;
   /** Where the panel is, so a press comes back to it. */
-  page?: '/settings' | '/profile';
+  page?: '/settings/membership';
   /** Who can change the plan, for a member to ask. */
   owners?: readonly string[];
 }) {

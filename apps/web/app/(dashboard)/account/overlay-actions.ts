@@ -21,18 +21,18 @@ export async function saveOverlayLook(formData: FormData): Promise<void> {
   });
   const supabase = await createClient();
   const { error } = await supabase.rpc('set_overlay_look', { p_look: { ...look } });
-  if (error) redirect(`/account?overlay=${encodeURIComponent(reason(error.message))}#overlay-heading`);
-  revalidatePath('/account');
-  redirect('/account?overlay=saved#overlay-heading');
+  if (error) redirect(`/account/overlay?overlay=${encodeURIComponent(reason(error.message))}`);
+  revalidatePath('/account/overlay');
+  redirect('/account/overlay?overlay=saved');
 }
 
 /** Whether my overlay shows itself when a call starts. */
 export async function saveDetectCalls(formData: FormData): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase.rpc('set_detect_calls', { p_on: formData.get('on') === 'on' });
-  if (error) redirect(`/account?overlay=${encodeURIComponent(reason(error.message))}#overlay-heading`);
-  revalidatePath('/account');
-  redirect('/account?overlay=saved#overlay-heading');
+  if (error) redirect(`/account/overlay?overlay=${encodeURIComponent(reason(error.message))}`);
+  revalidatePath('/account/overlay');
+  redirect('/account/overlay?overlay=saved');
 }
 
 /** Which prep is my next call in the overlay; empty clears it. */
@@ -42,7 +42,7 @@ export async function chooseNextCall(formData: FormData): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase.rpc('set_next_call', typeof prepId === 'string' && prepId ? { p_prep_id: prepId } : {});
   if (error) throw new Error(reason(error.message));
-  revalidatePath('/account');
+  revalidatePath('/account/overlay');
   revalidatePath('/prep');
   if (typeof back === 'string' && back.startsWith('/') && !back.startsWith('//')) {
     revalidatePath(back);

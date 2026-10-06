@@ -2586,3 +2586,44 @@ button.button-primary {
 .pricing-card form {
   margin-top: auto;
 }
+
+/* An area's pages along its top (Settings, Your account): each section is a
+   page with its own path, and this says which one you are on. Scrolls
+   sideways on a phone rather than wrapping or widening the page. */
+.section-tabs {
+  margin: 0.25rem 0 1.25rem;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.section-tabs ul {
+  display: flex;
+  gap: 0.25rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.section-tabs a {
+  display: block;
+  padding: 0.55rem 0.9rem;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.section-tabs a:hover {
+  color: var(--fg);
+}
+
+.section-tabs a[aria-current='page'] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+main > .card + .card {
+  margin-top: 1.25rem;
+}

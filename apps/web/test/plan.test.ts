@@ -14,25 +14,25 @@ const refusal = (overrides: Partial<Parameters<typeof describeRefusal>[0]> = {})
 describe('describeRefusal', () => {
   it('says what the plan includes, and what to do on Starter', () => {
     expect(describeRefusal(refusal())).toBe(
-      'Your Starter plan includes 10 imported calls a month, and they have all been used. An owner can upgrade or add seats on Profile → Your membership, or it resets on 25 October.',
+      'Your Starter plan includes 10 imported calls a month, and they have all been used. An owner can upgrade or add seats on Settings → Membership, or it resets on 25 October.',
     );
   });
 
   it('on Pro the way to more is seats, or the date', () => {
     expect(describeRefusal(refusal({ plan: 'pro', limit: 25, meter: 'extractions' }))).toBe(
-      'Your Pro plan includes 25 “Find insights” or call preps a month, and they have all been used. An owner can add seats on Profile → Your membership, or it resets on 25 October.',
+      'Your Pro plan includes 25 “Find insights” or call preps a month, and they have all been used. An owner can add seats on Settings → Membership, or it resets on 25 October.',
     );
   });
 
   it('on Free it points at choosing a plan', () => {
     expect(describeRefusal(refusal({ plan: 'free', limit: 2 }))).toBe(
-      'Your Free plan includes 2 imported calls a month, and they have all been used. An owner can choose Starter, Pro or Incognito on Profile → Your membership.',
+      'Your Free plan includes 2 imported calls a month, and they have all been used. An owner can choose Starter, Pro or Incognito on Settings → Membership.',
     );
   });
 
   it('says plainly what a plan does not include at all', () => {
     expect(describeRefusal(refusal({ plan: 'free', limit: 0, meter: 'pattern_runs' }))).toBe(
-      '“Look for patterns” runs are not on your Free plan. An owner can choose Starter, Pro or Incognito on Profile → Your membership.',
+      '“Look for patterns” runs are not on your Free plan. An owner can choose Starter, Pro or Incognito on Settings → Membership.',
     );
   });
 
@@ -42,7 +42,7 @@ describe('describeRefusal', () => {
 
   it('with no plan at all, says so rather than quoting a limit of zero', () => {
     expect(describeRefusal(refusal({ plan: 'none', limit: 0 }))).toBe(
-      'Your company has no plan at the moment. An owner can choose one on Profile → Your membership.',
+      'Your company has no plan at the moment. An owner can choose one on Settings → Membership.',
     );
   });
 

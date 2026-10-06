@@ -22,7 +22,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const who = await caller(request);
   if (!who) return NextResponse.redirect(siteUrl(request, '/login'));
   if (!isCalendarProvider(provider) || !calendarAvailable(provider)) {
-    return NextResponse.redirect(siteUrl(request, '/account?calendar=unavailable#calendar-heading'));
+    return NextResponse.redirect(siteUrl(request, '/account/calendar?calendar=unavailable'));
   }
   const state = randomBytes(24).toString('hex');
   const redirectUri = siteUrl(request, `/api/calendar/callback/${provider}`).toString();

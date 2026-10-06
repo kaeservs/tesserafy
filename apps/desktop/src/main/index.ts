@@ -729,7 +729,7 @@ void app.whenReady().then(async () => {
     isId(eventId) ? post('/api/live/meeting-prep', { eventId }) : { error: 'which meeting?' },
   );
   // An allowance ran out: the plan, in the dashboard, where an owner changes it.
-  ipcMain.handle('overlay:open-plan', () => shell.openExternal(new URL('/profile#membership', BASE_URL).toString()));
+  ipcMain.handle('overlay:open-plan', () => shell.openExternal(new URL('/settings/membership', BASE_URL).toString()));
   ipcMain.handle('overlay:open-prep', (_event, prepId: unknown) =>
     isId(prepId) ? shell.openExternal(new URL(`/prep/${prepId}`, BASE_URL).toString()) : undefined,
   );

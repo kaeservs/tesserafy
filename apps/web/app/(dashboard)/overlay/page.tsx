@@ -48,7 +48,7 @@ export default async function OverlayPage() {
         <h2 id="setup-heading">Set it up here, not in the overlay</h2>
         <ul>
           <li>
-            How it looks — theme, colour, size: <Link href="/account#overlay-heading">Your account → Overlay</Link>.
+            How it looks — theme, colour, size: <Link href="/account/overlay">Your account → Overlay</Link>.
           </li>
           <li>
             Who your next call is with, its scorecard and questions: mark a call prep{' '}

@@ -91,6 +91,8 @@ async function main(): Promise<void> {
     ['/conversations', 307],
     ['/insights', 307],
     ['/settings', 307],
+    ['/settings/membership', 307],
+    ['/account/overlay', 307],
     ['/scorecards', 307],
     ['/reports', 307],
     ['/notifications', 307],

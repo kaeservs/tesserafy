@@ -46,7 +46,7 @@ export function PlanChange({ from, to, isOwner }: { from: CatalogRow | null; to:
         </p>
       ) : null}
       <div className="onboarding-foot">
-        <Link href="/profile#membership" className="button-secondary" onClick={seen}>
+        <Link href="/settings/membership" className="button-secondary" onClick={seen}>
           {isOwner ? 'Plan and billing' : 'See the plan'}
         </Link>
         <button type="button" className="button-primary" onClick={seen}>

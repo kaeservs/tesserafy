@@ -45,7 +45,7 @@ async function changePlan(formData: FormData): Promise<PlanActionState> {
           : error.message.replace(/^change_plan: /, ''),
     };
   }
-  revalidatePath('/settings');
+  revalidatePath('/settings', 'layout');
   return { status: 'done', message: OUTCOME[data] ?? 'Done.' };
 }
 
@@ -59,7 +59,7 @@ async function cancelPlan(): Promise<PlanActionState> {
         error.code === '42501' ? 'Only an owner can cancel.' : error.message.replace(/^cancel_plan: /, ''),
     };
   }
-  revalidatePath('/settings');
+  revalidatePath('/settings', 'layout');
   return {
     status: 'done',
     message: 'Cancelled. The plan runs to the end of this period; your calls stay after that.',
@@ -79,10 +79,9 @@ async function changeSeats(formData: FormData): Promise<PlanActionState> {
   return { status: 'done', message: `${data} seats. Each brings its allowance from now on.` };
 }
 
-/** The page a plan button was pressed on: Settings, the person's Profile, or the plans on Home. */
-function pageOf(formData: FormData): '/settings' | '/profile' | '/dashboard' {
-  const page = text(formData, 'page');
-  return page === '/profile' || page === '/dashboard' ? page : '/settings';
+/** The page a plan button was pressed on: Settings → Membership, or the plans on Home. */
+function pageOf(formData: FormData): '/settings/membership' | '/dashboard' {
+  return text(formData, 'page') === '/dashboard' ? '/dashboard' : '/settings/membership';
 }
 
 /** Where Stripe sends the owner back to: this deployment, as the owner reached it, on the page they left. */

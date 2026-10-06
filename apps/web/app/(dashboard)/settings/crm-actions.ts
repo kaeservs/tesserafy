@@ -53,7 +53,7 @@ export async function connectCrm(_prev: CrmState, formData: FormData): Promise<C
       message: error.code === '42501' ? 'Only an owner can connect a CRM.' : error.message.replace(/^connect_crm: /, ''),
     };
   }
-  revalidatePath('/settings');
+  revalidatePath('/settings', 'layout');
   return { status: 'connected', account: `HubSpot account ${checked.portalId}` };
 }
 
@@ -66,6 +66,6 @@ export async function disconnectCrm(_prev: CrmState): Promise<CrmState> {
       message: error.code === '42501' ? 'Only an owner can disconnect a CRM.' : error.message.replace(/^disconnect_crm: /, ''),
     };
   }
-  revalidatePath('/settings');
+  revalidatePath('/settings', 'layout');
   return { status: 'idle' };
 }

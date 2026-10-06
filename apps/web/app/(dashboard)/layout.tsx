@@ -96,7 +96,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               share your screen.
             </span>
             {isOwner ? (
-              <Link href="/dashboard#plans" className="button-primary">
+              <Link href="/settings/membership" className="button-primary">
                 Upgrade now
               </Link>
             ) : (

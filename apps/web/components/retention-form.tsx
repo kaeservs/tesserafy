@@ -36,7 +36,7 @@ export function RetentionForm({ current }: { current: number | null }) {
             {pending ? 'Saving…' : `Keep calls for ${periodLabel(days)}`}
           </button>
           {/* A plain link back: the review step is state, not a page. */}
-          <a href="/settings">Cancel</a>
+          <a href="/settings/calls">Cancel</a>
         </div>
       </form>
     );

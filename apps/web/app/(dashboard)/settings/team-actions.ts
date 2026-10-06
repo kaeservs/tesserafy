@@ -37,7 +37,7 @@ export async function removeMember(_prev: RemoveState, formData: FormData): Prom
           : error.message.replace(/^remove_company_member: /, ''),
     };
   }
-  revalidatePath('/settings');
+  revalidatePath('/settings', 'layout');
   return { status: 'idle' };
 }
 
@@ -64,8 +64,8 @@ export async function changeRole(_prev: RemoveState, formData: FormData): Promis
           : `${message.charAt(0).toUpperCase()}${message.slice(1)}.`,
     };
   }
-  revalidatePath('/settings');
-  revalidatePath('/account');
+  revalidatePath('/settings', 'layout');
+  revalidatePath('/account', 'layout');
   return { status: 'idle' };
 }
 
@@ -96,6 +96,6 @@ export async function requestTeammate(_prev: RequestState, formData: FormData): 
           : error.message.replace(/^request_teammate: /, ''),
     };
   }
-  revalidatePath('/settings');
+  revalidatePath('/settings', 'layout');
   return { status: 'sent', email };
 }

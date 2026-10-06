@@ -54,7 +54,7 @@ export function PlanStrip({
       <strong>{plan === 'none' ? 'No plan' : planName}</strong>
       {nearest ? ` · ${used} of ${limit} ${NOUN[nearest.meter.meter] ?? nearest.meter.meter} used this month.` : '.'}{' '}
       {isOwner ? (
-        <Link href="/profile#membership">{starting ? 'Choose a plan' : 'Upgrade or add seats'}</Link>
+        <Link href="/settings/membership">{starting ? 'Choose a plan' : 'Upgrade or add seats'}</Link>
       ) : (
         <span className="muted">An owner can change the plan.</span>
       )}

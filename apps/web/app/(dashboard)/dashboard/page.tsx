@@ -410,7 +410,7 @@ export default async function DashboardPage() {
             <p className="muted" style={{ marginBottom: 0 }}>
               Nothing prepared. <Link href="/prep">Prepare for a call</Link> and mark it “Use for my next call”: the
               overlay then knows who it is with, the scorecard and what to ask.{' '}
-              <Link href="/account#calendar-heading">Connect your calendar</Link> and your next customer meeting shows here.
+              <Link href="/account/calendar">Connect your calendar</Link> and your next customer meeting shows here.
             </p>
           )}
         </section>

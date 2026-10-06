@@ -68,7 +68,7 @@ export function PricingCards({
       <p className="muted">
         {isOwner ? (
           <>
-            Seats, moving down and cancelling are on <Link href="/profile#membership">Plan and billing</Link>.
+            Seats, moving down and cancelling are on <Link href="/settings/membership">Settings → Membership</Link>.
             {billing === 'free' ? ' Payments are not live yet: an upgrade is free and applies at once.' : ''}
           </>
         ) : (

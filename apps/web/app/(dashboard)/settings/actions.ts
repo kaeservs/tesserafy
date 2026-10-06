@@ -9,7 +9,7 @@ export async function setScreenAssist(formData: FormData): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase.rpc('set_screen_assist', { p_allowed: formData.get('allowed') === 'on' });
   if (error) throw new Error(error.message.replace(/^[a-z_]+: /, ''));
-  revalidatePath('/settings');
+  revalidatePath('/settings', 'layout');
 }
 
 export type RetentionState =
@@ -88,6 +88,6 @@ export async function changeRetention(
   });
   if (error) return refused(error.code, error.message);
 
-  revalidatePath('/settings');
+  revalidatePath('/settings', 'layout');
   return { status: 'saved', days };
 }

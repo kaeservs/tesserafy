@@ -170,11 +170,11 @@ The one AI path that is not charged is the sample call (`/api/sample-call`):
 a trial has three imported calls and a demonstration should not cost one, so
 `import_sample_call` allows one per company, ever, and the route sends only
 the app's own sample text. Plan
-changes are made on Settings or on each person's Profile (`/profile`, linked
-as "Plan and billing"; Free has a banner on every page with its limits and
+changes are made on Settings → Membership (`/settings/membership`, linked
+as "Plan and billing"; `/profile` and `/membership` redirect there; Free has a banner on every page with its limits and
 Upgrade now, Home lists the plans above the company's with their prices, and
 shows a plan strip near a limit; every
-402 names Profile → Your membership and carries `upgrade`, which the overlay
+402 names Settings → Membership and carries `upgrade`, which the overlay
 offers as a button; the same plan panel: owners start, upgrade, move down, cancel or open Stripe's
 billing; members see the plan and which owners to ask — a plan is the
 company's), and all go through `private.apply_plan`: owners start, upgrade (now),
@@ -251,7 +251,7 @@ overlay's main process only when the seller presses Screen, of the display
 the overlay is on (which content protection keeps it out of), never held by
 the page, never stored — it goes to the model for that answer alone. A JPEG
 or PNG by its bytes, under 1.5 MB. Owners can switch it off for the company
-(`companies.screen_assist`, Settings); the overlay then does not offer it and
+(`companies.screen_assist`, Settings → Calls); the overlay then does not offer it and
 `/api/assist` refuses it. Words read off the screen are shown as "on your
 screen", not as a verified quote: there is no stored text to check them
 against. Tests send the model a rendered slide, never a real screen.
@@ -290,7 +290,7 @@ well, Meet or Teams in a browser — no process list can tell a browser in a
 meeting from a browser. Only meeting apps count (games use the microphone
 too), never the overlay itself. It comes up without taking focus and offers
 Start; it never starts listening by itself, because consent comes first.
-Each person can switch it off (Account → Overlay, `user_preferences.detect_calls`).
+Each person can switch it off (Your account → Overlay, `user_preferences.detect_calls`).
 macOS keeps no such record a command can read; it needs a native check.
 
 A support session ends when its record does. The console's link starts an
@@ -334,7 +334,7 @@ To starts with them, the HubSpot note goes on those who are contacts, and
 their domain stands in for the call's customer when it has none.
 
 A company can log calls to its own CRM, HubSpot first (ADR 0024): the owner
-pastes a HubSpot private app token on Settings, checked with HubSpot and
+pastes a HubSpot private app token on Settings → Integrations, checked with HubSpot and
 sealed under `CRM_TOKEN_KEY` exactly as a tracker's token is (ADR 0015);
 `crm_for_call` is the one path to it, never for a support session. Pressing
 Log on a call page writes one note on the HubSpot company whose domain is the
@@ -421,6 +421,13 @@ a test fails if they drift (ADR 0019).
     pnpm test:integration            # RLS + retrieve() cross-tenant, local stack only
 
 ## Conventions
+
+- Every page has its own path; a section of a page is never reached by an
+  anchor. Settings is `/settings/{membership,team,calls,integrations,data}`
+  and Your account is `/account` (name, password) and
+  `/account/{overlay,calendar,delete}`, each area with tabs along its top
+  (`components/section-tabs.tsx`). A link, a redirect after a form, a
+  `revalidatePath` and a 402's `upgrade` all name the page itself.
 
 - TypeScript everywhere in `apps/` and `packages/`. Python only in
   `services/eval`.

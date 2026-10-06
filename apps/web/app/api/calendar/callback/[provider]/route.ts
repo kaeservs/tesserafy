@@ -26,7 +26,7 @@ function same(a: string, b: string): boolean {
 export async function GET(request: NextRequest, { params }: { params: Promise<{ provider: string }> }) {
   const { provider } = await params;
   const back = (outcome: string) => {
-    const response = NextResponse.redirect(siteUrl(request, `/account?calendar=${outcome}#calendar-heading`));
+    const response = NextResponse.redirect(siteUrl(request, `/account/calendar?calendar=${outcome}`));
     response.cookies.delete({ name: STATE_COOKIE, path: '/api/calendar' });
     return response;
   };

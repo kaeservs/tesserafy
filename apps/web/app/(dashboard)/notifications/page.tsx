@@ -113,7 +113,7 @@ export default async function NotificationsPage() {
                     Your request to add {row.access_requests.email} was{' '}
                     {row.access_requests.resolution === 'added' ? 'approved — they can sign in now' : 'declined'}
                     {row.access_requests.resolution_note ? `: “${row.access_requests.resolution_note}”` : ''}.{' '}
-                    <Link href="/settings">Team</Link>
+                    <Link href="/settings/team">Team</Link>
                   </>
                 ) : null}
               </div>

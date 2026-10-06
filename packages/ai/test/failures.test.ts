@@ -89,6 +89,19 @@ describe('what it does not know', () => {
   });
 });
 
+describe('what must stay readable', () => {
+  it('keeps a row id whole, digits and all, so the failure can be looked up', () => {
+    const id = 'e4778f12-3456-4a71-9fff-cb3afc3eb57b';
+    expect(scrub(`record_segment_embeddings: conversation ${id} not found`)).toContain(id);
+  });
+
+  it('while a phone number beside it is still masked', () => {
+    const said = scrub('conversation e4778f12-3456-4a71-9fff-cb3afc3eb57b: call +44 20 7946 0958');
+    expect(said).toContain('e4778f12-3456-4a71-9fff-cb3afc3eb57b');
+    expect(said).not.toContain('7946');
+  });
+});
+
 describe('what must never reach the row', () => {
   it('removes an API key the upstream quoted back', () => {
     const said = scrub('401 invalid x-api-key: sk-ant-api03-AbC123_xyz-QQ');

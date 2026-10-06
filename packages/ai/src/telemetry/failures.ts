@@ -65,12 +65,21 @@ const CREDENTIALS: readonly RegExp[] = [
 /** As long as a message stays useful to read, and no longer. */
 const MAX_MESSAGE = 2000;
 
+/** A row's id: how whoever reads the failure finds the row, and nobody's identifier. */
+const ROW_ID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
+
 export function scrub(message: string): string {
   let text = message;
   for (const pattern of CREDENTIALS) text = text.replace(pattern, '[credential]');
+  // Ids are set aside from the redactor: its digit rule read a run of digits
+  // inside one as a phone number, and "conversation e4778f[phone]a71-… not
+  // found" could not be looked up (production, 2026-10-01).
+  const ids: string[] = [];
+  text = text.replace(ROW_ID, (id) => `⟦id${ids.push(id) - 1}⟧`);
   // T0's redactor second, so a masked credential cannot be mistaken for a
   // phone number by the digit rule.
   text = redact(text).text;
+  text = text.replace(/⟦id(\d+)⟧/g, (_, index: string) => ids[Number(index)] ?? '');
   return text.length > MAX_MESSAGE ? `${text.slice(0, MAX_MESSAGE - 1)}…` : text;
 }
 

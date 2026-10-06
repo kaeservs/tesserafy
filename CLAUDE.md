@@ -291,7 +291,9 @@ meeting from a browser. Only meeting apps count (games use the microphone
 too), never the overlay itself. It comes up without taking focus and offers
 Start; it never starts listening by itself, because consent comes first.
 Each person can switch it off (Your account → Overlay, `user_preferences.detect_calls`).
-macOS keeps no such record a command can read; it needs a native check.
+macOS keeps the same fact in Core Audio (14.2 and later), where no command can
+read it, so a small Swift helper beside the app prints it
+(`native/mac/mic-users.swift`, ADR 0029); before 14.2 nothing is detected.
 
 A support session ends when its record does. The console's link starts an
 ordinary session; `support_session_ended()` says whether the caller's session

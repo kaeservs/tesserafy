@@ -66,6 +66,7 @@ export default tseslint.config(
             'scripts/*.mjs',
             'tools/lint/*.js',
             'apps/desktop/src/renderer/*.js',
+            'apps/desktop/scripts/*.mjs',
           ],
         },
         // The repository root, not this package: the projects being linted

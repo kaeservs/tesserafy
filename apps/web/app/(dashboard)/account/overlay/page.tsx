@@ -77,8 +77,8 @@ export default async function OverlaySettingsPage({ searchParams }: { searchPara
           </button>
         </p>
         <p className="muted" style={{ fontSize: '0.8rem' }}>
-          It never starts listening by itself: you confirm everyone agreed, then press Start. On Windows; on a Mac this comes
-          later.
+          It never starts listening by itself: you confirm everyone agreed, then press Start. On Windows, and on a Mac
+          with macOS 14.2 or later.
         </p>
       </form>
       <h3>How it looks</h3>

@@ -4,7 +4,7 @@
   "private": true,
   "main": "dist/main/index.js",
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && esbuild src/renderer/renderer.js --bundle --format=esm --outfile=dist/renderer/renderer.js && node -e \"require('fs').copyFileSync('src/renderer/index.html','dist/renderer/index.html')\"",
+    "build": "tsc -p tsconfig.build.json && node scripts/build-mic-helper.mjs && esbuild src/renderer/renderer.js --bundle --format=esm --outfile=dist/renderer/renderer.js && node -e \"require('fs').copyFileSync('src/renderer/index.html','dist/renderer/index.html')\"",
     "dev": "pnpm build && electron .",
     "typecheck": "tsc -p tsconfig.json",
     "dist:win": "pnpm build && electron-builder --win nsis --publish never",

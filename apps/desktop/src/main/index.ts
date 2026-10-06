@@ -17,7 +17,8 @@
 import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, net, safeStorage, screen, shell } from 'electron';
 import { execFile } from 'node:child_process';
 import { readFile, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import {
   DEFAULT_APPEARANCE,
   normalize,
@@ -29,7 +30,15 @@ import {
 } from './appearance';
 import { scorecardName } from './scorecard';
 import { Session, type Store } from './session';
-import { callChange, meetingMicrophoneUsers, MICROPHONE_KEY, type MicrophoneUser } from './calls';
+import {
+  callChange,
+  MAC_BUNDLE_ID,
+  MAC_HELPER,
+  macMeetingMicrophoneUsers,
+  meetingMicrophoneUsers,
+  MICROPHONE_KEY,
+  type MicrophoneUser,
+} from './calls';
 import { nudged } from './nudge';
 import { ASSIST_SHORTCUT, MOVE_SHORTCUTS, SHORTCUTS, shortcutLabel, type MoveDirection } from './shortcuts';
 import { createTray, type OverlayTray } from './tray';
@@ -235,8 +244,9 @@ async function captureScreen(): Promise<{ mediaType: 'image/jpeg'; data: string 
 }
 
 /**
- * A call starting: on Windows, a meeting app taking the microphone (./calls).
- * Checked every few seconds; when one starts, the overlay comes up — without
+ * A call starting: a meeting app taking the microphone (./calls) — on Windows
+ * from the registry, on a Mac (14.2 and later) from Core Audio through the
+ * mic-users helper. Checked every few seconds; when one starts, the overlay comes up — without
  * taking focus from the meeting — and the page offers Start. It never starts
  * listening by itself: the person presses Start, under their recording
  * agreement (ADR 0020). Off when the
@@ -245,11 +255,16 @@ async function captureScreen(): Promise<{ mediaType: 'image/jpeg'; data: string 
 let detectCalls = true;
 let micUsers: MicrophoneUser[] = [];
 function watchForCalls(): void {
-  if (process.platform !== 'win32') return;
+  const read = microphoneReader();
+  if (!read) return;
   const check = () =>
-    execFile('reg', ['query', MICROPHONE_KEY, '/s'], { windowsHide: true, maxBuffer: 1024 * 1024 }, (error, stdout) => {
-      if (error) return;
-      const now = meetingMicrophoneUsers(stdout, process.execPath);
+    read((now) => {
+      // A Mac without the record (before 14.2): nothing to ask, ever, so stop.
+      if (now === 'unsupported') {
+        clearInterval(timer);
+        return;
+      }
+      if (!now) return;
       const change = callChange(micUsers, now);
       micUsers = now;
       if (!overlay || !detectCalls) return;
@@ -260,8 +275,30 @@ function watchForCalls(): void {
         overlay.webContents.send('overlay:call', { active: false, app: null });
       }
     });
-  setInterval(check, 4_000);
+  const timer = setInterval(check, 4_000);
   check();
+}
+
+type MicrophoneReading = MicrophoneUser[] | 'unsupported' | null;
+
+/** How this computer says which apps are using the microphone, or null where it cannot. */
+function microphoneReader(): ((done: (now: MicrophoneReading) => void) => void) | null {
+  if (process.platform === 'win32') {
+    return (done) =>
+      execFile('reg', ['query', MICROPHONE_KEY, '/s'], { windowsHide: true, maxBuffer: 1024 * 1024 }, (error, stdout) =>
+        done(error ? null : meetingMicrophoneUsers(stdout, process.execPath)),
+      );
+  }
+  if (process.platform === 'darwin') {
+    // Packaged, beside the app's own executable; in development, where the build put it.
+    const helper = app.isPackaged ? join(dirname(process.execPath), MAC_HELPER) : join(app.getAppPath(), 'dist', 'mac', MAC_HELPER);
+    if (!existsSync(helper)) return null;
+    return (done) =>
+      execFile(helper, [], { maxBuffer: 1024 * 1024, timeout: 3_000 }, (error, stdout) =>
+        done(error ? null : macMeetingMicrophoneUsers(stdout, MAC_BUNDLE_ID)),
+      );
+  }
+  return null;
 }
 
 /** One press of a move shortcut: a step that way, kept on its display, and kept there. */

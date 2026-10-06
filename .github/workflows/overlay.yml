@@ -124,6 +124,13 @@ jobs:
             codesign --verify --deep --strict --verbose=2 "$app" || { echo "::error::$app: signature does not verify"; exit 1; }
             /usr/libexec/PlistBuddy -c 'Print :NSMicrophoneUsageDescription' "$app/Contents/Info.plist"
             lipo -archs "$app/Contents/MacOS/Tesserafy"
+            # Call detection's helper: in the app, both chips, and it answers.
+            # A runner is a Mac on 14.2 or later, so it must say it can read the record.
+            helper="$app/Contents/MacOS/mic-users"
+            lipo -archs "$helper" | grep -q "x86_64 arm64\|arm64 x86_64" || { echo "::error::$app: mic-users is not universal"; exit 1; }
+            answer=$("$helper")
+            echo "mic-users: $answer"
+            echo "$answer" | grep -q '"supported":true' || { echo "::error::$app: mic-users did not read the record"; exit 1; }
           done
           ls -la "$GITHUB_WORKSPACE"/apps/desktop/release/*.dmg
 

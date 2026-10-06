@@ -12,8 +12,9 @@
  * and never this app itself, which uses it while listening. Pure: the main
  * process runs `reg query` and hands its output here.
  *
- * macOS keeps no such record where a command can read it; there this returns
- * nothing until a native check is added.
+ * macOS keeps the same fact in Core Audio rather than anywhere a command can
+ * read it, so a small native helper (native/mac/mic-users.swift) prints it
+ * and macMeetingMicrophoneUsers reads that. macOS 14.2 and later.
  */
 
 export const MICROPHONE_KEY = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\microphone';
@@ -77,4 +78,54 @@ export function callChange(before: readonly MicrophoneUser[], now: readonly Micr
   const had = new Set(before.map((user) => user.key));
   const fresh = now.find((user) => !had.has(user.key));
   return { started: fresh?.label ?? null, ended: before.length > 0 && now.length === 0 };
+}
+
+/** The helper's name, beside the app's own executable in Contents/MacOS. */
+export const MAC_HELPER = 'mic-users';
+
+/** This app on a Mac, and its helper processes (com.tesserafy.overlay.helper), which capture while listening. */
+export const MAC_BUNDLE_ID = 'com.tesserafy.overlay';
+
+/**
+ * A meeting app on a Mac, by bundle id. A prefix, because audio is often taken
+ * by a helper process: Chrome's is com.google.Chrome.helper, Zoom's
+ * us.zoom.CptHost. Safari captures in WebKit's shared GPU process.
+ */
+const MAC_MEETING_APPS: readonly { test: RegExp; label: string }[] = [
+  { test: /^us\.zoom\./i, label: 'Zoom' },
+  { test: /^com\.microsoft\.teams/i, label: 'Teams' },
+  { test: /^(com\.cisco\.webex|cisco-systems\.spark)/i, label: 'Webex' },
+  { test: /^com\.tinyspeck\.slackmacgap/i, label: 'Slack' },
+  {
+    test: /^(com\.google\.chrome|com\.microsoft\.edgemac|org\.mozilla\.|com\.brave\.browser|com\.operasoftware\.opera|com\.vivaldi\.vivaldi|company\.thebrowser\.browser|com\.apple\.safari|com\.apple\.webkit\.gpu)/i,
+    label: 'your browser',
+  },
+];
+
+/**
+ * The meeting apps using the microphone now, from the Mac helper's output.
+ * One entry per app, however many of its processes are capturing; never this
+ * app. 'unsupported' on a macOS without the record (before 14.2), so the
+ * caller can stop asking; null when the output is not the helper's.
+ */
+export function macMeetingMicrophoneUsers(output: string, self: string): MicrophoneUser[] | 'unsupported' | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(output);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== 'object' || parsed === null) return null;
+  const { supported, users } = parsed as { supported?: unknown; users?: unknown };
+  if (supported === false) return 'unsupported';
+  if (supported !== true || !Array.isArray(users)) return null;
+  const own = self.toLowerCase();
+  const found: MicrophoneUser[] = [];
+  for (const user of users as unknown[]) {
+    const bundle = typeof user === 'object' && user !== null ? (user as { bundle?: unknown }).bundle : null;
+    if (typeof bundle !== 'string' || bundle === '' || bundle.toLowerCase().startsWith(own)) continue;
+    const app = MAC_MEETING_APPS.find((candidate) => candidate.test.test(bundle));
+    if (app && !found.some((already) => already.label === app.label)) found.push({ key: app.label, label: app.label });
+  }
+  return found;
 }

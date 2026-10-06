@@ -22,6 +22,10 @@ const slices = ['arm64', 'x86_64'].map((arch) => {
   execFileSync('swiftc', ['-O', '-target', `${arch}-apple-macos11`, source, '-o', binary], { stdio: 'inherit' });
   return binary;
 });
-execFileSync('lipo', ['-create', ...slices, '-output', join(out, 'mic-users')], { stdio: 'inherit' });
+const helper = join(out, 'mic-users');
+execFileSync('lipo', ['-create', ...slices, '-output', helper], { stdio: 'inherit' });
 for (const slice of slices) rmSync(slice);
-console.info(`mic-users: built ${join(out, 'mic-users')}`);
+// Signed ad hoc, as the app is: lipo leaves the joined binary unsigned, and
+// codesign refuses to seal an app with unsigned code inside it.
+execFileSync('codesign', ['--sign', '-', '--force', helper], { stdio: 'inherit' });
+console.info(`mic-users: built and signed ${helper}`);

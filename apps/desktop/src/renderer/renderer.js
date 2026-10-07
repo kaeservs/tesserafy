@@ -1128,6 +1128,9 @@ api.onAssistKey(() => void runAssist('assist'));
 function showAppearance(look) {
   const root = document.documentElement;
   root.dataset.theme = look.theme;
+  // With the system's frost behind it the glass can be lighter; without, it is a firmer tint.
+  if (look.nativeGlass) root.dataset.nativeGlass = '';
+  else delete root.dataset.nativeGlass;
   root.dataset.accent = look.accent;
   root.style.setProperty('--alpha', String(look.opacity / 100));
 }

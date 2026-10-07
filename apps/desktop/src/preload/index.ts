@@ -21,7 +21,7 @@ interface UpdateState {
 }
 
 contextBridge.exposeInMainWorld('overlay', {
-  appearance: (): Promise<Appearance> => ipcRenderer.invoke('overlay:appearance'),
+  appearance: (): Promise<Appearance & { nativeGlass: boolean }> => ipcRenderer.invoke('overlay:appearance'),
   // What the next call starts with, set in the dashboard; the main process
   // applies the look it names before answering.
   setup: (): Promise<{

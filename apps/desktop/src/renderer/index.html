@@ -50,6 +50,31 @@
         --ok: #15803d; --warn: #b45309; --bad: #b91c1c;
         --accent-rgb: var(--accent-lo);
       }
+      /* Glass: light glass over the meeting, as on the landing page. The
+         system frosts what is behind it (Windows 11 acrylic, macOS vibrancy);
+         --alpha, the Background setting, is how much white sits over the
+         frost: lower is clearer glass. Without the system's frost (Windows
+         10) the tint is firmer, so text never sits over a sharp slide. */
+      :root[data-theme="glass"] {
+        color-scheme: light;
+        --bg: 255, 255, 255; --line: 120, 113, 108; --field: rgba(255, 255, 255, 0.55);
+        --text: #1c1917; --text-2: #292524; --button-text: #3f3a36;
+        --dim: #4a4540; --muted: #5f5853; --faint: #8a837d;
+        --ok: #15803d; --warn: #b45309; --bad: #b91c1c;
+        --accent-rgb: var(--accent-lo);
+      }
+      :root[data-theme="glass"] .card {
+        background:
+          linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 45%, rgba(255, 255, 255, 0) 70%, rgba(255, 255, 255, 0.18)),
+          rgba(255, 255, 255, calc(0.6 + var(--alpha) * 0.35));
+        border: 1px solid rgba(255, 255, 255, 0.75);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 1px rgba(255, 255, 255, 0.3);
+      }
+      :root[data-theme="glass"][data-native-glass] .card {
+        background:
+          linear-gradient(135deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 45%, rgba(255, 255, 255, 0) 70%, rgba(255, 255, 255, 0.15)),
+          rgba(255, 255, 255, calc(0.45 + var(--alpha) * 0.45));
+      }
       /* Each accent in a light tint for dark themes and a deep one for light.
          None is green, amber or red: those are taken. */
       :root, :root[data-accent="indigo"] { --accent-hi: 165, 180, 252; --accent-lo: 67, 56, 202; }

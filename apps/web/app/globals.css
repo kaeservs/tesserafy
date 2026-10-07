@@ -2788,16 +2788,16 @@ main.auth {
   font-size: 0.88rem;
 }
 
-/* Sections rise into view as they are reached (components/landing/scroll-reveal). */
+/* Sections rise into view as they are reached (components/landing/scroll-reveal).
+   Movement only, never a fade: text mid-fade is faint text, which a reader
+   (and the accessibility scan, which scrolls to each element) meets as low
+   contrast. */
 .reveal-armed [data-reveal] {
-  transition:
-    opacity 0.7s ease,
-    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition: transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
 .reveal-armed [data-reveal]:not(.revealed) {
-  opacity: 0;
-  transform: translateY(28px);
+  transform: translateY(40px) scale(0.985);
 }
 
 .reveal-armed .feature-grid > :nth-child(3n + 2),

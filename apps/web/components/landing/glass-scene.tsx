@@ -19,6 +19,10 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
  * WebGL see; the canvas fades in over it once it has drawn. Without WebGL the
  * tiles are frosted with CSS instead. It draws only while on screen, and
  * holds still for anyone who asked for reduced motion (no video, no drift).
+ *
+ * With `scrollAway`, scrolling past it carries the tiles up at their own
+ * speeds as they shrink, and sets --away (0 to 1) on the scene for its content
+ * to follow.
  */
 
 export interface GlassTile {
@@ -209,6 +213,7 @@ export function GlassScene({
   video,
   tiles,
   className = '',
+  scrollAway = false,
   children,
 }: {
   /** A raster picture (JPEG, PNG, WebP, AVIF): WebKit uploads an SVG to WebGL only in part, and the rest draws black. */
@@ -216,6 +221,8 @@ export function GlassScene({
   video?: string;
   tiles: readonly GlassTile[];
   className?: string;
+  /** Tiles rise and shrink as the page scrolls past; --away is set for the content. */
+  scrollAway?: boolean;
   children?: ReactNode;
 }) {
   const box = useRef<HTMLDivElement>(null);
@@ -313,13 +320,13 @@ export function GlassScene({
         gl.drawArrays(gl.TRIANGLES, 0, 3);
       }
 
-      const scale = Math.max(0.55, Math.min(1, host.clientWidth / 1200)) * dpr;
+      const scale = Math.max(0.55, Math.min(1, host.clientWidth / 1200)) * dpr * (1 - away * 0.3);
       const count = Math.min(tiles.length, MAX_TILES);
       for (let i = 0; i < count; i++) {
         const tile = tiles[i]!;
         const drift = still ? 0 : Math.sin(time / 1600 + i * 1.7) * 6 * dpr;
         rects[i * 4] = (tile.x / 100) * width;
-        rects[i * 4 + 1] = height - (tile.y / 100) * height + drift;
+        rects[i * 4 + 1] = height - (tile.y / 100) * height + drift + away * height * (0.35 + 0.2 * (i % 3));
         rects[i * 4 + 2] = (tile.w * scale) / 2;
         rects[i * 4 + 3] = (tile.h * scale) / 2;
         radii[i] = Math.min((tile.r ?? 14) * scale, (Math.min(tile.w, tile.h) * scale) / 2);
@@ -385,6 +392,17 @@ export function GlassScene({
       void player.play().catch(() => undefined);
     }
 
+    // How far the page has scrolled past the scene, 0 to 1, for the tiles and --away.
+    let away = 0;
+    const scrolled = () => {
+      if (!scrollAway || still) return;
+      const box = host.getBoundingClientRect();
+      away = Math.min(1, Math.max(0, -box.top / Math.max(1, box.height)));
+      host.style.setProperty('--away', away.toFixed(3));
+    };
+    scrolled();
+    window.addEventListener('scroll', scrolled, { passive: true });
+
     resize();
     const resized = new ResizeObserver(() => {
       resize();
@@ -405,12 +423,13 @@ export function GlassScene({
     return () => {
       cancelAnimationFrame(frame);
       resized.disconnect();
+      window.removeEventListener('scroll', scrolled);
       seen.disconnect();
       element.removeEventListener('webglcontextlost', lost);
       player?.pause();
       player = null;
     };
-  }, [image, video, tiles]);
+  }, [image, video, tiles, scrollAway]);
 
   return (
     <div ref={box} className={`glass-scene ${className}`} data-mode={mode}>

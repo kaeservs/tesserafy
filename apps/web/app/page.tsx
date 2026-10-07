@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { EarlyAccessForm } from '@/components/early-access-form';
 import { Icon, type IconName } from '@/components/icons';
 import { CallDemo } from '@/components/landing/call-demo';
 import { GlassScene, type GlassTile } from '@/components/landing/glass-scene';
+import { HowItWorks } from '@/components/landing/how-it-works';
+import { ScrollReveal } from '@/components/landing/scroll-reveal';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -95,6 +96,17 @@ const HERO_TILES: readonly GlassTile[] = [
 /** The closing card, one wide pane of glass over the same landscape. */
 const CTA_TILES: readonly GlassTile[] = [{ x: 50, y: 50, w: 760, h: 300, r: 28 }];
 
+/** Every button on the page: sign-up, which says plainly when it is not open yet. */
+const START = 'Start free';
+const START_HREF = '/signup';
+
+const PRIVACY: readonly { title: string; body: string }[] = [
+  { title: 'Nothing joins the meeting', body: 'No bot, no announcement. On Incognito the overlay is kept out of screen sharing too.' },
+  { title: 'Your calls stay yours', body: 'Never used for Tesserafy’s own purposes. Export or delete them whenever you like.' },
+  { title: 'Contact details masked', body: 'Email addresses and phone numbers are removed before anything is stored.' },
+  { title: 'Consent stays with you', body: 'You agree once to tell everyone on the calls you record; every call keeps that record.' },
+];
+
 /** The hero art: the painted landscape and its loop, once generated; a drawn stand-in until then. */
 const HERO_IMAGE = '/landing/hero-placeholder.jpg';
 const HERO_VIDEO: string | undefined = undefined;
@@ -110,11 +122,11 @@ const FAQ: readonly { q: string; a: string }[] = [
   },
   {
     q: 'Which meeting apps does it work with?',
-    a: 'Any: it is a window over your screen, so Zoom, Microsoft Teams and Google Meet in a browser all work. On Windows it notices a call starting and offers to start.',
+    a: 'Any: it is a window over your screen, so Zoom, Microsoft Teams and Google Meet in a browser all work. On Windows, and on a Mac with macOS 14.2 or later, it notices a call starting and offers to start.',
   },
   {
     q: 'Windows or Mac?',
-    a: 'Windows today. Mac builds are available in early access.',
+    a: 'Both: there is an installer for Windows and one for each kind of Mac.',
   },
   {
     q: 'What happens to my calls?',
@@ -144,147 +156,150 @@ export default async function Landing() {
   } = await supabase.auth.getUser();
   if (user) redirect('/dashboard');
 
-  const [{ data: open }, { data: planRows }] = await Promise.all([
-    supabase.rpc('signup_is_open'),
-    supabase
-      .from('plans')
-      .select('id, name, price_usd_cents, trial_days, incognito, calls, extractions, pattern_runs, questions, live_minutes')
-      .order('rank'),
-  ]);
+  const { data: planRows } = await supabase
+    .from('plans')
+    .select('id, name, price_usd_cents, trial_days, incognito, calls, extractions, pattern_runs, questions, live_minutes')
+    .order('rank');
   const plans = (planRows ?? []) as Plan[];
   const free = plans.find((plan) => plan.id === 'free') ?? null;
   const onSale = plans.filter((plan) => plan.price_usd_cents !== null || plan.id === 'free');
-  const start = open === true ? 'Start free' : 'Get early access';
-  // While sign-up is closed (until email works), the same buttons take an address instead.
-  const startHref = open === true ? '/signup' : '#early-access';
 
   return (
     <div className="landing">
+      <ScrollReveal />
       <header className="landing-nav glass">
         <Link href="/" className="brand">
           <Icon name="logo" size={24} />
           <span>Tesserafy</span>
         </Link>
-        <div className="landing-actions">
-          <Link href={startHref} className="button-primary">
-            {start}
-          </Link>
-        </div>
+        <Link href={START_HREF} className="button-primary">
+          {START}
+        </Link>
       </header>
 
-      <main className="landing-main">
-        <GlassScene image={HERO_IMAGE} {...(HERO_VIDEO ? { video: HERO_VIDEO } : {})} tiles={HERO_TILES} className="hero">
+      <main>
+        <GlassScene
+          image={HERO_IMAGE}
+          {...(HERO_VIDEO ? { video: HERO_VIDEO } : {})}
+          tiles={HERO_TILES}
+          className="hero"
+          scrollAway
+        >
           <section className="hero-copy" aria-labelledby="hero-heading">
             <h1 id="hero-heading">
               Know what to say next — <em>on every call.</em>
             </h1>
             <p className="hero-lede">
-              Tesserafy sits quietly over Zoom, Teams and Google Meet. It scores the conversation as it happens, tells you
-              what to say or ask, and drafts your follow-up when you hang up. Every point quotes what was actually said.
+              Tesserafy sits quietly over Zoom, Teams and Google Meet. It scores the conversation as it happens, tells you what
+              to say or ask, and drafts your follow-up when you hang up. Every point quotes what was actually said.
             </p>
             <div className="hero-actions">
-              <Link href={startHref} className="button-primary">
-                {start}
+              <Link href={START_HREF} className="button-primary">
+                {START}
               </Link>
             </div>
           </section>
         </GlassScene>
 
-        <ul className="facts" aria-label="What is always true">
-          {FACTS.map((fact) => (
-            <li key={fact.label} className="glass fact">
-              <strong>{fact.figure}</strong>
-              <span>{fact.label}</span>
-            </li>
-          ))}
-        </ul>
-
-        <section className="landing-section wash" aria-labelledby="demo-heading">
-          <p className="eyebrow">On a call</p>
-          <h2 id="demo-heading">It listens, and helps when you ask</h2>
-          <CallDemo />
-        </section>
-
-        <section className="landing-section" aria-labelledby="features-heading">
-          <p className="eyebrow">What it does</p>
-          <h2 id="features-heading">Built for the call itself</h2>
-          <div className="feature-grid">
-            {FEATURES.map((feature) => (
-              <div key={feature.title} className="glass feature">
-                <span className="feature-icon">
-                  <Icon name={feature.icon} size={22} />
-                </span>
-                <h3>{feature.title}</h3>
-                <p>{feature.body}</p>
-              </div>
+        <div className="landing-main">
+          <ul className="facts" aria-label="What is always true">
+            {FACTS.map((fact) => (
+              <li key={fact.label} className="glass fact">
+                <strong>{fact.figure}</strong>
+                <span>{fact.label}</span>
+              </li>
             ))}
-          </div>
-        </section>
+          </ul>
 
-        {onSale.length > 0 ? (
-          <section className="landing-section wash" aria-labelledby="pricing-heading">
-            <h2 id="pricing-heading">Pricing</h2>
-            <p className="section-lede">
-              {free ? 'Start on Free, one seat. ' : ''}Then a plan, per seat, by the month — every seat brings its own
-              allowance. Cancel any time.
-            </p>
-            <div className="price-grid">
-              {onSale.map((plan) => (
-                <div key={plan.id} className={`glass price${plan.id === 'pro' ? ' featured' : ''}`}>
-                  <h3>{plan.name}</h3>
-                  <p className="price-figure">
-                    {plan.price_usd_cents === null ? '$0' : `$${(plan.price_usd_cents / 100).toFixed(2)}`}
-                    <span>{plan.price_usd_cents === null ? ' one seat' : ' a seat a month'}</span>
-                  </p>
-                  <ul>
-                    {allowances(plan).map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                  <Link href={startHref} className={plan.id === 'pro' ? 'button-primary' : 'button-secondary'}>
-                    {start}
-                  </Link>
+          <section className="landing-section wash" aria-labelledby="demo-heading" data-reveal>
+            <p className="eyebrow">Try it</p>
+            <h2 id="demo-heading">A sample call, with Tesserafy on it</h2>
+            <p className="section-lede">Play it, step through it, and press the buttons — it answers from what has been said.</p>
+            <CallDemo />
+          </section>
+
+          <section className="landing-section" aria-labelledby="features-heading" data-reveal>
+            <p className="eyebrow">What it does</p>
+            <h2 id="features-heading">Built for the call itself</h2>
+            <div className="feature-grid">
+              {FEATURES.map((feature) => (
+                <div key={feature.title} className="glass feature" data-reveal>
+                  <span className="feature-icon">
+                    <Icon name={feature.icon} size={22} />
+                  </span>
+                  <h3>{feature.title}</h3>
+                  <p>{feature.body}</p>
                 </div>
               ))}
             </div>
           </section>
-        ) : null}
+        </div>
 
-        <section className="landing-section" aria-labelledby="faq-heading">
-          <p className="eyebrow">Questions</p>
-          <h2 id="faq-heading">Before you ask</h2>
-          <div className="faq">
-            {FAQ.map((item) => (
-              <details key={item.q} className="glass">
-                <summary>{item.q}</summary>
-                <p>{item.a}</p>
-              </details>
-            ))}
-          </div>
-        </section>
+        <HowItWorks />
 
-        {open === true ? null : (
-          <section id="early-access" className="landing-section early" aria-labelledby="early-heading">
-            <div>
-              <p className="eyebrow">Early access</p>
-              <h2 id="early-heading">Get early access</h2>
+        <div className="landing-main">
+          <section className="landing-section" aria-labelledby="privacy-heading" data-reveal>
+            <p className="eyebrow">Private by design</p>
+            <h2 id="privacy-heading">Yours, and only yours</h2>
+            <ul className="privacy-grid">
+              {PRIVACY.map((point) => (
+                <li key={point.title} className="glass privacy-card" data-reveal>
+                  <h3>{point.title}</h3>
+                  <p>{point.body}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {onSale.length > 0 ? (
+            <section className="landing-section wash" aria-labelledby="pricing-heading" data-reveal>
+              <h2 id="pricing-heading">Pricing</h2>
               <p className="section-lede">
-                Tesserafy is opening to a few teams at a time. Leave your work email and we will tell you when there is a
-                place for yours.
+                {free ? 'Start on Free, one seat. ' : ''}Then a plan, per seat, by the month — every seat brings its own
+                allowance. Cancel any time.
               </p>
-            </div>
-            <div className="glass early-card">
-              <EarlyAccessForm />
+              <div className="price-grid">
+                {onSale.map((plan) => (
+                  <div key={plan.id} className={`glass price${plan.id === 'pro' ? ' featured' : ''}`}>
+                    <h3>{plan.name}</h3>
+                    <p className="price-figure">
+                      {plan.price_usd_cents === null ? '$0' : `$${(plan.price_usd_cents / 100).toFixed(2)}`}
+                      <span>{plan.price_usd_cents === null ? ' one seat' : ' a seat a month'}</span>
+                    </p>
+                    <ul>
+                      {allowances(plan).map((line) => (
+                        <li key={line}>{line}</li>
+                      ))}
+                    </ul>
+                    <Link href={START_HREF} className={plan.id === 'pro' ? 'button-primary' : 'button-secondary'}>
+                      {START}
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          <section className="landing-section" aria-labelledby="faq-heading" data-reveal>
+            <p className="eyebrow">Questions</p>
+            <h2 id="faq-heading">Before you ask</h2>
+            <div className="faq">
+              {FAQ.map((item) => (
+                <details key={item.q} className="glass">
+                  <summary>{item.q}</summary>
+                  <p>{item.a}</p>
+                </details>
+              ))}
             </div>
           </section>
-        )}
+        </div>
 
         <GlassScene image={HERO_IMAGE} tiles={CTA_TILES} className="closing">
           <section className="closing-copy" aria-labelledby="cta-heading">
             <h2 id="cta-heading">Your next call, with a second brain beside it.</h2>
             <p>Free to start. Nothing joins the meeting.</p>
-            <Link href={startHref} className="button-primary">
-              {start}
+            <Link href={START_HREF} className="button-primary">
+              {START}
             </Link>
           </section>
         </GlassScene>

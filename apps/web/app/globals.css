@@ -1938,24 +1938,26 @@ main.auth {
 }
 
 /* --------------------------------------------------------------------------
-   The landing page (/, signed out): a painted landscape, glass over it, and
-   the product beneath. Always the light palette — it is painted art, and
-   white glass on a dark page would lose its contrast.
+   The landing page (/, signed out): a painted landscape edge to edge, glass
+   over it, and the product beneath. Its own light palette — warm cream, a
+   deep meadow green and a soft lime — whatever the system's colour scheme,
+   because it is painted art and white glass on a dark page loses contrast.
    -------------------------------------------------------------------------- */
 
 .landing {
-  --bg: #fafbff;
+  --bg: #fbfaf5;
   --surface: #ffffff;
   --raised: #ffffff;
-  --fg: #232136;
-  --muted: #5f5c78;
-  --border: #eef0f6;
-  --accent: #5932ea;
-  --accent-soft: #f1edff;
+  --fg: #1d2318;
+  --muted: #565e4c;
+  --border: #e8e8dc;
+  --accent: #3b6b1e;
+  --accent-soft: #eaf2dd;
   --accent-fg: #ffffff;
-  --ok-bg: #d8f5ec;
-  --ok-line: #00b087;
-  --confirmed: #006b4f;
+  --lime: #c6da78;
+  --met-bg: #e4efd2;
+  --met-line: #6f9a3a;
+  --met-fg: #2f5516;
   color-scheme: light;
   min-height: 100vh;
   background: var(--bg);
@@ -1968,15 +1970,15 @@ main.auth {
    draws the real thing in WebGL instead. */
 .glass {
   background:
-    linear-gradient(135deg, rgb(255 255 255 / 0.5), rgb(255 255 255 / 0) 42%, rgb(255 255 255 / 0) 68%, rgb(255 255 255 / 0.22)),
-    rgb(255 255 255 / 0.46);
-  -webkit-backdrop-filter: blur(18px) saturate(1.6);
-  backdrop-filter: blur(18px) saturate(1.6);
-  border: 1px solid rgb(255 255 255 / 0.75);
+    linear-gradient(135deg, rgb(255 255 255 / 0.55), rgb(255 255 255 / 0) 42%, rgb(255 255 255 / 0) 68%, rgb(255 255 255 / 0.25)),
+    rgb(255 255 255 / 0.5);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+  border: 1px solid rgb(255 255 255 / 0.8);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.95),
     inset 0 -1px 1px rgb(255 255 255 / 0.3),
-    0 10px 36px rgb(89 50 234 / 0.08);
+    0 10px 36px rgb(59 75 30 / 0.08);
 }
 
 .landing-nav {
@@ -1997,6 +1999,11 @@ main.auth {
   font-size: 1.1rem;
 }
 
+.landing-nav .button-primary {
+  border-radius: 999px;
+  padding: 0.55rem 1.1rem;
+}
+
 .landing-links {
   display: flex;
   gap: 1.25rem;
@@ -2011,17 +2018,6 @@ main.auth {
 
 .landing-links a:hover {
   color: var(--fg);
-}
-
-.landing-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.9rem;
-}
-
-.landing-actions .button-primary {
-  border-radius: 999px;
-  padding: 0.55rem 1.1rem;
 }
 
 .button-primary,
@@ -2054,9 +2050,13 @@ main.auth {
 }
 
 .landing-main {
-  max-width: 78rem;
-  margin: 0 auto;
-  padding: 0 1rem;
+  padding: 0 clamp(1rem, 4vw, 3rem);
+}
+
+/* The dashboard's pages cap <main> at a reading width; the landing page is the window's width. */
+.landing > main {
+  max-width: none;
+  padding: 0;
 }
 
 /* A picture with glass over it (components/landing/glass-scene). */
@@ -2064,7 +2064,6 @@ main.auth {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  border-radius: 28px;
 }
 
 .glass-scene-media,
@@ -2100,25 +2099,28 @@ main.auth {
   z-index: 1;
 }
 
+/* The hero: the full width of the window, under the floating nav. */
 .hero {
   margin-top: -4.4rem;
-  min-height: min(90vh, 54rem);
+  min-height: 100vh;
 }
 
 .hero-copy {
-  max-width: 46rem;
+  max-width: 48rem;
   margin: 0 auto;
-  padding: 9rem 1.5rem 4rem;
+  padding: 10rem 1.5rem 4rem;
   text-align: center;
+  transform: translateY(calc(var(--away, 0) * -90px));
+  opacity: calc(1 - var(--away, 0) * 1.6);
 }
 
 .hero h1 {
   margin: 0;
-  font-size: clamp(2.3rem, 5.6vw, 4.3rem);
+  font-size: clamp(2.4rem, 6vw, 4.6rem);
   font-weight: 600;
-  line-height: 1.05;
+  line-height: 1.04;
   letter-spacing: -0.035em;
-  color: #1c1a2e;
+  color: #1a2015;
 }
 
 .hero h1 em {
@@ -2129,8 +2131,8 @@ main.auth {
 .hero-lede {
   max-width: 36rem;
   margin: 1.25rem auto 0;
-  font-size: 1.05rem;
-  color: #3a3756;
+  font-size: 1.06rem;
+  color: #353d2f;
 }
 
 .hero-actions {
@@ -2145,15 +2147,15 @@ main.auth {
   border-radius: 999px;
 }
 
-/* Three things that are always true, on glass over the lake's edge. */
+/* Three things that are always true, on glass over the bottom of the hero. */
 .facts {
   position: relative;
   z-index: 2;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
-  max-width: 56rem;
-  margin: -3.25rem auto 0;
+  max-width: 64rem;
+  margin: -3.75rem auto 0;
   padding: 0;
   list-style: none;
 }
@@ -2162,7 +2164,7 @@ main.auth {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
-  padding: 1.1rem 1.4rem;
+  padding: 1.15rem 1.4rem;
   border-radius: 22px;
 }
 
@@ -2178,14 +2180,15 @@ main.auth {
 }
 
 .landing-section {
-  max-width: 66rem;
-  margin: 6.5rem auto 0;
+  max-width: 80rem;
+  margin: 7rem auto 0;
   text-align: center;
 }
 
-.landing-section h2 {
+.landing-section h2,
+.how h2 {
   margin: 0.6rem 0 1rem;
-  font-size: clamp(1.8rem, 3.4vw, 2.6rem);
+  font-size: clamp(1.9rem, 3.6vw, 2.9rem);
   font-weight: 600;
   letter-spacing: -0.03em;
 }
@@ -2219,27 +2222,27 @@ main.auth {
   z-index: -1;
   inset: -3rem -12vw;
   background:
-    radial-gradient(38rem 22rem at 18% 35%, rgb(255 210 190 / 0.55), transparent 70%),
-    radial-gradient(36rem 24rem at 82% 65%, rgb(180 160 255 / 0.45), transparent 70%);
+    radial-gradient(40rem 24rem at 15% 35%, rgb(255 214 186 / 0.6), transparent 70%),
+    radial-gradient(38rem 26rem at 85% 65%, rgb(198 218 120 / 0.45), transparent 70%);
   pointer-events: none;
 }
 
-/* The product on a call (components/landing/call-demo): sixteen seconds, CSS only. */
+/* The sample call to play with (components/landing/call-demo). */
 .demo {
-  position: relative;
-  max-width: 62rem;
-  margin: 2.5rem auto 0;
-  padding-bottom: 2.5rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22rem;
+  align-items: start;
+  max-width: 66rem;
+  margin: 2rem auto 0;
   text-align: left;
 }
 
 .demo-meeting {
-  width: min(44rem, 100%);
   padding: 0.9rem;
   border-radius: 22px;
-  background: #17151f;
-  color: #ebe9f5;
-  box-shadow: 0 30px 80px rgb(35 33 54 / 0.25);
+  background: #1b1f19;
+  color: #eef0e8;
+  box-shadow: 0 30px 80px rgb(29 35 24 / 0.25);
 }
 
 .demo-bar {
@@ -2248,7 +2251,7 @@ main.auth {
   gap: 0.75rem;
   padding: 0.15rem 0.3rem 0.8rem;
   font-size: 0.8rem;
-  color: #b4b1c9;
+  color: #b9bfae;
 }
 
 .demo-dots {
@@ -2261,12 +2264,13 @@ main.auth {
   width: 0.6rem;
   height: 0.6rem;
   border-radius: 50%;
-  background: #3b3850;
+  background: #3a4034;
 }
 
 .demo-rec {
-  margin-left: auto;
-  color: #ff8a8a;
+  margin-left: 0.25rem;
+  color: #ff9a8a;
+  font-variant-numeric: tabular-nums;
 }
 
 .demo-people {
@@ -2281,11 +2285,12 @@ main.auth {
   place-items: center;
   aspect-ratio: 16 / 10;
   border-radius: 14px;
-  background: linear-gradient(135deg, #2b2741, #1d1a2c);
+  background: linear-gradient(135deg, #2b3126, #20251d);
+  transition: box-shadow 0.3s ease;
 }
 
 .demo-person.speaking {
-  box-shadow: inset 0 0 0 2px #a594f9;
+  box-shadow: inset 0 0 0 2px var(--lime);
 }
 
 .demo-avatar {
@@ -2294,13 +2299,13 @@ main.auth {
   width: 4rem;
   height: 4rem;
   border-radius: 50%;
-  background: linear-gradient(135deg, #ffb38a, #b45cc0);
+  background: linear-gradient(135deg, #ffbd8f, #e3785b);
   color: #ffffff;
   font-weight: 600;
 }
 
 .demo-avatar.you {
-  background: linear-gradient(135deg, #7aa2ff, #5932ea);
+  background: linear-gradient(135deg, #a9cf6a, #3b6b1e);
   font-size: 0.85rem;
 }
 
@@ -2310,37 +2315,28 @@ main.auth {
   bottom: 0.55rem;
   max-width: calc(100% - 1.2rem);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   padding: 0.15rem 0.5rem;
   border-radius: 6px;
   background: rgb(0 0 0 / 0.5);
   font-size: 0.72rem;
-}
-
-.demo-captions {
-  position: relative;
-  height: 2.8rem;
-  margin-top: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .demo-line {
-  position: absolute;
-  inset: 0;
-  margin: 0;
+  min-height: 2.8rem;
+  margin: 0.8rem 0 0;
   text-align: center;
   font-size: 0.9rem;
-  opacity: 0;
-}
-
-/* At rest (and for reduced motion), the last line of the loop. */
-.demo-line-3 {
-  opacity: 1;
 }
 
 .demo-line strong {
   margin-right: 0.35rem;
-  color: #c3b6ff;
+  color: var(--lime);
+}
+
+.demo-hint {
+  color: #b9bfae;
 }
 
 .demo-controls {
@@ -2350,30 +2346,37 @@ main.auth {
   margin-top: 0.4rem;
 }
 
-.demo-controls span {
-  padding: 0.35rem 0.85rem;
+.demo-controls button {
+  padding: 0.35rem 0.95rem;
+  border: 1px solid #3a4034;
   border-radius: 999px;
-  background: #2b2738;
-  font-size: 0.72rem;
+  background: #2a2f26;
+  color: #eef0e8;
+  font-size: 0.78rem;
 }
 
-.demo-controls .leave {
-  background: #c93a3a;
+.demo-controls button:first-child {
+  border-color: var(--lime);
+  background: var(--lime);
+  color: #1b1f19;
 }
 
-/* The overlay, floating over the meeting. Opaque enough to read over a dark call. */
+.demo-controls button:hover:not(:disabled) {
+  border-color: var(--lime);
+}
+
+/* The overlay, floating over the meeting's edge. Opaque enough to read over a dark call. */
 .demo-overlay {
-  position: absolute;
-  top: 1rem;
-  right: 0;
-  width: 21rem;
+  position: relative;
+  z-index: 1;
+  margin: 1.25rem 0 0 -3rem;
   padding: 1rem 1.1rem;
   border-radius: 20px;
-  background-color: rgb(255 255 255 / 0.78);
+  background-color: rgb(255 255 255 / 0.82);
   color: var(--fg);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.95),
-    0 24px 60px rgb(35 33 54 / 0.28);
+    0 24px 60px rgb(29 35 24 / 0.25);
 }
 
 .demo-overlay-head {
@@ -2392,21 +2395,9 @@ main.auth {
 }
 
 .demo-score {
-  position: relative;
-  width: 2.2rem;
-  height: 1.4rem;
-  text-align: right;
-}
-
-.demo-score b {
-  position: absolute;
-  inset: 0;
-  font-size: 1.15rem;
-  opacity: 0;
-}
-
-.demo-score b.demo-score-4 {
-  opacity: 1;
+  font-size: 1.2rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .demo-track {
@@ -2414,21 +2405,21 @@ main.auth {
   height: 6px;
   margin: 0.55rem 0 0.8rem;
   border-radius: 3px;
-  background: #e6e2f7;
+  background: #e8ecdc;
   overflow: hidden;
 }
 
 .demo-fill {
   display: block;
-  width: 71%;
   height: 100%;
   border-radius: 3px;
-  background: linear-gradient(90deg, #8b6cf6, #5932ea);
+  background: linear-gradient(90deg, var(--lime), var(--accent));
+  transition: width 0.6s ease;
 }
 
 .demo-criteria {
   display: grid;
-  gap: 0.45rem;
+  gap: 0.4rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -2438,29 +2429,47 @@ main.auth {
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
-  min-height: 1.6rem;
+  min-height: 1.7rem;
 }
 
 .demo-chip {
   flex: none;
   padding: 0.12rem 0.55rem;
-  border: 1px solid #d6d8e4;
+  border: 1px solid var(--border);
   border-radius: 6px;
+  background: #ffffff;
+  color: var(--muted);
   font-size: 0.75rem;
   font-weight: 500;
-  color: var(--muted);
 }
 
-.demo-met .demo-chip {
-  border-color: var(--ok-line);
-  background: var(--ok-bg);
-  color: var(--confirmed);
+.demo-chip.met {
+  border-color: var(--met-line);
+  background: var(--met-bg);
+  color: var(--met-fg);
+}
+
+.demo-chip.focused {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .demo-quote {
+  overflow: hidden;
   font-size: 0.75rem;
   font-style: italic;
   color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.demo-focus {
+  margin: 0.5rem 0 0;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  background: var(--met-bg);
+  color: var(--met-fg);
+  font-size: 0.75rem;
 }
 
 .demo-buttons {
@@ -2470,15 +2479,22 @@ main.auth {
   margin-top: 0.85rem;
 }
 
-.demo-buttons span {
-  padding: 0.25rem 0.6rem;
-  border: 1px solid #e3def7;
+.demo-buttons button {
+  padding: 0.28rem 0.65rem;
+  border: 1px solid var(--border);
   border-radius: 999px;
   background: #ffffff;
-  font-size: 0.72rem;
+  font-size: 0.74rem;
+}
+
+.demo-buttons button.pressed {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
 }
 
 .demo-answer {
+  min-height: 4.5rem;
   margin-top: 0.75rem;
   padding: 0.7rem 0.8rem;
   border-radius: 12px;
@@ -2490,6 +2506,15 @@ main.auth {
   margin: 0;
 }
 
+.demo-answer ul {
+  margin: 0.3rem 0 0;
+  padding-left: 1rem;
+}
+
+.demo-answer li + li {
+  margin-top: 0.25rem;
+}
+
 .demo-answer-title {
   font-size: 0.72rem;
   font-weight: 600;
@@ -2498,122 +2523,25 @@ main.auth {
   letter-spacing: 0.04em;
 }
 
-.demo-answer p + p {
-  margin-top: 0.3rem;
-}
-
-.demo-answer-why {
-  font-size: 0.72rem;
+.demo-answer-why,
+.demo-answer-hint {
+  font-size: 0.75rem;
   color: var(--muted);
 }
 
 .demo-caption {
+  grid-column: 1 / -1;
   max-width: 40rem;
-  margin: 1.5rem auto 0;
+  margin: 2rem auto 0;
   text-align: center;
   font-size: 0.85rem;
   color: var(--muted);
 }
 
-/* The loop. Without it (reduced motion) every element rests on its last frame. */
-@media (prefers-reduced-motion: no-preference) {
-  .demo-line-1 { animation: demo-line-1 16s infinite; }
-  .demo-line-2 { animation: demo-line-2 16s infinite; }
-  .demo-line-3 { animation: demo-line-3 16s infinite; }
-  .demo-met-1 .demo-chip, .demo-met-1 .demo-quote { animation: demo-met-1 16s infinite; }
-  .demo-met-2 .demo-chip, .demo-met-2 .demo-quote { animation: demo-met-2 16s infinite; }
-  .demo-met-3 .demo-chip, .demo-met-3 .demo-quote { animation: demo-met-3 16s infinite; }
-  .demo-score-1 { animation: demo-score-1 16s infinite; }
-  .demo-score-2 { animation: demo-score-2 16s infinite; }
-  .demo-score-3 { animation: demo-score-3 16s infinite; }
-  .demo-score .demo-score-4 { animation: demo-score-4 16s infinite; }
-  .demo-fill { animation: demo-fill 16s infinite; }
-  .demo-press { animation: demo-press 16s infinite; }
-  .demo-answer { animation: demo-answer 16s infinite; }
-}
-
-@keyframes demo-line-1 {
-  0%, 2% { opacity: 0; transform: translateY(6px); }
-  4%, 29% { opacity: 1; transform: none; }
-  32%, 100% { opacity: 0; }
-}
-
-@keyframes demo-line-2 {
-  0%, 33% { opacity: 0; transform: translateY(6px); }
-  35%, 60% { opacity: 1; transform: none; }
-  63%, 100% { opacity: 0; }
-}
-
-@keyframes demo-line-3 {
-  0%, 64% { opacity: 0; transform: translateY(6px); }
-  66%, 96% { opacity: 1; transform: none; }
-  99%, 100% { opacity: 0; }
-}
-
-@keyframes demo-met-1 {
-  0%, 15% { opacity: 0.35; filter: grayscale(1); }
-  18%, 97% { opacity: 1; filter: none; }
-  100% { opacity: 0.35; filter: grayscale(1); }
-}
-
-@keyframes demo-met-2 {
-  0%, 46% { opacity: 0.35; filter: grayscale(1); }
-  49%, 97% { opacity: 1; filter: none; }
-  100% { opacity: 0.35; filter: grayscale(1); }
-}
-
-@keyframes demo-met-3 {
-  0%, 76% { opacity: 0.35; filter: grayscale(1); }
-  79%, 97% { opacity: 1; filter: none; }
-  100% { opacity: 0.35; filter: grayscale(1); }
-}
-
-@keyframes demo-score-1 {
-  0%, 16% { opacity: 1; }
-  18%, 100% { opacity: 0; }
-}
-
-@keyframes demo-score-2 {
-  0%, 16% { opacity: 0; }
-  18%, 47% { opacity: 1; }
-  49%, 100% { opacity: 0; }
-}
-
-@keyframes demo-score-3 {
-  0%, 47% { opacity: 0; }
-  49%, 77% { opacity: 1; }
-  79%, 100% { opacity: 0; }
-}
-
-@keyframes demo-score-4 {
-  0%, 77% { opacity: 0; }
-  79%, 98% { opacity: 1; }
-  100% { opacity: 0; }
-}
-
-@keyframes demo-fill {
-  0%, 15% { width: 24%; }
-  18%, 46% { width: 46%; }
-  49%, 76% { width: 63%; }
-  79%, 98% { width: 71%; }
-  100% { width: 24%; }
-}
-
-@keyframes demo-press {
-  0%, 82% { background: #ffffff; color: inherit; }
-  84%, 89% { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
-  91%, 100% { background: #ffffff; color: inherit; }
-}
-
-@keyframes demo-answer {
-  0%, 86% { opacity: 0; transform: translateY(8px); }
-  89%, 98% { opacity: 1; transform: none; }
-  100% { opacity: 0; }
-}
-
-/* Capabilities and plans: glass cards over the washes. */
+/* Capabilities, privacy and plans: glass cards over the washes. */
 .feature-grid,
-.price-grid {
+.price-grid,
+.privacy-grid {
   display: grid;
   gap: 1rem;
   margin-top: 2rem;
@@ -2624,7 +2552,8 @@ main.auth {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.feature {
+.feature,
+.privacy-card {
   padding: 1.4rem 1.5rem;
   border-radius: 22px;
 }
@@ -2640,20 +2569,32 @@ main.auth {
 }
 
 .feature h3,
-.price h3 {
+.price h3,
+.privacy-card h3 {
   margin: 0.9rem 0 0.4rem;
   font-size: 1.05rem;
   font-weight: 600;
 }
 
-.feature p {
+.privacy-card h3 {
+  margin-top: 0;
+}
+
+.feature p,
+.privacy-card p {
   margin: 0;
   color: var(--muted);
   font-size: 0.92rem;
 }
 
+.privacy-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 0;
+  list-style: none;
+}
+
 .price-grid {
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
 }
 
 .price {
@@ -2668,10 +2609,10 @@ main.auth {
 }
 
 .price.featured {
-  border-color: rgb(89 50 234 / 0.45);
+  border-color: rgb(59 107 30 / 0.45);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.95),
-    0 16px 44px rgb(89 50 234 / 0.18);
+    0 16px 44px rgb(59 107 30 / 0.16);
 }
 
 .price-figure {
@@ -2708,10 +2649,85 @@ main.auth {
   border-radius: 999px;
 }
 
+/* How it works (components/landing/how-it-works): pinned while three steps slide in. */
+.how {
+  position: relative;
+  height: 280vh;
+  margin-top: 6rem;
+}
+
+.how-sticky {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  padding: 0 clamp(1rem, 4vw, 3rem);
+  overflow: hidden;
+  text-align: center;
+}
+
+.how-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(1rem, 3vw, 3rem);
+  width: 100%;
+  max-width: 80rem;
+  margin: 3rem auto 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.how-step {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+.how[data-moving] .how-step {
+  opacity: calc(0.1 + 0.9 * var(--shown));
+  transform: translateX(calc((1 - var(--shown)) * 22vw));
+}
+
+.how-number {
+  flex: none;
+  font-size: clamp(6rem, 12vw, 12rem);
+  font-weight: 700;
+  line-height: 0.78;
+  letter-spacing: -0.07em;
+}
+
+.how-step:nth-child(1) .how-number {
+  color: var(--accent);
+}
+
+.how-step:nth-child(2) .how-number {
+  color: #6f9a3a;
+}
+
+.how-step:nth-child(3) .how-number {
+  color: #a9c75a;
+}
+
+.how-step h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.how-step p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
 .faq {
   display: grid;
   gap: 0.75rem;
-  max-width: 46rem;
+  max-width: 48rem;
   margin: 2rem auto 0;
   text-align: left;
 }
@@ -2731,29 +2747,12 @@ main.auth {
   color: var(--muted);
 }
 
-.early {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 2.5rem;
-  align-items: start;
-  text-align: left;
-}
-
-.early .section-lede {
-  margin-left: 0;
-}
-
-.early-card {
-  padding: 1.5rem;
-  border-radius: 22px;
-}
-
-/* The close: one wide pane of glass over the landscape. */
+/* The close: one wide pane of glass over the landscape, the full width of the window. */
 .closing {
   display: grid;
   place-items: center;
-  min-height: 27rem;
-  margin: 6.5rem 0 0;
+  min-height: 30rem;
+  margin: 7rem 0 0;
 }
 
 .closing-copy {
@@ -2764,15 +2763,15 @@ main.auth {
 
 .closing-copy h2 {
   margin: 0 0 0.6rem;
-  font-size: clamp(1.6rem, 3vw, 2.3rem);
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
   font-weight: 600;
   letter-spacing: -0.03em;
-  color: #1c1a2e;
+  color: #1a2015;
 }
 
 .closing-copy p {
   margin: 0 0 1.25rem;
-  color: #3a3756;
+  color: #353d2f;
 }
 
 .closing-copy .button-primary {
@@ -2784,46 +2783,77 @@ main.auth {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 1rem;
-  max-width: 78rem;
-  margin: 0 auto;
-  padding: 2rem 1.5rem 3rem;
+  padding: 2rem clamp(1rem, 4vw, 3rem) 3rem;
   color: var(--muted);
   font-size: 0.88rem;
 }
 
-/* Beside the meeting, the overlay hangs a little below it: the caption starts under both. */
-@media (min-width: 901px) {
-  .demo-caption {
-    margin-top: 4rem;
-  }
+/* Sections rise into view as they are reached (components/landing/scroll-reveal). */
+.reveal-armed [data-reveal] {
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.reveal-armed [data-reveal]:not(.revealed) {
+  opacity: 0;
+  transform: translateY(28px);
+}
+
+.reveal-armed .feature-grid > :nth-child(3n + 2),
+.reveal-armed .privacy-grid > :nth-child(2n) {
+  transition-delay: 0.08s;
+}
+
+.reveal-armed .feature-grid > :nth-child(3n),
+.reveal-armed .privacy-grid > :nth-child(3) {
+  transition-delay: 0.16s;
 }
 
 @media (max-width: 900px) {
-  .feature-grid {
+  .feature-grid,
+  .privacy-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .demo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .demo-overlay {
-    position: relative;
-    top: auto;
-    right: auto;
     width: min(24rem, 100%);
     margin: -2.5rem 0 0 auto;
   }
 
-  .early {
+  /* On a narrow screen the steps stack and simply show. */
+  .how {
+    height: auto;
+  }
+
+  .how-sticky {
+    position: static;
+    height: auto;
+    padding-top: 1rem;
+  }
+
+  .how-steps {
     grid-template-columns: minmax(0, 1fr);
-    gap: 1rem;
+  }
+
+  .how[data-moving] .how-step {
+    opacity: 1;
+    transform: none;
   }
 }
 
 @media (max-width: 640px) {
   .hero-copy {
-    padding-top: 7.5rem;
+    padding-top: 8rem;
   }
 
   .facts,
-  .feature-grid {
+  .feature-grid,
+  .privacy-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -2845,41 +2875,11 @@ main.auth {
   .closing-copy {
     margin: 1.5rem;
     border-radius: 22px;
-    background: rgb(255 255 255 / 0.55);
+    background: rgb(255 255 255 / 0.6);
     -webkit-backdrop-filter: blur(14px);
     backdrop-filter: blur(14px);
   }
 }
-
-/* The early-access form, while sign-up is closed. */
-.early-form .field {
-  max-width: none;
-}
-
-.early-form button[type='submit'] {
-  width: 100%;
-  padding: 0.7rem;
-}
-
-.early-note {
-  font-size: 0.82rem;
-  margin-bottom: 0;
-}
-
-.early-done {
-  margin: 0;
-  font-weight: 500;
-}
-
-/* Off-screen rather than display:none, which some bots know to skip. */
-.early-hidden {
-  position: absolute;
-  left: -10000px;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-}
-
 
 /* Calendars on the Account page, and meetings from them on Prepare. */
 .calendar-list {

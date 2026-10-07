@@ -38,3 +38,4 @@ accepted ADR to change the decision; write a new one that supersedes it.
 | 0026 | A call keeps who from outside was invited to its meeting | proposed |
 | 0027 | Plans per seat, a Free plan, and undetectability as the Incognito plan | proposed |
 | 0028 | First-run steps and plan announcements are each person's, kept in the database | proposed |
+| 0029 | On a Mac, call detection reads Core Audio through a small Swift helper | proposed |

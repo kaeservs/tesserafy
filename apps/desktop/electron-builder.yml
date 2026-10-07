@@ -80,6 +80,11 @@ mac:
   identity: '-'
   hardenedRuntime: false
   notarize: false
+  # Call detection's helper (native/mac/mic-users.swift), beside the app's own
+  # executable so it is signed with it; built by scripts/build-mic-helper.mjs.
+  extraFiles:
+    - from: dist/mac/mic-users
+      to: MacOS/mic-users
   extendInfo:
     # macOS stops an app that opens the microphone without saying why. This is
     # the sentence in the permission prompt.

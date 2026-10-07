@@ -107,8 +107,8 @@ const PRIVACY: readonly { title: string; body: string }[] = [
   { title: 'Consent stays with you', body: 'You agree once to tell everyone on the calls you record; every call keeps that record.' },
 ];
 
-/** The hero art: the painted landscape and its loop, once generated; a drawn stand-in until then. */
-const HERO_IMAGE = '/landing/hero-placeholder.jpg';
+/** The hero art: a painted landscape, generated in devmotion; its loop once that is made. */
+const HERO_IMAGE = '/landing/hero.webp';
 const HERO_VIDEO: string | undefined = undefined;
 
 const FAQ: readonly { q: string; a: string }[] = [

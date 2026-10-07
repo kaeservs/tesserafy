@@ -4,8 +4,8 @@ import { useEffect } from 'react';
 
 /**
  * Sections rise into view as they are reached: anything marked data-reveal
- * starts a little lower and transparent, and settles once a fifth of it is on
- * screen. Armed only once this has run, so without JavaScript, and for
+ * starts a little lower and settles once a fifth of it is on screen. It moves
+ * but never fades, so its text is at full contrast throughout. Armed only once this has run, so without JavaScript, and for
  * reduced motion, everything is simply there.
  */
 export function ScrollReveal() {

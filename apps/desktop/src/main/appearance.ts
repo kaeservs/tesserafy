@@ -20,7 +20,8 @@
  * saved, and placement can be tested without a screen.
  */
 
-export const THEMES = ['dark', 'midnight', 'light'] as const;
+/** Glass is light glass over the meeting: frosted by the system where it can (main/index.ts, applyGlass). */
+export const THEMES = ['glass', 'dark', 'midnight', 'light'] as const;
 export const ACCENTS = ['indigo', 'sky', 'violet', 'stone'] as const;
 export const SIZES = ['small', 'normal', 'large'] as const;
 export const CORNERS = ['top-right', 'top-left', 'bottom-right', 'bottom-left'] as const;
@@ -56,7 +57,7 @@ export interface AppearanceChange {
 export const MIN_OPACITY = 35;
 
 export const DEFAULT_APPEARANCE: Appearance = {
-  theme: 'dark',
+  theme: 'glass',
   accent: 'indigo',
   opacity: 88,
   size: 'normal',

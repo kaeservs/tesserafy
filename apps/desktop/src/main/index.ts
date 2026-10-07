@@ -17,6 +17,7 @@
 import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, net, safeStorage, screen, shell } from 'electron';
 import { execFile } from 'node:child_process';
 import { readFile, rm, writeFile } from 'node:fs/promises';
+import { release } from 'node:os';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import {
@@ -311,6 +312,23 @@ function nudge(direction: MoveDirection): void {
   saveAppearance();
 }
 
+/**
+ * Real glass behind the card, from the system: Windows 11's acrylic (22H2,
+ * build 22621, and later) or macOS's vibrancy. Either frosts whatever is
+ * behind the window — the meeting — which a page cannot do: CSS can only blur
+ * what is inside its own window. Not on Windows 10, where the Glass theme is a
+ * more opaque tint instead (the page is told, below). The window is sized to
+ * the card, so the frost covers the card and nothing else.
+ */
+const NATIVE_GLASS =
+  process.platform === 'darwin' || (process.platform === 'win32' && Number(release().split('.')[2] ?? 0) >= 22621);
+
+function applyGlass(window: BrowserWindow, theme: Appearance['theme']): void {
+  if (!NATIVE_GLASS) return;
+  if (process.platform === 'win32') window.setBackgroundMaterial(theme === 'glass' ? 'acrylic' : 'none');
+  if (process.platform === 'darwin') window.setVibrancy(theme === 'glass' ? 'hud' : null);
+}
+
 function createOverlay(): BrowserWindow {
   // A new window measures and shows afresh (macOS re-creates one on activate).
   shownOnce = false;
@@ -391,6 +409,7 @@ function createOverlay(): BrowserWindow {
 
   // The claim under test, and whatever the switches say now.
   window.setContentProtection(protection);
+  applyGlass(window, appearance.theme);
   if (clickThrough) window.setIgnoreMouseEvents(true, { forward: true });
 
   // If the page never reports its card, the overlay still appears, at the
@@ -494,7 +513,7 @@ void app.whenReady().then(async () => {
     isId(conversationId) ? shell.openExternal(new URL(`/conversations/${conversationId}#follow-up`, BASE_URL).toString()) : undefined,
   );
 
-  ipcMain.handle('overlay:appearance', () => appearance);
+  ipcMain.handle('overlay:appearance', () => ({ ...appearance, nativeGlass: NATIVE_GLASS }));
 
   // The card changed height: the window follows, so it covers the meeting
   // only where the card does. Not saved — the next launch measures again.
@@ -531,9 +550,12 @@ void app.whenReady().then(async () => {
       opacity: look['opacity'] ?? DEFAULT_APPEARANCE.opacity,
       size: look['size'] ?? DEFAULT_APPEARANCE.size,
     });
-    if (overlay) place(overlay);
+    if (overlay) {
+      place(overlay);
+      applyGlass(overlay, appearance.theme);
+    }
     saveAppearance();
-    return { ...setup, appearance };
+    return { ...setup, appearance: { ...appearance, nativeGlass: NATIVE_GLASS } };
   });
 
   // The Hide button: the same as the shortcut and the tray.

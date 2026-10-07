@@ -5,6 +5,7 @@
  * colour to pick here either.
  */
 export const OVERLAY_THEMES = [
+  { value: 'glass', label: 'Glass' },
   { value: 'dark', label: 'Dark' },
   { value: 'midnight', label: 'Midnight' },
   { value: 'light', label: 'Light' },
@@ -33,7 +34,7 @@ export interface OverlayLook {
   size: string;
 }
 
-export const DEFAULT_LOOK: OverlayLook = { theme: 'dark', accent: 'indigo', opacity: 88, size: 'normal' };
+export const DEFAULT_LOOK: OverlayLook = { theme: 'glass', accent: 'indigo', opacity: 88, size: 'normal' };
 
 /** A stored look, with the defaults for anything not set or not recognised. */
 export function readLook(value: unknown): OverlayLook {

@@ -1938,20 +1938,63 @@ main.auth {
 }
 
 /* --------------------------------------------------------------------------
-   The landing page (/, signed out): the same look, at marketing scale
+   The landing page (/, signed out): a painted landscape, glass over it, and
+   the product beneath. Always the light palette — it is painted art, and
+   white glass on a dark page would lose its contrast.
    -------------------------------------------------------------------------- */
 
 .landing {
+  --bg: #fafbff;
+  --surface: #ffffff;
+  --raised: #ffffff;
+  --fg: #232136;
+  --muted: #5f5c78;
+  --border: #eef0f6;
+  --accent: #5932ea;
+  --accent-soft: #f1edff;
+  --accent-fg: #ffffff;
+  --ok-bg: #d8f5ec;
+  --ok-line: #00b087;
+  --confirmed: #006b4f;
+  color-scheme: light;
   min-height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
+  overflow-x: clip;
+}
+
+/* Glass, in CSS: frosted, with a rim of light along its top edge and a sheen
+   across it. Where the picture behind it is known, components/landing/glass-scene
+   draws the real thing in WebGL instead. */
+.glass {
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 0.5), rgb(255 255 255 / 0) 42%, rgb(255 255 255 / 0) 68%, rgb(255 255 255 / 0.22)),
+    rgb(255 255 255 / 0.46);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  backdrop-filter: blur(18px) saturate(1.6);
+  border: 1px solid rgb(255 255 255 / 0.75);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.95),
+    inset 0 -1px 1px rgb(255 255 255 / 0.3),
+    0 10px 36px rgb(89 50 234 / 0.08);
 }
 
 .landing-nav {
+  position: sticky;
+  top: 0.9rem;
+  z-index: 50;
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-  max-width: 72rem;
-  margin: 0 auto;
-  padding: 1.25rem 1.5rem;
+  justify-content: space-between;
+  gap: 1rem;
+  width: min(42rem, calc(100% - 2rem));
+  margin: 0.9rem auto 0;
+  padding: 0.45rem 0.45rem 0.45rem 1.1rem;
+  border-radius: 999px;
+}
+
+.landing-nav .brand {
+  font-size: 1.1rem;
 }
 
 .landing-links {
@@ -1970,20 +2013,21 @@ main.auth {
   color: var(--fg);
 }
 
-.landing-nav .landing-links {
-  margin-left: auto;
-}
-
 .landing-actions {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.9rem;
 }
 
 .landing-actions > a:first-child {
   color: var(--fg);
   text-decoration: none;
   font-weight: 500;
+}
+
+.landing-actions .button-primary {
+  border-radius: 999px;
+  padding: 0.55rem 1.1rem;
 }
 
 .button-primary,
@@ -2016,287 +2060,671 @@ main.auth {
 }
 
 .landing-main {
-  max-width: 72rem;
+  max-width: 78rem;
   margin: 0 auto;
-  padding: 1rem 1.5rem 4rem;
+  padding: 0 1rem;
+}
+
+/* A picture with glass over it (components/landing/glass-scene). */
+.glass-scene {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 28px;
+}
+
+.glass-scene-media,
+.glass-scene-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.glass-scene-canvas {
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.glass-scene[data-mode='webgl'] .glass-scene-canvas {
+  opacity: 1;
+}
+
+.glass-scene-tiles {
+  position: absolute;
+  inset: 0;
+}
+
+.glass-tile {
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+
+.glass-scene-content {
+  position: relative;
+  z-index: 1;
 }
 
 .hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-  gap: 3rem;
-  align-items: center;
-  padding: 3rem 0 2rem;
+  margin-top: -4.4rem;
+  min-height: min(90vh, 54rem);
 }
 
-.eyebrow {
-  margin: 0 0 0.75rem;
-  color: var(--accent);
-  font-weight: 500;
-  font-size: 0.9rem;
+.hero-copy {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 9rem 1.5rem 4rem;
+  text-align: center;
 }
 
 .hero h1 {
-  font-size: clamp(2rem, 4.2vw, 3.1rem);
+  margin: 0;
+  font-size: clamp(2.3rem, 5.6vw, 4.3rem);
   font-weight: 600;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
-  margin: 0 0 1rem;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  color: #1c1a2e;
+}
+
+.hero h1 em {
+  font-weight: 500;
+  color: var(--accent);
 }
 
 .hero-lede {
-  font-size: 1.08rem;
-  color: var(--muted);
-  max-width: 34rem;
-  margin: 0 0 1.75rem;
+  max-width: 36rem;
+  margin: 1.25rem auto 0;
+  font-size: 1.05rem;
+  color: #3a3756;
 }
 
 .hero-actions {
   display: flex;
-  gap: 0.75rem;
   flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
 }
 
-.trust {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
-  list-style: none;
+.hero-actions a {
+  border-radius: 999px;
+}
+
+/* Three things that are always true, on glass over the lake's edge. */
+.facts {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  max-width: 56rem;
+  margin: -3.25rem auto 0;
   padding: 0;
-  margin: 1.75rem 0 0;
-  font-size: 0.88rem;
-  color: var(--muted);
+  list-style: none;
 }
 
-.trust li::before {
-  content: '✓ ';
-  color: var(--confirmed);
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 1.1rem 1.4rem;
+  border-radius: 22px;
+}
+
+.fact strong {
+  font-size: 1.9rem;
   font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--accent);
 }
 
-/* The overlay, drawn in its own dark glass, floating on the lavender page. */
-.mock {
-  background: rgb(22 22 30 / 0.94);
-  color: #f2f1f7;
-  border-radius: 18px;
-  padding: 1rem 1.1rem 1.15rem;
-  box-shadow: 0 30px 80px rgb(89 50 234 / 0.25);
-  font-size: 0.82rem;
-  transform: rotate(-1.2deg);
-}
-
-.mock-bar {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  margin-bottom: 0.75rem;
-}
-
-.mock-pill {
-  padding: 0.2rem 0.65rem;
-  border-radius: 8px;
-  border: 1px solid #4b4860;
-}
-
-.mock-muted {
-  color: #a3a1b8;
-}
-
-.mock-score {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.6rem;
-}
-
-.mock-track {
-  flex: 1;
-  height: 6px;
-  border-radius: 999px;
-  background: #2f2c40;
-  overflow: hidden;
-}
-
-.mock-fill {
-  display: block;
-  width: 62%;
-  height: 100%;
-  background: #a594f9;
-}
-
-.mock-chips,
-.mock-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-bottom: 0.65rem;
-}
-
-.mock-chip {
-  padding: 0.1rem 0.55rem;
-  border-radius: 999px;
-  border: 1px solid #4b4860;
-  color: #a3a1b8;
-}
-
-.mock-chip.on {
-  border-color: #34d399;
-  color: #6ee7b7;
-}
-
-.mock-buttons span {
-  padding: 0.3rem 0.6rem;
-  border-radius: 8px;
-  background: #2a2738;
-}
-
-.mock-answer {
-  border-top: 1px solid #2f2c40;
-  padding-top: 0.6rem;
-}
-
-.mock-answer p {
-  margin: 0 0 0.35rem;
-}
-
-.mock-title {
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: 0.7rem;
-  color: #a3a1b8;
-}
-
-.mock-quote {
-  color: #a3a1b8;
-  font-size: 0.75rem;
+.fact span {
+  color: var(--muted);
 }
 
 .landing-section {
-  padding: 3.5rem 0 0;
+  max-width: 66rem;
+  margin: 6.5rem auto 0;
+  text-align: center;
 }
 
-.landing-section > h2,
-.evidence h2,
-.early h2,
-.cta h2 {
-  font-size: 1.75rem;
+.landing-section h2 {
+  margin: 0.6rem 0 1rem;
+  font-size: clamp(1.8rem, 3.4vw, 2.6rem);
   font-weight: 600;
-  letter-spacing: -0.01em;
-  margin: 0 0 0.5rem;
+  letter-spacing: -0.03em;
+}
+
+.eyebrow {
+  display: inline-block;
+  margin: 0;
+  padding: 0.25rem 0.85rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
 .section-lede {
-  color: var(--muted);
   max-width: 40rem;
-  margin: 0 0 1.75rem;
+  margin: 0 auto 2rem;
+  color: var(--muted);
 }
 
+/* A soft wash of colour behind a section, so the glass in it has something to frost. */
+.wash {
+  position: relative;
+  isolation: isolate;
+}
+
+.wash::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -3rem -12vw;
+  background:
+    radial-gradient(38rem 22rem at 18% 35%, rgb(255 210 190 / 0.55), transparent 70%),
+    radial-gradient(36rem 24rem at 82% 65%, rgb(180 160 255 / 0.45), transparent 70%);
+  pointer-events: none;
+}
+
+/* The product on a call (components/landing/call-demo): sixteen seconds, CSS only. */
+.demo {
+  position: relative;
+  max-width: 62rem;
+  margin: 2.5rem auto 0;
+  padding-bottom: 2.5rem;
+  text-align: left;
+}
+
+.demo-meeting {
+  width: min(44rem, 100%);
+  padding: 0.9rem;
+  border-radius: 22px;
+  background: #17151f;
+  color: #ebe9f5;
+  box-shadow: 0 30px 80px rgb(35 33 54 / 0.25);
+}
+
+.demo-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.15rem 0.3rem 0.8rem;
+  font-size: 0.8rem;
+  color: #b4b1c9;
+}
+
+.demo-dots {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.demo-dots i {
+  display: block;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: #3b3850;
+}
+
+.demo-rec {
+  margin-left: auto;
+  color: #ff8a8a;
+}
+
+.demo-people {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.7rem;
+}
+
+.demo-person {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 10;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #2b2741, #1d1a2c);
+}
+
+.demo-person.speaking {
+  box-shadow: inset 0 0 0 2px #a594f9;
+}
+
+.demo-avatar {
+  display: grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffb38a, #b45cc0);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.demo-avatar.you {
+  background: linear-gradient(135deg, #7aa2ff, #5932ea);
+  font-size: 0.85rem;
+}
+
+.demo-name {
+  position: absolute;
+  left: 0.6rem;
+  bottom: 0.55rem;
+  max-width: calc(100% - 1.2rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.5);
+  font-size: 0.72rem;
+}
+
+.demo-captions {
+  position: relative;
+  height: 2.8rem;
+  margin-top: 0.8rem;
+}
+
+.demo-line {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  text-align: center;
+  font-size: 0.9rem;
+  opacity: 0;
+}
+
+/* At rest (and for reduced motion), the last line of the loop. */
+.demo-line-3 {
+  opacity: 1;
+}
+
+.demo-line strong {
+  margin-right: 0.35rem;
+  color: #c3b6ff;
+}
+
+.demo-controls {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.demo-controls span {
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  background: #2b2738;
+  font-size: 0.72rem;
+}
+
+.demo-controls .leave {
+  background: #c93a3a;
+}
+
+/* The overlay, floating over the meeting. Opaque enough to read over a dark call. */
+.demo-overlay {
+  position: absolute;
+  top: 1rem;
+  right: 0;
+  width: 21rem;
+  padding: 1rem 1.1rem;
+  border-radius: 20px;
+  background-color: rgb(255 255 255 / 0.78);
+  color: var(--fg);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.95),
+    0 24px 60px rgb(35 33 54 / 0.28);
+}
+
+.demo-overlay-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+}
+
+.demo-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.demo-score {
+  position: relative;
+  width: 2.2rem;
+  height: 1.4rem;
+  text-align: right;
+}
+
+.demo-score b {
+  position: absolute;
+  inset: 0;
+  font-size: 1.15rem;
+  opacity: 0;
+}
+
+.demo-score b.demo-score-4 {
+  opacity: 1;
+}
+
+.demo-track {
+  display: block;
+  height: 6px;
+  margin: 0.55rem 0 0.8rem;
+  border-radius: 3px;
+  background: #e6e2f7;
+  overflow: hidden;
+}
+
+.demo-fill {
+  display: block;
+  width: 71%;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #8b6cf6, #5932ea);
+}
+
+.demo-criteria {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.demo-criteria li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-height: 1.6rem;
+}
+
+.demo-chip {
+  flex: none;
+  padding: 0.12rem 0.55rem;
+  border: 1px solid #d6d8e4;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.demo-met .demo-chip {
+  border-color: var(--ok-line);
+  background: var(--ok-bg);
+  color: var(--confirmed);
+}
+
+.demo-quote {
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
+.demo-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.85rem;
+}
+
+.demo-buttons span {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid #e3def7;
+  border-radius: 999px;
+  background: #ffffff;
+  font-size: 0.72rem;
+}
+
+.demo-answer {
+  margin-top: 0.75rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  font-size: 0.85rem;
+}
+
+.demo-answer p {
+  margin: 0;
+}
+
+.demo-answer-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.demo-answer p + p {
+  margin-top: 0.3rem;
+}
+
+.demo-answer-why {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.demo-caption {
+  max-width: 40rem;
+  margin: 1.5rem auto 0;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* The loop. Without it (reduced motion) every element rests on its last frame. */
+@media (prefers-reduced-motion: no-preference) {
+  .demo-line-1 { animation: demo-line-1 16s infinite; }
+  .demo-line-2 { animation: demo-line-2 16s infinite; }
+  .demo-line-3 { animation: demo-line-3 16s infinite; }
+  .demo-met-1 .demo-chip, .demo-met-1 .demo-quote { animation: demo-met-1 16s infinite; }
+  .demo-met-2 .demo-chip, .demo-met-2 .demo-quote { animation: demo-met-2 16s infinite; }
+  .demo-met-3 .demo-chip, .demo-met-3 .demo-quote { animation: demo-met-3 16s infinite; }
+  .demo-score-1 { animation: demo-score-1 16s infinite; }
+  .demo-score-2 { animation: demo-score-2 16s infinite; }
+  .demo-score-3 { animation: demo-score-3 16s infinite; }
+  .demo-score .demo-score-4 { animation: demo-score-4 16s infinite; }
+  .demo-fill { animation: demo-fill 16s infinite; }
+  .demo-press { animation: demo-press 16s infinite; }
+  .demo-answer { animation: demo-answer 16s infinite; }
+}
+
+@keyframes demo-line-1 {
+  0%, 2% { opacity: 0; transform: translateY(6px); }
+  4%, 29% { opacity: 1; transform: none; }
+  32%, 100% { opacity: 0; }
+}
+
+@keyframes demo-line-2 {
+  0%, 33% { opacity: 0; transform: translateY(6px); }
+  35%, 60% { opacity: 1; transform: none; }
+  63%, 100% { opacity: 0; }
+}
+
+@keyframes demo-line-3 {
+  0%, 64% { opacity: 0; transform: translateY(6px); }
+  66%, 96% { opacity: 1; transform: none; }
+  99%, 100% { opacity: 0; }
+}
+
+@keyframes demo-met-1 {
+  0%, 15% { opacity: 0.35; filter: grayscale(1); }
+  18%, 97% { opacity: 1; filter: none; }
+  100% { opacity: 0.35; filter: grayscale(1); }
+}
+
+@keyframes demo-met-2 {
+  0%, 46% { opacity: 0.35; filter: grayscale(1); }
+  49%, 97% { opacity: 1; filter: none; }
+  100% { opacity: 0.35; filter: grayscale(1); }
+}
+
+@keyframes demo-met-3 {
+  0%, 76% { opacity: 0.35; filter: grayscale(1); }
+  79%, 97% { opacity: 1; filter: none; }
+  100% { opacity: 0.35; filter: grayscale(1); }
+}
+
+@keyframes demo-score-1 {
+  0%, 16% { opacity: 1; }
+  18%, 100% { opacity: 0; }
+}
+
+@keyframes demo-score-2 {
+  0%, 16% { opacity: 0; }
+  18%, 47% { opacity: 1; }
+  49%, 100% { opacity: 0; }
+}
+
+@keyframes demo-score-3 {
+  0%, 47% { opacity: 0; }
+  49%, 77% { opacity: 1; }
+  79%, 100% { opacity: 0; }
+}
+
+@keyframes demo-score-4 {
+  0%, 77% { opacity: 0; }
+  79%, 98% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes demo-fill {
+  0%, 15% { width: 24%; }
+  18%, 46% { width: 46%; }
+  49%, 76% { width: 63%; }
+  79%, 98% { width: 71%; }
+  100% { width: 24%; }
+}
+
+@keyframes demo-press {
+  0%, 82% { background: #ffffff; color: inherit; }
+  84%, 89% { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  91%, 100% { background: #ffffff; color: inherit; }
+}
+
+@keyframes demo-answer {
+  0%, 86% { opacity: 0; transform: translateY(8px); }
+  89%, 98% { opacity: 1; transform: none; }
+  100% { opacity: 0; }
+}
+
+/* Capabilities and plans: glass cards over the washes. */
 .feature-grid,
 .price-grid {
   display: grid;
-  gap: 1.25rem;
-  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: 1rem;
+  margin-top: 2rem;
+  text-align: left;
+}
+
+.feature-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.feature {
+  padding: 1.4rem 1.5rem;
+  border-radius: 22px;
+}
+
+.feature-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .feature h3,
-.steps h3,
 .price h3 {
+  margin: 0.9rem 0 0.4rem;
   font-size: 1.05rem;
   font-weight: 600;
-  margin: 1rem 0 0.4rem;
 }
 
 .feature p {
   margin: 0;
-}
-
-.steps {
-  list-style: none;
-  padding: 0;
-  margin: 1.5rem 0 0;
-  display: grid;
-  gap: 1.25rem;
-  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-}
-
-.steps h3 {
-  margin-top: 0.75rem;
-}
-
-.steps p {
-  margin: 0;
-}
-
-.step-number {
-  display: inline-grid;
-  place-items: center;
-  width: 2.2rem;
-  height: 2.2rem;
-  border-radius: 50%;
-  background: var(--accent);
-  color: var(--accent-fg);
-  font-weight: 600;
-}
-
-.evidence {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 2.5rem;
-  align-items: center;
-}
-
-.evidence-card blockquote {
-  margin: 0.75rem 0;
-  padding-left: 1rem;
-  border-left: 3px solid var(--accent);
-  font-size: 1.05rem;
-}
-
-.privacy-list {
-  display: grid;
-  gap: 1rem 2rem;
-  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
-  list-style: none;
-  padding: 0;
-  margin: 1.25rem 0 0;
-}
-
-.privacy-list li {
   color: var(--muted);
+  font-size: 0.92rem;
 }
 
-.privacy-list strong {
-  display: block;
-  color: var(--fg);
-  font-weight: 600;
-  margin-bottom: 0.2rem;
+.price-grid {
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
 }
 
-.price-figure {
-  font-size: 2.2rem;
-  font-weight: 600;
-  margin: 0.25rem 0 0.75rem;
+.price {
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  border-radius: 22px;
 }
 
-.price-figure .muted {
-  font-size: 0.95rem;
-  font-weight: 400;
-}
-
-.price ul {
-  padding-left: 1.1rem;
-  margin: 0 0 1.25rem;
-  color: var(--muted);
+.price h3 {
+  margin-top: 0;
 }
 
 .price.featured {
-  outline: 2px solid var(--accent);
+  border-color: rgb(89 50 234 / 0.45);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.95),
+    0 16px 44px rgb(89 50 234 / 0.18);
+}
+
+.price-figure {
+  margin: 0.25rem 0 1rem;
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.price-figure span {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+
+.price ul {
+  flex: 1;
+  margin: 0 0 1.25rem;
+  padding-left: 1.1rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.price ul li + li {
+  margin-top: 0.3rem;
+}
+
+.price .button-primary,
+.price .button-secondary {
+  text-align: center;
+  border-radius: 999px;
 }
 
 .faq {
   display: grid;
   gap: 0.75rem;
-  max-width: 48rem;
+  max-width: 46rem;
+  margin: 2rem auto 0;
+  text-align: left;
+}
+
+.faq details {
+  padding: 1rem 1.25rem;
+  border-radius: 18px;
 }
 
 .faq summary {
@@ -2306,20 +2734,55 @@ main.auth {
 
 .faq p {
   margin: 0.6rem 0 0;
+  color: var(--muted);
 }
 
-.cta {
-  margin: 4rem 0 0;
-  padding: 2.5rem 2rem;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, #b45cc0 0%, #4623e9 100%);
-  color: #ffffff;
+.early {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 2.5rem;
+  align-items: start;
+  text-align: left;
+}
+
+.early .section-lede {
+  margin-left: 0;
+}
+
+.early-card {
+  padding: 1.5rem;
+  border-radius: 22px;
+}
+
+/* The close: one wide pane of glass over the landscape. */
+.closing {
+  display: grid;
+  place-items: center;
+  min-height: 27rem;
+  margin: 6.5rem 0 0;
+}
+
+.closing-copy {
+  max-width: 34rem;
+  padding: 3rem 1.5rem;
   text-align: center;
 }
 
-.cta h2 {
-  color: #ffffff;
-  margin-bottom: 1.25rem;
+.closing-copy h2 {
+  margin: 0 0 0.6rem;
+  font-size: clamp(1.6rem, 3vw, 2.3rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: #1c1a2e;
+}
+
+.closing-copy p {
+  margin: 0 0 1.25rem;
+  color: #3a3756;
+}
+
+.closing-copy .button-primary {
+  border-radius: 999px;
 }
 
 .landing-footer {
@@ -2327,47 +2790,80 @@ main.auth {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 1rem;
-  max-width: 72rem;
+  max-width: 78rem;
   margin: 0 auto;
   padding: 2rem 1.5rem 3rem;
   color: var(--muted);
   font-size: 0.88rem;
 }
 
-@media (max-width: 900px) {
-  .hero,
-  .evidence {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 2rem;
-  }
-
-  .landing-nav .landing-links {
-    display: none;
-  }
-
-  .landing-actions {
-    margin-left: auto;
-  }
-
-  .mock {
-    transform: none;
+/* Beside the meeting, the overlay hangs a little below it: the caption starts under both. */
+@media (min-width: 901px) {
+  .demo-caption {
+    margin-top: 4rem;
   }
 }
 
-@media (max-width: 480px) {
-  .landing-actions .button-primary {
+@media (max-width: 900px) {
+  .feature-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .demo-overlay {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: min(24rem, 100%);
+    margin: -2.5rem 0 0 auto;
+  }
+
+  .early {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-copy {
+    padding-top: 7.5rem;
+  }
+
+  .facts,
+  .feature-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .facts {
+    margin-top: -2rem;
+  }
+
+  .demo-overlay {
+    margin: -1.5rem auto 0;
+  }
+
+  .demo-avatar {
+    width: 2.8rem;
+    height: 2.8rem;
+    font-size: 0.8rem;
+  }
+
+  /* The closing pane is narrower than the words on a phone: frost them too. */
+  .closing-copy {
+    margin: 1.5rem;
+    border-radius: 22px;
+    background: rgb(255 255 255 / 0.55);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+  }
+}
+
+@media (max-width: 420px) {
+  .landing-actions > a:first-child {
     display: none;
   }
 }
 
 /* The early-access form, while sign-up is closed. */
-.early {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 2.5rem;
-  align-items: start;
-}
-
 .early-form .field {
   max-width: none;
 }
@@ -2396,12 +2892,6 @@ main.auth {
   overflow: hidden;
 }
 
-@media (max-width: 900px) {
-  .early {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 1rem;
-  }
-}
 
 /* Calendars on the Account page, and meetings from them on Prepare. */
 .calendar-list {

@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { EarlyAccessForm } from '@/components/early-access-form';
 import { Icon, type IconName } from '@/components/icons';
+import { CallDemo } from '@/components/landing/call-demo';
+import { GlassScene, type GlassTile } from '@/components/landing/glass-scene';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -69,11 +71,33 @@ const FEATURES: readonly { icon: IconName; title: string; body: string }[] = [
   },
 ];
 
-const STEPS: readonly { title: string; body: string }[] = [
-  { title: 'Before', body: 'Prepare the call: who it is with, what to open with, what to ask. The overlay brings it in.' },
-  { title: 'During', body: 'The overlay sits over the meeting, scores as it goes and helps when you ask. Only you see it.' },
-  { title: 'After', body: 'The follow-up email, action items and insights, each quoting the call — ready on your dashboard.' },
+/** True of the product today, each one enforced in code: never a made-up metric. */
+const FACTS: readonly { figure: string; label: string }[] = [
+  { figure: '0', label: 'bots join your meeting' },
+  { figure: 'Every', label: 'point quotes what was said' },
+  { figure: '1 press', label: 'for what to say next' },
 ];
+
+/** The glass tiles over the hero's landscape: clustered at its edges, clear of the headline. */
+const HERO_TILES: readonly GlassTile[] = [
+  { x: 7, y: 62, w: 64, h: 64 },
+  { x: 13, y: 70, w: 64, h: 64 },
+  { x: 7, y: 78, w: 64, h: 64 },
+  { x: 19, y: 79, w: 44, h: 44, r: 10 },
+  { x: 47, y: 86, w: 40, h: 40, r: 10 },
+  { x: 52, y: 80, w: 32, h: 32, r: 9 },
+  { x: 86, y: 58, w: 72, h: 72 },
+  { x: 92, y: 66, w: 72, h: 72 },
+  { x: 86, y: 74, w: 72, h: 72 },
+  { x: 80, y: 82, w: 52, h: 52, r: 12 },
+];
+
+/** The closing card, one wide pane of glass over the same landscape. */
+const CTA_TILES: readonly GlassTile[] = [{ x: 50, y: 50, w: 760, h: 300, r: 28 }];
+
+/** The hero art: the painted landscape and its loop, once generated; a drawn stand-in until then. */
+const HERO_IMAGE = '/landing/hero-placeholder.jpg';
+const HERO_VIDEO: string | undefined = undefined;
 
 const FAQ: readonly { q: string; a: string }[] = [
   {
@@ -136,17 +160,11 @@ export default async function Landing() {
 
   return (
     <div className="landing">
-      <header className="landing-nav">
+      <header className="landing-nav glass">
         <Link href="/" className="brand">
-          <Icon name="logo" size={26} />
+          <Icon name="logo" size={24} />
           <span>Tesserafy</span>
         </Link>
-        <nav aria-label="On this page" className="landing-links">
-          <a href="#features">Features</a>
-          <a href="#how">How it works</a>
-          {onSale.length > 0 ? <a href="#pricing">Pricing</a> : null}
-          <a href="#faq">Questions</a>
-        </nav>
         <div className="landing-actions">
           <Link href="/login">Sign in</Link>
           <Link href={startHref} className="button-primary">
@@ -156,10 +174,11 @@ export default async function Landing() {
       </header>
 
       <main className="landing-main">
-        <section className="hero" aria-labelledby="hero-heading">
-          <div>
-            <p className="eyebrow">For everyone who sells, onboards or supports on calls</p>
-            <h1 id="hero-heading">Know what to say next — on every call.</h1>
+        <GlassScene image={HERO_IMAGE} {...(HERO_VIDEO ? { video: HERO_VIDEO } : {})} tiles={HERO_TILES} className="hero">
+          <section className="hero-copy" aria-labelledby="hero-heading">
+            <h1 id="hero-heading">
+              Know what to say next — <em>on every call.</em>
+            </h1>
             <p className="hero-lede">
               Tesserafy sits quietly over Zoom, Teams and Google Meet. It scores the conversation as it happens, tells you
               what to say or ask, and drafts your follow-up when you hang up. Every point quotes what was actually said.
@@ -168,120 +187,46 @@ export default async function Landing() {
               <Link href={startHref} className="button-primary">
                 {start}
               </Link>
-              <Link href="/login" className="button-secondary">
+              <Link href="/login" className="button-secondary glass">
                 Sign in
               </Link>
             </div>
-            <ul className="trust">
-              <li>No bot joins your meeting</li>
-              <li>Hidden from screen sharing on Incognito</li>
-              <li>Every point quotes the call</li>
-            </ul>
-          </div>
+          </section>
+        </GlassScene>
 
-          {/* The overlay, drawn: what a seller sees mid-call. Illustrative, not a screenshot. */}
-          <div className="mock" aria-label="The Tesserafy overlay during a call" role="img">
-            <div className="mock-bar">
-              <span className="mock-pill">Stop</span>
-              <span className="mock-muted">Dana Whitfield · Northwind</span>
-            </div>
-            <div className="mock-score">
-              <span className="mock-track">
-                <span className="mock-fill" />
-              </span>
-              <strong>62</strong>
-            </div>
-            <div className="mock-chips">
-              <span className="mock-chip on">Pain</span>
-              <span className="mock-chip on">Cost</span>
-              <span className="mock-chip on">Timeline</span>
-              <span className="mock-chip">Budget</span>
-            </div>
-            <div className="mock-buttons">
-              <span>Assist</span>
-              <span>What should I say?</span>
-              <span>Follow-ups</span>
-              <span>Recap</span>
-            </div>
-            <div className="mock-answer">
-              <p className="mock-title">What to say</p>
-              <p>“So reconciling takes two days every month — what would getting those back be worth to your team?”</p>
-              <p className="mock-quote">“Month-end reporting takes us two full days every month.”</p>
-            </div>
-          </div>
+        <ul className="facts" aria-label="What is always true">
+          {FACTS.map((fact) => (
+            <li key={fact.label} className="glass fact">
+              <strong>{fact.figure}</strong>
+              <span>{fact.label}</span>
+            </li>
+          ))}
+        </ul>
+
+        <section className="landing-section wash" aria-labelledby="demo-heading">
+          <p className="eyebrow">On a call</p>
+          <h2 id="demo-heading">It listens, and helps when you ask</h2>
+          <CallDemo />
         </section>
 
-        <section id="features" className="landing-section" aria-labelledby="features-heading">
+        <section className="landing-section" aria-labelledby="features-heading">
+          <p className="eyebrow">What it does</p>
           <h2 id="features-heading">Built for the call itself</h2>
-          <p className="section-lede">Everything you need while it matters, and nothing you have to set up during the call.</p>
           <div className="feature-grid">
             {FEATURES.map((feature) => (
-              <div key={feature.title} className="card feature">
-                <span className="stat-icon">
-                  <Icon name={feature.icon} size={26} />
+              <div key={feature.title} className="glass feature">
+                <span className="feature-icon">
+                  <Icon name={feature.icon} size={22} />
                 </span>
                 <h3>{feature.title}</h3>
-                <p className="muted">{feature.body}</p>
+                <p>{feature.body}</p>
               </div>
             ))}
           </div>
         </section>
 
-        <section id="how" className="landing-section" aria-labelledby="how-heading">
-          <h2 id="how-heading">How it works</h2>
-          <ol className="steps">
-            {STEPS.map((step, index) => (
-              <li key={step.title} className="card">
-                <span className="step-number">{index + 1}</span>
-                <h3>{step.title}</h3>
-                <p className="muted">{step.body}</p>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        <section className="landing-section evidence" aria-labelledby="evidence-heading">
-          <div>
-            <h2 id="evidence-heading">Evidence, not guesses</h2>
-            <p className="section-lede">
-              The AI never hands you a number. It finds the words that show a point was covered, and the score is worked out
-              from them. Anything it cannot trace back, word for word, to what was said is dropped before you see it.
-            </p>
-          </div>
-          <div className="card evidence-card">
-            <p className="muted" style={{ marginTop: 0 }}>
-              Pain quantified <span className="pill pill-on">Confirmed</span>
-            </p>
-            <blockquote>“Most of Friday. Call it six hours each, so twelve hours a week between them.”</blockquote>
-            <p className="muted" style={{ marginBottom: 0 }}>
-              Tom Okafor · Harbor &amp; Pine discovery · 00:48
-            </p>
-          </div>
-        </section>
-
-        <section className="landing-section" aria-labelledby="privacy-heading">
-          <h2 id="privacy-heading">Private by design</h2>
-          <ul className="privacy-list">
-            <li>
-              <strong>Nothing joins the meeting.</strong> No bot, no announcement — and on Incognito the overlay is kept
-              out of screen capture.
-            </li>
-            <li>
-              <strong>Your calls stay yours.</strong> Never used for Tesserafy’s own purposes; export or delete any time.
-            </li>
-            <li>
-              <strong>Contact details masked.</strong> Email addresses and phone numbers are removed before anything is
-              stored.
-            </li>
-            <li>
-              <strong>Consent stays with you.</strong> You agree once to tell everyone on the calls you record — the{' '}
-              <Link href="/terms">Terms</Link> set out why.
-            </li>
-          </ul>
-        </section>
-
         {onSale.length > 0 ? (
-          <section id="pricing" className="landing-section" aria-labelledby="pricing-heading">
+          <section className="landing-section wash" aria-labelledby="pricing-heading">
             <h2 id="pricing-heading">Pricing</h2>
             <p className="section-lede">
               {free ? 'Start on Free, one seat. ' : ''}Then a plan, per seat, by the month — every seat brings its own
@@ -289,11 +234,11 @@ export default async function Landing() {
             </p>
             <div className="price-grid">
               {onSale.map((plan) => (
-                <div key={plan.id} className={`card price${plan.id === 'pro' ? ' featured' : ''}`}>
+                <div key={plan.id} className={`glass price${plan.id === 'pro' ? ' featured' : ''}`}>
                   <h3>{plan.name}</h3>
                   <p className="price-figure">
                     {plan.price_usd_cents === null ? '$0' : `$${(plan.price_usd_cents / 100).toFixed(2)}`}
-                    <span className="muted">{plan.price_usd_cents === null ? ' — one seat' : ' a seat a month'}</span>
+                    <span>{plan.price_usd_cents === null ? ' one seat' : ' a seat a month'}</span>
                   </p>
                   <ul>
                     {allowances(plan).map((line) => (
@@ -309,13 +254,14 @@ export default async function Landing() {
           </section>
         ) : null}
 
-        <section id="faq" className="landing-section" aria-labelledby="faq-heading">
-          <h2 id="faq-heading">Questions</h2>
+        <section className="landing-section" aria-labelledby="faq-heading">
+          <p className="eyebrow">Questions</p>
+          <h2 id="faq-heading">Before you ask</h2>
           <div className="faq">
             {FAQ.map((item) => (
-              <details key={item.q} className="card">
+              <details key={item.q} className="glass">
                 <summary>{item.q}</summary>
-                <p className="muted">{item.a}</p>
+                <p>{item.a}</p>
               </details>
             ))}
           </div>
@@ -324,24 +270,28 @@ export default async function Landing() {
         {open === true ? null : (
           <section id="early-access" className="landing-section early" aria-labelledby="early-heading">
             <div>
+              <p className="eyebrow">Early access</p>
               <h2 id="early-heading">Get early access</h2>
               <p className="section-lede">
                 Tesserafy is opening to a few teams at a time. Leave your work email and we will tell you when there is a
                 place for yours.
               </p>
             </div>
-            <div className="card">
+            <div className="glass early-card">
               <EarlyAccessForm />
             </div>
           </section>
         )}
 
-        <section className="cta" aria-labelledby="cta-heading">
-          <h2 id="cta-heading">Your next call, with a second brain beside it.</h2>
-          <Link href={startHref} className="promo-button">
-            {start}
-          </Link>
-        </section>
+        <GlassScene image={HERO_IMAGE} tiles={CTA_TILES} className="closing">
+          <section className="closing-copy" aria-labelledby="cta-heading">
+            <h2 id="cta-heading">Your next call, with a second brain beside it.</h2>
+            <p>Free to start. Nothing joins the meeting.</p>
+            <Link href={startHref} className="button-primary">
+              {start}
+            </Link>
+          </section>
+        </GlassScene>
       </main>
 
       <footer className="landing-footer">

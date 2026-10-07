@@ -166,7 +166,6 @@ export default async function Landing() {
           <span>Tesserafy</span>
         </Link>
         <div className="landing-actions">
-          <Link href="/login">Sign in</Link>
           <Link href={startHref} className="button-primary">
             {start}
           </Link>
@@ -186,9 +185,6 @@ export default async function Landing() {
             <div className="hero-actions">
               <Link href={startHref} className="button-primary">
                 {start}
-              </Link>
-              <Link href="/login" className="button-secondary glass">
-                Sign in
               </Link>
             </div>
           </section>
@@ -299,7 +295,6 @@ export default async function Landing() {
         <nav aria-label="Legal" className="landing-links">
           <Link href="/terms">Terms</Link>
           <Link href="/privacy">Privacy</Link>
-          <Link href="/login">Sign in</Link>
         </nav>
       </footer>
     </div>

@@ -9,7 +9,8 @@ import { expect, test } from '@playwright/test';
 test('a visitor sees what Tesserafy is, and what it costs', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Know what to say next');
-  await expect(page.getByRole('link', { name: 'Sign in' }).first()).toBeVisible();
+  // A public page: it offers the product, not a way in. People who have an account go to /login.
+  await expect(page.getByRole('link', { name: 'Sign in' })).toHaveCount(0);
   // Prices come from the plans table, never from copy on the page.
   const pricing = page.getByRole('region', { name: 'Pricing' });
   await expect(pricing.getByText(/^\$\d+/).first()).toBeVisible();

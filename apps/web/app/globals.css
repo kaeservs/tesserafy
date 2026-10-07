@@ -2019,12 +2019,6 @@ main.auth {
   gap: 0.9rem;
 }
 
-.landing-actions > a:first-child {
-  color: var(--fg);
-  text-decoration: none;
-  font-weight: 500;
-}
-
 .landing-actions .button-primary {
   border-radius: 999px;
   padding: 0.55rem 1.1rem;
@@ -2854,12 +2848,6 @@ main.auth {
     background: rgb(255 255 255 / 0.55);
     -webkit-backdrop-filter: blur(14px);
     backdrop-filter: blur(14px);
-  }
-}
-
-@media (max-width: 420px) {
-  .landing-actions > a:first-child {
-    display: none;
   }
 }
 

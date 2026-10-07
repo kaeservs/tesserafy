@@ -605,8 +605,10 @@ async function checkLiveCapture(baseUrl: string, token: string): Promise<void> {
  * That is a one-word difference from a function that would return every
  * company's transcripts to anybody who asked, and nothing about the page
  * would look different if it were wrong. So the check is not that search
- * works; it is that the same query returns fewer rows to a member than to the
- * service role.
+ * works; it is that every row a member gets is their own company's, and —
+ * whenever another company has rows that match — fewer than the service role
+ * gets. Counting alone stopped meaning anything the day only one company had
+ * matching rows (2026-10-07): "4 of 4" was correct, and read as a leak.
  */
 async function checkSearch(
   supabaseUrl: string,
@@ -653,10 +655,36 @@ async function checkSearch(
   }
 
   const member = await search(publishableKey, token);
+  if (member === null || operator === null) {
+    record('search is scoped to the caller', false, 'a search failed');
+    return;
+  }
+
+  // Whose rows were they? Read with the service role, as the operator would.
+  const companiesOf = async (ids: readonly string[]) => {
+    if (ids.length === 0) return new Map<string, string>();
+    const url = new URL('/rest/v1/segments', supabaseUrl);
+    url.searchParams.set('select', 'id,company_id');
+    url.searchParams.set('id', `in.(${ids.join(',')})`);
+    const response = await fetch(url, { headers: { apikey: serviceKey, authorization: `Bearer ${serviceKey}` } });
+    const rows = response.ok ? ((await response.json()) as { id: string; company_id: string }[]) : [];
+    return new Map(rows.map((row) => [row.id, row.company_id]));
+  };
+  const userId = (JSON.parse(Buffer.from(token.split('.')[1] ?? '', 'base64url').toString()) as { sub?: string }).sub ?? '';
+  const membership = await fetch(
+    new URL(`/rest/v1/company_members?select=company_id&user_id=eq.${userId}`, supabaseUrl),
+    { headers: { apikey: serviceKey, authorization: `Bearer ${serviceKey}` } },
+  );
+  const own = new Set(((membership.ok ? await membership.json() : []) as { company_id: string }[]).map((row) => row.company_id));
+  const everyone = await companiesOf(operator.map((hit) => hit.segment_id));
+  const theirs = member.map((hit) => everyone.get(hit.segment_id) ?? 'unknown');
+  const others = [...everyone.values()].filter((company) => !own.has(company)).length;
+  const onlyOwn = theirs.every((company) => own.has(company));
   record(
     'search is scoped to the caller',
-    member !== null && operator !== null && member.length < operator.length,
-    `member sees ${member?.length ?? 0} of ${operator?.length ?? 0}`,
+    onlyOwn && (others === 0 || member.length < operator.length),
+    `member sees ${member.length} of ${operator.length}, ${onlyOwn ? 'all their own company’s' : 'SOME FROM ANOTHER COMPANY'}` +
+      (others === 0 ? '; no other company has a matching row' : ''),
   );
 }
 

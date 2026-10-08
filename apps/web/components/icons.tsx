@@ -17,6 +17,9 @@ const PATHS = {
   chevron: 'M9 6l6 6-6 6',
   overlay: 'M3 5h18v12H3zM8 21h8M12 17v4',
   logo: 'M12 2.5 20.5 7.5v9L12 21.5 3.5 16.5v-9zM12 8.5l3.5 2v3.5L12 16l-3.5-2v-3.5z',
+  unseen: 'M2.5 12C4.6 7.8 8 5.75 12 5.75s7.4 2.05 9.5 6.25c-2.1 4.2-5.5 6.25-9.5 6.25S4.6 16.2 2.5 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 4l16 16',
+  live: 'M3 12h3.5L9 6l4 12 2.5-6H21',
+  quote: 'M4 5h16v11H9.5L4 20zM8.5 10.5l2.5 2.5 4.5-4.5',
 } as const;
 
 export type IconName = keyof typeof PATHS;

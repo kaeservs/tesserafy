@@ -1942,6 +1942,11 @@ main.auth {
    over it, and the product beneath. Its own light palette — warm cream, a
    deep meadow green and a soft lime — whatever the system's colour scheme,
    because it is painted art and white glass on a dark page loses contrast.
+
+   Drawn to stay light on a weak graphics chip: the hero is a plain picture
+   with CSS birds, its movement on scroll is the browser's own (a scroll
+   timeline, where there is one), only what floats over a picture is frosted
+   with backdrop-filter, and nothing redraws every frame but the birds.
    -------------------------------------------------------------------------- */
 
 .landing {
@@ -1965,9 +1970,26 @@ main.auth {
   overflow-x: clip;
 }
 
+/* The menu's links glide to their section; a jump for anyone who asked for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  html:has(.landing) {
+    scroll-behavior: smooth;
+  }
+}
+
+.landing section[id] {
+  scroll-margin-top: 5.5rem;
+}
+
+.landing section.how {
+  scroll-margin-top: 0;
+}
+
 /* Glass, in CSS: frosted, with a rim of light along its top edge and a sheen
-   across it. Where the picture behind it is known, components/landing/glass-scene
-   draws the real thing in WebGL instead. */
+   across it. Frosting costs a blur every frame the page moves behind it, so
+   it is kept for what floats over a picture or over the page: the menu bar
+   and the three facts. Where the picture behind it is known,
+   components/landing/glass-scene draws the real thing in WebGL instead. */
 .glass {
   background:
     linear-gradient(135deg, rgb(255 255 255 / 0.55), rgb(255 255 255 / 0) 42%, rgb(255 255 255 / 0) 68%, rgb(255 255 255 / 0.25)),
@@ -1981,27 +2003,86 @@ main.auth {
     0 10px 36px rgb(59 75 30 / 0.08);
 }
 
+/* The same pane without the frost, for cards on the page itself: over cream
+   or a soft wash a blur changes almost nothing and would cost every frame. */
+.pane {
+  background: linear-gradient(
+    135deg,
+    rgb(255 255 255 / 0.94),
+    rgb(255 255 255 / 0.7) 45%,
+    rgb(255 255 255 / 0.76) 70%,
+    rgb(255 255 255 / 0.92)
+  );
+  border: 1px solid rgb(255 255 255 / 0.9);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.95),
+    0 10px 36px rgb(59 75 30 / 0.08);
+}
+
 .landing-nav {
   position: sticky;
   top: 0.9rem;
   z-index: 50;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  width: min(42rem, calc(100% - 2rem));
+  gap: 0.75rem;
+  width: min(68rem, calc(100% - 2rem));
   margin: 0.9rem auto 0;
   padding: 0.45rem 0.45rem 0.45rem 1.1rem;
   border-radius: 999px;
 }
 
 .landing-nav .brand {
+  flex: none;
   font-size: 1.1rem;
 }
 
 .landing-nav .button-primary {
+  flex: none;
   border-radius: 999px;
   padding: 0.55rem 1.1rem;
+}
+
+.landing-sections {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.landing-sections ul {
+  display: flex;
+  gap: 0.15rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landing-sections a {
+  display: block;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.landing-sections a:hover {
+  color: var(--fg);
+  background: rgb(255 255 255 / 0.65);
+}
+
+.landing-sections a[aria-current='true'] {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.landing-menu {
+  display: none;
 }
 
 .landing-links {
@@ -2059,7 +2140,7 @@ main.auth {
   padding: 0;
 }
 
-/* A picture with glass over it (components/landing/glass-scene). */
+/* A picture with glass over it (components/landing/glass-scene), at the close. */
 .glass-scene {
   position: relative;
   overflow: hidden;
@@ -2099,19 +2180,46 @@ main.auth {
   z-index: 1;
 }
 
-/* The hero: the full width of the window, under the floating nav. */
+/* The hero: the painting, the full width and height of the window, under the
+   floating nav, dissolving into the page at its foot. */
 .hero {
-  margin-top: -4.4rem;
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   min-height: 100vh;
+  min-height: 100svh;
+  margin-top: -4.4rem;
+  padding: 8rem 0 10.5rem;
+}
+
+.hero-art {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 40%;
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  z-index: -1;
+  height: 28%;
+  background: linear-gradient(to bottom, rgb(251 250 245 / 0), rgb(251 250 245 / 0.6) 55%, var(--bg));
+  pointer-events: none;
 }
 
 .hero-copy {
   max-width: 48rem;
   margin: 0 auto;
-  padding: 10rem 1.5rem 4rem;
+  padding: 0 1.5rem;
   text-align: center;
-  transform: translateY(calc(var(--away, 0) * -90px));
-  opacity: calc(1 - var(--away, 0) * 1.6);
 }
 
 .hero h1 {
@@ -2147,36 +2255,255 @@ main.auth {
   border-radius: 999px;
 }
 
-/* Three things that are always true, on glass over the bottom of the hero. */
+.hero-actions .button-secondary {
+  border-color: rgb(255 255 255 / 0.9);
+  background: rgb(255 255 255 / 0.72);
+}
+
+/* A small round button at the foot of the hero, its arrow nodding downwards. */
+.scroll-cue {
+  position: absolute;
+  left: 50%;
+  bottom: 6.75rem;
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 1px solid rgb(255 255 255 / 0.9);
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.6);
+  color: var(--accent);
+  box-shadow: 0 6px 20px rgb(59 75 30 / 0.12);
+  translate: -50% 0;
+}
+
+.scroll-cue span {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  rotate: 45deg;
+  translate: 0 -0.12rem;
+  animation: cue-nod 1.8s ease-in-out infinite;
+}
+
+@keyframes cue-nod {
+  50% {
+    transform: translate(0.12rem, 0.12rem);
+  }
+}
+
+/* Birds in the sky (components/landing/hero-birds): each wing turns on the
+   body, three beats and a glide, and the bird drifts a few pixels. The left
+   wing is drawn once and mirrored for the right. */
+.hero-birds {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.bird {
+  position: absolute;
+  top: var(--y);
+  left: var(--x);
+  width: calc(30px * var(--s, 1));
+  height: calc(12px * var(--s, 1));
+  opacity: calc(0.45 + var(--s, 1) * 0.4);
+  animation: bird-drift var(--drift, 9s) ease-in-out var(--delay, 0s) infinite alternate;
+}
+
+.bird i {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 15 12'%3E%3Cpath d='M1 4.5C4.5 2 8.5 2.5 14.2 9.6' fill='none' stroke='%232b3125' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E")
+    center / 100% 100% no-repeat;
+  transform-origin: 95% 80%;
+  animation: bird-wing var(--flap, 2.6s) ease-in-out var(--delay, 0s) infinite;
+}
+
+.bird i + i {
+  transform: scaleX(-1);
+  animation-name: bird-wing-mirror;
+}
+
+@keyframes bird-drift {
+  to {
+    transform: translate(9px, -6px);
+  }
+}
+
+@keyframes bird-wing {
+  0%,
+  56%,
+  100% {
+    transform: rotate(6deg);
+  }
+  8%,
+  24%,
+  40% {
+    transform: rotate(-24deg);
+  }
+  16%,
+  32%,
+  48% {
+    transform: rotate(22deg);
+  }
+}
+
+@keyframes bird-wing-mirror {
+  0%,
+  56%,
+  100% {
+    transform: scaleX(-1) rotate(6deg);
+  }
+  8%,
+  24%,
+  40% {
+    transform: scaleX(-1) rotate(-24deg);
+  }
+  16%,
+  32%,
+  48% {
+    transform: scaleX(-1) rotate(22deg);
+  }
+}
+
+.hero[data-offscreen] .bird,
+.hero[data-offscreen] .bird i {
+  animation-play-state: paused;
+}
+
+/* Leaving the hero: the painting falls behind at a third of the scroll and
+   leans in, the birds rise a little faster, the words lift and fade. Driven
+   by the scroll itself, so the browser draws it without the page's script;
+   where there is no scroll timeline, the hero simply scrolls away. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .hero {
+      view-timeline: --hero block;
+    }
+
+    .hero-art {
+      animation: hero-art linear both;
+      animation-timeline: --hero;
+      animation-range: exit 0% exit 100%;
+    }
+
+    .hero-birds {
+      animation: hero-birds linear both;
+      animation-timeline: --hero;
+      animation-range: exit 0% exit 100%;
+    }
+
+    .hero-copy {
+      animation: hero-copy linear both;
+      animation-timeline: --hero;
+      animation-range: exit 0% exit 60%;
+    }
+
+    .scroll-cue {
+      animation: hero-cue linear both;
+      animation-timeline: --hero;
+      animation-range: exit 0% exit 12%;
+    }
+  }
+}
+
+/* Without a scroll timeline, components/landing/hero-motion writes --away
+   (0 to 1, the same exit range) and these follow it to the same ends. */
+.hero[data-away] .hero-art {
+  transform: translateY(calc(var(--away, 0) * 32%)) scale(calc(1 + var(--away, 0) * 0.08));
+}
+
+.hero[data-away] .hero-birds {
+  transform: translateY(calc(var(--away, 0) * -18%));
+}
+
+.hero[data-away] .hero-copy {
+  --lift: min(1, var(--away, 0) / 0.6);
+  transform: translateY(calc(var(--lift) * -5rem));
+  opacity: calc(1 - var(--lift));
+}
+
+.hero[data-away] .scroll-cue {
+  opacity: calc(1 - min(1, var(--away, 0) / 0.12));
+}
+
+@keyframes hero-art {
+  to {
+    transform: translateY(32%) scale(1.08);
+  }
+}
+
+@keyframes hero-birds {
+  to {
+    transform: translateY(-18%);
+  }
+}
+
+@keyframes hero-copy {
+  to {
+    transform: translateY(-5rem);
+    opacity: 0;
+  }
+}
+
+@keyframes hero-cue {
+  to {
+    opacity: 0;
+  }
+}
+
+/* Three things that are always true, on glass over the foot of the hero. */
 .facts {
   position: relative;
   z-index: 2;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
-  max-width: 64rem;
-  margin: -3.75rem auto 0;
+  max-width: 68rem;
+  margin: -5rem auto 0;
   padding: 0;
   list-style: none;
 }
 
 .fact {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  padding: 1.15rem 1.4rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.9rem;
+  row-gap: 0.1rem;
+  padding: 1.1rem 1.35rem;
   border-radius: 22px;
 }
 
-.fact strong {
-  font-size: 1.9rem;
-  font-weight: 600;
-  letter-spacing: -0.03em;
+.fact-icon {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 14px;
+  background: var(--accent-soft);
   color: var(--accent);
 }
 
-.fact span {
+.fact strong {
+  font-size: 1.3rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--accent);
+}
+
+.fact span:last-child {
   color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 .landing-section {
@@ -2205,12 +2532,12 @@ main.auth {
 }
 
 .section-lede {
-  max-width: 40rem;
+  max-width: 42rem;
   margin: 0 auto 2rem;
   color: var(--muted);
 }
 
-/* A soft wash of colour behind a section, so the glass in it has something to frost. */
+/* A soft wash of colour behind a section. */
 .wash {
   position: relative;
   isolation: isolate;
@@ -2227,89 +2554,122 @@ main.auth {
   pointer-events: none;
 }
 
-/* The sample call to play with (components/landing/call-demo). */
-.demo {
+/* The overlay on a sample call (components/landing/overlay-demo): a meeting,
+   the overlay floating over it, and the panel that restyles it. */
+.od {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 22rem;
+  grid-template-columns: minmax(0, 1fr) 17rem;
+  gap: 1.25rem;
   align-items: start;
-  max-width: 66rem;
+  max-width: 78rem;
   margin: 2rem auto 0;
   text-align: left;
 }
 
-.demo-meeting {
-  padding: 0.9rem;
+.od-stage {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  min-height: 38rem;
+  overflow: hidden;
   border-radius: 22px;
-  background: #1b1f19;
-  color: #eef0e8;
-  box-shadow: 0 30px 80px rgb(29 35 24 / 0.25);
+  background: #17191a;
+  box-shadow: 0 30px 80px rgb(29 35 24 / 0.28);
 }
 
-.demo-bar {
+.od-meeting {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0.8rem;
+  color: #eef0ea;
+}
+
+.od-meeting-bar {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.15rem 0.3rem 0.8rem;
+  padding: 0.1rem 0.3rem 0.7rem;
   font-size: 0.8rem;
-  color: #b9bfae;
+  color: #b9bdb2;
 }
 
-.demo-dots {
+.od-dots {
   display: flex;
   gap: 0.35rem;
 }
 
-.demo-dots i {
+.od-dots i {
   display: block;
   width: 0.6rem;
   height: 0.6rem;
   border-radius: 50%;
-  background: #3a4034;
+  background: #3a3d38;
 }
 
-.demo-rec {
-  margin-left: 0.25rem;
+.od-meeting-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.od-rec {
   color: #ff9a8a;
   font-variant-numeric: tabular-nums;
 }
 
-.demo-people {
+.od-people {
+  flex: 1;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.7rem;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 0.6rem;
+  min-height: 0;
 }
 
-.demo-person {
+.od-person {
   position: relative;
   display: grid;
   place-items: center;
-  aspect-ratio: 16 / 10;
+  overflow: hidden;
   border-radius: 14px;
-  background: linear-gradient(135deg, #2b3126, #20251d);
   transition: box-shadow 0.3s ease;
 }
 
-.demo-person.speaking {
-  box-shadow: inset 0 0 0 2px var(--lime);
+.od-person.them {
+  background: radial-gradient(120% 90% at 30% 15%, #a07a5c 0%, #5b4434 45%, #2b221c 100%);
 }
 
-.demo-avatar {
+.od-person.me {
+  background: radial-gradient(120% 90% at 70% 20%, #6d8a5a 0%, #3c4f33 50%, #1f281b 100%);
+}
+
+.od-person.speaking {
+  box-shadow: inset 0 0 0 3px var(--lime);
+}
+
+.od-avatar {
   display: grid;
   place-items: center;
-  width: 4rem;
-  height: 4rem;
+  width: 5rem;
+  height: 5rem;
   border-radius: 50%;
   background: linear-gradient(135deg, #ffbd8f, #e3785b);
   color: #ffffff;
+  font-size: 1.3rem;
   font-weight: 600;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.3);
 }
 
-.demo-avatar.you {
+.od-person.me .od-avatar {
+  width: 3.75rem;
+  height: 3.75rem;
   background: linear-gradient(135deg, #a9cf6a, #3b6b1e);
-  font-size: 0.85rem;
+  font-size: 0.9rem;
 }
 
-.demo-name {
+.od-name {
   position: absolute;
   left: 0.6rem;
   bottom: 0.55rem;
@@ -2323,222 +2683,719 @@ main.auth {
   white-space: nowrap;
 }
 
-.demo-line {
-  min-height: 2.8rem;
-  margin: 0.8rem 0 0;
-  text-align: center;
-  font-size: 0.9rem;
-}
-
-.demo-line strong {
-  margin-right: 0.35rem;
-  color: var(--lime);
-}
-
-.demo-hint {
-  color: #b9bfae;
-}
-
-.demo-controls {
+.od-meeting-controls {
   display: flex;
   justify-content: center;
-  gap: 0.5rem;
-  margin-top: 0.4rem;
+  gap: 0.6rem;
+  padding-top: 0.7rem;
 }
 
-.demo-controls button {
-  padding: 0.35rem 0.95rem;
-  border: 1px solid #3a4034;
+.od-meeting-controls i {
+  display: block;
+  width: 2.3rem;
+  height: 2.3rem;
+  border-radius: 50%;
+  background: #2f322d center / 1.1rem no-repeat;
+}
+
+.od-meeting-controls .mic {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e8eae4' stroke-width='1.8' stroke-linecap='round'%3E%3Crect x='9' y='3' width='6' height='11' rx='3'/%3E%3Cpath d='M5 11a7 7 0 0 0 14 0M12 18v3'/%3E%3C/svg%3E");
+}
+
+.od-meeting-controls .cam {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e8eae4' stroke-width='1.8' stroke-linejoin='round'%3E%3Cpath d='M3 7h12v10H3zM15 10.5l6-3.5v10l-6-3.5'/%3E%3C/svg%3E");
+}
+
+.od-meeting-controls .share {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e8eae4' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 5h18v12H3zM12 14V8M9 11l3-3 3 3'/%3E%3C/svg%3E");
+}
+
+.od-meeting-controls .leave {
+  width: 3.4rem;
   border-radius: 999px;
-  background: #2a2f26;
-  color: #eef0e8;
-  font-size: 0.78rem;
+  background-color: #d64541;
 }
 
-.demo-controls button:first-child {
-  border-color: var(--lime);
-  background: var(--lime);
-  color: #1b1f19;
-}
-
-.demo-controls button:hover:not(:disabled) {
-  border-color: var(--lime);
-}
-
-/* The overlay, floating over the meeting's edge. Opaque enough to read over a dark call. */
-.demo-overlay {
-  position: relative;
+/* The overlay itself, as apps/desktop/src/renderer/index.html draws it: its
+   sizes in em of its 13 px type, so Size scales the whole card as the
+   overlay's zoom does, and its themes as variables. */
+.od-card {
+  --k: 1;
+  --o-alpha: 0.88;
+  position: absolute;
+  top: 12px;
+  right: 12px;
   z-index: 1;
-  margin: 1.25rem 0 0 -3rem;
-  padding: 1rem 1.1rem;
-  border-radius: 20px;
-  background-color: rgb(255 255 255 / 0.82);
-  color: var(--fg);
+  width: 30em;
+  max-width: calc(100% - 24px);
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.92em 1.08em;
+  border: 1px solid rgba(var(--o-line), 0.35);
+  border-radius: 0.92em;
+  font:
+    calc(13px * var(--k)) / 1.5 system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  color: var(--o-text);
+  background: rgba(var(--o-bg), var(--o-alpha));
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 18px 50px rgb(0 0 0 / 0.35);
+  cursor: grab;
+  user-select: none;
+  scrollbar-width: thin;
+}
+
+.od-card[data-dragging] {
+  cursor: grabbing;
+}
+
+.od-card--moved {
+  top: 0;
+  right: auto;
+  left: 0;
+}
+
+.od-card,
+.od-card[data-theme='dark'] {
+  color-scheme: dark;
+  --o-bg: 12, 10, 9;
+  --o-line: 120, 113, 108;
+  --o-field: rgba(28, 25, 23, 0.9);
+  --o-text: #f5f5f4;
+  --o-text-2: #e7e5e4;
+  --o-button: #d6d3d1;
+  --o-dim: #a8a29e;
+  --o-muted: #9a928c;
+  --o-ok: #4ade80;
+  --o-warn: #fbbf24;
+  --o-bad: #f87171;
+  --o-accent: var(--o-accent-hi);
+}
+
+.od-card[data-theme='midnight'] {
+  --o-bg: 15, 23, 42;
+  --o-line: 100, 116, 139;
+  --o-field: rgba(30, 41, 59, 0.9);
+  --o-text: #f1f5f9;
+  --o-text-2: #e2e8f0;
+  --o-button: #cbd5e1;
+  --o-dim: #94a3b8;
+  --o-muted: #919fb4;
+}
+
+.od-card[data-theme='light'] {
+  color-scheme: light;
+  --o-bg: 250, 250, 249;
+  --o-field: rgba(255, 255, 255, 0.95);
+  --o-text: #1c1917;
+  --o-text-2: #292524;
+  --o-button: #44403c;
+  --o-dim: #57534e;
+  --o-muted: #5f5853;
+  --o-ok: #15803d;
+  --o-warn: #b45309;
+  --o-bad: #b91c1c;
+  --o-accent: var(--o-accent-lo);
+}
+
+/* Glass frosts the meeting behind it, as Windows 11 and macOS do for the
+   real overlay; Background is how much white sits over the frost. */
+.od-card[data-theme='glass'] {
+  color-scheme: light;
+  --o-bg: 255, 255, 255;
+  --o-field: rgba(255, 255, 255, 0.55);
+  --o-text: #1c1917;
+  --o-text-2: #292524;
+  --o-button: #3f3a36;
+  --o-dim: #4a4540;
+  --o-muted: #554e49;
+  --o-ok: #15803d;
+  --o-warn: #b45309;
+  --o-bad: #b91c1c;
+  --o-accent: var(--o-accent-lo);
+  border-color: rgba(255, 255, 255, 0.75);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 45%, rgba(255, 255, 255, 0) 70%, rgba(255, 255, 255, 0.15)),
+    rgba(255, 255, 255, calc(0.45 + var(--o-alpha) * 0.45));
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  backdrop-filter: blur(16px) saturate(1.5);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.95),
-    0 24px 60px rgb(29 35 24 / 0.25);
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.3),
+    0 18px 50px rgb(0 0 0 / 0.3);
 }
 
-.demo-overlay-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 0.8rem;
+.od-card,
+.od-card[data-accent='indigo'] {
+  --o-accent-hi: 165, 180, 252;
+  --o-accent-lo: 67, 56, 202;
 }
 
-.demo-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-weight: 600;
-  color: var(--accent);
+.od-card[data-accent='sky'] {
+  --o-accent-hi: 125, 211, 252;
+  --o-accent-lo: 3, 105, 161;
 }
 
-.demo-score {
-  font-size: 1.2rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+.od-card[data-accent='violet'] {
+  --o-accent-hi: 196, 181, 253;
+  --o-accent-lo: 109, 40, 217;
 }
 
-.demo-track {
-  display: block;
-  height: 6px;
-  margin: 0.55rem 0 0.8rem;
-  border-radius: 3px;
-  background: #e8ecdc;
-  overflow: hidden;
+.od-card[data-accent='stone'] {
+  --o-accent-hi: 214, 211, 209;
+  --o-accent-lo: 68, 64, 60;
 }
 
-.demo-fill {
-  display: block;
-  height: 100%;
-  border-radius: 3px;
-  background: linear-gradient(90deg, var(--lime), var(--accent));
-  transition: width 0.6s ease;
+.od-card button {
+  padding: 0.27em 0.64em;
+  border: 1px solid rgba(var(--o-line), 0.35);
+  border-radius: 0.55em;
+  background: transparent;
+  color: var(--o-button);
+  font: inherit;
+  font-size: 0.846em;
+  cursor: pointer;
 }
 
-.demo-criteria {
-  display: grid;
-  gap: 0.4rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.od-card button:hover {
+  border-color: var(--o-dim);
 }
 
-.demo-criteria li {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  min-height: 1.7rem;
+/* The app's forms put their submit button in the accent; the overlay's Ask is a plain button like the rest. */
+.od-card .od-ask button[type='submit']:not(.link-button):not(.danger) {
+  border-color: rgba(var(--o-line), 0.35);
+  background: transparent;
+  color: var(--o-button);
 }
 
-.demo-chip {
-  flex: none;
-  padding: 0.12rem 0.55rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: #ffffff;
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 500;
+.od-card .od-ask button[type='submit']:not(.link-button):not(.danger):hover:not(:disabled) {
+  border-color: var(--o-dim);
+  background: transparent;
 }
 
-.demo-chip.met {
-  border-color: var(--met-line);
-  background: var(--met-bg);
-  color: var(--met-fg);
-}
-
-.demo-chip.focused {
-  outline: 2px solid var(--accent);
+.od-card button:focus-visible,
+.od-ask input:focus-visible {
+  outline: 2px solid rgb(var(--o-accent));
   outline-offset: 1px;
 }
 
-.demo-quote {
+.od-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.46em;
+  margin-bottom: 0.62em;
+}
+
+.od-card .od-primary {
+  border-color: rgb(var(--o-accent));
+  background: rgba(var(--o-accent), 0.25);
+  color: var(--o-text);
+}
+
+.od-muted {
+  color: var(--o-muted);
+  font-size: 0.77em;
+}
+
+.od-bar-note {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
-  font-size: 0.75rem;
-  font-style: italic;
-  color: var(--muted);
+  font-size: 0.846em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.demo-focus {
-  margin: 0.5rem 0 0;
-  padding: 0.4rem 0.6rem;
-  border-radius: 8px;
-  background: var(--met-bg);
-  color: var(--met-fg);
-  font-size: 0.75rem;
+.od-card .od-grip {
+  display: grid;
+  place-items: center;
+  width: 2em;
+  height: 2em;
+  padding: 0;
+  border-color: transparent;
+  color: var(--o-dim);
+  cursor: grab;
+  touch-action: none;
 }
 
-.demo-buttons {
+.od-grip svg {
+  width: 1.1em;
+  height: 1.1em;
+  fill: currentColor;
+}
+
+.od-head {
+  display: flex;
+  align-items: center;
+  gap: 0.62em;
+}
+
+.od-engagement {
+  flex: none;
+  max-width: 40%;
+  margin: 0;
+  overflow: hidden;
+  color: var(--o-dim);
+  font-size: 0.846em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* No transitions on the card: nothing on the real overlay moves by itself. */
+.od-meter {
+  flex: 1;
+  height: 0.46em;
+  overflow: hidden;
+  border-radius: 0.23em;
+  background: rgba(var(--o-line), 0.25);
+}
+
+.od-meter-fill {
+  height: 100%;
+  background: rgb(var(--o-accent));
+}
+
+.od-score {
+  min-width: 2em;
+  color: rgb(var(--o-accent));
+  font-weight: 700;
+  line-height: 1;
+  text-align: right;
+}
+
+.od-criteria {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: 0.31em;
+  margin: 0.62em 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.od-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.36em;
+  padding: 0.18em 0.73em;
+  border: 1px solid rgba(var(--o-line), 0.3);
+  border-radius: 999px;
+  color: var(--o-text-2);
+  font-size: 0.846em;
+}
+
+.od-chip.confirmed {
+  border-color: var(--o-ok);
+}
+
+.od-chip.candidate {
+  border-color: var(--o-warn);
+  border-style: dashed;
+}
+
+.od-chip.contradicted {
+  border-color: var(--o-bad);
+}
+
+/* A chip's state is its mark and its border, never its colour alone. */
+.od-state::before {
+  content: '○';
+  color: var(--o-muted);
+}
+
+.od-state.confirmed::before {
+  content: '●';
+  color: var(--o-ok);
+}
+
+.od-state.candidate::before {
+  content: '◐';
+  color: var(--o-warn);
+}
+
+.od-state.contradicted::before {
+  content: '✕';
+  color: var(--o-bad);
+}
+
+.od-hint {
+  color: var(--o-dim);
+  font-size: 0.82em;
+  font-variant-numeric: tabular-nums;
+}
+
+.od-talk {
+  margin: 0.46em 0 0;
+  color: var(--o-dim);
+  font-size: 0.77em;
+}
+
+.od-to-ask {
+  margin-top: 0.62em;
+  font-size: 0.846em;
+  line-height: 1.35;
+}
+
+.od-sub {
+  margin: 0 0 0.3em;
+  color: var(--o-dim);
+  font-size: 0.91em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.od-to-ask ol {
+  margin: 0;
+  padding-left: 1.45em;
+}
+
+.od-to-ask li {
+  margin-bottom: 0.27em;
+}
+
+.od-to-ask li.done {
+  color: var(--o-dim);
+  text-decoration: line-through;
+}
+
+.od-suggestion {
+  margin-top: 0.77em;
+  padding: 0.62em 0.77em;
+  border: 1px solid rgba(var(--o-accent), 0.5);
+  border-radius: 0.62em;
+  background: rgba(var(--o-accent-lo), 0.18);
+}
+
+.od-suggestion-ask {
+  margin: 0 0 0.25em;
+  font-size: 0.923em;
+  font-weight: 600;
+}
+
+.od-suggestion-why {
+  margin: 0;
+  color: var(--o-muted);
+  font-size: 0.77em;
+  line-height: 1.4;
+}
+
+.od-captions {
+  margin-top: 0.62em;
+  padding: 0.46em 0.62em;
+  border-radius: 0.62em;
+  background: var(--o-field);
+  font-size: 0.846em;
+  line-height: 1.35;
+}
+
+.od-captions p {
+  margin: 0;
+}
+
+.od-captions p + p {
+  margin-top: 0.27em;
+}
+
+.od-side {
+  margin-right: 0.36em;
+  color: var(--o-dim);
+  font-size: 0.82em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.od-assist {
+  margin-top: 0.77em;
+}
+
+.od-answer {
+  margin-bottom: 0.62em;
+  padding: 0.62em 0.77em;
+  border-radius: 0.62em;
+  background: rgba(var(--o-accent), 0.14);
+}
+
+.od-answer-title {
+  margin: 0 0 0.3em;
+  color: var(--o-dim);
+  font-size: 0.77em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.od-answer ul {
+  margin: 0;
+  padding-left: 1.25em;
+}
+
+.od-answer li {
+  margin: 0.15em 0;
+  font-size: 0.923em;
+}
+
+.od-quote {
+  display: block;
+  color: var(--o-dim);
+  font-size: 0.83em;
+}
+
+.od-answer-hint {
+  margin: 0;
+  color: var(--o-dim);
+  font-size: 0.846em;
+}
+
+.od-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.31em;
+  margin-bottom: 0.46em;
+}
+
+.od-ask {
+  display: flex;
+  gap: 0.31em;
+}
+
+.od-ask input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.33em 0.58em;
+  border: 1px solid rgba(var(--o-line), 0.35);
+  border-radius: 0.5em;
+  background: var(--o-field);
+  color: var(--o-text);
+  font: inherit;
+  font-size: 0.923em;
+  user-select: text;
+}
+
+.od-ask input::placeholder {
+  color: var(--o-muted);
+}
+
+.od-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.46em;
+  margin-top: 0.92em;
+}
+
+.od-keeping {
+  margin-left: auto;
+}
+
+.od-show {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  padding: 0.45rem 0.95rem;
+  border: 1px solid rgb(255 255 255 / 0.3);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.94);
+  color: #1d2318;
+  font-size: 0.82rem;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.3);
+}
+
+.od-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
   margin-top: 0.85rem;
 }
 
-.demo-buttons button {
-  padding: 0.28rem 0.65rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: #ffffff;
-  font-size: 0.74rem;
+.od-progress {
+  margin-right: auto;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
 }
 
-.demo-buttons button.pressed {
+.od-controls button,
+.od-reset {
+  padding: 0.4rem 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--fg);
+  font-size: 0.82rem;
+}
+
+.od-controls button:hover:not(:disabled),
+.od-reset:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.od-controls button:disabled,
+.od-reset:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* How it looks: the same four choices as Your account → Overlay. */
+.od-look {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-radius: 22px;
+}
+
+.od-look h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.od-field {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.od-field legend,
+.od-legend {
+  display: block;
+  margin-bottom: 0.45rem;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.od-segments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.od-segment,
+.od-swatch {
+  position: relative;
+}
+
+.od-segment input,
+.od-swatch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.od-segment span {
+  display: block;
+  padding: 0.32rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.82rem;
+}
+
+.od-segment:has(input:checked) span {
   border-color: var(--accent);
   background: var(--accent);
   color: var(--accent-fg);
 }
 
-.demo-answer {
-  min-height: 4.5rem;
-  margin-top: 0.75rem;
-  padding: 0.7rem 0.8rem;
-  border-radius: 12px;
-  background: var(--accent-soft);
-  font-size: 0.85rem;
+.od-segment:has(input:focus-visible) span,
+.od-swatch:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
-.demo-answer p {
+.od-swatches {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.od-swatch {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.od-swatch::after {
+  content: '';
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: rgb(var(--swatch));
+}
+
+.od-swatch[data-accent-choice='indigo'] {
+  --swatch: 129, 140, 248;
+}
+
+.od-swatch[data-accent-choice='sky'] {
+  --swatch: 56, 189, 248;
+}
+
+.od-swatch[data-accent-choice='violet'] {
+  --swatch: 167, 139, 250;
+}
+
+.od-swatch[data-accent-choice='stone'] {
+  --swatch: 168, 162, 158;
+}
+
+.od-swatch:has(input:checked) {
+  border-color: var(--fg);
+  box-shadow: inset 0 0 0 2px var(--surface);
+}
+
+.od-range {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.od-range input {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+
+.od-range output {
+  min-width: 2.6rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.od-reset {
+  align-self: flex-start;
+}
+
+.od-note {
   margin: 0;
-}
-
-.demo-answer ul {
-  margin: 0.3rem 0 0;
-  padding-left: 1rem;
-}
-
-.demo-answer li + li {
-  margin-top: 0.25rem;
-}
-
-.demo-answer-title {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--accent);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.demo-answer-why,
-.demo-answer-hint {
-  font-size: 0.75rem;
   color: var(--muted);
+  font-size: 0.8rem;
 }
 
-.demo-caption {
-  grid-column: 1 / -1;
-  max-width: 40rem;
-  margin: 2rem auto 0;
-  text-align: center;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-/* Capabilities, privacy and plans: glass cards over the washes. */
+/* Capabilities, privacy and plans: panes over the page and its washes. */
 .feature-grid,
 .price-grid,
 .privacy-grid {
@@ -2649,7 +3506,9 @@ main.auth {
   border-radius: 999px;
 }
 
-/* How it works (components/landing/how-it-works): pinned while three steps slide in. */
+/* How it works (components/landing/how-it-works): pinned while three steps
+   slide in. The script writes only --progress; each step takes its third of
+   it (--i is its place), arriving a little before that third ends. */
 .how {
   position: relative;
   height: 280vh;
@@ -2688,6 +3547,7 @@ main.auth {
 }
 
 .how[data-moving] .how-step {
+  --shown: clamp(0, var(--progress, 1) * 3.3 - var(--i, 0) * 1.05, 1);
   opacity: calc(0.1 + 0.9 * var(--shown));
   transform: translateX(calc((1 - var(--shown)) * 22vw));
 }
@@ -2810,19 +3670,82 @@ main.auth {
   transition-delay: 0.16s;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .bird,
+  .bird i,
+  .scroll-cue span {
+    animation: none;
+  }
+}
+
+@media (max-width: 1080px) {
+  .od {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .od-look {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .od-look h3,
+  .od-reset,
+  .od-note {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 960px) {
+  /* The links fold into a Menu button, and open as a card under the bar. */
+  .landing-menu {
+    display: block;
+    margin-left: auto;
+    padding: 0.5rem 1rem;
+    border: 1px solid rgb(255 255 255 / 0.9);
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.7);
+    color: var(--fg);
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+
+  .landing-sections {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    left: 0;
+    display: none;
+    padding: 0.5rem;
+    border: 1px solid rgb(255 255 255 / 0.9);
+    border-radius: 22px;
+    background: rgb(255 255 255 / 0.97);
+    box-shadow: 0 16px 40px rgb(29 35 24 / 0.16);
+  }
+
+  .landing-nav[data-open] .landing-sections {
+    display: block;
+  }
+
+  .landing-sections ul {
+    flex-direction: column;
+  }
+
+  .landing-sections a {
+    padding: 0.7rem 1rem;
+    font-size: 1rem;
+  }
+}
+
 @media (max-width: 900px) {
   .feature-grid,
   .privacy-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .demo {
+  .facts {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .demo-overlay {
-    width: min(24rem, 100%);
-    margin: -2.5rem 0 0 auto;
+    max-width: 30rem;
   }
 
   /* On a narrow screen the steps stack and simply show. */
@@ -2847,28 +3770,66 @@ main.auth {
 }
 
 @media (max-width: 640px) {
-  .hero-copy {
-    padding-top: 8rem;
+  .hero {
+    padding: 7rem 0 9rem;
   }
 
-  .facts,
+  .hero-lede {
+    font-size: 1rem;
+  }
+
+  /* The headline fills a phone's width: four birds keep to the strip of sky above it. */
+  .hero-birds {
+    inset: 9% 0 auto;
+    height: 16%;
+  }
+
+  .bird {
+    top: var(--phone-y);
+    left: var(--phone-x);
+  }
+
+  .bird.wide-only {
+    display: none;
+  }
+
+  .scroll-cue {
+    bottom: 5.5rem;
+  }
+
   .feature-grid,
   .privacy-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .facts {
-    margin-top: -2rem;
+    margin-top: -4rem;
   }
 
-  .demo-overlay {
-    margin: -1.5rem auto 0;
+  .od-stage {
+    aspect-ratio: auto;
+    min-height: 38rem;
   }
 
-  .demo-avatar {
+  .od-people {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 1.3fr 1fr;
+  }
+
+  .od-avatar {
+    width: 3.4rem;
+    height: 3.4rem;
+    font-size: 1rem;
+  }
+
+  .od-person.me .od-avatar {
     width: 2.8rem;
     height: 2.8rem;
     font-size: 0.8rem;
+  }
+
+  .od-look {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   /* The closing pane is narrower than the words on a phone: frost them too. */
@@ -2878,6 +3839,12 @@ main.auth {
     background: rgb(255 255 255 / 0.6);
     -webkit-backdrop-filter: blur(14px);
     backdrop-filter: blur(14px);
+  }
+}
+
+@media (max-height: 640px) {
+  .scroll-cue {
+    display: none;
   }
 }
 

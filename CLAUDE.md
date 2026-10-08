@@ -429,7 +429,9 @@ a test fails if they drift (ADR 0019).
   and Your account is `/account` (name, password) and
   `/account/{overlay,calendar,delete}`, each area with tabs along its top
   (`components/section-tabs.tsx`). A link, a redirect after a form, a
-  `revalidatePath` and a 402's `upgrade` all name the page itself.
+  `revalidatePath` and a 402's `upgrade` all name the page itself. The one
+  exception is the signed-out landing page (`/`), a single long page whose
+  menu scrolls to its own sections.
 
 - TypeScript everywhere in `apps/` and `packages/`. Python only in
   `services/eval`.

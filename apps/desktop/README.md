@@ -28,12 +28,20 @@ repeats what the customer just said is dropped (`src/renderer/hearing.ts`).
 Where the deployment has no Deepgram key, the browser engine inside Electron
 hears the microphone alone, as before.
 
-While listening it captions the last few lines, each side named
-(`src/renderer/captions.ts`), and, with both sides, shows each side's share of
-the words and nudges a seller who has done most of the talking lately
-(`src/renderer/talk-time.ts`). When the meeting app lets go of the microphone
-(Windows), it stops by itself after 15 seconds — "Keep listening" cancels — and
-offers the follow-up email.
+While listening it puts what to say next first, in its largest type: the live
+suggestion, else the prep's next unanswered question (`src/renderer/say-next.ts`).
+The score is a bar in the top line. The criteria, the prep's questions, captions
+of the last few lines with each side named (`src/renderer/captions.ts`) and, with
+both sides, each side's share of the words are folded under "Scorecard" until
+opened. It nudges a seller who has done most of the talking lately
+(`src/renderer/talk-time.ts`).
+
+When the meeting app lets go of the microphone (Windows), it stops by itself
+after 15 seconds — "Keep listening" cancels. When a call stops, nothing is
+summed up on the overlay: it offers the call's page in the dashboard, with the
+scorecard and the follow-up email.
+
+The default look is Glass: clear smoked glass, the call seen through it.
 
 Before a call it knows the next meeting from the calendar: how soon, and its
 prep — opened in the dashboard, or made in one press. Two minutes before the

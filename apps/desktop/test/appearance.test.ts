@@ -49,21 +49,21 @@ describe('withChange', () => {
 
 describe('placement', () => {
   it('opens in the top-right corner of the primary display, 24 px in', () => {
-    expect(placement(D, areas, primary)).toEqual({ x: 1920 - 520 - 24, y: 24, width: 520, height: 400 });
+    expect(placement(D, areas, primary)).toEqual({ x: 1920 - 640 - 24, y: 24, width: 640, height: 400 });
   });
 
   it('keeps a corner on the display the window is on', () => {
     expect(placement(at({ corner: 'bottom-left', x: 2000, y: 100 }), areas, primary)).toEqual({
       x: 1920 + 24,
       y: 1400 - 400 - 24,
-      width: 520,
+      width: 640,
       height: 400,
     });
   });
 
   it('grows the window with Large and keeps a bottom corner on screen', () => {
     const r = placement(at({ corner: 'bottom-right', x: null, y: null }, { size: 'large' }), areas, primary);
-    expect([r.width, r.height]).toEqual([624, 480]);
+    expect([r.width, r.height]).toEqual([768, 480]);
     expect(r.y + r.height).toBe(1040 - 24);
   });
 
@@ -71,14 +71,14 @@ describe('placement', () => {
     expect(placement(at({ corner: null, x: 700, y: 300 }), areas, primary)).toEqual({
       x: 700,
       y: 300,
-      width: 520,
+      width: 640,
       height: 400,
     });
   });
 
   it('pulls a window dragged part-way off the edge back on', () => {
     const r = placement(at({ corner: null, x: 1700, y: 900 }), [primary], primary);
-    expect([r.x, r.y]).toEqual([1920 - 520, 1040 - 400]);
+    expect([r.x, r.y]).toEqual([1920 - 640, 1040 - 400]);
   });
 
   it('falls back to the primary display when the monitor has been unplugged', () => {
@@ -88,20 +88,20 @@ describe('placement', () => {
     expect(placement(at({ corner: 'top-left', x: 3000, y: 200 }), [primary], primary)).toEqual({
       x: 24,
       y: 24,
-      width: 520,
+      width: 640,
       height: 400,
     });
   });
 
   it('puts a window straddling two monitors on the one showing more of it', () => {
-    // 120 px on the primary, 400 px on the second.
+    // 120 px on the primary, 520 px on the second.
     expect(placement(at({ corner: null, x: 1800, y: 100 }), areas, primary).x).toBe(1920);
   });
 });
 
 describe('placement with the card measured', () => {
   it('takes the card\'s height, rounded up', () => {
-    expect(placement(D, areas, primary, 301.4)).toEqual({ x: 1920 - 520 - 24, y: 24, width: 520, height: 302 });
+    expect(placement(D, areas, primary, 301.4)).toEqual({ x: 1920 - 640 - 24, y: 24, width: 640, height: 302 });
   });
 
   it('grows upwards from a bottom corner, its bottom edge fixed', () => {
@@ -121,7 +121,7 @@ describe('placement with the card measured', () => {
 
   it('grows a dragged window downwards, pulling it up at the bottom edge', () => {
     const dragged = at({ corner: null, x: 700, y: 300 });
-    expect(placement(dragged, areas, primary, 500)).toEqual({ x: 700, y: 300, width: 520, height: 500 });
+    expect(placement(dragged, areas, primary, 500)).toEqual({ x: 700, y: 300, width: 640, height: 500 });
     expect(placement(dragged, areas, primary, 900).y).toBe(1040 - 900);
   });
 });

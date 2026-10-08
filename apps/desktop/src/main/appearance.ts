@@ -20,7 +20,10 @@
  * saved, and placement can be tested without a screen.
  */
 
-/** Glass is light glass over the meeting: frosted by the system where it can (main/index.ts, applyGlass). */
+/**
+ * Glass is clear smoked glass, the call visible through it; Light is light,
+ * frosted by the system where it can (main/index.ts, applyGlass).
+ */
 export const THEMES = ['glass', 'dark', 'midnight', 'light'] as const;
 export const ACCENTS = ['indigo', 'sky', 'violet', 'stone'] as const;
 export const SIZES = ['small', 'normal', 'large'] as const;
@@ -56,10 +59,11 @@ export interface AppearanceChange {
 
 export const MIN_OPACITY = 35;
 
+/** Glass at 55%: dark enough to read, clear enough that the call is still seen through it. */
 export const DEFAULT_APPEARANCE: Appearance = {
   theme: 'glass',
   accent: 'indigo',
-  opacity: 88,
+  opacity: 55,
   size: 'normal',
   position: { corner: 'top-right', x: null, y: null },
 };
@@ -71,9 +75,10 @@ export const SCALE: Record<Size, number> = { small: 0.85, normal: 1, large: 1.2 
  * measured it (`placement`'s `height`). This height is only the guess the
  * window opens with, before it has.
  */
-// As wide as Cluely's panel: room for an answer, a question and the
-// four buttons on one line each, with the score kept to one line above.
-const BASE = { width: 520, height: 400 };
+// As wide as Cluely's panel: room for what to say next on a line or two,
+// the four buttons and the ask box on one line each, and the score in the
+// bar above.
+const BASE = { width: 640, height: 400 };
 /** Clear of the screen edge, and of the meeting controls at the bottom. */
 const MARGIN = 24;
 /** Never shorter than this, whatever the page reports. */

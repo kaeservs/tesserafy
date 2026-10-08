@@ -129,9 +129,9 @@ export default async function OverlaySettingsPage({ searchParams }: { searchPara
         <button type="submit">Save how it looks</button>
       </form>
       <p className="muted" id="opacity-note" style={{ fontSize: '0.8rem' }}>
-        The background fades to {OVERLAY_MIN_OPACITY}% at most; the text never does. On Glass, the meeting behind is frosted
-        (Windows 11 and Mac), and Background is how much white sits over the frost: lower is clearer glass. The overlay picks up
-        a change when it next starts a call.
+        The background fades to {OVERLAY_MIN_OPACITY}% at most; the text never does. Glass is clear smoked glass, so you still
+        see the call through it: Background is how dark it is. Light is frosted by Windows 11 and Mac instead. The overlay picks
+        up a change when it next starts a call.
       </p>
       {overlayNote ? (
         <p role="status" className="muted">

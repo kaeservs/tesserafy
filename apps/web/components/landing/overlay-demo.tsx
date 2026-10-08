@@ -17,8 +17,8 @@ import {
   TO_ASK,
   ask,
   assist,
+  sayNextAfter,
   scorecardAfter,
-  suggestionAfter,
   talkShares,
   type Answer,
   type AssistMode,
@@ -28,16 +28,19 @@ import {
 /**
  * The overlay on a sample call, to play with: a meeting with the desktop
  * overlay floating over it, drawn as the overlay draws itself
- * (apps/desktop/src/renderer/index.html) — the same bar, scorecard chips,
- * captions, suggestion, four buttons and ask box, and the same choice of
- * looks as Your account → Overlay. It can be dragged anywhere over the
- * meeting (by its grip on a touch screen, or the arrow keys on the grip), and
- * restyled from the panel beside it.
+ * (apps/desktop/src/renderer/index.html) — the bar with the score, what to
+ * say next first and largest, the four buttons and the ask box, and the
+ * scorecard folded under one line — in the same choice of looks as Your
+ * account → Overlay. It can be dragged anywhere over the meeting (by its grip
+ * on a touch screen, or the arrow keys on the grip), and restyled from the
+ * panel beside it.
  *
  * Front end only. The call is written for the page (./sample-call), its
  * scorecard is packages/scoring's, and nothing is recorded, sent or kept. It
  * starts when it comes into view, except for anyone who asked for reduced
- * motion, who presses Start.
+ * motion, who presses Start. When it ends, nothing is summed up on the card:
+ * in the product, the call's scorecard and follow-up are on its page in the
+ * dashboard.
  */
 
 type Theme = (typeof OVERLAY_THEMES)[number]['value'];
@@ -47,11 +50,16 @@ type Size = (typeof OVERLAY_SIZES)[number]['value'];
 /** The overlay's zoom for each size (apps/desktop/src/main/appearance.ts). */
 const SCALE: Record<Size, number> = { small: 0.85, normal: 1, large: 1.2 };
 
-const BUTTONS: readonly { mode: AssistMode; label: string }[] = [
-  { mode: 'assist', label: 'Assist' },
-  { mode: 'say', label: 'What should I say?' },
-  { mode: 'followups', label: 'Follow-up questions' },
-  { mode: 'recap', label: 'Recap' },
+/** The four buttons, as the overlay labels them, with the bubble each puts over its answer. */
+const BUTTONS: readonly { mode: AssistMode; label: string; icon: string }[] = [
+  {
+    mode: 'assist',
+    label: 'Assist',
+    icon: 'M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8zM18.5 15.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z',
+  },
+  { mode: 'say', label: 'What should I say?', icon: 'M4 20 15 9M14 4v2M19 9h2M17.5 5.5 19 4M9 4l.6 1.6L11 6l-1.4.4L9 8l-.6-1.6L7 6l1.4-.4z' },
+  { mode: 'followups', label: 'Follow-up questions', icon: 'M4 5h16v11H9.5L4 20z' },
+  { mode: 'recap', label: 'Recap', icon: 'M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4' },
 ];
 
 const SIDE_NAME: Record<Side, string> = { me: 'You', them: 'Them' };
@@ -64,8 +72,8 @@ function choose<T extends string>(options: readonly { value: T }[], wanted: stri
 }
 
 interface Shown {
-  /** Which button asked, so pressing another replaces it. */
-  readonly by: AssistMode | 'ask' | 'call-recap';
+  /** What was asked: a button's label or the question typed, shown as a bubble. */
+  readonly asked: string;
   readonly answer: Answer;
 }
 
@@ -80,6 +88,7 @@ export function OverlayDemo() {
   const [shown, setShown] = useState<Shown | null>(null);
   const [question, setQuestion] = useState('');
   const [hidden, setHidden] = useState(false);
+  const [ended, setEnded] = useState(false);
   /** Where it was dragged to, in the meeting's own pixels; null while it sits in its corner. */
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
 
@@ -92,15 +101,16 @@ export function OverlayDemo() {
   const toggled = useRef(false);
 
   const total = SAMPLE_CALL.length;
-  const ended = heard >= total;
+  const done = heard >= total;
   const card = useMemo(() => scorecardAfter(heard), [heard]);
   const talk = useMemo(() => talkShares(heard), [heard]);
-  const suggestion = useMemo(() => suggestionAfter(heard), [heard]);
+  const next = useMemo(() => sayNextAfter(heard), [heard]);
   const captions = SAMPLE_CALL.slice(Math.max(0, heard - 3), heard);
   const last = SAMPLE_CALL[heard - 1];
   const speaking = listening ? last?.side : undefined;
   const confirmed = card.criteria.filter((criterion) => criterion.status === 'confirmed').length;
   const rounded = Math.round(card.score);
+  const inCall = listening || heard > 0;
 
   // Start once it is in view, unless reduced motion was asked for.
   useEffect(() => {
@@ -122,15 +132,15 @@ export function OverlayDemo() {
   // One line at a time while listening.
   useEffect(() => {
     if (!listening || heard >= total) return;
-    const next = setTimeout(() => setHeard((count) => Math.min(total, count + 1)), heard === 0 ? 700 : LINE_MS);
-    return () => clearTimeout(next);
+    const timer = setTimeout(() => setHeard((count) => Math.min(total, count + 1)), heard === 0 ? 700 : LINE_MS);
+    return () => clearTimeout(timer);
   }, [listening, heard, total]);
 
-  // When the call ends, the overlay asks for its recap by itself, as the real one does.
+  // The last line ends the call: listening stops, and the card says where the call's scorecard and follow-up are.
   useEffect(() => {
     if (heard < total) return;
     setListening(false);
-    setShown({ by: 'call-recap', answer: { ...assist('recap', heard), title: 'Call recap' } });
+    setEnded(true);
   }, [heard, total]);
 
   const clamp = useCallback((x: number, y: number) => {
@@ -180,7 +190,7 @@ export function OverlayDemo() {
     const target = event.target instanceof Element ? event.target : null;
     const onGrip = target?.closest('.od-grip') != null;
     // A finger scrolls the page unless it takes the grip; a mouse can take the card anywhere but its controls.
-    if (!onGrip && (event.pointerType === 'touch' || target?.closest('button, input, label, a, select, textarea'))) return;
+    if (!onGrip && (event.pointerType === 'touch' || target?.closest('button, input, label, a, select, textarea, summary'))) return;
     const at = where();
     dragging.current = { id: event.pointerId, dx: event.clientX - at.x, dy: event.clientY - at.y };
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -232,10 +242,11 @@ export function OverlayDemo() {
       setListening(false);
       return;
     }
-    if (ended) {
+    if (done) {
       setHeard(0);
       setShown(null);
     }
+    setEnded(false);
     setListening(true);
   };
 
@@ -247,6 +258,7 @@ export function OverlayDemo() {
   const startOver = () => {
     started.current = true;
     setListening(false);
+    setEnded(false);
     setHeard(0);
     setShown(null);
     setQuestion('');
@@ -257,15 +269,18 @@ export function OverlayDemo() {
     setHidden(value);
   };
 
-  const press = (mode: AssistMode) => setShown({ by: mode, answer: assist(mode, heard) });
+  const press = (button: (typeof BUTTONS)[number]) => setShown({ asked: button.label, answer: assist(button.mode, heard) });
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const answer = ask(question, heard);
-    if (answer) setShown({ by: 'ask', answer });
+    const asked = question.trim();
+    const answer = ask(asked, heard);
+    if (!answer) return;
+    setShown({ asked, answer });
+    setQuestion('');
   };
 
-  const status = listening ? 'listening' : ended ? 'call ended' : heard > 0 ? 'stopped' : 'idle';
+  const status = listening ? 'listening to both sides' : ended ? 'call ended' : heard > 0 ? 'stopped' : 'idle';
 
   return (
     <div className="od">
@@ -330,7 +345,25 @@ export function OverlayDemo() {
                 <button type="button" ref={hideButton} onClick={() => hide(true)}>
                   Hide
                 </button>
-                <span className="od-muted od-bar-note">Northwind discovery{heard === 0 ? ' · now' : ''}</span>
+                <span className="od-bar-note">Dana Whitfield, Northwind</span>
+                {inCall ? (
+                  <span className="od-score-box">
+                    <span className="od-engagement">
+                      {card.engagementType} v{card.criteriaVersion}
+                    </span>
+                    <span
+                      className="od-meter"
+                      role="progressbar"
+                      aria-label="Score"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={rounded}
+                    >
+                      <span className="od-meter-fill" style={{ width: `${rounded}%` }} />
+                    </span>
+                    <span className="od-score">{rounded}</span>
+                  </span>
+                ) : null}
                 <button
                   type="button"
                   className="od-grip"
@@ -349,108 +382,54 @@ export function OverlayDemo() {
                 </button>
               </div>
 
-              <div className="od-head">
-                <p className="od-engagement">
-                  {card.engagementType} v{card.criteriaVersion}
-                </p>
-                <div
-                  className="od-meter"
-                  role="progressbar"
-                  aria-label="Score"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={rounded}
-                >
-                  <div className="od-meter-fill" style={{ width: `${rounded}%` }} />
-                </div>
-                <span className="od-score">{rounded}</span>
-              </div>
-
-              <ul className="od-criteria" aria-label="Scorecard">
-                {card.criteria.map((criterion) => {
-                  const short = criterion.shortfall;
-                  const counting = short && short.segmentsNeeded > 1 && short.segments > 0;
-                  return (
-                    <li
-                      key={criterion.key}
-                      className={`od-chip ${criterion.status}`}
-                      title={`${criterion.label}: ${criterion.status}${counting ? ` (${short.segments} of ${short.segmentsNeeded} mentions)` : ''}`}
-                    >
-                      <span className={`od-state ${criterion.status}`} aria-hidden="true" />
-                      <span>{criterion.label}</span>
-                      <span className="visually-hidden">: {criterion.status}</span>
-                      {counting ? (
-                        <span className="od-hint">
-                          {short.segments}/{short.segmentsNeeded}
-                        </span>
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ul>
-
-              {talk.words >= 30 ? (
-                <p className="od-talk">
-                  You {Math.round(talk.me * 100)}% · Them {Math.round(talk.them * 100)}% of the talking
+              {ended ? (
+                <p className="od-banner" role="status">
+                  Call saved. In the app its scorecard and follow-up wait in your dashboard — nothing to read here.
                 </p>
               ) : null}
 
-              <section className="od-to-ask" aria-label="To ask">
-                <p className="od-sub">To ask</p>
-                <ol>
-                  {TO_ASK.map((item) => {
-                    const done = card.criteria.find((criterion) => criterion.key === item.criterion)?.status === 'confirmed';
-                    return (
-                      <li key={item.ask} className={done ? 'done' : undefined}>
-                        {item.ask}
-                        {done ? <span className="visually-hidden"> (answered)</span> : null}
-                      </li>
-                    );
-                  })}
-                </ol>
-              </section>
-
-              {suggestion ? (
-                <aside className="od-suggestion" aria-label="Suggestion">
-                  <p className="od-suggestion-ask">{suggestion.ask}</p>
-                  <p className="od-suggestion-why">because they said “{suggestion.because}”</p>
-                </aside>
-              ) : null}
-
-              {captions.length ? (
-                <section className="od-captions" aria-label="Live transcript">
-                  {captions.map((line) => (
-                    <p key={line.at}>
-                      <span className="od-side">{SIDE_NAME[line.side]}</span>
-                      {line.text}
-                    </p>
-                  ))}
+              {listening ? (
+                <section className={`od-say${next.waiting ? ' waiting' : ''}`} aria-label="What to say next">
+                  <p className="od-say-label">{next.label}</p>
+                  <p className="od-say-text">{next.text}</p>
+                  {next.why ? <p className="od-say-why">{next.why}</p> : null}
                 </section>
               ) : null}
 
               <section className="od-assist" aria-label="Assist">
-                <div className="od-answer" aria-live="polite">
-                  {shown ? (
-                    <>
-                      <p className="od-answer-title">{shown.answer.title}</p>
-                      <ul>
-                        {shown.answer.points.map((point) => (
-                          <li key={point.text}>
-                            {point.text}
-                            {point.quote ? <span className="od-quote">“{point.quote}”</span> : null}
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  ) : (
-                    <p className="od-answer-hint">Press a button: it answers from what has been said so far.</p>
-                  )}
-                </div>
+                {shown ? (
+                  <div className="od-answer" aria-live="polite">
+                    <div className="od-answer-head">
+                      <span className="od-asked">{shown.asked}</span>
+                      <button type="button" className="od-close" aria-label="Close the answer" onClick={() => setShown(null)}>
+                        ×
+                      </button>
+                    </div>
+                    <ul>
+                      {shown.answer.points.map((point) => (
+                        <li key={point.text}>
+                          {point.text}
+                          {point.quote ? <span className="od-quote">“{point.quote}”</span> : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
                 <div className="od-actions">
-                  {BUTTONS.map((button) => (
-                    <button key={button.mode} type="button" onClick={() => press(button.mode)}>
-                      {button.label}
-                    </button>
+                  {BUTTONS.map((button, index) => (
+                    <span key={button.mode} className="od-action">
+                      {index > 0 ? (
+                        <span className="od-dot" aria-hidden="true">
+                          ·
+                        </span>
+                      ) : null}
+                      <button type="button" onClick={() => press(button)}>
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                          <path d={button.icon} />
+                        </svg>
+                        {button.label}
+                      </button>
+                    </span>
                   ))}
                 </div>
                 <form className="od-ask" onSubmit={submit}>
@@ -459,19 +438,76 @@ export function OverlayDemo() {
                     onChange={(event) => setQuestion(event.target.value)}
                     maxLength={200}
                     autoComplete="off"
-                    placeholder="Ask about the call"
+                    placeholder="Ask about the call — try “who decides?”"
                     aria-label="Ask about the call"
                   />
-                  <button type="submit">Ask</button>
+                  <button type="submit" className="od-send" aria-label="Ask">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M8 5.5v13L18.5 12z" />
+                    </svg>
+                  </button>
                 </form>
               </section>
 
               <div className="od-foot">
-                <span className="od-muted">
-                  {status}
-                  {heard > 0 ? ` · ${confirmed}/${card.criteria.length} confirmed` : ''}
-                </span>
-                <span className="od-muted od-keeping">a sample: nothing is kept</span>
+                <details className="od-details">
+                  <summary>
+                    Scorecard · {confirmed} of {card.criteria.length} confirmed
+                  </summary>
+                  <ul className="od-criteria" aria-label="Scorecard">
+                    {card.criteria.map((criterion) => {
+                      const short = criterion.shortfall;
+                      const counting = short && short.segmentsNeeded > 1 && short.segments > 0;
+                      return (
+                        <li
+                          key={criterion.key}
+                          className={`od-chip ${criterion.status}`}
+                          title={`${criterion.label}: ${criterion.status}${counting ? ` (${short.segments} of ${short.segmentsNeeded} mentions)` : ''}`}
+                        >
+                          <span className={`od-state ${criterion.status}`} aria-hidden="true" />
+                          <span>{criterion.label}</span>
+                          <span className="visually-hidden">: {criterion.status}</span>
+                          {counting ? (
+                            <span className="od-hint">
+                              {short.segments}/{short.segmentsNeeded}
+                            </span>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {talk.words >= 30 ? (
+                    <p className="od-talk">
+                      You {Math.round(talk.me * 100)}% · Them {Math.round(talk.them * 100)}% of the talking
+                    </p>
+                  ) : null}
+                  <section className="od-to-ask" aria-label="To ask">
+                    <p className="od-sub">To ask</p>
+                    <ol>
+                      {TO_ASK.map((item) => {
+                        const answered =
+                          card.criteria.find((criterion) => criterion.key === item.criterion)?.status === 'confirmed';
+                        return (
+                          <li key={item.ask} className={answered ? 'done' : undefined}>
+                            {item.ask}
+                            {answered ? <span className="visually-hidden"> (answered)</span> : null}
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </section>
+                  {captions.length ? (
+                    <section className="od-captions" aria-label="Live transcript">
+                      {captions.map((line) => (
+                        <p key={line.at}>
+                          <span className="od-side">{SIDE_NAME[line.side]}</span>
+                          {line.text}
+                        </p>
+                      ))}
+                    </section>
+                  ) : null}
+                </details>
+                <span className="od-status">{status}</span>
               </div>
             </div>
           )}
@@ -481,7 +517,7 @@ export function OverlayDemo() {
           <span className="od-progress">
             Sample call · line {heard} of {total}
           </span>
-          <button type="button" onClick={nextLine} disabled={ended}>
+          <button type="button" onClick={nextLine} disabled={done}>
             Next line
           </button>
           <button type="button" onClick={startOver} disabled={heard === 0}>
@@ -573,8 +609,8 @@ export function OverlayDemo() {
           Put it back in its corner
         </button>
         <p id="od-opacity-note" className="od-note">
-          The same choices as in the app. Background never goes below {OVERLAY_MIN_OPACITY}%, so the words stay readable; on
-          Glass it is how much white sits over the frosted meeting.
+          The same choices as in the app. Glass is clear smoked glass, so you still see the call through it; Background is how
+          dark it is, never below {OVERLAY_MIN_OPACITY}%. Light is frosted instead.
         </p>
       </form>
     </div>

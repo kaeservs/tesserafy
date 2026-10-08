@@ -34,7 +34,8 @@ export interface OverlayLook {
   size: string;
 }
 
-export const DEFAULT_LOOK: OverlayLook = { theme: 'glass', accent: 'indigo', opacity: 88, size: 'normal' };
+/** Clear smoked glass at 55%: the call stays visible through it (apps/desktop/src/main/appearance.ts). */
+export const DEFAULT_LOOK: OverlayLook = { theme: 'glass', accent: 'indigo', opacity: 55, size: 'normal' };
 
 /** A stored look, with the defaults for anything not set or not recognised. */
 export function readLook(value: unknown): OverlayLook {

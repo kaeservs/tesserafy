@@ -313,20 +313,23 @@ function nudge(direction: MoveDirection): void {
 }
 
 /**
- * Real glass behind the card, from the system: Windows 11's acrylic (22H2,
- * build 22621, and later) or macOS's vibrancy. Either frosts whatever is
+ * A frost behind the card, from the system: Windows 11's acrylic (22H2,
+ * build 22621, and later) or macOS's vibrancy. Either blurs whatever is
  * behind the window — the meeting — which a page cannot do: CSS can only blur
- * what is inside its own window. Not on Windows 10, where the Glass theme is a
- * more opaque tint instead (the page is told, below). The window is sized to
- * the card, so the frost covers the card and nothing else.
+ * what is inside its own window. For the Light theme only: a light card needs
+ * the call behind it smoothed out for dark text to read. Glass, the default,
+ * is clear on purpose — the call is meant to be seen through it — and the
+ * dark themes need no frost. Not on Windows 10, where Light is a firmer tint
+ * instead (the page is told, below). The window is sized to the card, so the
+ * frost covers the card and nothing else.
  */
 const NATIVE_GLASS =
   process.platform === 'darwin' || (process.platform === 'win32' && Number(release().split('.')[2] ?? 0) >= 22621);
 
 function applyGlass(window: BrowserWindow, theme: Appearance['theme']): void {
   if (!NATIVE_GLASS) return;
-  if (process.platform === 'win32') window.setBackgroundMaterial(theme === 'glass' ? 'acrylic' : 'none');
-  if (process.platform === 'darwin') window.setVibrancy(theme === 'glass' ? 'hud' : null);
+  if (process.platform === 'win32') window.setBackgroundMaterial(theme === 'light' ? 'acrylic' : 'none');
+  if (process.platform === 'darwin') window.setVibrancy(theme === 'light' ? 'popover' : null);
 }
 
 function createOverlay(): BrowserWindow {

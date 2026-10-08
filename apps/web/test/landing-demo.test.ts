@@ -10,6 +10,7 @@ import {
   TO_ASK,
   ask,
   assist,
+  sayNextAfter,
   scorecardAfter,
   suggestionAfter,
   talkShares,
@@ -107,6 +108,13 @@ describe('the landing page sample call', () => {
   it('crosses a prep question off once its criterion is confirmed', () => {
     const done = scorecardAfter(SAMPLE_CALL.length).criteria.filter((criterion) => criterion.status === 'confirmed');
     for (const item of TO_ASK) expect(done.some((criterion) => criterion.key === item.criterion)).toBe(true);
+  });
+
+  it('puts what to say next first: the prep until a suggestion, then the suggestion', () => {
+    expect(sayNextAfter(0)).toMatchObject({ label: 'From your prep', text: TO_ASK[0]!.ask, waiting: false });
+    const pain = SAMPLE_CALL.findIndex((line) => line.evidence?.criterion === 'pain') + 1;
+    expect(sayNextAfter(pain)).toMatchObject({ label: 'Say next', why: 'because they said “takes us two full days every month”' });
+    expect(sayNextAfter(SAMPLE_CALL.length).label).toBe('Say next');
   });
 
   it('splits the talking by words, both sides adding up to all of it', () => {

@@ -2718,22 +2718,25 @@ main.auth {
 
 /* The overlay itself, as apps/desktop/src/renderer/index.html draws it: its
    sizes in em of its 13 px type, so Size scales the whole card as the
-   overlay's zoom does, and its themes as variables. */
+   overlay's zoom does, as wide as the overlay's 640 px, and its themes as
+   variables. What to say next comes first and largest; the scorecard is
+   folded under the last line. */
 .od-card {
   --k: 1;
-  --o-alpha: 0.88;
+  --o-alpha: 0.55;
   position: absolute;
-  top: 12px;
+  /* In its corner, below the meeting's title bar, over the call itself. */
+  top: 48px;
   right: 12px;
   z-index: 1;
-  width: 30em;
+  width: 49.25em;
   max-width: calc(100% - 24px);
   max-height: calc(100% - 24px);
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 0.92em 1.08em;
+  padding: 0.77em 1.08em;
   border: 1px solid rgba(var(--o-line), 0.35);
-  border-radius: 0.92em;
+  border-radius: 1.08em;
   font:
     calc(13px * var(--k)) / 1.5 system-ui,
     -apple-system,
@@ -2741,9 +2744,7 @@ main.auth {
     sans-serif;
   color: var(--o-text);
   background: rgba(var(--o-bg), var(--o-alpha));
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 18px 50px rgb(0 0 0 / 0.35);
+  box-shadow: 0 18px 50px rgb(0 0 0 / 0.3);
   cursor: grab;
   user-select: none;
   scrollbar-width: thin;
@@ -2787,6 +2788,8 @@ main.auth {
   --o-muted: #919fb4;
 }
 
+/* Light is frosted, as Windows 11 and macOS frost the real one: the call
+   smoothed out behind it, so dark text reads at any Background. */
 .od-card[data-theme='light'] {
   color-scheme: light;
   --o-bg: 250, 250, 249;
@@ -2800,33 +2803,40 @@ main.auth {
   --o-warn: #b45309;
   --o-bad: #b91c1c;
   --o-accent: var(--o-accent-lo);
-}
-
-/* Glass frosts the meeting behind it, as Windows 11 and macOS do for the
-   real overlay; Background is how much white sits over the frost. */
-.od-card[data-theme='glass'] {
-  color-scheme: light;
-  --o-bg: 255, 255, 255;
-  --o-field: rgba(255, 255, 255, 0.55);
-  --o-text: #1c1917;
-  --o-text-2: #292524;
-  --o-button: #3f3a36;
-  --o-dim: #4a4540;
-  --o-muted: #554e49;
-  --o-ok: #15803d;
-  --o-warn: #b45309;
-  --o-bad: #b91c1c;
-  --o-accent: var(--o-accent-lo);
   border-color: rgba(255, 255, 255, 0.75);
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 45%, rgba(255, 255, 255, 0) 70%, rgba(255, 255, 255, 0.15)),
-    rgba(255, 255, 255, calc(0.45 + var(--o-alpha) * 0.45));
+    rgba(255, 255, 255, calc(0.3 + var(--o-alpha) * 0.55));
   -webkit-backdrop-filter: blur(16px) saturate(1.5);
   backdrop-filter: blur(16px) saturate(1.5);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    inset 0 -1px 1px rgba(255, 255, 255, 0.3),
     0 18px 50px rgb(0 0 0 / 0.3);
+}
+
+/* Glass, the default: clear smoked glass, the call seen through it, as
+   Cluely's panel is. No frost, so the text carries a soft shadow;
+   Background is how dark the glass is. */
+.od-card[data-theme='glass'] {
+  --o-bg: 17, 18, 22;
+  --o-line: 255, 255, 255;
+  --o-field: rgba(255, 255, 255, 0.09);
+  --o-text: #ffffff;
+  --o-text-2: #f4f4f5;
+  --o-button: #ececef;
+  --o-dim: #d4d4d9;
+  --o-muted: #c4c4cc;
+  --o-ok: #4ade80;
+  --o-warn: #fcd34d;
+  --o-bad: #fca5a5;
+  border-color: rgba(255, 255, 255, 0.16);
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02) 38%, rgba(255, 255, 255, 0) 60%),
+    rgba(var(--o-bg), calc(var(--o-alpha) * 0.85));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 18px 50px rgb(0 0 0 / 0.3);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.55);
 }
 
 .od-card,
@@ -2851,13 +2861,14 @@ main.auth {
 }
 
 .od-card button {
-  padding: 0.27em 0.64em;
+  padding: 0.27em 0.73em;
   border: 1px solid rgba(var(--o-line), 0.35);
   border-radius: 0.55em;
   background: transparent;
   color: var(--o-button);
   font: inherit;
   font-size: 0.846em;
+  text-shadow: none;
   cursor: pointer;
 }
 
@@ -2865,19 +2876,8 @@ main.auth {
   border-color: var(--o-dim);
 }
 
-/* The app's forms put their submit button in the accent; the overlay's Ask is a plain button like the rest. */
-.od-card .od-ask button[type='submit']:not(.link-button):not(.danger) {
-  border-color: rgba(var(--o-line), 0.35);
-  background: transparent;
-  color: var(--o-button);
-}
-
-.od-card .od-ask button[type='submit']:not(.link-button):not(.danger):hover:not(:disabled) {
-  border-color: var(--o-dim);
-  background: transparent;
-}
-
 .od-card button:focus-visible,
+.od-card summary:focus-visible,
 .od-ask input:focus-visible {
   outline: 2px solid rgb(var(--o-accent));
   outline-offset: 1px;
@@ -2887,7 +2887,6 @@ main.auth {
   display: flex;
   align-items: center;
   gap: 0.46em;
-  margin-bottom: 0.62em;
 }
 
 .od-card .od-primary {
@@ -2896,18 +2895,54 @@ main.auth {
   color: var(--o-text);
 }
 
-.od-muted {
-  color: var(--o-muted);
-  font-size: 0.77em;
-}
-
 .od-bar-note {
   flex: 1;
   min-width: 0;
   overflow: hidden;
+  color: var(--o-dim);
   font-size: 0.846em;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.od-score-box {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.54em;
+}
+
+.od-engagement {
+  color: var(--o-dim);
+  font-size: 0.77em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* No transitions on the card: nothing on the real overlay moves by itself. */
+.od-meter {
+  display: block;
+  width: 6.9em;
+  height: 0.4em;
+  overflow: hidden;
+  border-radius: 0.23em;
+  background: rgba(var(--o-line), 0.25);
+}
+
+.od-meter-fill {
+  display: block;
+  height: 100%;
+  background: rgb(var(--o-accent));
+}
+
+.od-score {
+  min-width: 2ch;
+  color: rgb(var(--o-accent));
+  font-weight: 700;
+  line-height: 1;
+  text-align: right;
 }
 
 .od-card .od-grip {
@@ -2928,53 +2963,255 @@ main.auth {
   fill: currentColor;
 }
 
-.od-head {
-  display: flex;
-  align-items: center;
-  gap: 0.62em;
+.od-banner {
+  margin: 0.62em 0 0;
+  padding: 0.46em 0.62em;
+  border-radius: 0.62em;
+  background: rgba(var(--o-accent), 0.2);
+  font-size: 0.923em;
 }
 
-.od-engagement {
-  flex: none;
-  max-width: 40%;
+/* What to say next: the largest words on the card, alone. */
+.od-say {
+  margin-top: 0.77em;
+  padding: 0.77em 0.92em;
+  border: 1px solid rgba(var(--o-accent), 0.4);
+  border-radius: 0.77em;
+  background: rgba(var(--o-accent), 0.12);
+}
+
+.od-say p {
   margin: 0;
-  overflow: hidden;
-  color: var(--o-dim);
-  font-size: 0.846em;
+}
+
+.od-say-label {
+  color: rgb(var(--o-accent));
+  font-size: 0.77em;
   font-weight: 600;
   letter-spacing: 0.08em;
-  text-overflow: ellipsis;
   text-transform: uppercase;
+}
+
+.od-say-text {
+  margin-top: 0.15em;
+  color: var(--o-text);
+  font-size: 1.23em;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.od-say.waiting .od-say-text {
+  color: var(--o-dim);
+  font-size: 1em;
+  font-weight: 400;
+}
+
+.od-say-why {
+  margin-top: 0.3em;
+  color: var(--o-dim);
+  font-size: 0.846em;
+}
+
+.od-assist {
+  margin-top: 0.62em;
+}
+
+.od-answer {
+  padding: 0.3em 0.15em 0.46em;
+}
+
+.od-answer-head {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.46em;
+}
+
+.od-asked {
+  max-width: 70%;
+  overflow: hidden;
+  padding: 0.23em 0.77em;
+  border-radius: 0.92em 0.92em 0.23em 0.92em;
+  background: rgb(var(--o-accent-lo));
+  color: #ffffff;
+  font-size: 0.923em;
+  text-overflow: ellipsis;
+  text-shadow: none;
   white-space: nowrap;
 }
 
-/* No transitions on the card: nothing on the real overlay moves by itself. */
-.od-meter {
+.od-card .od-close {
+  padding: 0 0.3em;
+  border-color: transparent;
+  color: var(--o-muted);
+  font-size: 1.08em;
+  line-height: 1.1;
+}
+
+.od-answer ul {
+  margin: 0.46em 0 0;
+  padding-left: 1.38em;
+}
+
+.od-answer li {
+  margin: 0.23em 0;
+  line-height: 1.45;
+}
+
+.od-quote {
+  display: block;
+  color: var(--o-dim);
+  font-size: 0.846em;
+}
+
+.od-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15em;
+}
+
+.od-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15em;
+}
+
+.od-card .od-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.33em 0.62em;
+  border-color: transparent;
+  border-radius: 0.6em;
+  font-size: 0.923em;
+}
+
+.od-card .od-actions button:hover {
+  border-color: transparent;
+  background: rgba(var(--o-line), 0.14);
+}
+
+.od-actions svg {
+  width: 1.15em;
+  height: 1.15em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.od-dot {
+  color: var(--o-muted);
+}
+
+.od-ask {
+  display: flex;
+  align-items: center;
+  gap: 0.46em;
+  margin-top: 0.46em;
+  padding: 0.3em 0.3em 0.3em 0.77em;
+  border: 1px solid rgba(var(--o-line), 0.3);
+  border-radius: 0.77em;
+  background: var(--o-field);
+}
+
+.od-ask:focus-within {
+  border-color: rgb(var(--o-accent));
+}
+
+.od-ask input {
   flex: 1;
-  height: 0.46em;
-  overflow: hidden;
-  border-radius: 0.23em;
-  background: rgba(var(--o-line), 0.25);
+  min-width: 0;
+  padding: 0.3em 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--o-text);
+  font: inherit;
+  user-select: text;
 }
 
-.od-meter-fill {
-  height: 100%;
-  background: rgb(var(--o-accent));
+.od-ask input::placeholder {
+  color: var(--o-muted);
 }
 
-.od-score {
-  min-width: 2em;
-  color: rgb(var(--o-accent));
-  font-weight: 700;
-  line-height: 1;
-  text-align: right;
+/* The app's forms put their submit button in the accent; the overlay's send is its own round button. */
+.od-card .od-ask button[type='submit']:not(.link-button):not(.danger),
+.od-card .od-ask button[type='submit']:not(.link-button):not(.danger):hover:not(:disabled) {
+  display: grid;
+  place-items: center;
+  width: 2.15em;
+  height: 2.15em;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(var(--o-accent-lo));
+  color: #ffffff;
+  font-size: 1em;
+}
+
+.od-send svg {
+  width: 1.08em;
+  height: 1.08em;
+  fill: currentColor;
+}
+
+/* The last line: the scorecard folded under its summary, and what the overlay is doing. */
+.od-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3em 0.77em;
+  margin-top: 0.62em;
+  font-size: 0.846em;
+}
+
+.od-details {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.od-details[open] {
+  flex-basis: 100%;
+}
+
+.od-details summary {
+  display: flex;
+  align-items: center;
+  gap: 0.46em;
+  width: max-content;
+  max-width: 100%;
+  color: var(--o-dim);
+  list-style: none;
+  cursor: pointer;
+}
+
+.od-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.od-details summary::before {
+  content: '▸';
+  font-size: 0.82em;
+}
+
+.od-details[open] summary::before {
+  content: '▾';
+}
+
+.od-status {
+  margin-left: auto;
+  color: var(--o-muted);
+  font-size: 0.91em;
 }
 
 .od-criteria {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.31em;
-  margin: 0.62em 0 0;
+  gap: 0.36em;
+  margin: 0.73em 0 0;
   padding: 0;
   list-style: none;
 }
@@ -2987,7 +3224,6 @@ main.auth {
   border: 1px solid rgba(var(--o-line), 0.3);
   border-radius: 999px;
   color: var(--o-text-2);
-  font-size: 0.846em;
 }
 
 .od-chip.confirmed {
@@ -3031,14 +3267,12 @@ main.auth {
 }
 
 .od-talk {
-  margin: 0.46em 0 0;
+  margin: 0.55em 0 0;
   color: var(--o-dim);
-  font-size: 0.77em;
 }
 
 .od-to-ask {
-  margin-top: 0.62em;
-  font-size: 0.846em;
+  margin-top: 0.73em;
   line-height: 1.35;
 }
 
@@ -3065,33 +3299,11 @@ main.auth {
   text-decoration: line-through;
 }
 
-.od-suggestion {
-  margin-top: 0.77em;
-  padding: 0.62em 0.77em;
-  border: 1px solid rgba(var(--o-accent), 0.5);
-  border-radius: 0.62em;
-  background: rgba(var(--o-accent-lo), 0.18);
-}
-
-.od-suggestion-ask {
-  margin: 0 0 0.25em;
-  font-size: 0.923em;
-  font-weight: 600;
-}
-
-.od-suggestion-why {
-  margin: 0;
-  color: var(--o-muted);
-  font-size: 0.77em;
-  line-height: 1.4;
-}
-
 .od-captions {
-  margin-top: 0.62em;
-  padding: 0.46em 0.62em;
-  border-radius: 0.62em;
+  margin-top: 0.73em;
+  padding: 0.55em 0.73em;
+  border-radius: 0.73em;
   background: var(--o-field);
-  font-size: 0.846em;
   line-height: 1.35;
 }
 
@@ -3111,91 +3323,9 @@ main.auth {
   text-transform: uppercase;
 }
 
-.od-assist {
-  margin-top: 0.77em;
-}
-
-.od-answer {
-  margin-bottom: 0.62em;
-  padding: 0.62em 0.77em;
-  border-radius: 0.62em;
-  background: rgba(var(--o-accent), 0.14);
-}
-
-.od-answer-title {
-  margin: 0 0 0.3em;
-  color: var(--o-dim);
-  font-size: 0.77em;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.od-answer ul {
-  margin: 0;
-  padding-left: 1.25em;
-}
-
-.od-answer li {
-  margin: 0.15em 0;
-  font-size: 0.923em;
-}
-
-.od-quote {
-  display: block;
-  color: var(--o-dim);
-  font-size: 0.83em;
-}
-
-.od-answer-hint {
-  margin: 0;
-  color: var(--o-dim);
-  font-size: 0.846em;
-}
-
-.od-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.31em;
-  margin-bottom: 0.46em;
-}
-
-.od-ask {
-  display: flex;
-  gap: 0.31em;
-}
-
-.od-ask input {
-  flex: 1;
-  min-width: 0;
-  padding: 0.33em 0.58em;
-  border: 1px solid rgba(var(--o-line), 0.35);
-  border-radius: 0.5em;
-  background: var(--o-field);
-  color: var(--o-text);
-  font: inherit;
-  font-size: 0.923em;
-  user-select: text;
-}
-
-.od-ask input::placeholder {
-  color: var(--o-muted);
-}
-
-.od-foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.46em;
-  margin-top: 0.92em;
-}
-
-.od-keeping {
-  margin-left: auto;
-}
-
 .od-show {
   position: absolute;
-  top: 12px;
+  top: 48px;
   right: 12px;
   z-index: 1;
   padding: 0.45rem 0.95rem;
@@ -3826,6 +3956,12 @@ main.auth {
     width: 2.8rem;
     height: 2.8rem;
     font-size: 0.8rem;
+  }
+
+  /* The card covers the meeting's width here: its name tags would show through it, and its row of buttons wraps. */
+  .od-name,
+  .od-dot {
+    display: none;
   }
 
   .od-look {

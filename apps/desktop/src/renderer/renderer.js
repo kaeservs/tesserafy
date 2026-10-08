@@ -18,6 +18,7 @@
  */
 import { apply, defineCriteriaSet, initialState, score } from '@tesserafy/scoring';
 import { questionsToAsk } from './to-ask';
+import { sayNext } from './say-next';
 import { EchoCheck, SELLER_HOLD_MS } from './hearing';
 import { Captions } from './captions';
 import { TalkMeter } from './talk-time';
@@ -173,24 +174,48 @@ function render() {
   );
 
   renderToAsk(card);
+  showSayNext(card);
 
-  const sorted = [...latencies].sort((a, b) => a - b);
-  const p50 = sorted.length ? sorted[Math.floor(sorted.length / 2)] : null;
-  setStatus(`${confirmed}/${card.criteria.length} confirmed${p50 ? ` · ${p50} ms p50` : ''}`);
+  // The score along the top once there is a call to score; the rest of the
+  // scorecard folded under one line that says how far it has got.
+  el('scoreBox').hidden = !listening && thisCall().length === 0;
+  el('details').hidden = !signedIn;
+  el('detailsSummary').textContent = `Scorecard · ${confirmed} of ${card.criteria.length} confirmed`;
 
   // Whether the call is being kept, said while it is happening. An overlay
   // that silently failed to save would be discovered afterwards, by somebody
-  // looking for a meeting that is not there.
-  const keeping = el('keeping');
-  if (keeping) {
-    if (conversationId) {
-      keeping.textContent =
-        `saving · ${savedSegments} utterance${savedSegments === 1 ? '' : 's'}, ` +
-        `${savedEvents} evidence${lostWrites > 0 ? ` · ${lostWrites} failed` : ''}`;
-    } else {
-      keeping.textContent = listening ? 'not being saved' : '';
-    }
+  // looking for a meeting that is not there. With how quickly scoring comes
+  // back, which is for whoever opens the scorecard to wonder about.
+  const sorted = [...latencies].sort((a, b) => a - b);
+  const p50 = sorted.length ? ` · scored in ${sorted[Math.floor(sorted.length / 2)]} ms` : '';
+  if (conversationId) {
+    el('keeping').textContent =
+      `saving · ${savedSegments} utterance${savedSegments === 1 ? '' : 's'}, ` +
+      `${savedEvents} evidence${lostWrites > 0 ? ` · ${lostWrites} failed` : ''}${p50}`;
+  } else {
+    el('keeping').textContent = listening ? `not being saved${p50}` : '';
   }
+}
+
+/*
+ * What to say next, first and largest: the live suggestion, else the prep's
+ * next unanswered question, else that it is listening (./say-next). Only
+ * during a call.
+ */
+let currentSuggestion = null;
+function showSayNext(card = state ? score(state) : null) {
+  const box = el('suggestion');
+  if (!listening) {
+    box.hidden = true;
+    return;
+  }
+  const next = sayNext(currentSuggestion, preparedQuestions, card?.criteria ?? []);
+  el('sayLabel').textContent = next.label;
+  el('suggestionAsk').textContent = next.text;
+  el('suggestionWhy').textContent = next.why ?? '';
+  el('suggestionWhy').hidden = !next.why;
+  box.classList.toggle('waiting', next.waiting);
+  box.hidden = false;
 }
 
 /** The customer this call is with: the dashboard's next call says who (/api/live/setup). */
@@ -491,6 +516,8 @@ async function detect(endedAt) {
     state = apply(state, event);
   }
   latencies.push(Math.round(performance.now() - endedAt));
+  // Scoring works again: a problem said earlier is no longer the news.
+  if (listening) setStatus(listeningNote);
   render();
 
   // Both of these only after the score is on screen. A suggestion is allowed
@@ -511,16 +538,10 @@ async function suggest(window_) {
 }
 
 function showSuggestion(suggestion) {
-  const box = el('suggestion');
-  if (!suggestion) {
-    // Silence is the default. Leaving a stale suggestion up would have the
-    // seller asking about something two minutes out of date.
-    box.hidden = true;
-    return;
-  }
-  el('suggestionAsk').textContent = suggestion.ask;
-  el('suggestionWhy').textContent = `because they said “${suggestion.because}”`;
-  box.hidden = false;
+  // No suggestion takes the last one down: leaving a stale one up would have
+  // the seller asking about something two minutes out of date.
+  currentSuggestion = suggestion;
+  showSayNext();
 }
 
 /** One line heard, kept and — when it is the customer's — detected on. */
@@ -563,17 +584,25 @@ async function startListening() {
   startEngine();
 }
 
+/** What the status line says while listening, for as long as nothing goes wrong. */
+let listeningNote = 'listening';
+
 function began(status) {
   listening = true;
+  listeningNote = status;
   callStart = utterances.length;
   chargedTo = 0;
+  currentSuggestion = null;
   el('meetingBanner').hidden = true;
+  el('callBanner').hidden = true;
   askPlaceholder();
   el('listen').textContent = 'Stop';
-  // The brief was for walking in; the scorecard is for the call, with the
-  // prep's questions beside it.
+  // The brief was for walking in; during the call the card is what to say
+  // next, with the prep's questions feeding it. Who is signed in can wait.
   el('brief').hidden = true;
+  el('who').hidden = true;
   render();
+  showSayNext();
   setStatus(status);
 
   // Not awaited. The first utterance can be detected before the conversation
@@ -581,41 +610,29 @@ function began(status) {
   sessionStarting = startSession();
 }
 
-/** The call is over, however it ended. */
 /*
- * When a call ends: what was said, what was agreed, what is still open — the
- * Recap button's answer, every point quoting the call, without pressing it.
- * After a moment, so the last words still arriving from the streams are in
- * it, and only for a call with something to sum up. Not charged to the plan,
- * as the button is not.
+ * The call is over, however it ended. Nothing is summed up here: the call's
+ * scorecard, its quotes and its follow-up email are on its page in the
+ * dashboard, and the overlay offers that page — after the call has been
+ * created on the server, however short it was.
  */
-const RECAP_AFTER_MS = 2_500;
-const RECAP_LINES = 4;
-function recapCall() {
-  setTimeout(() => {
-    if (listening || !signedIn || thisCall().length < RECAP_LINES) return;
-    void runAssist('call-recap');
-  }, RECAP_AFTER_MS);
-}
-
 function ended() {
   listening = false;
-  recapCall();
   cancelAutoStop();
   captions.clear();
   showCaptions();
   talk = null;
   showTalk();
   el('talkNudge').hidden = true;
+  showSayNext();
+  el('who').hidden = !signedIn;
   askPlaceholder();
   el('listen').textContent = 'Start';
-  // What Cluely hands over when the meeting ends: here, the follow-up email,
-  // drafted in the dashboard when the seller asks for it there. After the call
-  // has been created on the server, however short it was.
+  setStatus('call ended');
   void sessionStarting.then(() => {
     const call = conversationId;
     if (!call || listening) return;
-    showCall('Call saved. Draft the follow-up email?', 'Follow-up', () => {
+    showCall('Call saved. Its scorecard and follow-up are in Tesserafy.', 'Open', () => {
       el('callBanner').hidden = true;
       void api.openFollowUp(call);
     });
@@ -962,15 +979,28 @@ api.onCall((call) => {
  * shown under it; the server has already dropped any whose words the call
  * did not say. A later press replaces an earlier answer still on its way.
  */
-const ASSIST_TITLE = {
+// What each press says it asked, in the bubble over its answer, as Cluely does.
+const ASKED = {
   assist: 'Assist',
-  say: 'What to say',
+  say: 'What should I say?',
   followups: 'Follow-up questions',
   recap: 'Recap',
-  ask: 'Answer',
-  'call-recap': 'Call recap',
 };
 let assistSeq = 0;
+
+/** An answer on its way: what was asked, and how it is going. */
+function showAnswer(asked, progress) {
+  el('answer').hidden = false;
+  el('answerAsk').textContent = asked;
+  el('answerTitle').textContent = progress;
+  el('answerPoints').replaceChildren();
+}
+
+// Closing an answer also drops whatever is still on its way for it.
+el('answerClose').addEventListener('click', () => {
+  assistSeq += 1;
+  el('answer').hidden = true;
+});
 let withScreen = false;
 
 function setScreen(on) {
@@ -985,12 +1015,9 @@ async function runAssist(mode, question) {
   // One screenshot per press: the toggle switches itself off once used.
   const screenshot = withScreen;
   setScreen(false);
-  el('answer').hidden = false;
-  el('answerTitle').textContent = `${ASSIST_TITLE[mode]}${screenshot ? ' · with your screen' : ''} · thinking…`;
-  el('answerPoints').replaceChildren();
-  el('answerPoints').replaceChildren();
+  showAnswer(question ?? ASKED[mode], screenshot ? 'With your screen · thinking…' : 'Thinking…');
   const result = await api.assist({
-    mode: mode === 'call-recap' ? 'recap' : mode,
+    mode,
     ...(question ? { question } : {}),
     transcript: thisCall().map(({ id, speaker, text }) => ({ id, speaker, text })),
     criteria: state ? score(state).criteria.map((c) => ({ key: c.key, label: c.label, status: c.status })) : [],
@@ -999,11 +1026,11 @@ async function runAssist(mode, question) {
   }, screenshot, seq);
   if (seq !== assistSeq) return;
   if (result.error) {
-    el('answerTitle').textContent = `${ASSIST_TITLE[mode]} · ${result.error}`;
+    el('answerTitle').textContent = result.error;
     if (result.upgrade) offerUpgrade(result.error);
     return;
   }
-  el('answerTitle').textContent = question ? `${ASSIST_TITLE[mode]} · ${question}` : ASSIST_TITLE[mode];
+  el('answerTitle').textContent = screenshot ? 'With your screen' : '';
   const points = result.points ?? [];
   if (points.length === 0) {
     const li = document.createElement('li');
@@ -1076,16 +1103,14 @@ async function runAskCalls(question) {
   if (!signedIn) return;
   const seq = ++assistSeq;
   const about = setup?.account ? `Past calls with ${setup.account.name}` : 'Past calls';
-  el('answer').hidden = false;
-  el('answerTitle').textContent = `${about} · looking…`;
-  el('answerPoints').replaceChildren();
+  showAnswer(question, `${about} · looking…`);
   const result = await api.askCalls(question, setup?.account?.id ?? null, seq);
   if (seq !== assistSeq) return;
   if (result.error) {
     el('answerTitle').textContent = `${about} · ${result.error}`;
     return;
   }
-  el('answerTitle').textContent = `${about} · ${question}`;
+  el('answerTitle').textContent = about;
   const items = (result.points ?? []).map(askPointItem);
   if (result.note || items.length === 0) {
     const li = document.createElement('li');
@@ -1190,6 +1215,21 @@ el('updateLater').addEventListener('click', () => {
 const card = document.querySelector('.card');
 new ResizeObserver(() => void api.fit(card.getBoundingClientRect().height)).observe(card);
 
+// The scorecard stays folded, or open, the way it was last left on this computer.
+const DETAILS_KEY = 'tesserafy.details';
+try {
+  el('details').open = window.localStorage.getItem(DETAILS_KEY) === 'open';
+} catch {
+  // No storage: folded, which is the default anyway.
+}
+el('details').addEventListener('toggle', () => {
+  try {
+    window.localStorage.setItem(DETAILS_KEY, el('details').open ? 'open' : 'closed');
+  } catch {
+    // Not remembered; it still opens and closes.
+  }
+});
+
 el('quit').addEventListener('click', () => {
   if (listening) stopListening();
   void api.quit();
@@ -1204,7 +1244,7 @@ el('quit').addEventListener('click', () => {
 function showSignedIn(email) {
   signedIn = true;
   el('signin').hidden = true;
-  el('who').hidden = false;
+  el('who').hidden = listening;
   el('whoEmail').textContent = email;
   el('password').value = '';
   el('signinError').textContent = '';
@@ -1248,6 +1288,10 @@ function showSignedOut(remembers) {
   el('nextCall').textContent = '';
   el('brief').hidden = true;
   el('toAsk').hidden = true;
+  el('details').hidden = true;
+  el('scoreBox').hidden = true;
+  el('suggestion').hidden = true;
+  el('answer').hidden = true;
   el('signin').hidden = false;
   el('who').hidden = true;
   el('listen').disabled = true;

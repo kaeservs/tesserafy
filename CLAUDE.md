@@ -269,19 +269,34 @@ microphone line that repeats what the customer just said is dropped. Without
 a key the browser engine hears the microphone alone, as before. Deepgram bills
 per streamed minute a side and the server never sees the audio, so the
 overlay stops after four hours and the Deepgram project needs a spending
-limit. The overlay shows the last few lines as they are said, each side
-named (`captions.ts`; the microphone's guess is hidden while the customer is
-talking, since it is their words again), and with both sides it shows each
-side's share of the words and nudges a seller who has done 65% or more of the
-talking in the last five minutes (`talk-time.ts` — arithmetic, never the
-model; not in the first three minutes, not on fewer than 120 words, not again
-for five minutes). When the last meeting app lets go of the microphone while
-listening, the overlay stops by itself after 15 seconds unless the call comes
-back or the seller presses Keep listening, and offers the follow-up. When a
-call with four or more lines stops, the overlay asks for its Recap by itself
-(the same `/api/assist` recap, every point quoting the call, not charged), and
-Assist, the recap and live scoring read only the current call's lines — one
-sitting can hold several calls.
+limit.
+
+During a call the overlay puts one thing first, in its largest type: what
+to say next — the live suggestion, else the prep's next question the
+scorecard has not seen answered (`say-next.ts`). Under it are the four
+buttons and the ask box, and the score is a bar and a number in the top
+line. Everything else is folded under "Scorecard" until opened:
+- the criteria;
+- the prep's questions;
+- the last few lines as they are said, each side named (`captions.ts`; the
+  microphone's guess is hidden while the customer is talking, since it is
+  their words again);
+- with both sides, each side's share of the words.
+
+The talk nudge is the one thing that interrupts: it appears when a seller has
+done 65% or more of the talking in the last five minutes (`talk-time.ts` —
+arithmetic, never the model; not in the first three minutes, not on fewer
+than 120 words, not again for five minutes).
+
+The default look is Glass at 55%: clear smoked glass, so the call is still
+seen through it, as on Cluely. Light is the theme the system frosts.
+
+When the last meeting app lets go of the microphone while listening, the
+overlay stops by itself after 15 seconds unless the call comes back or the
+seller presses Keep listening. When a call stops, nothing is summed up on the
+overlay: it offers the call's page in the dashboard, where its scorecard and
+follow-up are. Assist, the Recap button and live scoring read only the
+current call's lines — one sitting can hold several calls.
 
 On Windows the overlay notices a call starting: Windows records which app is
 using the microphone now (`HKCU\…\CapabilityAccessManager\ConsentStore\microphone`,

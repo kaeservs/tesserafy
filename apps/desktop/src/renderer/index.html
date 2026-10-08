@@ -14,17 +14,21 @@
        * The overlay is read out of the corner of an eye during a conversation
        * someone is having. That is the whole design constraint:
        *
-       *   - glanceable in under a second, so state is a mark and a weight as
-       *     well as a colour;
+       *   - one thing first: what to say next, in the largest type on the
+       *     card. The score is a line at the top; the scorecard, the prep's
+       *     questions and the transcript are folded away until opened;
        *   - quiet, so nothing animates and nothing is brighter than it needs
-       *     to be — a scorecard that pulls attention off the customer costs
-       *     more than it gives;
-       *   - legible over anything, since it floats over whatever is on screen.
+       *     to be — a card that pulls attention off the customer costs more
+       *     than it gives;
+       *   - the call stays visible through it: Glass, the default, is clear
+       *     smoked glass, and Background says how dark;
+       *   - legible over anything, since it floats over whatever is on
+       *     screen, so state is a mark and a weight as well as a colour.
        */
       :root { color-scheme: dark; font: 13px/1.5 system-ui, sans-serif; }
 
       /*
-       * The seller's choice of look (Appearance, in the footer), as variables.
+       * The seller's choice of look (set in the dashboard), as variables.
        * Themes change the panel and its text; the state colours change only
        * as far as each theme needs for contrast, and keep their meaning.
        * --alpha fades the background and nothing else: text stays solid.
@@ -32,10 +36,10 @@
       :root, :root[data-theme="dark"] {
         --bg: 12, 10, 9; --line: 120, 113, 108; --field: rgba(28, 25, 23, 0.9);
         --text: #f5f5f4; --text-2: #e7e5e4; --button-text: #d6d3d1;
-        --dim: #a8a29e; --muted: #78716c; --faint: #57534e;
+        --dim: #a8a29e; --muted: #8f8882; --faint: #57534e;
         --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
         --accent-rgb: var(--accent-hi);
-        --alpha: 0.88;
+        --alpha: 0.55;
       }
       :root[data-theme="midnight"] {
         --bg: 15, 23, 42; --line: 100, 116, 139; --field: rgba(30, 41, 59, 0.9);
@@ -50,30 +54,34 @@
         --ok: #15803d; --warn: #b45309; --bad: #b91c1c;
         --accent-rgb: var(--accent-lo);
       }
-      /* Glass: light glass over the meeting, as on the landing page. The
-         system frosts what is behind it (Windows 11 acrylic, macOS vibrancy);
-         --alpha, the Background setting, is how much white sits over the
-         frost: lower is clearer glass. Without the system's frost (Windows
-         10) the tint is firmer, so text never sits over a sharp slide. */
+      /* Glass: clear smoked glass, the call visible through it, as Cluely's
+         panel is. No frost — a frost hides the call — so the text carries a
+         soft shadow, which keeps it readable over a bright patch; Background
+         is how dark the glass is. */
       :root[data-theme="glass"] {
-        color-scheme: light;
-        --bg: 255, 255, 255; --line: 120, 113, 108; --field: rgba(255, 255, 255, 0.55);
-        --text: #1c1917; --text-2: #292524; --button-text: #3f3a36;
-        --dim: #4a4540; --muted: #5f5853; --faint: #8a837d;
-        --ok: #15803d; --warn: #b45309; --bad: #b91c1c;
-        --accent-rgb: var(--accent-lo);
+        --bg: 17, 18, 22; --line: 255, 255, 255; --field: rgba(255, 255, 255, 0.09);
+        --text: #ffffff; --text-2: #f4f4f5; --button-text: #ececef;
+        --dim: #d4d4d9; --muted: #b9b9c2; --faint: #8e8e97;
+        --ok: #4ade80; --warn: #fcd34d; --bad: #fca5a5;
+        --accent-rgb: var(--accent-hi);
       }
       :root[data-theme="glass"] .card {
         background:
-          linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 45%, rgba(255, 255, 255, 0) 70%, rgba(255, 255, 255, 0.18)),
-          rgba(255, 255, 255, calc(0.6 + var(--alpha) * 0.35));
-        border: 1px solid rgba(255, 255, 255, 0.75);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 1px rgba(255, 255, 255, 0.3);
+          linear-gradient(160deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02) 38%, rgba(255, 255, 255, 0) 60%),
+          rgba(var(--bg), calc(var(--alpha) * 0.85));
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
       }
-      :root[data-theme="glass"][data-native-glass] .card {
+      /* Light, frosted by the system where it can (Windows 11 acrylic, macOS
+         vibrancy: main/index.ts, applyGlass): lighter over the frost, firmer
+         without it (Windows 10), so text never sits over a sharp slide. */
+      :root[data-theme="light"][data-native-glass] .card {
         background:
           linear-gradient(135deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 45%, rgba(255, 255, 255, 0) 70%, rgba(255, 255, 255, 0.15)),
-          rgba(255, 255, 255, calc(0.45 + var(--alpha) * 0.45));
+          rgba(255, 255, 255, calc(0.3 + var(--alpha) * 0.55));
+        border: 1px solid rgba(255, 255, 255, 0.75);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 1px rgba(255, 255, 255, 0.3);
       }
       /* Each accent in a light tint for dark themes and a deep one for light.
          None is green, amber or red: those are taken. */
@@ -87,185 +95,157 @@
          meeting below a card that ends well short of the window's bottom. */
       html, body { margin: 0; background: transparent; }
       .card {
-        padding: 12px 14px;
+        padding: 10px 14px 10px;
         color: var(--text);
         background: rgba(var(--bg), var(--alpha));
-        backdrop-filter: blur(8px);
         border: 1px solid rgba(var(--line), 0.35);
-        border-radius: 12px;
+        border-radius: 14px;
         -webkit-app-region: drag;
         user-select: none;
       }
+      [hidden] { display: none !important; }
 
-      header { display: flex; align-items: center; gap: 8px; }
-      h1 { font-size: 11px; margin: 0; font-weight: 600; letter-spacing: 0.08em; flex: none; max-width: 40%;
-           overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: uppercase; color: var(--dim); }
-      /* No transition: nothing on this card moves by itself (see the top). */
-      .captions { margin-top: 8px; padding: 6px 8px; border-radius: 8px; background: var(--field);
-                  font-size: 11px; line-height: 1.35; }
-      .captions p { margin: 0; }
-      .captions p + p { margin-top: 3px; }
-      .captions .side { font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); margin-right: 4px; }
-      .captions .live { color: var(--dim); }
-      .talk { margin: 6px 0 0; font-size: 10px; color: var(--dim); }
-      .nudge { margin: 6px 0 0; font-size: 11px; color: var(--warn); }
-      .meter { flex: 1; height: 6px; border-radius: 3px; background: rgba(var(--line), 0.25); overflow: hidden; }
-      .meter-fill { height: 100%; width: 0; background: rgb(var(--accent-rgb)); }
-      .score { font-size: 13px; font-weight: 700; line-height: 1; min-width: 2em; text-align: right; color: rgb(var(--accent-rgb)); }
-
-      /* The criteria as chips, a line or two instead of a row each. A chip's
-         state is its mark and its border, never its colour alone; hovering
-         it says the whole thing. */
-      #criteria { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 0; }
-      #criteria li, #criteria li + li { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; font-size: 11px;
-                                        border: 1px solid rgba(var(--line), 0.3); border-radius: 999px; }
-      #criteria li.confirmed { border-color: var(--ok); }
-      #criteria li.candidate { border-color: var(--warn); border-style: dashed; }
-      #criteria li.contradicted { border-color: var(--bad); }
-      #criteria .state { font-size: 0; }
-      #criteria .state::before { font-size: 11px; margin-right: 0; }
-      #criteria .hint { margin: 0; }
-
-      ul { list-style: none; margin: 10px 0 0; padding: 0; }
-      li { display: flex; justify-content: space-between; align-items: baseline;
-           gap: 10px; padding: 5px 0; }
-      li + li { border-top: 1px solid rgba(var(--line), 0.18); }
-      .label { color: var(--text-2); }
-
-      /* State is never colour alone: peripheral vision reads shape and weight
-         long before it reads hue. */
-      .state { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
-      .state::before { margin-right: 5px; }
-      .state.confirmed { color: var(--ok); font-weight: 700; }
-      .state.confirmed::before { content: "●"; }
-      .state.candidate { color: var(--warn); }
-      .state.candidate::before { content: "◐"; }
-      .state.contradicted { color: var(--bad); font-weight: 700; }
-      .state.contradicted::before { content: "✕"; }
-      .state.unobserved::before { content: "○"; }
-
-      footer { margin-top: 12px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-      button, input { -webkit-app-region: no-drag; }
+      button, input, summary { -webkit-app-region: no-drag; }
       button { font: inherit; font-size: 11px; color: var(--button-text);
                background: transparent; border: 1px solid rgba(var(--line), 0.35);
-               border-radius: 6px; padding: 3px 7px; cursor: pointer; }
+               border-radius: 6px; padding: 3px 8px; cursor: pointer; text-shadow: none; }
       button:hover { border-color: var(--dim); }
       button:disabled { opacity: 0.45; cursor: default; }
-      .quit { margin-left: 10px; border-color: transparent; padding: 0 5px; font-size: 14px;
-              line-height: 1.2; color: var(--muted); align-self: flex-start; }
-      .quit:hover { color: var(--text); }
+      button:focus-visible, summary:focus-visible { outline: 2px solid rgb(var(--accent-rgb)); outline-offset: 1px; }
       button[aria-pressed="true"] { color: var(--text); border-color: rgb(var(--accent-rgb));
                                     background: rgba(var(--accent-rgb), 0.14); }
-      .consent { -webkit-app-region: no-drag; display: flex; gap: 6px; align-items: flex-start;
-                 margin-top: 12px; font-size: 10px; color: var(--dim); cursor: pointer; }
-      .consent input { margin: 1px 0 0; }
       .muted { color: var(--muted); font-size: 10px; }
-      /* How close a criterion is, in the smallest thing that can say it. */
-      .hint { color: var(--faint); font-size: 9px; margin-right: 6px;
-              font-variant-numeric: tabular-nums; }
-      /* Pushed to its own end of the footer so it reads as a separate fact
-         from the score, which is what it is. */
-      .keeping { margin-left: auto; }
+
+      /* The one line along the top: start or stop, hide, who the call is
+         with, the score as a bar and a number, quit. */
+      .bar { display: flex; gap: 6px; align-items: center; }
+      .bar .primary { color: var(--text); border-color: rgb(var(--accent-rgb)); background: rgba(var(--accent-rgb), 0.25); }
+      .bar-note { flex: 1; min-width: 0; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dim); }
+      .score-box { display: flex; align-items: center; gap: 7px; flex: none; }
+      .engagement { margin: 0; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+                    font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+      .meter { width: 90px; height: 5px; border-radius: 3px; background: rgba(var(--line), 0.25); overflow: hidden; }
+      .meter-fill { height: 100%; width: 0; background: rgb(var(--accent-rgb)); }
+      .score { font-size: 13px; font-weight: 700; line-height: 1; min-width: 2ch; text-align: right; color: rgb(var(--accent-rgb)); }
+      .quit { border-color: transparent; padding: 0 5px; font-size: 15px; line-height: 1.2; color: var(--muted); }
+      .quit:hover { color: var(--text); border-color: transparent; }
 
       /* Loud on purpose, and only when protection is off: this is the one
          state where the overlay is a liability rather than a tool. */
       .banner { background: #f97316; color: #0c0a09; font-weight: 700; padding: 5px 7px;
-                border-radius: 6px; margin-bottom: 10px; font-size: 10px;
-                letter-spacing: 0.04em; }
-      .banner[hidden] { display: none; }
-
-      .update { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; padding: 5px 8px;
+                border-radius: 6px; margin-bottom: 8px; font-size: 10px;
+                letter-spacing: 0.04em; text-shadow: none; }
+      .update { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; padding: 5px 8px;
                 border-radius: 6px; font-size: 11px; color: var(--text);
                 border: 1px solid rgba(var(--accent-rgb), 0.5); background: rgba(var(--accent-lo), 0.14); }
-      .update[hidden] { display: none; }
       .update span { flex: 1; }
-      .update button[hidden] { display: none; }
+      .call-banner { display: flex; gap: 6px; align-items: center; margin-top: 8px; padding: 6px 8px; border-radius: 8px;
+                     font-size: 12px; background: rgba(var(--accent-rgb), 0.2); -webkit-app-region: no-drag; }
+      .call-banner span { flex: 1; }
 
-      .suggestion { margin-top: 10px; padding: 8px 10px; border-radius: 8px;
-                    border: 1px solid rgba(var(--accent-rgb), 0.5);
-                    background: rgba(var(--accent-lo), 0.18); }
-      .suggestion[hidden] { display: none; }
-      .suggestion-ask { margin: 0 0 3px; font-weight: 600; font-size: 12px; }
-      .suggestion-why { margin: 0; font-size: 10px; line-height: 1.4; }
+      /* What to say next: the live suggestion, or the prep's next question
+         until there is one. The largest words on the card, alone. */
+      .say-next { margin-top: 10px; padding: 10px 12px; border-radius: 10px;
+                  border: 1px solid rgba(var(--accent-rgb), 0.4); background: rgba(var(--accent-rgb), 0.12); }
+      .say-label { margin: 0 0 2px; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+                   color: rgb(var(--accent-rgb)); }
+      .say-text { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.35; color: var(--text); }
+      .say-why { margin: 4px 0 0; font-size: 11px; line-height: 1.4; color: var(--dim); }
+      .say-next.waiting .say-text { font-size: 13px; font-weight: 400; color: var(--dim); }
 
-      /* Signing in. Inputs must opt out of the window drag, or clicking one
-         drags the overlay instead of focusing the field. */
-      .signin { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
-      .signin[hidden] { display: none; }
+      /* Cluely's four buttons and ask box, and what came back: what was asked
+         as a bubble, then the points, each with the words it rests on. */
+      .assist { margin-top: 8px; -webkit-app-region: no-drag; }
+      .answer { margin-top: 2px; padding: 8px 2px 4px; }
+      .answer-head { display: flex; align-items: center; gap: 8px; }
+      .answer-state { flex: 1; min-width: 0; font-size: 10px; letter-spacing: 0.04em; color: var(--dim);
+                      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .asked { max-width: 70%; padding: 3px 10px; border-radius: 12px 12px 3px 12px; background: rgb(var(--accent-lo));
+               color: #ffffff; font-size: 12px; text-shadow: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .answer .close { border-color: transparent; padding: 0 4px; font-size: 14px; line-height: 1.1; color: var(--muted); }
+      .answer ul { list-style: disc; margin: 6px 0 0; padding-left: 18px; }
+      .answer li { margin: 3px 0; font-size: 13px; line-height: 1.45; }
+      .answer .quote { display: block; font-size: 11px; color: var(--dim); }
+      .answer .link { background: none; border: 0; padding: 0; color: var(--dim); text-decoration: underline; cursor: pointer; font: inherit; font-size: 11px; }
+      .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin-top: 6px; }
+      .actions button { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-color: transparent;
+                        border-radius: 7px; font-size: 12px; }
+      .actions button:hover { border-color: transparent; background: rgba(var(--line), 0.14); }
+      .actions svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+      .actions .dot { color: var(--faint); font-size: 11px; }
+      .ask { display: flex; align-items: center; gap: 6px; margin-top: 6px; padding: 4px 4px 4px 10px;
+             border: 1px solid rgba(var(--line), 0.3); border-radius: 10px; background: var(--field); }
+      .ask:focus-within { border-color: rgb(var(--accent-rgb)); }
+      .ask input { flex: 1; min-width: 0; padding: 4px 0; border: 0; outline: none; background: transparent;
+                   color: var(--text); font: inherit; font-size: 13px; user-select: text; }
+      .ask input::placeholder { color: var(--muted); }
+      .ask .send { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%;
+                   background: rgb(var(--accent-lo)); color: #ffffff; }
+      .ask .send svg { width: 14px; height: 14px; fill: currentColor; }
+      .nudge { margin: 8px 0 0; font-size: 12px; color: var(--warn); }
+
+      /* The scorecard, the prep's questions and the transcript: folded away
+         under one line until opened, which it stays across calls. */
+      .details { flex: 1 1 auto; min-width: 0; font-size: 11px; }
+      .details[open] { flex-basis: 100%; }
+      .details summary { display: flex; align-items: center; gap: 6px; list-style: none; cursor: pointer; color: var(--dim); width: max-content; }
+      .details summary::-webkit-details-marker { display: none; }
+      .details summary::before { content: "▸"; font-size: 9px; }
+      .details[open] summary::before { content: "▾"; }
+
+      /* The criteria as chips. A chip's state is its mark and its border,
+         never its colour alone; hovering it says the whole thing. */
+      #criteria { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 0; padding: 0; list-style: none; }
+      #criteria li { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; font-size: 11px;
+                     border: 1px solid rgba(var(--line), 0.3); border-radius: 999px; color: var(--text-2); }
+      #criteria li.confirmed { border-color: var(--ok); }
+      #criteria li.candidate { border-color: var(--warn); border-style: dashed; }
+      #criteria li.contradicted { border-color: var(--bad); }
+      .state { font-size: 0; }
+      .state::before { font-size: 11px; color: var(--muted); content: "○"; }
+      .state.confirmed::before { content: "●"; color: var(--ok); font-weight: 700; }
+      .state.candidate::before { content: "◐"; color: var(--warn); }
+      .state.contradicted::before { content: "✕"; color: var(--bad); font-weight: 700; }
+      /* How close a criterion is, in the smallest thing that can say it. */
+      .hint { color: var(--faint); font-size: 9px; font-variant-numeric: tabular-nums; }
+      .talk { margin: 6px 0 0; font-size: 10px; color: var(--dim); }
+      .to-ask { margin-top: 8px; font-size: 11px; line-height: 1.35; }
+      .to-ask h2 { margin: 0 0 4px; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); }
+      .to-ask ol { margin: 0; padding-left: 16px; }
+      .to-ask li { margin-bottom: 3px; }
+      .to-ask li.done { color: var(--dim); text-decoration: line-through; }
+      .captions { margin-top: 8px; padding: 6px 8px; border-radius: 8px; background: var(--field); font-size: 11px; line-height: 1.35; }
+      .captions p { margin: 0; }
+      .captions p + p { margin-top: 3px; }
+      .captions .side { font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); margin-right: 4px; }
+      .captions .live { color: var(--dim); }
+      .details .keeping { display: block; margin-top: 6px; }
+
+      /* Before a call: signing in, the one-time agreement, the brief. Inputs
+         opt out of the window drag, or clicking one drags the overlay. */
+      .signin { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
       .signin input { font: inherit; font-size: 12px; color: var(--text);
                       background: var(--field); border: 1px solid rgba(var(--line), 0.45);
                       border-radius: 6px; padding: 6px 8px; user-select: text; }
       .signin .error { color: var(--bad); font-size: 11px; margin: 0; }
       .signin .error:empty { display: none; }
-      .scorecard-pick { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 10px;
-                        color: var(--dim); letter-spacing: 0.04em; text-transform: uppercase; }
-      .scorecard-pick[hidden] { display: none; }
-      .scorecard-pick select { flex: 1; font: inherit; font-size: 12px; text-transform: none; letter-spacing: 0;
-                               color: var(--text); background: var(--field);
-                               border: 1px solid rgba(var(--line), 0.45); border-radius: 6px; padding: 4px 6px; }
+      .consent { -webkit-app-region: no-drag; display: flex; gap: 6px; align-items: flex-start;
+                 margin-top: 10px; font-size: 10px; color: var(--dim); cursor: pointer; }
+      .consent-note { margin: 2px 0 0 22px; font-size: 11px; -webkit-app-region: no-drag; }
+      #agreement { flex-direction: column; gap: 4px; }
+      #agreement .consent-note { margin: 0; display: flex; gap: 8px; align-items: center; }
+      .consent-note .link { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }
       .brief { margin-top: 8px; padding: 8px 10px; border-radius: 8px; font-size: 11px; line-height: 1.4;
                border: 1px solid rgba(var(--line), 0.35); background: rgba(var(--line), 0.08); }
-      .brief[hidden] { display: none; }
       .brief p { margin: 0 0 4px; }
       .brief .dim { color: var(--dim); }
       .brief ul { margin: 4px 0 0; padding-left: 14px; }
       .brief li { margin-bottom: 3px; }
       .brief .prep { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(var(--line), 0.3); }
-      .to-ask { margin-top: 8px; font-size: 11px; line-height: 1.35; }
-      .to-ask[hidden] { display: none; }
-      .to-ask h2 { margin: 0 0 4px; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); }
-      .to-ask ol { margin: 0; padding-left: 16px; }
-      .to-ask li { margin-bottom: 3px; }
-      .to-ask li.done { color: var(--dim); text-decoration: line-through; }
-      .who { font-size: 10px; color: var(--dim); margin-top: 8px; display: flex; gap: 6px; align-items: center; }
-      .who[hidden] { display: none; }
 
-      /* Appearance. Takes the scorecard's place while open, so the window
-         does not grow; the score stays in view to show the accent. */
-      .look { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
-      .look[hidden] { display: none; }
-      .look-row { display: grid; grid-template-columns: 74px 1fr; align-items: center; gap: 8px; }
-      .look-row > span, .look-row > label { font-size: 10px; color: var(--dim);
-                                             letter-spacing: 0.04em; text-transform: uppercase; }
-      .choices { display: flex; gap: 4px; flex-wrap: wrap; }
-      .corners { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
-      .swatch { width: 22px; height: 22px; padding: 0; border-radius: 50%; }
-      .swatch::after { content: ""; display: block; width: 12px; height: 12px; margin: auto;
-                       border-radius: 50%; background: rgb(var(--swatch)); }
-      .swatch[data-accent-choice="indigo"] { --swatch: 129, 140, 248; }
-      .swatch[data-accent-choice="sky"] { --swatch: 56, 189, 248; }
-      .swatch[data-accent-choice="violet"] { --swatch: 167, 139, 250; }
-      .swatch[data-accent-choice="stone"] { --swatch: 168, 162, 158; }
-      .opacity { display: flex; align-items: center; gap: 8px; }
-      .opacity input { flex: 1; accent-color: rgb(var(--accent-rgb)); }
-      .opacity output { font-size: 10px; color: var(--dim); width: 32px; text-align: right;
-                        font-variant-numeric: tabular-nums; }
-      .look-actions { display: flex; gap: 6px; justify-content: flex-end; }
-      body.looking #criteria, body.looking #suggestion, body.looking .signin,
-      .bar { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
-      .call-banner { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; padding: 6px 8px; border-radius: 8px;
-                     font-size: 12px; background: rgba(var(--accent-rgb), 0.2); -webkit-app-region: no-drag; }
-      .call-banner[hidden] { display: none; }
-      .call-banner span { flex: 1; }
-      .bar .primary { color: var(--text); border-color: rgb(var(--accent-rgb)); background: rgba(var(--accent-rgb), 0.25); }
-      .bar-note { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .assist { margin-top: 10px; -webkit-app-region: no-drag; }
-      .assist[hidden] { display: none; }
-      .actions { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
-      .ask { display: flex; gap: 4px; }
-      .ask input { flex: 1; min-width: 0; font: inherit; font-size: 12px; color: var(--text); background: var(--field);
-                   border: 1px solid rgba(var(--line), 0.35); border-radius: 6px; padding: 4px 7px; }
-      .answer { margin-bottom: 8px; padding: 8px 10px; border-radius: 8px; background: rgba(var(--accent-rgb), 0.14); }
-      .answer[hidden] { display: none; }
-      .answer-title { margin: 0 0 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--dim); }
-      .answer ul { margin: 0; padding-left: 16px; }
-      .answer li { margin: 2px 0; font-size: 12px; }
-      .answer .quote { display: block; font-size: 10px; color: var(--dim); }
-      .consent-note { margin: 2px 0 0 22px; font-size: 11px; -webkit-app-region: no-drag; }
-      #agreement { flex-direction: column; gap: 4px; }
-      #agreement .consent-note { margin: 0; display: flex; gap: 8px; align-items: center; }
-      .answer .link { background: none; border: 0; padding: 0; color: var(--dim); text-decoration: underline; cursor: pointer; font: inherit; font-size: 10px; }
-      .consent-note .link { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }
+      footer { margin-top: 8px; display: flex; gap: 4px 10px; align-items: baseline; flex-wrap: wrap; }
+      footer .status { margin-left: auto; }
+      .who { display: flex; gap: 6px; align-items: center; font-size: 10px; color: var(--dim); }
     </style>
   </head>
   <body>
@@ -281,84 +261,78 @@
       <button type="button" id="updateLater" hidden>Later</button>
     </div>
 
-    <!-- Cluely's bar: start or stop, and hide. Everything else about the
-         overlay is set in the dashboard. -->
+    <!-- Cluely's bar: start or stop, and hide, with the score beside them.
+         Everything else about the overlay is set in the dashboard. -->
     <div class="bar">
       <button type="button" id="listen" class="primary" disabled>Start</button>
       <button type="button" id="hide" title="Hide the overlay">Hide</button>
-      <span class="muted bar-note" id="nextCall"></span>
+      <span class="bar-note" id="nextCall"></span>
+      <!-- The score in one line: a bar and a number, glanced at, not read. -->
+      <div class="score-box" id="scoreBox" hidden>
+        <p class="engagement" id="engagement">…</p>
+        <div class="meter" id="scoreMeter" role="progressbar" aria-label="Score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="meter-fill" id="scoreFill"></div>
+        </div>
+        <span class="score" id="scoreValue">0</span>
+      </div>
+      <button type="button" class="quit" id="quit" title="Quit Tesserafy" aria-label="Quit Tesserafy">×</button>
     </div>
 
-    <!-- A call has started (or ended): the overlay came up by itself, and
-         says why. Start still needs the consent box ticked. -->
     <!-- The next meeting, from the calendar: how soon, and its prep. -->
     <div class="call-banner" id="meetingBanner" role="status" hidden>
       <span id="meetingText"></span>
       <button type="button" id="meetingAction"></button>
     </div>
 
+    <!-- A call has started (or ended): the overlay came up by itself, and
+         says why. Start still needs the one-time agreement. -->
     <div class="call-banner" id="callBanner" role="status" hidden>
       <span id="callText"></span>
       <button type="button" id="callAction"></button>
       <button type="button" id="callDismiss" aria-label="Dismiss">×</button>
     </div>
 
-    <!-- The score in one line: a bar and a number. It used to take a third
-         of the card; during a call it is glanced at, not read. -->
-    <header>
-      <h1 id="engagement">…</h1>
-      <div class="meter" id="scoreMeter" role="progressbar" aria-label="Score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-        <div class="meter-fill" id="scoreFill"></div>
-      </div>
-      <div class="score"><span id="scoreValue">0</span></div>
-      <button type="button" class="quit" id="quit" title="Quit Tesserafy" aria-label="Quit Tesserafy">×</button>
-    </header>
-
-    <ul id="criteria" aria-live="polite"></ul>
-
-    <!-- Who is doing the talking, when both sides are heard (talk-time.ts),
-         and a nudge when it has been mostly the seller lately. -->
-    <p class="talk" id="talkTime" hidden></p>
-    <p class="nudge" id="talkNudge" role="status" hidden></p>
-
-    <!-- The prep's questions, kept on screen through the call. One is struck
-         through when the scorecard confirms the criterion it was asked for. -->
-    <section class="to-ask" id="toAsk" aria-label="To ask" hidden></section>
-
-
-    <!-- One suggestion, or nothing. Someone mid-conversation cannot read a
+    <!-- What to say next. One suggestion, or the prep's next question, or a
+         line saying it is listening: someone mid-conversation cannot read a
          list, and a stale suggestion is worse than none. -->
-    <aside class="suggestion" id="suggestion" hidden>
-      <p class="suggestion-ask" id="suggestionAsk"></p>
-      <p class="suggestion-why muted" id="suggestionWhy"></p>
-    </aside>
-
-    <!-- The last few lines, as they are said, each side named (captions.ts).
-         Not announced to a screen reader line by line: that would talk over
-         the call. -->
-    <section class="captions" id="captions" aria-label="Live transcript" hidden></section>
+    <section class="say-next waiting" id="suggestion" aria-label="What to say next" hidden>
+      <p class="say-label" id="sayLabel">Listening</p>
+      <p class="say-text" id="suggestionAsk"></p>
+      <p class="say-why" id="suggestionWhy" hidden></p>
+    </section>
 
     <!-- Cluely's four buttons and ask box. What comes back says what it
          rests on: a point about the call quotes the call (t2-assist). -->
     <section class="assist" id="assist" aria-label="Assist" hidden>
       <div class="answer" id="answer" aria-live="polite" hidden>
-        <p class="answer-title" id="answerTitle"></p>
+        <div class="answer-head">
+          <span class="answer-state" id="answerTitle"></span>
+          <span class="asked" id="answerAsk"></span>
+          <button type="button" class="close" id="answerClose" aria-label="Close the answer">×</button>
+        </div>
         <ul id="answerPoints"></ul>
       </div>
       <div class="actions">
-        <button type="button" data-assist="assist">Assist</button>
-        <button type="button" data-assist="say">What should I say?</button>
-        <button type="button" data-assist="followups">Follow-up questions</button>
-        <button type="button" data-assist="recap">Recap</button>
+        <button type="button" data-assist="assist"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8zM18.5 15.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" /></svg>Assist</button>
+        <span class="dot" aria-hidden="true">·</span>
+        <button type="button" data-assist="say"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20 15 9M14 4v2M19 9h2M17.5 5.5 19 4M9 4l.6 1.6L11 6l-1.4.4L9 8l-.6-1.6L7 6l1.4-.4z" /></svg>What should I say?</button>
+        <span class="dot" aria-hidden="true">·</span>
+        <button type="button" data-assist="followups"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9.5L4 20z" /></svg>Follow-up questions</button>
+        <span class="dot" aria-hidden="true">·</span>
+        <button type="button" data-assist="recap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4" /></svg>Recap</button>
       </div>
       <form class="ask" id="askForm">
         <input id="askInput" maxlength="500" autocomplete="off" placeholder="Ask about the call" aria-label="Ask about the call" />
         <!-- Ask about your screen: pressed, the next answer sees one
              screenshot of this display; it switches itself off after. -->
         <button type="button" id="screenToggle" aria-pressed="false" title="Include a screenshot of this screen with the next question" hidden>Screen</button>
-        <button type="submit" id="askButton">Ask</button>
+        <button type="submit" id="askButton" class="send" aria-label="Ask"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13L18.5 12z" /></svg></button>
       </form>
     </section>
+
+    <!-- Who is doing the talking, when it has been mostly the seller lately
+         (talk-time.ts): said only when it matters, and gone again after. -->
+    <p class="nudge" id="talkNudge" role="status" hidden></p>
 
     <!-- The same account as the web app. The password goes to the main
          process once and is not kept; the page is told who, never a token. -->
@@ -369,11 +343,6 @@
       <p class="error" id="signinError" role="alert"></p>
       <p class="muted" id="remembers"></p>
     </form>
-
-    <div class="who" id="who" hidden>
-      <span id="whoEmail"></span>
-      <button type="button" id="signout">Sign out</button>
-    </div>
 
     <!-- Agreed once, before the first recorded call, then never asked again
          (ADR 0020): Tesserafy never announces itself in a meeting, so telling
@@ -394,13 +363,32 @@
          colleagues' notes, which must never be read as markup. -->
     <section class="brief" id="brief" aria-label="Before this call" hidden></section>
 
+    <!-- The last line: the scorecard folded under its summary, then what the
+         overlay is doing, and who is signed in. Opened, the scorecard takes
+         the whole width and the rest moves below it. -->
     <footer>
-      <span class="muted" id="status">idle</span>
+      <!-- Folded away until opened: the scorecard's criteria, the prep's
+           questions (one struck through when the scorecard confirms the
+           criterion it was asked for), the last few lines as they are said,
+           each side named (captions.ts), and whether the call is being kept.
+           Not announced line by line: that would talk over the call. -->
+      <details class="details" id="details" hidden>
+        <summary id="detailsSummary">Scorecard</summary>
+        <ul id="criteria"></ul>
+        <p class="talk" id="talkTime" hidden></p>
+        <section class="to-ask" id="toAsk" aria-label="To ask" hidden></section>
+        <section class="captions" id="captions" aria-label="Live transcript" hidden></section>
+        <!-- Whether the call is being kept. Deliberately its own line rather
+             than folded into the status: the score and the saving fail
+             independently, and one reading fine says nothing about the other. -->
+        <span class="muted keeping" id="keeping"></span>
+      </details>
+      <span class="muted status" id="status">idle</span>
       <span class="muted" id="clickNote" hidden></span>
-      <!-- Whether the call is being kept. Deliberately its own line rather
-           than folded into the status: the score and the saving fail
-           independently, and one reading fine says nothing about the other. -->
-      <span class="muted keeping" id="keeping"></span>
+      <span class="who" id="who" hidden>
+        <span id="whoEmail"></span>
+        <button type="button" id="signout">Sign out</button>
+      </span>
     </footer>
     </div>
 

@@ -88,7 +88,7 @@ export const SAMPLE_CALL: readonly SampleLine[] = [
     at: '01:25',
     text: 'Yes, Thursday works for both of us.',
     evidence: { criterion: 'next_step', quote: 'Thursday works for both of us', confidence: 0.87, means: 'A call with Priya on Thursday' },
-    suggests: null,
+    suggests: { ask: 'Confirm Thursday, and ask who joins from their side.', because: 'Thursday works for both of us' },
   },
 ];
 
@@ -132,6 +132,35 @@ export function suggestionAfter(heard: number): Suggestion | null {
     if (line.suggests !== undefined) current = line.suggests;
   }
   return current;
+}
+
+export interface SayNext {
+  readonly label: string;
+  readonly text: string;
+  readonly why: string | null;
+  /** Nothing to say yet: shown quieter. */
+  readonly waiting: boolean;
+}
+
+/**
+ * What the overlay puts first after `heard` lines, by the overlay's own rule
+ * (apps/desktop/src/renderer/say-next.ts): the live suggestion, else the
+ * prep's next question the scorecard has not seen answered, else that it is
+ * listening.
+ */
+export function sayNextAfter(heard: number): SayNext {
+  const suggestion = suggestionAfter(heard);
+  if (suggestion) {
+    return { label: 'Say next', text: suggestion.ask, why: `because they said “${suggestion.because}”`, waiting: false };
+  }
+  const confirmed = new Set(
+    scorecardAfter(heard)
+      .criteria.filter((criterion) => criterion.status === 'confirmed')
+      .map((criterion) => criterion.key),
+  );
+  const open = TO_ASK.find((item) => !confirmed.has(item.criterion));
+  if (open) return { label: 'From your prep', text: open.ask, why: null, waiting: false };
+  return { label: 'Listening', text: 'What to say next shows here as the customer talks.', why: null, waiting: true };
 }
 
 /** Each side's share of the words said so far: arithmetic, as in the overlay's talk-time. */

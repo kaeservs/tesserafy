@@ -3,26 +3,23 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 /**
- * A picture (or a looping video of it) with liquid-glass tiles floating over
- * it, drawn in WebGL2 so the glass bends the picture behind it in every
- * browser — Safari and Firefox included, where CSS can only frost it.
+ * A picture with liquid-glass panes over it, drawn in WebGL2 so the glass
+ * bends the picture behind it in every browser — Safari and Firefox
+ * included, where CSS can only frost it.
  *
  * The refraction follows Liquid Glass Studio (github.com/iyinchao/liquid-glass-studio,
- * MIT, © 2024 Charles Yin): each tile is a rounded-rectangle SDF; within a
+ * MIT, © 2024 Charles Yin): each pane is a rounded-rectangle SDF; within a
  * rim of the edge the background is sampled along the surface normal by
  * Snell's law (n = 1.5), split slightly per colour channel, over a blurred
  * copy of the picture; a Fresnel whitening and a glare from the top left
  * finish the edge. Reduced to what a landing page needs: one pass to place
  * the picture, a separable blur, and the glass.
  *
- * The plain <img> underneath is what the first paint and anyone without
- * WebGL see; the canvas fades in over it once it has drawn. Without WebGL the
- * tiles are frosted with CSS instead. It draws only while on screen, and
- * holds still for anyone who asked for reduced motion (no video, no drift).
- *
- * With `scrollAway`, scrolling past it carries the tiles up at their own
- * speeds as they shrink, and sets --away (0 to 1) on the scene for its content
- * to follow.
+ * Nothing on it moves, so it is drawn once — when it first comes near the
+ * screen — and again only when its size changes. There is no frame loop: a
+ * full-window glass shader redrawn every frame is what made the hero heavy on
+ * a weak graphics chip. The plain <img> underneath is the first paint and
+ * what anyone without WebGL sees, with the panes frosted by CSS instead.
  */
 
 export interface GlassTile {
@@ -210,19 +207,14 @@ function cover(canvasAspect: number, mediaAspect: number): [number, number, numb
 
 export function GlassScene({
   image,
-  video,
   tiles,
   className = '',
-  scrollAway = false,
   children,
 }: {
   /** A raster picture (JPEG, PNG, WebP, AVIF): WebKit uploads an SVG to WebGL only in part, and the rest draws black. */
   image: string;
-  video?: string;
   tiles: readonly GlassTile[];
   className?: string;
-  /** Tiles rise and shrink as the page scrolls past; --away is set for the content. */
-  scrollAway?: boolean;
   children?: ReactNode;
 }) {
   const box = useRef<HTMLDivElement>(null);
@@ -233,208 +225,28 @@ export function GlassScene({
     const host = box.current;
     const element = canvas.current;
     if (!host || !element) return;
-    const gl = element.getContext('webgl2', { antialias: false, alpha: false, premultipliedAlpha: false });
-    if (!gl) {
-      setMode('css');
-      return;
-    }
-    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let place: WebGLProgram;
-    let blur: WebGLProgram;
-    let glass: WebGLProgram;
-    try {
-      place = compile(gl, PLACE);
-      blur = compile(gl, BLUR);
-      glass = compile(gl, GLASS);
-    } catch {
-      setMode('css');
-      return;
-    }
+    let stop = () => {};
 
-    const quad = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, quad);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-    gl.enableVertexAttribArray(0);
-    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-
-    const media = texture(gl);
-    let source: HTMLImageElement | HTMLVideoElement | null = null;
-    let mediaAspect = 16 / 9;
-    let moving = false;
-    const upload = () => {
-      if (!source) return;
-      gl.bindTexture(gl.TEXTURE_2D, media);
-      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
-    };
-
-    let ping: Target | null = null;
-    let pong: Target | null = null;
-    let width = 0;
-    let height = 0;
-    let dpr = 1;
-    const resize = () => {
-      dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-      width = Math.max(1, Math.round(host.clientWidth * dpr));
-      height = Math.max(1, Math.round(host.clientHeight * dpr));
-      element.width = width;
-      element.height = height;
-      const half = [Math.max(1, width >> 1), Math.max(1, height >> 1)] as const;
-      for (const t of [ping, pong]) {
-        if (t) {
-          gl.deleteFramebuffer(t.fbo);
-          gl.deleteTexture(t.tex);
-        }
-      }
-      ping = target(gl, half[0], half[1]);
-      pong = target(gl, half[0], half[1]);
-    };
-
-    const rects = new Float32Array(MAX_TILES * 4);
-    const radii = new Float32Array(MAX_TILES);
-    const draw = (time: number) => {
-      if (!source || !ping || !pong) return;
-      if (moving) upload();
-      const coverBox = cover(width / height, mediaAspect);
-      const halfW = Math.max(1, width >> 1);
-      const halfH = Math.max(1, height >> 1);
-
-      gl.bindFramebuffer(gl.FRAMEBUFFER, ping.fbo);
-      gl.viewport(0, 0, halfW, halfH);
-      gl.useProgram(place);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, media);
-      gl.uniform1i(gl.getUniformLocation(place, 'u_media'), 0);
-      gl.uniform4fv(gl.getUniformLocation(place, 'u_cover'), coverBox);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-
-      gl.useProgram(blur);
-      gl.uniform1i(gl.getUniformLocation(blur, 'u_tex'), 0);
-      const step = gl.getUniformLocation(blur, 'u_step');
-      for (let pass = 0; pass < 4; pass++) {
-        const from = pass % 2 === 0 ? ping : pong;
-        const to = pass % 2 === 0 ? pong : ping;
-        gl.bindFramebuffer(gl.FRAMEBUFFER, to.fbo);
-        gl.bindTexture(gl.TEXTURE_2D, from.tex);
-        gl.uniform2f(step, pass % 2 === 0 ? 2 / halfW : 0, pass % 2 === 0 ? 0 : 2 / halfH);
-        gl.drawArrays(gl.TRIANGLES, 0, 3);
-      }
-
-      const scale = Math.max(0.55, Math.min(1, host.clientWidth / 1200)) * dpr * (1 - away * 0.3);
-      const count = Math.min(tiles.length, MAX_TILES);
-      for (let i = 0; i < count; i++) {
-        const tile = tiles[i]!;
-        const drift = still ? 0 : Math.sin(time / 1600 + i * 1.7) * 6 * dpr;
-        rects[i * 4] = (tile.x / 100) * width;
-        rects[i * 4 + 1] = height - (tile.y / 100) * height + drift + away * height * (0.35 + 0.2 * (i % 3));
-        rects[i * 4 + 2] = (tile.w * scale) / 2;
-        rects[i * 4 + 3] = (tile.h * scale) / 2;
-        radii[i] = Math.min((tile.r ?? 14) * scale, (Math.min(tile.w, tile.h) * scale) / 2);
-      }
-
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.viewport(0, 0, width, height);
-      gl.useProgram(glass);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, media);
-      gl.uniform1i(gl.getUniformLocation(glass, 'u_media'), 0);
-      gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_2D, ping.tex);
-      gl.uniform1i(gl.getUniformLocation(glass, 'u_blur'), 1);
-      gl.uniform4fv(gl.getUniformLocation(glass, 'u_cover'), coverBox);
-      gl.uniform2f(gl.getUniformLocation(glass, 'u_res'), width, height);
-      gl.uniform1f(gl.getUniformLocation(glass, 'u_dpr'), dpr);
-      gl.uniform4fv(gl.getUniformLocation(glass, 'u_rects'), rects);
-      gl.uniform1fv(gl.getUniformLocation(glass, 'u_radius'), radii);
-      gl.uniform1i(gl.getUniformLocation(glass, 'u_count'), count);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-    };
-
-    let frame = 0;
-    let visible = true;
-    const loop = (time: number) => {
-      draw(time);
-      frame = visible && !still ? requestAnimationFrame(loop) : 0;
-    };
-    const start = () => {
-      if (!frame) frame = requestAnimationFrame(loop);
-    };
-
-    const picture = new Image();
-    picture.decoding = 'async';
-    picture.onload = () => {
-      if (moving) return;
-      source = picture;
-      mediaAspect = picture.naturalWidth / picture.naturalHeight;
-      upload();
-      setMode('webgl');
-      start();
-    };
-    picture.onerror = () => setMode('css');
-    picture.src = image;
-
-    let player: HTMLVideoElement | null = null;
-    if (video && !still) {
-      player = document.createElement('video');
-      player.muted = true;
-      player.loop = true;
-      player.playsInline = true;
-      player.preload = 'auto';
-      player.src = video;
-      player.addEventListener('playing', () => {
-        if (!player) return;
-        source = player;
-        moving = true;
-        mediaAspect = player.videoWidth / player.videoHeight;
-        setMode('webgl');
-        start();
-      });
-      void player.play().catch(() => undefined);
-    }
-
-    // How far the page has scrolled past the scene, 0 to 1, for the tiles and --away.
-    let away = 0;
-    const scrolled = () => {
-      if (!scrollAway || still) return;
-      const box = host.getBoundingClientRect();
-      away = Math.min(1, Math.max(0, -box.top / Math.max(1, box.height)));
-      host.style.setProperty('--away', away.toFixed(3));
-    };
-    scrolled();
-    window.addEventListener('scroll', scrolled, { passive: true });
-
-    resize();
-    const resized = new ResizeObserver(() => {
-      resize();
-      if (still) draw(0);
-    });
-    resized.observe(host);
-    const seen = new IntersectionObserver(([entry]) => {
-      visible = entry?.isIntersecting ?? true;
-      if (visible) start();
-    });
-    seen.observe(host);
-    const lost = (event: Event) => {
-      event.preventDefault();
-      setMode('css');
-    };
-    element.addEventListener('webglcontextlost', lost);
-
+    // Nothing is set up until the scene is nearly on screen: below the fold, it costs the page nothing.
+    const near = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        near.disconnect();
+        stop = setUp(host, element, image, tiles, setMode);
+      },
+      { rootMargin: '50% 0px' },
+    );
+    near.observe(host);
     return () => {
-      cancelAnimationFrame(frame);
-      resized.disconnect();
-      window.removeEventListener('scroll', scrolled);
-      seen.disconnect();
-      element.removeEventListener('webglcontextlost', lost);
-      player?.pause();
-      player = null;
+      near.disconnect();
+      stop();
     };
-  }, [image, video, tiles, scrollAway]);
+  }, [image, tiles]);
 
   return (
     <div ref={box} className={`glass-scene ${className}`} data-mode={mode}>
       {/* The first paint, and the fallback, behind the canvas. */}
-      <img src={image} alt="" aria-hidden="true" className="glass-scene-media" fetchPriority="high" />
+      <img src={image} alt="" aria-hidden="true" className="glass-scene-media" loading="lazy" decoding="async" />
       {mode === 'css' ? (
         <div className="glass-scene-tiles" aria-hidden="true">
           {tiles.map((tile, index) => (
@@ -456,4 +268,158 @@ export function GlassScene({
       <div className="glass-scene-content">{children}</div>
     </div>
   );
+}
+
+/** Compiles the programs, loads the picture and draws it; returns what undoes it. */
+function setUp(
+  host: HTMLDivElement,
+  element: HTMLCanvasElement,
+  image: string,
+  tiles: readonly GlassTile[],
+  setMode: (mode: 'webgl' | 'css') => void,
+): () => void {
+  const gl = element.getContext('webgl2', { antialias: false, alpha: false, premultipliedAlpha: false });
+  if (!gl) {
+    setMode('css');
+    return () => {};
+  }
+  let place: WebGLProgram;
+  let blur: WebGLProgram;
+  let glass: WebGLProgram;
+  try {
+    place = compile(gl, PLACE);
+    blur = compile(gl, BLUR);
+    glass = compile(gl, GLASS);
+  } catch {
+    setMode('css');
+    return () => {};
+  }
+
+  const quad = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+  const media = texture(gl);
+  let picture: HTMLImageElement | null = null;
+  let mediaAspect = 16 / 9;
+
+  let ping: Target | null = null;
+  let pong: Target | null = null;
+  let width = 0;
+  let height = 0;
+  let dpr = 1;
+  const resize = () => {
+    dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    width = Math.max(1, Math.round(host.clientWidth * dpr));
+    height = Math.max(1, Math.round(host.clientHeight * dpr));
+    element.width = width;
+    element.height = height;
+    const half = [Math.max(1, width >> 1), Math.max(1, height >> 1)] as const;
+    for (const t of [ping, pong]) {
+      if (t) {
+        gl.deleteFramebuffer(t.fbo);
+        gl.deleteTexture(t.tex);
+      }
+    }
+    ping = target(gl, half[0], half[1]);
+    pong = target(gl, half[0], half[1]);
+  };
+
+  const rects = new Float32Array(MAX_TILES * 4);
+  const radii = new Float32Array(MAX_TILES);
+  const draw = () => {
+    if (!picture || !ping || !pong) return;
+    const coverBox = cover(width / height, mediaAspect);
+    const halfW = Math.max(1, width >> 1);
+    const halfH = Math.max(1, height >> 1);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, ping.fbo);
+    gl.viewport(0, 0, halfW, halfH);
+    gl.useProgram(place);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, media);
+    gl.uniform1i(gl.getUniformLocation(place, 'u_media'), 0);
+    gl.uniform4fv(gl.getUniformLocation(place, 'u_cover'), coverBox);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    gl.useProgram(blur);
+    gl.uniform1i(gl.getUniformLocation(blur, 'u_tex'), 0);
+    const step = gl.getUniformLocation(blur, 'u_step');
+    for (let pass = 0; pass < 4; pass++) {
+      const from = pass % 2 === 0 ? ping : pong;
+      const to = pass % 2 === 0 ? pong : ping;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, to.fbo);
+      gl.bindTexture(gl.TEXTURE_2D, from.tex);
+      gl.uniform2f(step, pass % 2 === 0 ? 2 / halfW : 0, pass % 2 === 0 ? 0 : 2 / halfH);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+
+    const scale = Math.max(0.55, Math.min(1, host.clientWidth / 1200)) * dpr;
+    const count = Math.min(tiles.length, MAX_TILES);
+    for (let i = 0; i < count; i++) {
+      const tile = tiles[i]!;
+      rects[i * 4] = (tile.x / 100) * width;
+      rects[i * 4 + 1] = height - (tile.y / 100) * height;
+      rects[i * 4 + 2] = (tile.w * scale) / 2;
+      rects[i * 4 + 3] = (tile.h * scale) / 2;
+      radii[i] = Math.min((tile.r ?? 14) * scale, (Math.min(tile.w, tile.h) * scale) / 2);
+    }
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, width, height);
+    gl.useProgram(glass);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, media);
+    gl.uniform1i(gl.getUniformLocation(glass, 'u_media'), 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, ping.tex);
+    gl.uniform1i(gl.getUniformLocation(glass, 'u_blur'), 1);
+    gl.uniform4fv(gl.getUniformLocation(glass, 'u_cover'), coverBox);
+    gl.uniform2f(gl.getUniformLocation(glass, 'u_res'), width, height);
+    gl.uniform1f(gl.getUniformLocation(glass, 'u_dpr'), dpr);
+    gl.uniform4fv(gl.getUniformLocation(glass, 'u_rects'), rects);
+    gl.uniform1fv(gl.getUniformLocation(glass, 'u_radius'), radii);
+    gl.uniform1i(gl.getUniformLocation(glass, 'u_count'), count);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  };
+
+  const loaded = new Image();
+  loaded.decoding = 'async';
+  loaded.onload = () => {
+    picture = loaded;
+    mediaAspect = loaded.naturalWidth / loaded.naturalHeight;
+    gl.bindTexture(gl.TEXTURE_2D, media);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, loaded);
+    draw();
+    setMode('webgl');
+  };
+  loaded.onerror = () => setMode('css');
+  loaded.src = image;
+
+  resize();
+  // A new size is the only thing that changes the picture: redraw for it, at most once a frame.
+  let frame = 0;
+  const resized = new ResizeObserver(() => {
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(() => {
+      resize();
+      draw();
+    });
+  });
+  resized.observe(host);
+  const lost = (event: Event) => {
+    event.preventDefault();
+    setMode('css');
+  };
+  element.addEventListener('webglcontextlost', lost);
+
+  return () => {
+    cancelAnimationFrame(frame);
+    resized.disconnect();
+    element.removeEventListener('webglcontextlost', lost);
+    loaded.onload = null;
+  };
 }

@@ -2,9 +2,12 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Icon, type IconName } from '@/components/icons';
-import { CallDemo } from '@/components/landing/call-demo';
 import { GlassScene, type GlassTile } from '@/components/landing/glass-scene';
+import { HeroBirds } from '@/components/landing/hero-birds';
+import { HeroMotion } from '@/components/landing/hero-motion';
 import { HowItWorks } from '@/components/landing/how-it-works';
+import { LandingNav, type LandingSection } from '@/components/landing/landing-nav';
+import { OverlayDemo } from '@/components/landing/overlay-demo';
 import { ScrollReveal } from '@/components/landing/scroll-reveal';
 import { createClient } from '@/lib/supabase/server';
 
@@ -72,25 +75,25 @@ const FEATURES: readonly { icon: IconName; title: string; body: string }[] = [
   },
 ];
 
-/** True of the product today, each one enforced in code: never a made-up metric. */
-const FACTS: readonly { figure: string; label: string }[] = [
-  { figure: '0', label: 'bots join your meeting' },
-  { figure: 'Every', label: 'point quotes what was said' },
-  { figure: '1 press', label: 'for what to say next' },
+/**
+ * True of the product today, each one enforced in code: never a made-up
+ * metric. Undetectable means to the meeting — no bot, no announcement — on
+ * every plan; kept out of a screen share too is Incognito's, and the FAQ says so.
+ */
+const FACTS: readonly { icon: IconName; figure: string; label: string }[] = [
+  { icon: 'unseen', figure: 'Undetectable', label: 'No bot joins your meeting, and nothing announces it.' },
+  { icon: 'live', figure: 'Live', label: 'The scorecard fills in while the customer is still talking.' },
+  { icon: 'quote', figure: 'Grounded', label: 'Every point quotes what was said, or it is not shown.' },
 ];
 
-/** The glass tiles over the hero's landscape: clustered at its edges, clear of the headline. */
-const HERO_TILES: readonly GlassTile[] = [
-  { x: 7, y: 62, w: 64, h: 64 },
-  { x: 13, y: 70, w: 64, h: 64 },
-  { x: 7, y: 78, w: 64, h: 64 },
-  { x: 19, y: 79, w: 44, h: 44, r: 10 },
-  { x: 47, y: 86, w: 40, h: 40, r: 10 },
-  { x: 52, y: 80, w: 32, h: 32, r: 9 },
-  { x: 86, y: 58, w: 72, h: 72 },
-  { x: 92, y: 66, w: 72, h: 72 },
-  { x: 86, y: 74, w: 72, h: 72 },
-  { x: 80, y: 82, w: 52, h: 52, r: 12 },
+/** The menu's links, one to each section of the page, in its order. */
+const SECTIONS: readonly LandingSection[] = [
+  { id: 'demo', label: 'Demo' },
+  { id: 'features', label: 'Features' },
+  { id: 'how-it-works', label: 'How it works' },
+  { id: 'privacy', label: 'Privacy' },
+  { id: 'pricing', label: 'Pricing' },
+  { id: 'faq', label: 'FAQ' },
 ];
 
 /** The closing card, one wide pane of glass over the same landscape. */
@@ -107,9 +110,13 @@ const PRIVACY: readonly { title: string; body: string }[] = [
   { title: 'Consent stays with you', body: 'You agree once to tell everyone on the calls you record; every call keeps that record.' },
 ];
 
-/** The hero art: a painted landscape, generated in devmotion; its loop once that is made. */
+/**
+ * The hero art: a painted landscape, generated in devmotion, in three widths
+ * so a phone does not download the largest. A plain picture: the hero's
+ * movement is CSS (the birds, and the picture drifting as the page scrolls).
+ */
 const HERO_IMAGE = '/landing/hero.webp';
-const HERO_VIDEO: string | undefined = undefined;
+const HERO_SRCSET = '/landing/hero-768.webp 768w, /landing/hero-1152.webp 1152w, /landing/hero.webp 1536w';
 
 const FAQ: readonly { q: string; a: string }[] = [
   {
@@ -167,25 +174,26 @@ export default async function Landing() {
   return (
     <div className="landing">
       <ScrollReveal />
-      <header className="landing-nav glass">
-        <Link href="/" className="brand">
-          <Icon name="logo" size={24} />
-          <span>Tesserafy</span>
-        </Link>
-        <Link href={START_HREF} className="button-primary">
-          {START}
-        </Link>
-      </header>
+      <LandingNav
+        sections={onSale.length > 0 ? SECTIONS : SECTIONS.filter((section) => section.id !== 'pricing')}
+        start={{ href: START_HREF, label: START }}
+      />
 
       <main>
-        <GlassScene
-          image={HERO_IMAGE}
-          {...(HERO_VIDEO ? { video: HERO_VIDEO } : {})}
-          tiles={HERO_TILES}
-          className="hero"
-          scrollAway
-        >
-          <section className="hero-copy" aria-labelledby="hero-heading">
+        <section className="hero" aria-labelledby="hero-heading">
+          <img
+            className="hero-art"
+            src={HERO_IMAGE}
+            srcSet={HERO_SRCSET}
+            sizes="100vw"
+            width={1536}
+            height={1024}
+            alt=""
+            fetchPriority="high"
+          />
+          <HeroBirds />
+          <HeroMotion />
+          <div className="hero-copy">
             <h1 id="hero-heading">
               Know what to say next — <em>on every call.</em>
             </h1>
@@ -197,33 +205,45 @@ export default async function Landing() {
               <Link href={START_HREF} className="button-primary">
                 {START}
               </Link>
+              <a href="#demo" className="button-secondary">
+                Try the demo
+              </a>
             </div>
-          </section>
-        </GlassScene>
+          </div>
+          <a href="#demo" className="scroll-cue" aria-label="Scroll to the demo">
+            <span aria-hidden="true" />
+          </a>
+        </section>
 
         <div className="landing-main">
           <ul className="facts" aria-label="What is always true">
             {FACTS.map((fact) => (
-              <li key={fact.label} className="glass fact">
+              <li key={fact.figure} className="glass fact">
+                <span className="fact-icon">
+                  <Icon name={fact.icon} size={20} />
+                </span>
                 <strong>{fact.figure}</strong>
                 <span>{fact.label}</span>
               </li>
             ))}
           </ul>
 
-          <section className="landing-section wash" aria-labelledby="demo-heading" data-reveal>
+          <section id="demo" className="landing-section wash" aria-labelledby="demo-heading" data-reveal>
             <p className="eyebrow">Try it</p>
-            <h2 id="demo-heading">A sample call, with Tesserafy on it</h2>
-            <p className="section-lede">Play it, step through it, and press the buttons — it answers from what has been said.</p>
-            <CallDemo />
+            <h2 id="demo-heading">The overlay, on a sample call</h2>
+            <p className="section-lede">
+              Drag it anywhere over the meeting, change how it looks, and press its buttons — it answers from what has been
+              said. A written sample, played in your browser: nothing is recorded or sent.
+            </p>
+            <OverlayDemo />
           </section>
 
-          <section className="landing-section" aria-labelledby="features-heading" data-reveal>
+          <section id="features" className="landing-section" aria-labelledby="features-heading" data-reveal>
             <p className="eyebrow">What it does</p>
             <h2 id="features-heading">Built for the call itself</h2>
             <div className="feature-grid">
               {FEATURES.map((feature) => (
-                <div key={feature.title} className="glass feature" data-reveal>
+                <div key={feature.title} className="pane feature" data-reveal>
                   <span className="feature-icon">
                     <Icon name={feature.icon} size={22} />
                   </span>
@@ -238,12 +258,12 @@ export default async function Landing() {
         <HowItWorks />
 
         <div className="landing-main">
-          <section className="landing-section" aria-labelledby="privacy-heading" data-reveal>
+          <section id="privacy" className="landing-section" aria-labelledby="privacy-heading" data-reveal>
             <p className="eyebrow">Private by design</p>
             <h2 id="privacy-heading">Yours, and only yours</h2>
             <ul className="privacy-grid">
               {PRIVACY.map((point) => (
-                <li key={point.title} className="glass privacy-card" data-reveal>
+                <li key={point.title} className="pane privacy-card" data-reveal>
                   <h3>{point.title}</h3>
                   <p>{point.body}</p>
                 </li>
@@ -252,7 +272,7 @@ export default async function Landing() {
           </section>
 
           {onSale.length > 0 ? (
-            <section className="landing-section wash" aria-labelledby="pricing-heading" data-reveal>
+            <section id="pricing" className="landing-section wash" aria-labelledby="pricing-heading" data-reveal>
               <h2 id="pricing-heading">Pricing</h2>
               <p className="section-lede">
                 {free ? 'Start on Free, one seat. ' : ''}Then a plan, per seat, by the month — every seat brings its own
@@ -260,7 +280,7 @@ export default async function Landing() {
               </p>
               <div className="price-grid">
                 {onSale.map((plan) => (
-                  <div key={plan.id} className={`glass price${plan.id === 'pro' ? ' featured' : ''}`}>
+                  <div key={plan.id} className={`pane price${plan.id === 'pro' ? ' featured' : ''}`}>
                     <h3>{plan.name}</h3>
                     <p className="price-figure">
                       {plan.price_usd_cents === null ? '$0' : `$${(plan.price_usd_cents / 100).toFixed(2)}`}
@@ -280,12 +300,12 @@ export default async function Landing() {
             </section>
           ) : null}
 
-          <section className="landing-section" aria-labelledby="faq-heading" data-reveal>
+          <section id="faq" className="landing-section" aria-labelledby="faq-heading" data-reveal>
             <p className="eyebrow">Questions</p>
             <h2 id="faq-heading">Before you ask</h2>
             <div className="faq">
               {FAQ.map((item) => (
-                <details key={item.q} className="glass">
+                <details key={item.q} className="pane">
                   <summary>{item.q}</summary>
                   <p>{item.a}</p>
                 </details>

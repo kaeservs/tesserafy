@@ -1,4 +1,4 @@
-import { LiveComingSoon } from '@/components/live-coming-soon';
+import { LiveInTheOverlay } from '@/components/live-in-the-overlay';
 import { liveAvailable, myCompany, myCompanyId } from '@/lib/company';
 import { fetchCriteria, fetchCriteriaSets } from '@tesserafy/db';
 import { LiveMicrophone } from '@/components/live-microphone';
@@ -31,7 +31,7 @@ export default async function LiveMicPage({
 }) {
   const { engagement, version } = await searchParams;
   const supabase = await createClient();
-  if (!liveAvailable((await myCompany(supabase))?.plan)) return <LiveComingSoon />;
+  if (!liveAvailable((await myCompany(supabase))?.plan)) return <LiveInTheOverlay />;
 
   const companyId = await myCompanyId(supabase);
   const {
@@ -91,8 +91,8 @@ export default async function LiveMicPage({
       <p className="muted">
         Scoring against {criteria.length} criteria ({chosen.engagementType} v{chosen.version}).
         Speech recognition is the browser’s, which means the audio goes to the browser vendor —
-        fine for trying this out, not acceptable for a customer call. Spike S2 chooses the real
-        one.
+        fine for trying this out, not acceptable for a customer call. Customers&apos; calls run in the
+        overlay, which hears both sides through Deepgram (ADR 0022).
       </p>
 
       <LiveMicrophone

@@ -80,10 +80,11 @@ While the session is open, every page of their account carries a banner with
 your reason and the time left. You will see it too, in the private window —
 that is intended.
 
+When the session ends — you end it, or its time runs out — so does the
+login: the web app signs the window out on its next page
+(`/auth/support-ended`) and refuses it on the API, because
+`support_session_ended()` says its window has closed.
+
 ## What is not built
 
-- **The time limit is not enforced on the login.** Ending the session, or
-  letting it expire, closes the record and removes the banner. The session in
-  your private window keeps working until Supabase expires it. Close the
-  window when you are done.
 - **No consent step.** The customer is told, not asked.

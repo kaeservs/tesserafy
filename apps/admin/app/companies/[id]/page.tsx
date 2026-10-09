@@ -114,7 +114,15 @@ interface Integrations {
 export default async function CompanyPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const admin = await requireAdmin();
-  const [{ data, error }, { data: people }, { data: roleChanges }, { data: criteria }, { data: agreements }, { data: integrationData }] = await Promise.all([
+  const [
+    { data, error },
+    { data: people },
+    { data: roleChanges },
+    { data: criteria },
+    { data: agreements },
+    { data: integrationData },
+    { data: planRows },
+  ] = await Promise.all([
     admin.db.rpc('admin_company_detail', { p_company_id: id }),
     // The detail names members by address; changing a role needs their id.
     admin.db.rpc('admin_users'),
@@ -141,6 +149,8 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
       .order('agreed_at', { ascending: false }),
     // What it is connected to and how it pays: ids and counts, never a token.
     admin.db.rpc('admin_company_integrations', { p_company_id: id }),
+    // The plans to choose from: the catalogue itself, so a plan added there is offered here.
+    admin.db.from('plans').select('id, name').order('rank'),
   ]);
   const integrations = integrationData as unknown as Integrations | null;
   const agreementOf = new Map<string, { terms_version: string; surface: string; agreed_at: string }>();
@@ -179,7 +189,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
       {d.company.closed_at ? null : (
         <div className="row" style={{ alignItems: 'center', marginBottom: '1rem' }}>
           <div className="go">
-            <SetPlan companyId={d.company.id} current={d.company.plan} />
+            <SetPlan companyId={d.company.id} current={d.company.plan} plans={planRows ?? []} />
           </div>
           <div className="go">
             <Link className="link" href={`/companies/${d.company.id}/close`}>

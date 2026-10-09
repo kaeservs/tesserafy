@@ -319,15 +319,16 @@ Only sessions started by a sign-in link are asked — a password session never
 is one — so the overlay's detections pay nothing. The customer's own sessions
 from before the window are untouched.
 
-After a call, the seller can draft its follow-up email (the call page;
-the overlay offers it when a call ends, opening that page — it never drafts
-by itself, because a draft spends the allowance). It is held to the same rule
+After a call, the seller can draft its follow-up email, on its own page
+(`/conversations/<id>/follow-up`, linked from the call page and Home; the
+overlay offers the call's page when a call ends — it never drafts by itself,
+because a draft spends the allowance). It is held to the same rule
 as everything else: the recap and the next steps are lines each quoting a
 segment, checked in code and again by `record_follow_up`; the subject,
 greeting, opening and closing are told to carry no facts; and it promises no
 price, date or term the call did not say, because the email goes out in the
 seller's name. One draft a call, charged like action items. It can be sent
-from the call page (ADR 0023): through Resend, from our `EMAIL_FROM` with the
+from its page (ADR 0023): through Resend, from our `EMAIL_FROM` with the
 name the seller types, replies to the seller and the seller copied, plain
 text — never with the seller's address in From, which would be forging it.
 `begin_follow_up_send` records it before it leaves (a draft exists, one to
@@ -446,7 +447,9 @@ a test fails if they drift (ADR 0019).
   (`components/section-tabs.tsx`). A link, a redirect after a form, a
   `revalidatePath` and a 402's `upgrade` all name the page itself. The one
   exception is the signed-out landing page (`/`), a single long page whose
-  menu scrolls to its own sections.
+  menu scrolls to its own sections. A link to one line of a transcript
+  (`#segment-<id>`) is not a section: it is how a quote leads to the words
+  behind it, everywhere a quote is shown.
 
 - TypeScript everywhere in `apps/` and `packages/`. Python only in
   `services/eval`.

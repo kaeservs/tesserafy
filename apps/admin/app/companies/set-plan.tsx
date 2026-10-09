@@ -5,14 +5,21 @@ import { setPlan, type SetPlanState } from './actions';
 
 const START: SetPlanState = { status: 'idle' };
 
-const PLANS = ['trial', 'basic', 'pro', 'pilot', 'internal', 'none'] as const;
-
 /**
  * Put a company on any plan, now: a pilot granted, a plan comped, a trial
  * restarted. Recorded as the operator in the company's plan history, which
- * its owners can read.
+ * its owners can read. The plans offered are the `plans` table's, in its
+ * order, so a plan added to the catalogue can be given without a deploy.
  */
-export function SetPlan({ companyId, current }: { companyId: string; current: string }) {
+export function SetPlan({
+  companyId,
+  current,
+  plans,
+}: {
+  companyId: string;
+  current: string;
+  plans: readonly { id: string; name: string }[];
+}) {
   const [state, action, pending] = useActionState(setPlan, START);
   const [plan, setChoice] = useState(current);
 
@@ -24,11 +31,11 @@ export function SetPlan({ companyId, current }: { companyId: string; current: st
         aria-label="Plan"
         value={plan}
         onChange={(event) => setChoice(event.target.value)}
-        style={{ width: '7rem' }}
+        style={{ width: '9rem' }}
       >
-        {PLANS.map((id) => (
-          <option key={id} value={id}>
-            {id}
+        {plans.map((plan) => (
+          <option key={plan.id} value={plan.id}>
+            {plan.name}
           </option>
         ))}
       </select>

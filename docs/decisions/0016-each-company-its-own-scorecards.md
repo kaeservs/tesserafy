@@ -97,3 +97,11 @@ function.
 - `criteria_definitions` gains a surrogate `id` primary key; the natural key
   is a unique index over `(coalesce(company_id, zero), engagement_type,
   version, key)`.
+
+## Later (2026-10-08)
+
+The overlay no longer chooses a scorecard. Since it was reshaped around the
+call prep (2026-09-30), a call's scorecard comes from the prep marked "Use
+for my next call", through `/api/live/setup`, and the picker went with it.
+`/api/criteria/sets`, which it called, was removed once no released overlay
+asked for it.

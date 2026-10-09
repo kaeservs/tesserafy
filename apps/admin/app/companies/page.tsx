@@ -9,10 +9,11 @@ import { SignupSwitch } from './signup-switch';
 /**
  * The tenants, and what is actually true about them.
  *
- * `plan` decides each company's monthly AI allowance, and can be set here —
- * but nothing is charged for it yet: payments do not exist, and plans are
- * free until they do. The lede says so rather than letting a dashboard imply
- * revenue nobody collected. Everything else here is counted.
+ * `plan` decides each company's monthly AI allowance, and can be set here.
+ * Spend is what serving a company cost, estimated from recorded token usage
+ * — never what it paid: billing is Stripe's (ADR 0025), on Payments, and the
+ * lede says so rather than letting a dashboard imply revenue nobody
+ * collected. Everything else here is counted.
  */
 export const dynamic = 'force-dynamic';
 
@@ -98,8 +99,12 @@ export default async function Companies({
     <Chrome email={admin.email}>
       <h1>Companies</h1>
       <p className="lede">
-        One row per tenant; open one to change its plan or close it. Spend is estimated from
-        recorded token usage at published rates, not billed — payments do not exist yet.
+        One row per tenant; open one to change its plan or close it. Spend is what serving it cost,
+        estimated from recorded token usage at published rates — not what it paid, which is on{' '}
+        <Link className="link" href="/payments">
+          Payments
+        </Link>
+        .
       </p>
 
       <SignupSwitch

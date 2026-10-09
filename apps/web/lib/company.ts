@@ -27,13 +27,13 @@ export async function myCompanyId(db: SupabaseClient, userId?: string): Promise<
 }
 
 /**
- * Whether the live scorecard is offered.
+ * Whether the browser's live page (/live) is offered.
  *
- * Only to Tesserafy's own company for now. Live transcription still uses the
- * browser's speech recognition, which sends audio to the browser vendor — the
- * page says itself that this is not acceptable for a customer call — and the
- * page is a test bench, latency panel and all. Brands see "coming soon" until
- * a transcriber that runs under our own terms is chosen (spike S2).
+ * Only to Tesserafy's own company. It transcribes with the browser's speech
+ * recognition, which sends the audio to the browser's vendor — the page says
+ * itself that this is not acceptable for a customer call — and it is a test
+ * bench, latency panel and all. A customer's live calls run in the desktop
+ * overlay, on Deepgram (ADR 0022, liveCallsAvailable); the page tells them so.
  */
 export function liveAvailable(plan: string | undefined): boolean {
   return plan === 'internal';

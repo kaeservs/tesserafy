@@ -5,9 +5,11 @@ import { Chrome } from '../chrome';
 import { markInvited, removeEntry } from './actions';
 
 /**
- * Who asked, on the landing page, to be told when Tesserafy opens. Sign-up is
- * closed until email works; this is the list to invite from then. Read as the
- * operator, through RLS. Used only to invite them, as the form promises.
+ * Who asked, on the landing page, to be told when Tesserafy opens. The
+ * landing page stopped asking on 2026-10-07 (it offers sign-up instead), so
+ * the list only shrinks: this is the record of who asked, to invite from.
+ * Read as the operator, through RLS. Used only to invite them, as the form
+ * promised.
  */
 export const dynamic = 'force-dynamic';
 
@@ -28,8 +30,8 @@ export default async function EarlyAccess() {
     <Chrome email={admin.email}>
       <h1>Early access</h1>
       <p className="lede">
-        People who asked on the landing page to be told when Tesserafy opens. The form promised the address is used only for
-        that. &ldquo;Invite to the beta&rdquo; opens Add people with them on Free; they are marked invited once added, and
+        People who asked on the landing page to be told when Tesserafy opens, while it had that form (it was taken off on 7
+        October 2026, so nobody new arrives here). The form promised the address is used only for that. &ldquo;Invite to the beta&rdquo; opens Add people with them on Free; they are marked invited once added, and
         you send the sign-in link it makes.
       </p>
       {error ? <p className="tag open">{error.message}</p> : null}

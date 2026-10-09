@@ -510,10 +510,11 @@ void app.whenReady().then(async () => {
   // fixed address on the product's own site, so the page can open nothing else.
   ipcMain.handle('overlay:open-terms', () => shell.openExternal(new URL('/terms', PRODUCTION_URL).toString()));
 
-  // When a call ends: its page in the dashboard, at the follow-up email. Only
-  // a call's own page on the product's site, so the page can open nothing else.
-  ipcMain.handle('overlay:open-follow-up', (_event, conversationId: unknown) =>
-    isId(conversationId) ? shell.openExternal(new URL(`/conversations/${conversationId}#follow-up`, BASE_URL).toString()) : undefined,
+  // When a call ends: its page in the dashboard, with its scorecard and the
+  // way to its follow-up email. Only a call's own page on the product's site,
+  // so the page can open nothing else.
+  ipcMain.handle('overlay:open-call-page', (_event, conversationId: unknown) =>
+    isId(conversationId) ? shell.openExternal(new URL(`/conversations/${conversationId}`, BASE_URL).toString()) : undefined,
   );
 
   ipcMain.handle('overlay:appearance', () => ({ ...appearance, nativeGlass: NATIVE_GLASS }));
@@ -587,18 +588,9 @@ void app.whenReady().then(async () => {
     app.quit();
   });
 
-  ipcMain.handle('overlay:set-protection', (_event, enabled: boolean) => {
-    setProtection(Boolean(enabled));
-    return protection;
-  });
-
-  // Click-through: the meeting underneath must stay usable, which is the other
-  // half of "the meeting stays visible and clickable" in the P7 gate. Turned
-  // off again from the tray, since nothing on the overlay can be clicked.
-  ipcMain.handle('overlay:set-click-through', (_event, enabled: boolean) => {
-    setClickThrough(Boolean(enabled));
-    return clickThrough;
-  });
+  // Protection and click-through are switched by the plan, the tray and the
+  // shortcuts — this process — and never by the page: a page able to turn its
+  // own screen-share protection off is a page one bug away from doing it.
 
   ipcMain.handle('overlay:platform', () => ({
     platform: process.platform,
@@ -851,8 +843,8 @@ void app.whenReady().then(async () => {
     isId(conversationId) ? post(`/api/live/sessions/${conversationId}/events`, body) : { error: 'not a call' },
   );
 
-  // The scorecards this person may use, and which is chosen: the remembered
-  // one if still offered, else the company's own, else the default.
+  // The next call's customer, before the call: past calls, what they said,
+  // notes, and the prep for this one. Only an account id goes to the server.
   ipcMain.handle('overlay:brief', async (_event, id: unknown) => {
     if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/i.test(id)) return { error: 'not an account' };
     const response = await session.fetch(`/api/accounts/${id}/brief`);

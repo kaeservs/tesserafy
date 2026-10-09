@@ -2729,14 +2729,14 @@ main.auth {
   top: 48px;
   right: 12px;
   z-index: 1;
-  width: 49.25em;
+  width: calc(640px * var(--k));
   max-width: calc(100% - 24px);
   max-height: calc(100% - 24px);
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 0.77em 1.08em;
+  padding: 0.7692em 1.0769em;
   border: 1px solid rgba(var(--o-line), 0.35);
-  border-radius: 1.08em;
+  border-radius: 1.0769em;
   font:
     calc(13px * var(--k)) / 1.5 system-ui,
     -apple-system,
@@ -2861,9 +2861,9 @@ main.auth {
 }
 
 .od-card button {
-  padding: 0.27em 0.73em;
+  padding: 0.2727em 0.7273em;
   border: 1px solid rgba(var(--o-line), 0.35);
-  border-radius: 0.55em;
+  border-radius: 0.5455em;
   background: transparent;
   color: var(--o-button);
   font: inherit;
@@ -2876,6 +2876,25 @@ main.auth {
   border-color: var(--o-dim);
 }
 
+.od-card button[aria-pressed='true'] {
+  border-color: rgb(var(--o-accent));
+  background: rgba(var(--o-accent), 0.14);
+  color: var(--o-text);
+}
+
+.od-card .od-quit {
+  padding: 0 0.333em;
+  border-color: transparent;
+  color: var(--o-muted);
+  font-size: 1.154em;
+  line-height: 1.2;
+}
+
+.od-card .od-quit:hover {
+  border-color: transparent;
+  color: var(--o-text);
+}
+
 .od-card button:focus-visible,
 .od-card summary:focus-visible,
 .od-ask input:focus-visible {
@@ -2886,7 +2905,7 @@ main.auth {
 .od-bar {
   display: flex;
   align-items: center;
-  gap: 0.46em;
+  gap: 0.4615em;
 }
 
 .od-card .od-primary {
@@ -2909,7 +2928,7 @@ main.auth {
   display: flex;
   flex: none;
   align-items: center;
-  gap: 0.54em;
+  gap: 0.5385em;
 }
 
 .od-engagement {
@@ -2924,10 +2943,10 @@ main.auth {
 /* No transitions on the card: nothing on the real overlay moves by itself. */
 .od-meter {
   display: block;
-  width: 6.9em;
-  height: 0.4em;
+  width: 6.9231em;
+  height: 0.3846em;
   overflow: hidden;
-  border-radius: 0.23em;
+  border-radius: 0.2308em;
   background: rgba(var(--o-line), 0.25);
 }
 
@@ -2973,10 +2992,10 @@ main.auth {
 
 /* What to say next: the largest words on the card, alone. */
 .od-say {
-  margin-top: 0.77em;
-  padding: 0.77em 0.92em;
+  margin-top: 0.7692em;
+  padding: 0.7692em 0.9231em;
   border: 1px solid rgba(var(--o-accent), 0.4);
-  border-radius: 0.77em;
+  border-radius: 0.7692em;
   background: rgba(var(--o-accent), 0.12);
 }
 
@@ -2993,9 +3012,8 @@ main.auth {
 }
 
 .od-say-text {
-  margin-top: 0.15em;
   color: var(--o-text);
-  font-size: 1.23em;
+  font-size: 1.2308em;
   font-weight: 600;
   line-height: 1.35;
 }
@@ -3007,31 +3025,40 @@ main.auth {
 }
 
 .od-say-why {
-  margin-top: 0.3em;
   color: var(--o-dim);
   font-size: 0.846em;
 }
 
 .od-assist {
-  margin-top: 0.62em;
+  margin-top: 0.6154em;
 }
 
 .od-answer {
-  padding: 0.3em 0.15em 0.46em;
+  padding: 0.3077em 0.1538em 0.4615em;
 }
 
 .od-answer-head {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 0.46em;
+  gap: 0.62em;
+}
+
+.od-answer-state {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--o-dim);
+  font-size: 0.77em;
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .od-asked {
   max-width: 70%;
   overflow: hidden;
-  padding: 0.23em 0.77em;
-  border-radius: 0.92em 0.92em 0.23em 0.92em;
+  padding: 0.25em 0.8333em;
+  border-radius: 1em 1em 0.25em 1em;
   background: rgb(var(--o-accent-lo));
   color: #ffffff;
   font-size: 0.923em;
@@ -3049,12 +3076,12 @@ main.auth {
 }
 
 .od-answer ul {
-  margin: 0.46em 0 0;
-  padding-left: 1.38em;
+  margin: 0.4615em 0 0;
+  padding-left: 1.3846em;
 }
 
 .od-answer li {
-  margin: 0.23em 0;
+  margin: 0.2308em 0;
   line-height: 1.45;
 }
 
@@ -3080,11 +3107,11 @@ main.auth {
 .od-card .od-actions button {
   display: inline-flex;
   align-items: center;
-  gap: 0.4em;
-  padding: 0.33em 0.62em;
+  gap: 0.4167em;
+  padding: 0.3333em 0.6667em;
   border-color: transparent;
-  border-radius: 0.6em;
-  font-size: 0.923em;
+  border-radius: 0.5833em;
+  font-size: 0.9231em;
 }
 
 .od-card .od-actions button:hover {
@@ -3093,8 +3120,8 @@ main.auth {
 }
 
 .od-actions svg {
-  width: 1.15em;
-  height: 1.15em;
+  width: 1.1667em;
+  height: 1.1667em;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.7;
@@ -3109,11 +3136,11 @@ main.auth {
 .od-ask {
   display: flex;
   align-items: center;
-  gap: 0.46em;
-  margin-top: 0.46em;
-  padding: 0.3em 0.3em 0.3em 0.77em;
+  gap: 0.4615em;
+  margin-top: 0.4615em;
+  padding: 0.3077em 0.3077em 0.3077em 0.7692em;
   border: 1px solid rgba(var(--o-line), 0.3);
-  border-radius: 0.77em;
+  border-radius: 0.7692em;
   background: var(--o-field);
 }
 
@@ -3124,7 +3151,7 @@ main.auth {
 .od-ask input {
   flex: 1;
   min-width: 0;
-  padding: 0.3em 0;
+  padding: 0.3077em 0;
   border: 0;
   outline: none;
   background: transparent;
@@ -3142,8 +3169,8 @@ main.auth {
 .od-card .od-ask button[type='submit']:not(.link-button):not(.danger):hover:not(:disabled) {
   display: grid;
   place-items: center;
-  width: 2.15em;
-  height: 2.15em;
+  width: 2.1538em;
+  height: 2.1538em;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -3153,8 +3180,8 @@ main.auth {
 }
 
 .od-send svg {
-  width: 1.08em;
-  height: 1.08em;
+  width: 1.0769em;
+  height: 1.0769em;
   fill: currentColor;
 }
 
@@ -3163,9 +3190,9 @@ main.auth {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.3em 0.77em;
-  margin-top: 0.62em;
-  font-size: 0.846em;
+  gap: 0.3636em 0.9091em;
+  margin-top: 0.7273em;
+  font-size: 0.8462em;
 }
 
 .od-details {
@@ -3313,6 +3340,48 @@ main.auth {
 
 .od-captions p + p {
   margin-top: 0.27em;
+}
+
+/* Whether the call is kept: in the sample, never. */
+.od-keeping {
+  display: block;
+  margin-top: 0.5455em;
+  color: var(--o-muted);
+  font-size: 0.9091em;
+}
+
+/* Before the call: the customer's brief and the prep, as the overlay shows them. */
+.od-brief {
+  margin-top: 0.7273em;
+  padding: 0.7273em 0.9091em;
+  border: 1px solid rgba(var(--o-line), 0.35);
+  border-radius: 0.7273em;
+  background: rgba(var(--o-line), 0.08);
+  font-size: 0.8462em;
+  line-height: 1.4;
+}
+
+.od-brief p {
+  margin: 0 0 0.3636em;
+}
+
+.od-brief ul {
+  margin: 0.3636em 0 0;
+  padding-left: 1.2727em;
+}
+
+.od-brief li {
+  margin-bottom: 0.2727em;
+}
+
+.od-dim {
+  color: var(--o-dim);
+}
+
+.od-prep {
+  margin-top: 0.5455em;
+  padding-top: 0.5455em;
+  border-top: 1px solid rgba(var(--o-line), 0.3);
 }
 
 .od-side {
@@ -3958,9 +4027,11 @@ main.auth {
     font-size: 0.8rem;
   }
 
-  /* The card covers the meeting's width here: its name tags would show through it, and its row of buttons wraps. */
+  /* The card covers the meeting's width here: its name tags would show through it, its row of buttons wraps,
+     and the top line keeps the score but not the scorecard's name, so the grip and close still fit. */
   .od-name,
-  .od-dot {
+  .od-dot,
+  .od-engagement {
     display: none;
   }
 

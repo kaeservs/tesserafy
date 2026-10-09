@@ -291,6 +291,11 @@ than 120 words, not again for five minutes).
 The default look is Glass at 55%: clear smoked glass, so the call is still
 seen through it, as on Cluely. Light is the theme the system frosts.
 
+The landing page's demo (`components/landing/overlay-demo.tsx`) is the
+overlay drawn 1:1: the same layout, sizes in em of the same 13 px, themes and
+copy as `apps/desktop/src/renderer/index.html`, measured element by element
+to within a pixel (2026-10-09). A change to one is a change to the other.
+
 When the last meeting app lets go of the microphone while listening, the
 overlay stops by itself after 15 seconds unless the call comes back or the
 seller presses Keep listening. When a call stops, nothing is summed up on the

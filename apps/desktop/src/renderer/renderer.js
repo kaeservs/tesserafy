@@ -155,9 +155,11 @@ function render() {
       // Numbers only, not the sentence the web app writes. Phrasing it here
       // too would be a second copy of the wording to keep in step, and there
       // is no room for a sentence in a chip anyway — what a seller needs
-      // mid-call is "one more mention", which `1/2` says.
+      // mid-call is "one more mention", which `1/2` says. Only once there has
+      // been a first: `0/2` on every chip says nothing.
       const short = criterion.shortfall;
-      if (short && short.segmentsNeeded > 1) {
+      const counting = short && short.segmentsNeeded > 1 && short.segments > 0;
+      if (counting) {
         const hint = document.createElement('span');
         hint.className = 'hint';
         hint.textContent = `${short.segments}/${short.segmentsNeeded}`;
@@ -168,7 +170,7 @@ function render() {
       // Read out, and shown on hover; on the chip it is the mark.
       status.textContent = criterion.status;
       item.prepend(status);
-      item.title = `${criterion.label}: ${criterion.status}${short && short.segmentsNeeded > 1 ? ` (${short.segments} of ${short.segmentsNeeded} mentions)` : ''}`;
+      item.title = `${criterion.label}: ${criterion.status}${counting ? ` (${short.segments} of ${short.segmentsNeeded} mentions)` : ''}`;
       return item;
     }),
   );
@@ -874,11 +876,10 @@ void api.config().then((config) => {
 function showSwitches(state) {
   protection = state.protection;
   clickThrough = state.clickThrough;
-  el('unprotected').hidden = protection;
-  // Off on purpose (testing) on Incognito, or off because the plan shows it.
-  el('unprotected').textContent = state.incognito
-    ? 'PROTECTION OFF — VISIBLE IN A SHARE'
-    : 'Visible if you share your screen · Incognito hides it';
+  // Off on Incognito is the one state where the overlay is a liability: loud.
+  // Off because the plan shows it in a share is just a fact: a quiet line.
+  el('unprotected').hidden = protection || !state.incognito;
+  el('shareNote').hidden = protection || state.incognito;
   // With click-through on nothing here can be clicked, so it says how to
   // turn it off; the switch itself is the shortcut and the tray.
   el('clickNote').hidden = !clickThrough;

@@ -75,7 +75,24 @@ interface Shown {
   /** What was asked: a button's label or the question typed, shown as a bubble. */
   readonly asked: string;
   readonly answer: Answer;
+  /** Asked with Screen pressed. */
+  readonly screen: boolean;
 }
+
+/** Before a call the overlay's box asks past calls; the sample has none. */
+const PAST_CALLS: Answer = {
+  title: 'Past calls with Northwind',
+  points: [
+    {
+      text: 'Before a call, the box asks your past calls with Northwind: what they said last time, what was promised. The sample has none to ask.',
+    },
+  ],
+};
+
+/** What Screen adds in the sample: there is no screen to read, and the app would send one screenshot. */
+const SCREEN_POINT = {
+  text: 'Nothing is on screen in this sample. In the app, Screen sends one screenshot of your display with the question, for that answer only, and keeps nothing.',
+};
 
 export function OverlayDemo() {
   const [theme, setTheme] = useState<Theme>(() => choose(OVERLAY_THEMES, DEFAULT_LOOK.theme, 'glass'));
@@ -89,6 +106,8 @@ export function OverlayDemo() {
   const [question, setQuestion] = useState('');
   const [hidden, setHidden] = useState(false);
   const [ended, setEnded] = useState(false);
+  /** Screen pressed: the next answer would see the screen, once. */
+  const [screen, setScreen] = useState(false);
   /** Where it was dragged to, in the meeting's own pixels; null while it sits in its corner. */
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
 
@@ -269,15 +288,34 @@ export function OverlayDemo() {
     setHidden(value);
   };
 
-  const press = (button: (typeof BUTTONS)[number]) => setShown({ asked: button.label, answer: assist(button.mode, heard) });
+  // As the overlay does: an answer asked with Screen pressed says so, and Screen switches itself off after one.
+  const answerWith = (asked: string, answer: Answer) => {
+    setShown({
+      asked,
+      answer: screen ? { ...answer, points: [...answer.points, SCREEN_POINT] } : answer,
+      screen,
+    });
+    setScreen(false);
+  };
+
+  const press = (button: (typeof BUTTONS)[number]) => answerWith(button.label, assist(button.mode, heard));
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const asked = question.trim();
-    const answer = ask(asked, heard);
+    // As in the overlay: before anything is said, the box asks past calls; after, this call.
+    const answer = inCall || ended ? ask(asked, heard) : asked ? PAST_CALLS : null;
     if (!answer) return;
-    setShown({ asked, answer });
+    answerWith(asked, answer);
     setQuestion('');
+  };
+
+  // Ctrl+Enter in the box is Assist, as in the overlay.
+  const assistKey = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter' || !(event.ctrlKey || event.metaKey)) return;
+    event.preventDefault();
+    const button = BUTTONS[0];
+    if (button) press(button);
   };
 
   const status = listening ? 'listening to both sides' : ended ? 'call ended' : heard > 0 ? 'stopped' : 'idle';
@@ -380,6 +418,9 @@ export function OverlayDemo() {
                     <circle cx="8" cy="9" r="1.1" />
                   </svg>
                 </button>
+                <button type="button" className="od-quit" aria-label="Close the overlay" title="Close" onClick={() => hide(true)}>
+                  ×
+                </button>
               </div>
 
               {ended ? (
@@ -400,6 +441,7 @@ export function OverlayDemo() {
                 {shown ? (
                   <div className="od-answer" aria-live="polite">
                     <div className="od-answer-head">
+                      <span className="od-answer-state">{shown.screen ? 'With your screen' : ''}</span>
                       <span className="od-asked">{shown.asked}</span>
                       <button type="button" className="od-close" aria-label="Close the answer" onClick={() => setShown(null)}>
                         ×
@@ -438,9 +480,19 @@ export function OverlayDemo() {
                     onChange={(event) => setQuestion(event.target.value)}
                     maxLength={200}
                     autoComplete="off"
-                    placeholder="Ask about the call — try “who decides?”"
+                    onKeyDown={assistKey}
+                    placeholder={inCall || ended ? 'Ask about the call — or Ctrl+Enter for Assist' : 'Ask about past calls with Northwind'}
                     aria-label="Ask about the call"
                   />
+                  <button
+                    type="button"
+                    className="od-screen"
+                    aria-pressed={screen}
+                    title="Include a screenshot of this screen with the next question"
+                    onClick={() => setScreen(!screen)}
+                  >
+                    Screen
+                  </button>
                   <button type="submit" className="od-send" aria-label="Ask">
                     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                       <path d="M8 5.5v13L18.5 12z" />
@@ -448,6 +500,25 @@ export function OverlayDemo() {
                   </button>
                 </form>
               </section>
+
+              {!inCall && !ended ? (
+                <section className="od-brief" aria-label="Before this call">
+                  <p className="od-dim">2 calls before · Still open</p>
+                  <p>Last: Northwind intro, 30 Sept — scored 40</p>
+                  <ul>
+                    <li>Problem: Month-end close is slow — “it eats our first week”</li>
+                  </ul>
+                  <div className="od-prep">
+                    <p className="od-dim">Prepared for Dana Whitfield</p>
+                    <p>Open with: Ask how month-end went.</p>
+                    <ul>
+                      {TO_ASK.map((item) => (
+                        <li key={item.ask}>Ask: {item.ask}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </section>
+              ) : null}
 
               <div className="od-foot">
                 <details className="od-details">
@@ -506,6 +577,7 @@ export function OverlayDemo() {
                       ))}
                     </section>
                   ) : null}
+                  <span className="od-keeping">a sample — nothing is saved</span>
                 </details>
                 <span className="od-status">{status}</span>
               </div>

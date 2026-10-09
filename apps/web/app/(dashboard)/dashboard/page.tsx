@@ -434,7 +434,7 @@ export default async function DashboardPage() {
                 <span className={`pill ${drafted.has(last.id) ? 'pill-on' : 'pill-off'}`}>
                   {drafted.has(last.id) ? 'Follow-up drafted' : 'No follow-up yet'}
                 </span>
-                <Link href={`/conversations/${last.id}#follow-up`}>
+                <Link href={`/conversations/${last.id}/follow-up`}>
                   {drafted.has(last.id) ? 'Open the follow-up email' : 'Draft the follow-up email'}
                 </Link>
               </p>
@@ -463,7 +463,7 @@ export default async function DashboardPage() {
               {toSend.map((row) => (
                 <tr key={row.id}>
                   <td>
-                    <Link href={`/conversations/${row.id}#follow-up`}>{row.title}</Link>
+                    <Link href={`/conversations/${row.id}/follow-up`}>{row.title}</Link>
                   </td>
                   <td className="muted">{row.customer ?? '—'}</td>
                   <td className="muted">{when(row.date)}</td>

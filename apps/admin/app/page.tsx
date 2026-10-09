@@ -26,7 +26,19 @@ interface Overview {
   signup_open: boolean;
 }
 
-const PLAN_ORDER = ['trial', 'basic', 'pro', 'pilot', 'internal', 'none'];
+/**
+ * Open companies per plan, in the catalogue's order. A plan the catalogue no
+ * longer has still shows, last, under its id: a company on it is still a company.
+ */
+function byPlan(
+  plans: readonly { id: string; name: string }[],
+  counts: Record<string, number>,
+): { id: string; name: string; count: number }[] {
+  const known = new Set(plans.map((plan) => plan.id));
+  return [...plans, ...Object.keys(counts).filter((id) => !known.has(id)).map((id) => ({ id, name: id }))]
+    .map((plan) => ({ ...plan, count: counts[plan.id] ?? 0 }))
+    .filter((plan) => plan.count > 0);
+}
 
 function Stat({ value, label }: { value: string | number; label: string }) {
   return (
@@ -39,7 +51,7 @@ function Stat({ value, label }: { value: string | number; label: string }) {
 
 export default async function OverviewPage() {
   const admin = await requireAdmin();
-  const [{ data, error }, { data: deletionRequests }, { data: week }, { data: seen }, newest] = await Promise.all([
+  const [{ data, error }, { data: deletionRequests }, { data: week }, { data: seen }, newest, { data: planRows }] = await Promise.all([
     admin.db.rpc('admin_overview'),
     admin.db
       .from('account_deletion_requests')
@@ -50,6 +62,8 @@ export default async function OverviewPage() {
     admin.db.rpc('admin_feature_adoption', { p_days: 7 }),
     admin.db.rpc('admin_overlay_seen'),
     newestOverlayVersion(),
+    // The catalogue's order and names for "Companies by plan": every plan in it, Free and Incognito included.
+    admin.db.from('plans').select('id, name').order('rank'),
   ]);
   const overlays = seen ?? [];
   const overlaysBehind = overlays.filter((row) => behind(row.version, newest)).length;
@@ -188,18 +202,22 @@ export default async function OverviewPage() {
         <h2 style={{ marginTop: 0 }}>Companies by plan</h2>
         <table tabIndex={0}>
           <tbody>
-            {PLAN_ORDER.filter((plan) => (o.companies.by_plan[plan] ?? 0) > 0).map((plan) => (
-              <tr key={plan}>
+            {byPlan(planRows ?? [], o.companies.by_plan).map((plan) => (
+              <tr key={plan.id}>
                 <td>
-                  <span className="tag">{plan}</span>
+                  <span className="tag">{plan.name}</span>
                 </td>
-                <td className="num">{o.companies.by_plan[plan]}</td>
+                <td className="num">{plan.count}</td>
               </tr>
             ))}
           </tbody>
         </table>
         <p className="muted" style={{ marginBottom: 0 }}>
-          {o.companies.closed} closed. Payments are not live, so no plan is billed yet.
+          {o.companies.closed} closed. Whether plans are billed:{' '}
+          <Link className="link" href="/payments">
+            Payments
+          </Link>
+          .
         </p>
       </section>
 

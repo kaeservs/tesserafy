@@ -15,10 +15,7 @@ import { ExtractButton } from '@/components/extract-button';
 import { CallViewers } from '@/components/call-viewers';
 import { CopyMomentLink } from '@/components/copy-moment-link';
 import { ActionItems } from '@/components/action-items';
-import { FollowUp } from '@/components/follow-up';
 import { LogToCrm } from '@/components/log-to-crm';
-import { emailAvailable, sendingAddress } from '@/lib/email';
-import { followUpText } from '@tesserafy/ai';
 import { AssignCoaching } from '@/components/coaching-forms';
 import { OurSpeaker } from '@/components/our-speaker';
 import { SaveExample } from '@/components/save-example';
@@ -243,7 +240,6 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
     { data: actionRows },
     { data: followUpRow },
     { data: sendRows },
-    { data: preferences },
   ] = await Promise.all([
     // Only an owner may delete a call; erase_conversation refuses anyone else.
     // Read here so the section is not offered to someone it would refuse.
@@ -326,19 +322,14 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
       .select('id, action, owner_side, owner_name, due, done, segment_id, quote')
       .eq('conversation_id', id)
       .order('created_at'),
-    supabase
-      .from('follow_ups')
-      .select('id, subject, greeting, opening, closing, created_at, follow_up_lines(position, kind, text, segment_id, quote)')
-      .eq('conversation_id', id)
-      .maybeSingle(),
+    // The follow-up email is on its own page; here, only whether it was drafted and last sent.
+    supabase.from('follow_ups').select('created_at').eq('conversation_id', id).maybeSingle(),
     supabase
       .from('follow_up_sends')
-      .select('recipients, status, created_at, sent_by')
+      .select('recipients, status, created_at')
       .eq('conversation_id', id)
       .order('created_at', { ascending: false })
-      .limit(10),
-    // The name on the person's profile, for the follow-up's sender.
-    supabase.from('user_preferences').select('display_name').eq('user_id', user?.id ?? '').maybeSingle(),
+      .limit(1),
   ]);
 
   const isOwner = (ownership ?? []).length > 0;
@@ -391,14 +382,6 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
     examplesOf.set(moment.segment_id, list);
   }
   const criterionOptions = card.criteria.map((criterion) => ({ key: criterion.key, label: criterion.label }));
-  const followUpLines = [...(followUpRow?.follow_up_lines ?? [])]
-    .sort((a, b) => a.position - b.position)
-    .map((line) => ({
-      kind: line.kind === 'next_step' ? ('next_step' as const) : ('recap' as const),
-      text: line.text,
-      segmentId: line.segment_id,
-      quote: line.quote,
-    }));
 
   const notesBySegment = new Map<string, ShownNote[]>();
   for (const note of notes) {
@@ -465,21 +448,8 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
   }
 
   const startedAt = new Map(segments.map((segment) => [segment.id, segment.start_ms]));
-  const followUp = followUpRow
-    ? {
-        subject: followUpRow.subject,
-        text: followUpText({ ...followUpRow, lines: followUpLines }),
-        drafted: stamp(followUpRow.created_at),
-        lines: followUpLines.map((line) => ({ ...line, at: clock(startedAt.get(line.segmentId) ?? 0) })),
-      }
-    : null;
-  const sends = (sendRows ?? []).map((row) => ({
-    recipients: row.recipients,
-    when: stamp(row.created_at),
-    byYou: row.sent_by === user?.id,
-    status: row.status === 'sent' ? ('sent' as const) : row.status === 'failed' ? ('failed' as const) : ('sending' as const),
-  }));
-  const from = emailAvailable() ? sendingAddress() : null;
+  const lastSend = sendRows?.[0] ?? null;
+  const sentTo = lastSend ? `${lastSend.recipients.length} ${lastSend.recipients.length === 1 ? 'person' : 'people'}` : '';
   const talk = talkStats(segments);
   const split = sideShares(talk.speakers, ours);
   const { title, occurred_at: occurredAt } = conversation as {
@@ -740,16 +710,23 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
         />
       </section>
 
-      <section aria-labelledby="follow-up-heading" id="follow-up">
+      <section aria-labelledby="follow-up-heading">
         <h2 id="follow-up-heading">Follow-up email</h2>
-        <FollowUp
-          conversationId={id}
-          draft={followUp}
-          sending={from ? { from } : null}
-          sends={sends}
-          attendees={attendees.map((attendee) => attendee.email)}
-          senderName={preferences?.display_name ?? ''}
-        />
+        <p className="muted">
+          {followUpRow ? `Drafted ${stamp(followUpRow.created_at)}` : 'Not drafted yet.'}
+          {lastSend
+            ? lastSend.status === 'sent'
+              ? ` · sent to ${sentTo} ${stamp(lastSend.created_at)}`
+              : lastSend.status === 'failed'
+                ? ` · the last send to ${sentTo} failed`
+                : ` · sending to ${sentTo}`
+            : ''}
+        </p>
+        <p>
+          <Link href={`/conversations/${id}/follow-up`}>
+            {followUpRow ? 'Open the follow-up email' : 'Draft the follow-up email'}
+          </Link>
+        </p>
       </section>
 
       {crm ? (

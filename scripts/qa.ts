@@ -106,7 +106,7 @@ async function main(): Promise<void> {
     );
   }
 
-  for (const path of ['/api/detect', '/api/criteria', '/api/criteria/sets', '/api/export/meetings', '/api/export/reports?table=weeks']) {
+  for (const path of ['/api/detect', '/api/criteria', '/api/export/meetings', '/api/export/reports?table=weeks']) {
     const post = path === '/api/detect';
     const response = await fetch(new URL(path, baseUrl), {
       method: post ? 'POST' : 'GET',
@@ -1341,20 +1341,13 @@ async function checkWorkingWithACall(baseUrl: string, token: string, conversatio
 }
 
 /**
- * Scorecards, as the probe account, spending nothing: the picker's list, and
- * the two refusals that keep a company's set from being ambiguous or broken
- * — a template's name, and a draft the engine could not score, refused by the
- * trial before it charges anything.
+ * Scorecards, as the probe account, spending nothing: the two refusals that
+ * keep a company's set from being ambiguous or broken — a template's name,
+ * and a draft the engine could not score, refused by the trial before it
+ * charges anything. Which set a live call uses comes from the prep, through
+ * /api/live/setup, checked with the overlay's setup.
  */
 async function checkScorecards(baseUrl: string, token: string): Promise<void> {
-  const sets = await fetch(new URL('/api/criteria/sets', baseUrl), { headers: { authorization: `Bearer ${token}` } });
-  const setsBody = sets.ok ? ((await sets.json()) as { sets?: { engagementType: string; own: boolean }[] }) : {};
-  record(
-    'the overlay can list the scorecards a caller may use',
-    sets.ok && (setsBody.sets ?? []).some((set) => set.engagementType === 'discovery' && !set.own),
-    sets.ok ? (setsBody.sets ?? []).map((set) => set.engagementType).join(', ') : `${sets.status}`,
-  );
-
   const draft = {
     name: 'discovery',
     criteria: [

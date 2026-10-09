@@ -634,7 +634,7 @@ function ended() {
     if (!call || listening) return;
     showCall('Call saved. Its scorecard and follow-up are in Tesserafy.', 'Open', () => {
       el('callBanner').hidden = true;
-      void api.openFollowUp(call);
+      void api.openCallPage(call);
     });
   });
 }

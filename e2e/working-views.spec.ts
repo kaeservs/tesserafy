@@ -46,6 +46,21 @@ test('Reports changes period, carries it into its CSV, and shows goals without l
   }
 });
 
+test('a call’s follow-up email has a page of its own, linked from the call', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/conversations');
+  await page.locator('main a[href^="/conversations/"]:not([href$="/new"])').first().click();
+  await page.waitForURL((url) => /^\/conversations\/[0-9a-f-]{36}$/.test(url.pathname));
+  const call = new URL(page.url()).pathname;
+
+  // A link, not a part of the page: following it opens the email's own path. Nothing is drafted by opening it.
+  const section = page.locator('section:has(#follow-up-heading)');
+  await section.getByRole('link', { name: /follow-up email/ }).click();
+  await expect(page).toHaveURL(new RegExp(`${call}/follow-up$`));
+  await expect(page.getByRole('heading', { level: 1, name: 'Follow-up email' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^← / })).toHaveAttribute('href', call);
+});
+
 test('a call says who talked, and every line can be linked to and saved as an example', async ({ page }) => {
   await signIn(page);
   await page.goto('/conversations');

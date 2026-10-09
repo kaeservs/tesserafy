@@ -124,7 +124,7 @@ contextBridge.exposeInMainWorld('overlay', {
       if (typeof trouble.message === 'string') listener({ channel: String(trouble.channel), message: trouble.message });
     });
   },
-  openFollowUp: (conversationId: string): Promise<void> => ipcRenderer.invoke('overlay:open-follow-up', conversationId),
+  openCallPage: (conversationId: string): Promise<void> => ipcRenderer.invoke('overlay:open-call-page', conversationId),
   prepareMeeting: (eventId: string): Promise<{ prepId?: string; error?: string }> => ipcRenderer.invoke('overlay:prepare-meeting', eventId),
   openPrep: (prepId: string): Promise<void> => ipcRenderer.invoke('overlay:open-prep', prepId),
   openPlan: (): Promise<void> => ipcRenderer.invoke('overlay:open-plan'),
@@ -145,10 +145,6 @@ contextBridge.exposeInMainWorld('overlay', {
       listener({ protection: Boolean(state.protection), clickThrough: Boolean(state.clickThrough), incognito: state.incognito !== false }),
     );
   },
-  setProtection: (enabled: boolean): Promise<boolean> =>
-    ipcRenderer.invoke('overlay:set-protection', enabled),
-  setClickThrough: (enabled: boolean): Promise<boolean> =>
-    ipcRenderer.invoke('overlay:set-click-through', enabled),
   platform: (): Promise<{ platform: string; electron: string; chrome: string }> =>
     ipcRenderer.invoke('overlay:platform'),
   config: (): Promise<{

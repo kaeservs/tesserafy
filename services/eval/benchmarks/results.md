@@ -211,6 +211,52 @@ which was already the weakest criterion. **Every figure here is on synthetic
 calls of under ten minutes.** Label real ones before trusting the long-call
 behaviour.
 
+## Haiku 5.5 against Haiku 4.5 (2026-10-11, ADR 0030)
+
+`claude-haiku-5-5` rejects `temperature: 0` and thinks unless told not to;
+it ran with thinking off and no temperature, Haiku 4.5 at zero. Criteria v1,
+ten discovery calls, 28 labels, from a laptop.
+
+The product's stored-call path (`--stride 46`, one window per call):
+
+| Model | Runs | Overall P / R / F1 | Latency p50 | Cache read | Tokens in / cached / out |
+|---|---|---|---|---|---|
+| `claude-haiku-4-5` | 3 | 77% / 86% / 81% (identical) | 2.70-2.80 s | 0 / 30 | 9,755 / 0 / 1,953 |
+| `claude-haiku-5-5` | 4 | 79-84% / 89-96% / 85-89% | 2.19-2.25 s | 39 / 40 | 2,243 / ~10,500 / ~2,350 |
+
+    Haiku 5.5, F1 over four runs   88%  85%  89%  86%
+
+`timeline_stated` scored 100% in all four Haiku 5.5 runs, against 75%. The
+spread between runs lands on `pain_quantified` (71-80%) and
+`current_process_known` (78-90%).
+
+A live call's shape (`--stride 1 --window 3`), one run each: Haiku 4.5
+57% / 86% / 69%, Haiku 5.5 68% / 96% / 79%; tokens 24,775 / 0 / 3,621 against
+4,001 / 28,458 / 4,345.
+
+At published prices a stored-call run cost $0.0195 on Haiku 4.5 and about
+$0.0015 on Haiku 5.5; the live-shaped run $0.043 and $0.0029. Haiku 5.5 counts
+roughly a third more tokens for the same text and writes about a fifth more
+output; the cache, which engages only on Haiku 5.5, more than makes up for
+both, so the saving is 92-93% rather than the price's 90%.
+
+### Extraction on Haiku 5.5 (same day, not adopted)
+
+`python -m harness.run … --model <id>`, two runs each, the T3 corpus:
+
+| Model | Overall P / R / F1 | Problem P / R | Feature request P / R | Tokens in / out | Per call |
+|---|---|---|---|---|---|
+| `claude-sonnet-5` | 94-100% / 77-82% / 85-90% | 90-100% / 64-71% | 100% / 100% | 13,738 / ~4,060 | $0.0068 |
+| `claude-haiku-5-5` | 85-90% / 77-82% / 81-86% | 75-83% / 64-71% | 100% / 100% | 13,758 / ~4,470 | $0.00036 |
+
+Same recall, a few points less precision, all of it on problems: Haiku 5.5
+states a problem the label puts in different words ("credit notes are costing
+them customers" where the label is "about one in twenty comes out wrong") or
+quotes a neighbouring span. One label is four or five points here, so the gap
+is at the edge of noise, but it is the same direction in both runs. A
+twentieth of the price; T3 stays on Sonnet 5 until real transcripts can settle
+it.
+
 ## Still not measured
 
 Nothing from the phase gate. The synthesis step added in P5 has no labelled

@@ -24,9 +24,9 @@ const PRICES: Record<string, { input: number; output: number }> = {
  * plainly; reading it costs a tenth. The API reports both outside
  * `input_tokens`, so a report that prices only input and output prices
  * neither: it undercounts every cache read and misses the premium on every
- * cache write. Caching does not currently engage here at all (spike S3: the
- * frozen prefix is below Haiku's minimum cacheable size), which is precisely
- * why this is worth fixing now rather than once the numbers start moving.
+ * cache write. On Haiku 4.5 the detector's cache never engaged (spike S3: the
+ * frozen prefix is below its minimum cacheable size); on Haiku 5.5 it does,
+ * on nine calls in ten of the eval (ADR 0030), so these now carry real money.
  */
 const CACHE_WRITE_MULTIPLIER = 1.25;
 const CACHE_READ_MULTIPLIER = 0.1;
@@ -121,7 +121,7 @@ async function main(): Promise<void> {
   console.info(
     `cache reads ${cacheRead} tokens across ${rows.filter((r) => r.cache_read_tokens > 0).length}/${rows.length} calls, ${cacheWritten} written`,
   );
-  console.info('\nPrices: opus-5 $5/$25, sonnet-5 $2/$10, haiku-4.5 $1/$5 per million in/out.');
+  console.info('\nPrices: opus-5 $5/$25, sonnet-5 $2/$10, haiku-4.5 $1/$5, haiku-5.5 $0.10/$0.50 per million in/out.');
   console.info('Cached tokens bill against the input rate: 1.25x to write, 0.1x to read.');
 }
 

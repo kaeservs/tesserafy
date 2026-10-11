@@ -69,7 +69,8 @@ export interface DetectOptions {
    * strength of a T1 measurement broke all three of them.
    *
    * Overridable so a spike can vary it deliberately, never so a caller can
-   * drift into it by accident.
+   * drift into it by accident. Sent by default only to a model that takes
+   * it: see `samplingFor`.
    */
   readonly temperature?: number;
   /**
@@ -157,7 +158,7 @@ export async function detectCriteria(
   const response = await opts.client.messages.parse({
     model,
     max_tokens: opts.maxTokens ?? 1024,
-    temperature: opts.temperature ?? 0,
+    ...samplingFor(model, opts.temperature),
     // The cache breakpoint. Everything before it is frozen; the window below
     // is what changes every call.
     system: [
@@ -228,6 +229,25 @@ export async function detectCriteria(
   const base = opts.variant === 'compact' ? `${T1_DETECTOR}-compact` : T1_DETECTOR;
   const detector = isEmpty(opts.guidance) ? base : `${base}+guided`;
   return { events, rejected, model, detector, usage };
+}
+
+/**
+ * How a detector request samples, which depends on the model. Claude Haiku
+ * 4.5 takes `temperature` and thinks only when asked, so it gets zero. Claude
+ * Haiku 5.5 answers a temperature other than 1 with a 400 and thinks unless
+ * told not to, which this tier's budget cannot pay for, so it gets thinking
+ * off and no temperature: whether its variance is acceptable without one is
+ * the eval's question, not this function's. An explicit temperature is sent
+ * to any model, so a spike that asks for one finds out what the API says.
+ */
+export function samplingFor(
+  model: string,
+  temperature: number | undefined,
+): { temperature?: number; thinking?: { type: 'disabled' } } {
+  if (model.startsWith('claude-haiku-5')) {
+    return { thinking: { type: 'disabled' }, ...(temperature === undefined ? {} : { temperature }) };
+  }
+  return { temperature: temperature ?? 0 };
 }
 
 /** The volatile half of the request: everything after the cache breakpoint. */

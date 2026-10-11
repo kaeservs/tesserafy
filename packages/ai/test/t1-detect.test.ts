@@ -229,4 +229,24 @@ describe('sampling', () => {
 
     expect(parse.mock.calls[0]![0]!['temperature']).toBe(1);
   });
+
+  it('sends Haiku 5.5 no temperature and thinking off', async () => {
+    // Haiku 5.5 answers temperature 0 with a 400, and thinks by default — which
+    // a 700 ms budget cannot pay for.
+    const { client, parse } = fakeClient();
+
+    await detectCriteria(WINDOW, { client, criteria: CRITERIA, model: 'claude-haiku-5-5', onUsage: () => {} });
+
+    const params = parse.mock.calls[0]![0]!;
+    expect('temperature' in params).toBe(false);
+    expect(params['thinking']).toEqual({ type: 'disabled' });
+  });
+
+  it('keeps Haiku 4.5 without a thinking setting', async () => {
+    const { client, parse } = fakeClient();
+
+    await detectCriteria(WINDOW, { client, criteria: CRITERIA, onUsage: () => {} });
+
+    expect('thinking' in parse.mock.calls[0]![0]!).toBe(false);
+  });
 });

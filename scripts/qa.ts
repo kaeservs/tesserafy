@@ -511,6 +511,18 @@ async function checkLiveCapture(baseUrl: string, token: string): Promise<void> {
       agreement.error ?? `agreed ${agreement.agreedAt?.slice(0, 10)} under Terms ${agreement.termsVersion}`,
     );
 
+    // Both sides of a call are heard through Deepgram (ADR 0022), switched on
+    // by DEEPGRAM_API_KEY on the deployment, which a build reads only after a
+    // redeploy. Granting the overlay's one-minute token costs nothing; only a
+    // stream that runs is billed. The token itself is never printed.
+    const granted = await post('/api/live/transcription-token', {});
+    const grant = (await granted.json().catch(() => ({}))) as { token?: string; url?: string; error?: string };
+    record(
+      'live transcription is switched on: Deepgram grants the overlay a token',
+      granted.status === 200 && Boolean(grant.token) && Boolean(grant.url),
+      granted.status === 200 ? 'granted' : `${granted.status} ${grant.error ?? ''}`.trim(),
+    );
+
     const started = await post('/api/live/sessions', { title: 'QA PROBE — erased immediately' });
     const startedBody = (await started.json()) as { conversationId?: string; error?: string };
     conversationId = startedBody.conversationId ?? null;

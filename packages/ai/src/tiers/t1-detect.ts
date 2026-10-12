@@ -1,8 +1,9 @@
 /**
  * T1: criterion detection over a rolling window. Spike S3.
  *
- * Budget is 700 ms (ADR 0002), so this is `claude-haiku-4-5` with no thinking
- * and a small output. It returns DetectorEvents — the exact type
+ * Budget is 700 ms (ADR 0002), so this is `claude-haiku-5-5` with thinking
+ * off and a small output (ADR 0030: a tenth of Haiku 4.5's price, and more
+ * accurate on every run of the eval). It returns DetectorEvents — the exact type
  * `packages/scoring` consumes — so a detector cannot produce a score even by
  * accident (invariant 1). Whether a criterion is confirmed is decided later,
  * by a pure function, from these spans.
@@ -22,7 +23,7 @@ import { logUsage, toUsageEvent, type UsageEvent, type UsageSink } from '../tele
 import { locate, type QuotableSegment, type RejectedSignal } from './evidence';
 import { isEmpty, renderScoringGuidance, type Guidance } from './guidance';
 
-export const T1_MODEL = 'claude-haiku-4-5';
+export const T1_MODEL = 'claude-haiku-5-5';
 
 /** Bumped whenever the prompt or the criteria phrasing changes. */
 export const T1_DETECTOR = 't1-detect@2026-09-19';
@@ -55,21 +56,22 @@ export interface DetectOptions {
    */
   readonly variant?: 'full' | 'compact';
   /**
-   * Sampling temperature. Zero by default, which is what this is for.
+   * Sampling temperature. Zero by default on Haiku 4.5, which is what this
+   * was for; Haiku 5.5 takes none.
    *
-   * Nothing here ever set one, so every call ran at the API default and the
-   * detector disagreed with itself: eight runs over one identical window
-   * produced five distinct results and three different sets of criteria, one
-   * of them empty. A live scorecard that changes because the model rolled
-   * differently is not measuring the conversation.
+   * Nothing here ever set one, so every call on Haiku 4.5 ran at the API
+   * default and the detector disagreed with itself: eight runs over one
+   * identical window produced five distinct results and three different sets
+   * of criteria, one of them empty. A live scorecard that changes because the
+   * model rolled differently is not measuring the conversation.
    *
-   * That was measured on this tier and is true of this tier. T2 and T3 run on
-   * models that deprecate the parameter and reject a request carrying it, so
-   * they send it only when a caller asks. Pinning it everywhere on the
-   * strength of a T1 measurement broke all three of them.
+   * Haiku 5.5 rejects any temperature but 1, so it samples, and four runs of
+   * the eval put it at 85-89% F1 against Haiku 4.5's 81% at zero: it moves
+   * more between runs and is better on every one of them (ADR 0030).
    *
    * Overridable so a spike can vary it deliberately, never so a caller can
-   * drift into it by accident.
+   * drift into it by accident. Sent by default only to a model that takes
+   * it: see `samplingFor`.
    */
   readonly temperature?: number;
   /**
@@ -157,7 +159,7 @@ export async function detectCriteria(
   const response = await opts.client.messages.parse({
     model,
     max_tokens: opts.maxTokens ?? 1024,
-    temperature: opts.temperature ?? 0,
+    ...samplingFor(model, opts.temperature),
     // The cache breakpoint. Everything before it is frozen; the window below
     // is what changes every call.
     system: [
@@ -228,6 +230,25 @@ export async function detectCriteria(
   const base = opts.variant === 'compact' ? `${T1_DETECTOR}-compact` : T1_DETECTOR;
   const detector = isEmpty(opts.guidance) ? base : `${base}+guided`;
   return { events, rejected, model, detector, usage };
+}
+
+/**
+ * How a detector request samples, which depends on the model. Claude Haiku
+ * 4.5 takes `temperature` and thinks only when asked, so it gets zero. Claude
+ * Haiku 5.5 answers a temperature other than 1 with a 400 and thinks unless
+ * told not to, which this tier's budget cannot pay for, so it gets thinking
+ * off and no temperature: whether its variance is acceptable without one is
+ * the eval's question, not this function's. An explicit temperature is sent
+ * to any model, so a spike that asks for one finds out what the API says.
+ */
+export function samplingFor(
+  model: string,
+  temperature: number | undefined,
+): { temperature?: number; thinking?: { type: 'disabled' } } {
+  if (model.startsWith('claude-haiku-5')) {
+    return { thinking: { type: 'disabled' }, ...(temperature === undefined ? {} : { temperature }) };
+  }
+  return { temperature: temperature ?? 0 };
 }
 
 /** The volatile half of the request: everything after the cache breakpoint. */

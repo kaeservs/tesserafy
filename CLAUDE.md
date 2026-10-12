@@ -53,7 +53,7 @@ Do not break these without an ADR that supersedes the existing one.
 | Tier | Job | Model |
 |---|---|---|
 | T0 | Chunking, endpointing, redaction | none — pure TS |
-| T1 | Criterion detectors: live on the last 3 utterances (<= 700 ms); a stored call in 48-utterance windows | `claude-haiku-4-5` |
+| T1 | Criterion detectors: live on the last 3 utterances (<= 700 ms); a stored call in 48-utterance windows | `claude-haiku-5-5`, thinking off (ADR 0030) |
 | T2 | Live suggestions, and the overlay's Assist, What should I say?, Follow-up questions, Recap and Ask (<= 3.5 s) | `claude-sonnet-5` |
 | T3 | Post-call extraction and synthesis; action items and the follow-up email; a call prep's brief; the "Ask your calls" agent | `claude-sonnet-5` (ADR 0014, 0018) |
 | — | Embeddings | `gte-small` in a Supabase Edge Function, 384-dim |
@@ -63,15 +63,18 @@ stored call used to be scored one Haiku call per utterance (~500 for an hour,
 up to ~$0.95, more than Basic's price over its imports); in 48-utterance
 windows it is ~11, and measured better, not worse — rolling three-utterance
 windows claim criteria the surrounding conversation does not support (ADR
-0014). Change windowing or a tier's model only against the harness in
+0014). Haiku 5.5 then cut each of those calls by about nine tenths and
+scored higher doing it (ADR 0030). Change windowing or a tier's model only against the harness in
 `services/eval` (`spike_s3 --stride`, `run --model`), over several runs.
 
 Live calls put the frozen prefix (system + criteria definitions + context pack)
 before the cache breakpoint and the rolling transcript window after it. Check
 `usage.cache_read_input_tokens` is non-zero — a timestamp leaking into the
-prefix silently kills the cache and the cost model with it. Measured caveat:
-with only a system prompt and five criteria the prefix is below Haiku's
-minimum cacheable size and the cache never engages at all (spike S3).
+prefix silently kills the cache and the cost model with it. On Haiku 4.5 a
+system prompt and five criteria were below the minimum cacheable size and the
+cache never engaged (spike S3); on Haiku 5.5 the prefix with its output schema
+is ~1,050 tokens, over its 512 minimum, and the eval read it back on 39 calls
+of 40 (ADR 0030).
 
 T1 runs server-side, not from the client: measurement put the network cost of
 calling from a laptop at ~840 ms of a budget the model alone already exceeds
@@ -83,21 +86,23 @@ never reach segments, embeddings, prompts, ticket bodies or the search index.
 It does not remove names and is not anonymisation. Money and durations are
 protected explicitly — masking a quantified pain deletes the finding.
 
-T1 runs at `temperature: 0`; T2 and T3 send no temperature at all, because
-`claude-sonnet-5` and `claude-opus-5` deprecate the parameter and reject a
-request carrying it. Pinning it everywhere on the strength of a T1 measurement
-took `/api/suggest`, extraction and synthesis down at once, and only a smoke
-check found it. Nothing set one until it was measured:
-eight runs over a single identical window produced five distinct results and
-three different sets of criteria, one of them empty, and the same three
-conversations scored 45 and 18 on consecutive trials. Extraction against a
-fixed schema has nothing to gain from sampling. Overridable per call so a
-spike can vary it deliberately.
+No tier sends a temperature now: `claude-haiku-5-5`, `claude-sonnet-5` and
+`claude-opus-5` reject one (any value but 1 is a 400). Pinning it everywhere
+on the strength of a T1 measurement once took `/api/suggest`, extraction and
+synthesis down at once, and only a smoke check found it. T1 ran at
+`temperature: 0` on Haiku 4.5, because without it eight runs over a single
+identical window produced five distinct results and three different sets of
+criteria, one of them empty, and the same three conversations scored 45 and
+18 on consecutive trials. `samplingFor` in `t1-detect.ts` still sends Haiku
+4.5 its zero, so a spike can compare; a temperature is overridable per call
+for the same reason.
 
-It reduces variance rather than removing it, and that was measured on T1
-only. Four repeats of the criterion eval scored 81/81/81/79, with the movement
-landing entirely on the one criterion nearest a judgement call. Quote a range,
-not a figure, and treat two or three points between single runs as nothing.
+Haiku 5.5 samples, and it was measured for exactly that before it took T1
+(ADR 0030): four runs scored 85-89% F1 where Haiku 4.5 scored 81% three times
+at zero. It moves more between runs and is better on every one of them;
+criteria latch, so the movement shows as which criteria a call reaches, not
+as a score that flickers. Quote a range, not a figure, and treat two or three
+points between single runs as nothing.
 
 A company teaches the AI through `ai_guidance`: every "This score is wrong"
 with a reason becomes an example (a trigger writes it; withdrawing the

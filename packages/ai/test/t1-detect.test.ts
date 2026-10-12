@@ -204,14 +204,14 @@ describe('systemPrompt', () => {
 });
 
 describe('sampling', () => {
-  it('pins temperature to zero', async () => {
+  it('pins temperature to zero on Haiku 4.5', async () => {
     // Measured before this was set: eight runs over one identical window gave
     // five distinct results and three different sets of criteria, one of them
     // empty. A live scorecard that changes because the model rolled
     // differently is not measuring the conversation.
     const { client, parse } = fakeClient();
 
-    await detectCriteria(WINDOW, { client, criteria: CRITERIA, onUsage: () => {} });
+    await detectCriteria(WINDOW, { client, criteria: CRITERIA, model: 'claude-haiku-4-5', onUsage: () => {} });
 
     expect(parse.mock.calls[0]![0]!['temperature']).toBe(0);
   });
@@ -228,5 +228,26 @@ describe('sampling', () => {
     });
 
     expect(parse.mock.calls[0]![0]!['temperature']).toBe(1);
+  });
+
+  it('runs on Haiku 5.5 with no temperature and thinking off', async () => {
+    // Haiku 5.5 answers temperature 0 with a 400, and thinks by default — which
+    // a 700 ms budget cannot pay for.
+    const { client, parse } = fakeClient();
+
+    await detectCriteria(WINDOW, { client, criteria: CRITERIA, onUsage: () => {} });
+
+    const params = parse.mock.calls[0]![0]!;
+    expect(params['model']).toBe('claude-haiku-5-5');
+    expect('temperature' in params).toBe(false);
+    expect(params['thinking']).toEqual({ type: 'disabled' });
+  });
+
+  it('keeps Haiku 4.5 without a thinking setting', async () => {
+    const { client, parse } = fakeClient();
+
+    await detectCriteria(WINDOW, { client, criteria: CRITERIA, model: 'claude-haiku-4-5', onUsage: () => {} });
+
+    expect('thinking' in parse.mock.calls[0]![0]!).toBe(false);
   });
 });

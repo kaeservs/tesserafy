@@ -40,3 +40,4 @@ accepted ADR to change the decision; write a new one that supersedes it.
 | 0028 | First-run steps and plan announcements are each person's, kept in the database | proposed |
 | 0029 | On a Mac, call detection reads Core Audio through a small Swift helper | proposed |
 | 0030 | The criterion detector runs on Haiku 5.5, with thinking off and no temperature | proposed |
+| 0031 | Free is a trial, given once: one meeting of up to fifteen minutes | proposed |

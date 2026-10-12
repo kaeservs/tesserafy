@@ -153,8 +153,8 @@ select set_config('request.jwt.claims',
 
 select is(
   (public.take_plan_allowance('calls') ->> 'limit')::integer,
-  2,
-  'past the end of a cancelled period there is only Free''s allowance to spend (ADR 0027)'
+  1,
+  'past the end of a cancelled period there is only Free''s trial to spend (ADR 0027, 0031)'
 );
 select is(
   (select c.plan || '/' || s.status from public.companies c join public.subscriptions s on s.company_id = c.id

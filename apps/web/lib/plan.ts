@@ -25,7 +25,7 @@ import { NextResponse } from 'next/server';
 export type Meter = 'calls' | 'extractions' | 'pattern_runs' | 'questions' | 'live_seconds';
 
 export type Spent =
-  | { allowed: true; ledgerId: number; refundToken: string }
+  | { allowed: true; ledgerId: number; refundToken: string; plan: string }
   | {
       allowed: false;
       meter: Meter;
@@ -53,7 +53,7 @@ export async function spend(db: SupabaseClient, meter: Meter, amount = 1): Promi
   }
   const result = data as unknown as TakeResult;
   if (result.allowed && result.ledger_id !== undefined && result.refund_token !== undefined) {
-    return { allowed: true, ledgerId: result.ledger_id, refundToken: result.refund_token };
+    return { allowed: true, ledgerId: result.ledger_id, refundToken: result.refund_token, plan: result.plan };
   }
   return {
     allowed: false,
@@ -80,7 +80,7 @@ const NOUN: Record<Meter, [string, string]> = {
 };
 
 const PLAN_NAME: Record<string, string> = {
-  free: 'Free plan',
+  free: 'Free trial',
   trial: 'trial',
   basic: 'Starter plan',
   pro: 'Pro plan',
@@ -94,6 +94,28 @@ const WHERE = 'Settings → Membership';
 function day(iso: string | null): string {
   if (!iso) return '';
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' });
+}
+
+/**
+ * Whether a call is longer than the plan imports (`plans.max_call_minutes`:
+ * Free's fifteen, ADR 0031): the refusal to show, or null when it fits. Closed
+ * on failure, like the allowance: a plan that cannot be read imports nothing.
+ */
+export async function importTooLong(
+  db: SupabaseClient,
+  plan: string,
+  segments: readonly { startMs: number; endMs: number }[],
+): Promise<string | null> {
+  const { data, error } = await db.from('plans').select('max_call_minutes').eq('id', plan).maybeSingle();
+  if (error) return 'Your plan could not be checked just now, so nothing was imported. Try again shortly.';
+  const cap = data?.max_call_minutes ?? null;
+  if (cap === null || segments.length === 0) return null;
+  const start = segments.reduce((low, segment) => Math.min(low, segment.startMs), Infinity);
+  const end = segments.reduce((high, segment) => Math.max(high, segment.endMs), 0);
+  const minutes = Math.ceil((end - start) / 60_000);
+  if (minutes <= cap) return null;
+  const name = PLAN_NAME[plan] ?? `${plan} plan`;
+  return `Your ${name} imports a call of up to ${cap} minutes, and this one is ${minutes}. An owner can choose Starter, Pro or Incognito on ${WHERE}.`;
 }
 
 /** What to tell the person, in the product's words, not the meter's. */
@@ -115,9 +137,9 @@ export function describeRefusal(spent: Extract<Spent, { allowed: false }>): stri
       : spent.plan === 'basic'
         ? `An owner can upgrade or add seats on ${WHERE}, or it resets on ${day(spent.resetsAt)}.`
         : `An owner can add seats on ${WHERE}, or it resets on ${day(spent.resetsAt)}.`;
-  // The trial is fourteen days, not a month.
-  const per = spent.plan === 'trial' ? '' : ' a month';
-  return `Your ${plan} includes ${what}${per}, and they have all been used. ${next}`;
+  // The old trial is fourteen days and Free is given once (ADR 0031), not a month.
+  const per = spent.plan === 'trial' || spent.plan === 'free' ? '' : ' a month';
+  return `Your ${plan} includes ${what}${per}, and ${limit === 1 ? 'it has' : 'they have all'} been used. ${next}`;
 }
 
 /** 402: the request was fine; the plan has none of this left. */

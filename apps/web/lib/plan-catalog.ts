@@ -17,10 +17,14 @@ export interface CatalogRow {
   readonly pattern_runs: number | null;
   readonly questions: number | null;
   readonly live_minutes: number | null;
+  /** False: the allowance is given once, a trial (Free). */
+  readonly renews: boolean;
+  /** The longest call that may be imported, in minutes; null for no limit. */
+  readonly max_call_minutes: number | null;
 }
 
 export const CATALOG_COLUMNS =
-  'id, name, price_usd_cents, rank, incognito, per_seat, max_seats, calls, extractions, pattern_runs, questions, live_minutes';
+  'id, name, price_usd_cents, rank, incognito, per_seat, max_seats, calls, extractions, pattern_runs, questions, live_minutes, renews, max_call_minutes';
 
 const METERS = [
   ['calls', 'imported call', 'imported calls'],
@@ -46,11 +50,17 @@ function count(n: number | null, one: string, many: string): string | null {
   return `${n} ${n === 1 ? one : many}`;
 }
 
+/** How often an allowance comes: "a seat a month", "a month", or once on a trial. */
+function period(plan: CatalogRow): string {
+  if (!plan.renews) return ', once, as a trial';
+  return plan.per_seat ? ' a seat a month' : ' a month';
+}
+
 /** What a plan includes, a line each, per seat where it is per seat. */
 export function planFacts(plan: CatalogRow): string[] {
   const lines = METERS.map(([key, one, many]) => count(plan[key], one, many)).filter((line): line is string => line !== null);
-  const per = plan.per_seat ? ' a seat a month' : ' a month';
-  const facts = lines.length > 0 ? [`${lines.join(', ')}${per}`] : [];
+  const facts = lines.length > 0 ? [`${lines.join(', ')}${period(plan)}`] : [];
+  if (plan.max_call_minutes !== null) facts.push(`An imported call may be up to ${plan.max_call_minutes} minutes long`);
   facts.push(plan.max_seats === 1 ? 'Just you: one seat' : plan.per_seat ? 'As many seats as your team needs' : 'Your whole team');
   facts.push(plan.incognito ? 'The overlay is hidden from screen sharing' : 'The overlay shows if you share your screen');
   return facts;
@@ -64,19 +74,19 @@ export function planFacts(plan: CatalogRow): string[] {
 export function planChanges(from: CatalogRow | null, to: CatalogRow): { direction: 'up' | 'down'; lines: string[] } {
   const direction = !from || to.rank >= from.rank ? 'up' : 'down';
   const lines: string[] = [];
-  for (const [key, , many] of METERS) {
+  for (const [key, one, many] of METERS) {
     // Unlimited is null; a plan that is not there yet has none of anything.
     const before = from ? from[key] : 0;
     const after = to[key];
     if (after === before) continue;
-    const per = to.per_seat ? ' a seat' : '';
     if (after === null) lines.push(`Unlimited ${many}`);
     else if (after === 0) lines.push(`No ${many}`);
     else {
       const was = !from ? '' : before === null ? ', down from unlimited' : `, ${after > before ? 'up' : 'down'} from ${before}`;
-      lines.push(`${after} ${many}${per} a month${was}`);
+      lines.push(`${after} ${after === 1 ? one : many}${period(to)}${was}`);
     }
   }
+  if (from && !from.renews && to.renews) lines.push('Every month, not once');
   if ((from?.max_seats ?? null) === 1 && to.max_seats !== 1) lines.push('Add teammates: every seat brings its own allowance');
   if (from && from.max_seats !== 1 && to.max_seats === 1) lines.push('One seat: just you');
   if (to.incognito && !from?.incognito) lines.push('The overlay is hidden from screen sharing');

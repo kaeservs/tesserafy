@@ -24,15 +24,18 @@ describe('describeRefusal', () => {
     );
   });
 
-  it('on Free it points at choosing a plan', () => {
-    expect(describeRefusal(refusal({ plan: 'free', limit: 2 }))).toBe(
-      'Your Free plan includes 2 imported calls a month, and they have all been used. An owner can choose Starter, Pro or Incognito on Settings → Membership.',
+  it('on Free, a trial given once, it points at choosing a plan', () => {
+    expect(describeRefusal(refusal({ plan: 'free', limit: 1 }))).toBe(
+      'Your Free trial includes 1 imported call, and it has been used. An owner can choose Starter, Pro or Incognito on Settings → Membership.',
+    );
+    expect(describeRefusal(refusal({ plan: 'free', meter: 'live_seconds', limit: 900 }))).toBe(
+      'Your Free trial includes 15 live minutes, and they have all been used. An owner can choose Starter, Pro or Incognito on Settings → Membership.',
     );
   });
 
   it('says plainly what a plan does not include at all', () => {
     expect(describeRefusal(refusal({ plan: 'free', limit: 0, meter: 'pattern_runs' }))).toBe(
-      '“Look for patterns” runs are not on your Free plan. An owner can choose Starter, Pro or Incognito on Settings → Membership.',
+      '“Look for patterns” runs are not on your Free trial. An owner can choose Starter, Pro or Incognito on Settings → Membership.',
     );
   });
 

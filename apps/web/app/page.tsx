@@ -40,6 +40,8 @@ interface Plan {
   pattern_runs: number | null;
   questions: number | null;
   live_minutes: number | null;
+  renews: boolean;
+  max_call_minutes: number | null;
 }
 
 const FEATURES: readonly { icon: IconName; title: string; body: string }[] = [
@@ -147,12 +149,14 @@ function allowances(plan: Plan): string[] {
     if (n === null) lines.push(`Unlimited ${many}`);
     else if (n > 0) lines.push(`${n} ${n === 1 ? one : many}`);
   };
-  add(plan.calls, 'imported call', 'imported calls');
+  const upTo = plan.max_call_minutes === null ? '' : ` of up to ${plan.max_call_minutes} minutes`;
+  add(plan.calls, `imported call${upTo}`, `imported calls${upTo}`);
   add(plan.live_minutes, 'live minute', 'live minutes');
   add(plan.questions, 'question to Ask', 'questions to Ask');
   add(plan.extractions, 'call read — insights, prep or follow-up', 'call reads — insights, prep, follow-ups');
   add(plan.pattern_runs, 'pattern run', 'pattern runs');
   lines.push(plan.incognito ? 'Overlay hidden from screen sharing' : 'Overlay shows in a screen share');
+  if (!plan.renews) lines.push('Once, as a trial');
   return lines;
 }
 
@@ -165,7 +169,7 @@ export default async function Landing() {
 
   const { data: planRows } = await supabase
     .from('plans')
-    .select('id, name, price_usd_cents, trial_days, incognito, calls, extractions, pattern_runs, questions, live_minutes')
+    .select('id, name, price_usd_cents, trial_days, incognito, calls, extractions, pattern_runs, questions, live_minutes, renews, max_call_minutes')
     .order('rank');
   const plans = (planRows ?? []) as Plan[];
   const free = plans.find((plan) => plan.id === 'free') ?? null;
@@ -275,7 +279,7 @@ export default async function Landing() {
             <section id="pricing" className="landing-section wash" aria-labelledby="pricing-heading" data-reveal>
               <h2 id="pricing-heading">Pricing</h2>
               <p className="section-lede">
-                {free ? 'Start on Free, one seat. ' : ''}Then a plan, per seat, by the month — every seat brings its own
+                {free ? 'Try a meeting on Free, one seat. ' : ''}Then a plan, per seat, by the month — every seat brings its own
                 allowance. Cancel any time.
               </p>
               <div className="price-grid">
@@ -284,7 +288,7 @@ export default async function Landing() {
                     <h3>{plan.name}</h3>
                     <p className="price-figure">
                       {plan.price_usd_cents === null ? '$0' : `$${(plan.price_usd_cents / 100).toFixed(2)}`}
-                      <span>{plan.price_usd_cents === null ? ' one seat' : ' a seat a month'}</span>
+                      <span>{plan.price_usd_cents === null ? (plan.renews ? ' one seat' : ' one seat, a trial') : ' a seat a month'}</span>
                     </p>
                     <ul>
                       {allowances(plan).map((line) => (

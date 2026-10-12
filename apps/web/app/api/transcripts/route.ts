@@ -8,7 +8,7 @@ import {
 import { recordFailure } from '@tesserafy/ai';
 import { after, NextResponse, type NextRequest } from 'next/server';
 import { CONSENT_REQUIRED, CONSENT_STATEMENTS, consentConfirmed } from '@/lib/consent';
-import { planExhausted, refund, spend } from '@/lib/plan';
+import { importTooLong, PLAN_PAGE, planExhausted, refund, spend } from '@/lib/plan';
 import { allowance, tooMany } from '@/lib/rate-limit';
 import { embedUploadedConversation } from '@/lib/embed-upload';
 import { scoreUploadedConversation } from '@/lib/score-upload';
@@ -139,6 +139,13 @@ export async function POST(request: NextRequest) {
   // stored — and given back if storing it fails.
   const spent = await spend(who.db, 'calls');
   if (!spent.allowed) return planExhausted(spent);
+  // A plan may cap how long an imported call is: Free's trial is one meeting
+  // of up to fifteen minutes (ADR 0031). Given back, as a failed import is.
+  const tooLong = await importTooLong(who.db, spent.plan, clean);
+  if (tooLong) {
+    await refund(who.db, spent);
+    return NextResponse.json({ error: tooLong, upgrade: PLAN_PAGE }, { status: 402 });
+  }
 
   const { data, error } = await who.db.rpc('import_conversation', {
     p_title: title,

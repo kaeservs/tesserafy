@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { DeleteMyAccount } from '@/components/delete-my-account';
+import { CATALOG_COLUMNS, planFacts } from '@/lib/plan-catalog';
 import { createClient } from '@/lib/supabase/server';
 import { CreateCompany } from './create-company';
 
@@ -32,14 +33,17 @@ export default async function Welcome() {
     .eq('user_id', user.id);
   if ((count ?? 0) > 0) redirect('/dashboard');
 
-  const [{ data: open }, { data: deletion }] = await Promise.all([
+  const [{ data: open }, { data: deletion }, { data: free }] = await Promise.all([
     supabase.rpc('signup_is_open'),
     supabase
       .from('account_deletion_requests')
       .select('requested_at')
       .is('resolved_at', null)
       .maybeSingle(),
+    supabase.from('plans').select(CATALOG_COLUMNS).eq('id', 'free').maybeSingle(),
   ]);
+  // What Free gives, in the catalogue's own words rather than typed here.
+  const freeFacts = free ? planFacts(free).slice(0, 2).join('. ') : null;
 
   // Asked to be deleted: that is the whole story now, not an invitation to
   // start a company.
@@ -74,9 +78,8 @@ export default async function Welcome() {
       {open === true ? (
         <>
           <p>
-            Name your company to start on Free: one seat, and each month 2 imported calls, 1 “Find
-            insights in this call”, 5 questions to Ask and 10 live minutes. Starter is $9.99, Pro $19.99 and
-            Incognito $59.99 a seat a month.
+            Name your company to start a Free trial for one person{freeFacts ? `: ${freeFacts}` : ''}. Starter is
+            $9.99, Pro $19.99 and Incognito $59.99 a seat a month.
           </p>
           <CreateCompany />
         </>

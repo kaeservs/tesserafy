@@ -23,7 +23,7 @@ insert into auth.users (id, email, aud, role) values
 insert into public.platform_admins (user_id, note) values
   ('ad0e0002-0000-4000-8000-000000000001', 'test operator');
 insert into public.model_usage (company_id, tier, model, detector, input_tokens, output_tokens, duration_ms)
-values ('00000000-0000-4000-8000-00000000000a', 't1', 'claude-haiku-5-5', 't1-detect@test', 1000000, 1000000, 10);
+values ('00000000-0000-4000-8000-00000000000a', 't1', 'claude-haiku-5-5', 't1-detect@test', 1000000, 200000, 10);
 
 set local role authenticated;
 select set_config('request.jwt.claims',
@@ -31,7 +31,7 @@ select set_config('request.jwt.claims',
 
 select is(
   (select spend_30d_usd from public.admin_companies() where company_id = '00000000-0000-4000-8000-00000000000a'),
-  0.6000::numeric,
+  0.2000::numeric,
   'the company list prices the detector at what it costs'
 );
 

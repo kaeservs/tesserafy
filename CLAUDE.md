@@ -420,6 +420,17 @@ company name, nothing from a call — because what it reads goes on to a chat
 app. Its judgement of what needs a person is the same as `pnpm health`'s, and
 a test fails if they drift (ADR 0019).
 
+The repository is public. No credential — real, test, or a fallback — goes
+in any file: the e2e specs read `E2E_USERNAME`/`E2E_PASSWORD` from the
+environment (`e2e/credentials.ts`) and fail without them. CI uploads no
+artifacts and records no traces, and `pnpm health` in Actions prints counts,
+kinds and route names, never a message. Every AI path spends an allowance:
+Assist spends live seconds a press, a suggestion only follows the caller's
+own charged detection, and a new route that calls a model without a meter is
+the bug the 2026-10-12 review found
+(`docs/engineering/security-review-2026-10-12.md`, which lists what is still
+open).
+
 ## Commands
 
     pnpm install

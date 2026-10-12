@@ -19,9 +19,8 @@
  * It reads production and writes nothing.
  */
 import { expect, test, type Page } from '@playwright/test';
+import { PASSWORD, USERNAME } from './credentials';
 
-const USERNAME = process.env['E2E_USERNAME'] ?? 'kaeser';
-const PASSWORD = process.env['E2E_PASSWORD'] ?? 'tesserafy2026';
 
 /** How many conversations to open. Every one of them is a page load. */
 const AT_MOST = 6;

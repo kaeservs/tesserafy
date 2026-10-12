@@ -69,7 +69,12 @@ export function liveTranscript<T extends { id: string; text: string; speaker: st
   const kept: T[] = [];
   let total = 0;
   for (const segment of [...(transcript as T[])].reverse()) {
-    total += segment.text.length;
+    // A line with no words carries nothing for the model and is not sent.
+    if (segment.text.trim().length === 0) continue;
+    // Everything that reaches the prompt counts, not only the words: four
+    // hundred empty lines with long ids and speakers once added ~72,000
+    // characters on top of the budget (security review, 2026-10-12).
+    total += segment.text.length + segment.id.length + (segment.speaker?.length ?? 0);
     if (total > TRANSCRIPT_CHARS) break;
     kept.unshift({ ...segment, text: redactLive(segment.text) });
   }

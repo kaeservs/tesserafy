@@ -55,13 +55,18 @@ export const LIMITS: Record<string, readonly Window[]> = {
     { seconds: 86_400, limit: 3000 },
   ],
   // A transcription token opens a call's two streams; a call needs one, a
-  // dropped connection another. Generous for a person, a ceiling on a loop.
+  // dropped connection another. A token can open Deepgram streams that run
+  // on our account after it expires, so this is kept close to what a day of
+  // calls needs (security review, 2026-10-12: it was 10 a minute, 200 a day).
+  // The hard ceiling is the Deepgram project's own balance.
   'api/live/transcription': [
-    { seconds: 60, limit: 10 },
-    { seconds: 86_400, limit: 200 },
+    { seconds: 60, limit: 4 },
+    { seconds: 86_400, limit: 30 },
   ],
+  // One follows each detection, and only within two minutes of one
+  // (app/api/suggest): a customer line every five seconds is twelve a minute.
   'api/suggest': [
-    { seconds: 60, limit: 20 },
+    { seconds: 60, limit: 12 },
     { seconds: 86_400, limit: 600 },
   ],
   // The overlay's buttons and ask box: pressed by a person a few times a

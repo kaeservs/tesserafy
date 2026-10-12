@@ -120,6 +120,13 @@ export async function POST(request: NextRequest) {
     parsedTitle?.trim() ||
     file.name.replace(/\.[^.]+$/, '');
   const occurredAt = (form.get('occurredAt') as string | null)?.trim() || null;
+  // Checked before anything is charged: a date that does not parse used to
+  // throw after the charge (a 500, not refunded), and one far in the future
+  // kept a call past its company's retention (security review, 2026-10-12).
+  const occurredTime = occurredAt ? new Date(occurredAt).getTime() : null;
+  if (occurredTime !== null && (!Number.isFinite(occurredTime) || occurredTime > Date.now() + 86_400_000)) {
+    return NextResponse.json({ error: 'When the call happened must be a real date, not in the future.' }, { status: 400 });
+  }
   // The picker sends "name/version" as one value, so the version is the one
   // it showed. Separate fields are still accepted from other clients.
   const [pickedType, pickedVersion] = ((form.get('criteriaSet') as string | null) ?? '').split('/');
@@ -155,7 +162,7 @@ export async function POST(request: NextRequest) {
       endMs: segment.endMs,
       text: segment.text,
     })),
-    ...(occurredAt ? { p_occurred_at: new Date(occurredAt).toISOString() } : {}),
+    ...(occurredTime !== null ? { p_occurred_at: new Date(occurredTime).toISOString() } : {}),
     p_engagement_type: engagementType,
     p_criteria_version: Number.isInteger(criteriaVersion) ? criteriaVersion : 1,
     // The words, chosen here rather than sent by the browser, so what is

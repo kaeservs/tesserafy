@@ -1,3 +1,4 @@
+import { inflateRawSync } from 'node:zlib';
 import { createSupabaseEmbedder, recordFailure, retrieve, storeKnowledge, toCompanyId, type KnowledgePassage } from '@tesserafy/ai';
 import type { SupabaseClient } from '@tesserafy/db';
 import { DOCUMENT_MAX_CHARS, toPassages } from '@tesserafy/ingest';
@@ -26,6 +27,58 @@ export class UnreadableDocument extends Error {
   override readonly name = 'UnreadableDocument';
 }
 
+/** What a Word file may unpack to, all its parts together. A real one is a few megabytes. */
+export const DOCX_MAX_UNPACKED_BYTES = 64 * 1024 * 1024;
+
+/**
+ * Whether a .docx unpacks to no more than `limit` bytes, by inflating each
+ * part with a hard cap rather than trusting the sizes its directory claims.
+ * A Word file is a zip, and a 4 MB zip can inflate a thousandfold: the parser
+ * reads it whole, so an unchecked one runs the function out of memory
+ * (security review, 2026-10-12).
+ */
+export function docxFitsIn(bytes: Uint8Array, limit = DOCX_MAX_UNPACKED_BYTES): boolean {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  // The end-of-central-directory record, within the last 64 KB of comment room.
+  let end = -1;
+  for (let at = bytes.length - 22; at >= Math.max(0, bytes.length - 22 - 65_535); at--) {
+    if (view.getUint32(at, true) === 0x06054b50) {
+      end = at;
+      break;
+    }
+  }
+  if (end < 0) return false;
+  const entries = view.getUint16(end + 10, true);
+  let at = view.getUint32(end + 16, true);
+  let budget = limit;
+  for (let n = 0; n < entries; n++) {
+    if (at + 46 > bytes.length || view.getUint32(at, true) !== 0x02014b50) return false;
+    const method = view.getUint16(at + 10, true);
+    const packed = view.getUint32(at + 20, true);
+    const nameLength = view.getUint16(at + 28, true);
+    const extraLength = view.getUint16(at + 30, true);
+    const commentLength = view.getUint16(at + 32, true);
+    const local = view.getUint32(at + 42, true);
+    if (local + 30 > bytes.length || view.getUint32(local, true) !== 0x04034b50) return false;
+    const start = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
+    const data = bytes.subarray(start, start + packed);
+    if (method === 0) {
+      budget -= data.length;
+    } else if (method === 8) {
+      try {
+        budget -= inflateRawSync(data, { maxOutputLength: Math.max(1, budget) }).length;
+      } catch {
+        return false;
+      }
+    } else {
+      return false;
+    }
+    if (budget < 0) return false;
+    at += 46 + nameLength + extraLength + commentLength;
+  }
+  return true;
+}
+
 /** The plain text of an uploaded file, or UnreadableDocument saying why not. */
 export async function documentText(fileName: string, bytes: ArrayBuffer): Promise<string> {
   const name = fileName.toLowerCase();
@@ -35,6 +88,9 @@ export async function documentText(fileName: string, bytes: ArrayBuffer): Promis
     const pdf = await getDocumentProxy(new Uint8Array(bytes));
     text = (await extractText(pdf, { mergePages: true })).text;
   } else if (name.endsWith('.docx')) {
+    if (!docxFitsIn(new Uint8Array(bytes))) {
+      throw new UnreadableDocument('That Word file could not be read safely. Save it again, or paste the part that matters.');
+    }
     const mammoth = await import('mammoth');
     text = (await mammoth.extractRawText({ buffer: Buffer.from(bytes) })).value;
   } else if (name.endsWith('.txt') || name.endsWith('.md')) {

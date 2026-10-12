@@ -1,6 +1,8 @@
 import type { NextConfig } from 'next';
 
 const config: NextConfig = {
+  // Nothing in a response says what it was built with.
+  poweredByHeader: false,
   // Workspace packages ship TypeScript source (ADR 0001). List each one here
   // as the web app starts importing it.
   transpilePackages: [],
@@ -14,7 +16,7 @@ const config: NextConfig = {
         source: '/:path*',
         headers: [
           { key: 'X-Frame-Options', value: 'DENY' },
-          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'" },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), geolocation=(), microphone=()' },

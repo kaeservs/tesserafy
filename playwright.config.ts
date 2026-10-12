@@ -29,10 +29,11 @@ export default defineConfig({
 
   use: {
     baseURL,
-    // Kept only for a failure. A passing run of a read-only suite has nothing
-    // worth storing, and a trace of a signed-in session holds meeting content.
-    trace: 'retain-on-failure',
-    screenshot: 'only-on-failure',
+    // Kept only for a failure, and only on this machine. A trace of a
+    // signed-in session holds its cookies and meeting content; in CI nothing
+    // is written that a public repository's artifacts could carry.
+    trace: process.env['CI'] ? 'off' : 'retain-on-failure',
+    screenshot: process.env['CI'] ? 'off' : 'only-on-failure',
     video: 'off',
   },
 

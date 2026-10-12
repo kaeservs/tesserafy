@@ -97,11 +97,18 @@ async function main(): Promise<void> {
   const alarmingCount = alarming(groups);
   console.log(`health: ${rows.length} failure(s) in the last ${hours}h\n`);
 
+  // In GitHub Actions the log is public — the repository is — so a run there
+  // says what kind of thing failed where and how often, never the message: an
+  // upstream error can quote the request back, and here the request is
+  // meeting content (security review, 2026-10-12; ADR 0019's counts-only rule).
+  const publicLog = process.env['GITHUB_ACTIONS'] === 'true';
   for (const group of groups) {
     const mark = group.needsAPerson ? '!' : '-';
-    const where = [group.source, group.tier, group.model, group.status].filter(Boolean).join(' ');
+    // A source is a route name; anything else in it was written by a caller.
+    const source = group.source && /^[a-z0-9/_.[\]-]{1,64}$/.test(group.source) ? group.source : 'other';
+    const where = [source, group.tier, group.model, group.status].filter(Boolean).join(' ');
     console.log(`  ${mark} ${group.kind}  ${where}  ×${group.count}  (last ${ago(group.last)})`);
-    console.log(`      ${group.message.slice(0, 160)}`);
+    if (!publicLog) console.log(`      ${group.message.slice(0, 160)}`);
   }
 
   if (alarmingCount === 0) {

@@ -9,7 +9,11 @@
  */
 import { TranscriptParseError, withoutBom, type ParsedTranscript, type Turn } from '../types';
 
-const TIMING = /^(.+?)\s+-->\s+(.+?)(?:\s+.*)?$/;
+// A timestamp has no spaces in it. Matching `\S+` rather than a lazy `.+?`
+// keeps this linear: the lazy form backtracked quadratically on a long line
+// with no arrow, and a 2 MB upload of one such line held a server for most of
+// an hour (security review, 2026-10-12).
+const TIMING = /^(\S+)\s+-->\s+(\S+)(?:\s.*)?$/;
 const VOICE_SPAN = /^<v(?:\.[^\s>]+)*\s+([^>]*)>([\s\S]*?)(?:<\/v>)?$/;
 // A speaker label, not a sentence that happens to contain a colon. A name is
 // short, unpunctuated and at most a few words: "Grace Hopper", "Speaker 1",
@@ -60,7 +64,9 @@ function readCues(lines: readonly string[], from: number, format: string): Parse
     const timingLine = line.includes('-->') ? line : (lines[++i]?.trim() ?? '');
     const timing = TIMING.exec(timingLine);
     if (!timing) {
-      throw new TranscriptParseError(`Expected a cue timing line, got "${timingLine}"`, i + 1);
+      // Quoted short: the message goes back to whoever uploaded the file.
+      const shown = timingLine.length > 80 ? `${timingLine.slice(0, 80)}…` : timingLine;
+      throw new TranscriptParseError(`Expected a cue timing line, got "${shown}"`, i + 1);
     }
 
     const startMs = parseTimestamp(timing[1]!, i + 1);

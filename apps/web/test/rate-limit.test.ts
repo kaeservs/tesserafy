@@ -122,7 +122,7 @@ describe('what the caller is told', () => {
     // the product being broken.
     const body = (await tooMany('api/suggest', 5).json()) as { error: string };
 
-    expect(body.error).toContain('20 every 60s');
+    expect(body.error).toContain('12 every 60s');
     expect(body.error).toContain('600 a day');
     expect(body.error).toContain('5s');
   });

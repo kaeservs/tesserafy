@@ -12,3 +12,10 @@ allowBuilds:
   # does not build (it ships NSIS); its install script has nothing to do.
   electron-winstaller: false
 
+
+# Patched versions of two of Next's own dependencies until Next ships them
+# (security review, 2026-10-12): sharp's librsvg and source-map-js's indexed
+# source maps. Drop these once Next depends on these versions or later.
+overrides:
+  sharp@<0.35.5: 0.35.5
+  source-map-js@<1.2.2: 1.2.2

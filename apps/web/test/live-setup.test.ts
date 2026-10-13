@@ -42,6 +42,17 @@ describe('the call so far', () => {
     expect(kept[0]!.id).not.toBe('u0');
   });
 
+  it('counts ids and speakers in the budget, and sends no empty lines', () => {
+    // Four hundred empty lines with long ids and speakers once rode in on top
+    // of the budget (security review, 2026-10-12).
+    const padding = Array.from({ length: 200 }, (_, i) => ({ id: `${i}`.padEnd(100, 'i'), speaker: 'S'.repeat(80), text: '' }));
+    const words = Array.from({ length: 200 }, (_, i) => ({ id: `w${i}`.padEnd(100, 'i'), speaker: 'S'.repeat(80), text: 'x'.repeat(200) }));
+    const kept = liveTranscript<(typeof words)[number]>([...padding, ...words])!;
+    expect(kept.every((segment) => segment.text.length > 0)).toBe(true);
+    const sent = kept.reduce((sum, s) => sum + s.text.length + s.id.length + s.speaker.length, 0);
+    expect(sent).toBeLessThanOrEqual(TRANSCRIPT_CHARS);
+  });
+
   it('is refused when it is not a transcript', () => {
     expect(liveTranscript('text')).toBeNull();
     expect(liveTranscript([{ id: 'u0', speaker: 'Dana', text: 'x'.repeat(5_000) }])).toBeNull();

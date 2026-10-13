@@ -29,6 +29,9 @@ interface SuggestBody {
   window?: SuggestableSegment[];
 }
 
+/** How recently a detection must have charged live time for a suggestion to follow it. */
+const SUGGEST_AFTER_CHARGE_MS = 2 * 60_000;
+
 export async function POST(request: NextRequest) {
   const who = await caller(request);
   if (!who) {
@@ -63,12 +66,23 @@ export async function POST(request: NextRequest) {
   const limit = await allowance(who.db, 'api/suggest');
   if (!limit.allowed) return tooMany('api/suggest', limit.retryAfterSeconds);
 
-  // Suggestions ride on detections, which spend the live minutes; with none
-  // left there is no suggestion — the same normal answer as "nothing worth
-  // asking", so the caller needs no special case.
-  const { data: live } = await who.db.rpc('plan_has_allowance', { p_meter: 'live_seconds' });
-  if (live !== true) {
-    return NextResponse.json({ suggestion: null, reason: 'The plan’s live minutes for this month are used.' });
+  // Suggestions ride on detections, which spend the live minutes: one follows
+  // each, so this caller must have had live time charged in the last two
+  // minutes. Having minutes left used to be enough, and nothing about asking
+  // for suggestions ever reduced them (security review, 2026-10-12). With no
+  // recent charge there is no suggestion — the same normal answer as "nothing
+  // worth asking", so the caller needs no special case.
+  const since = new Date(Date.now() - SUGGEST_AFTER_CHARGE_MS).toISOString();
+  const { data: charged } = await who.db
+    .from('usage_ledger')
+    .select('id')
+    .eq('user_id', who.userId)
+    .eq('meter', 'live_seconds')
+    .is('refunded_at', null)
+    .gte('at', since)
+    .limit(1);
+  if (!charged || charged.length === 0) {
+    return NextResponse.json({ suggestion: null, reason: 'Suggestions follow the call as it is scored.' });
   }
 
   try {

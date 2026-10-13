@@ -61,7 +61,7 @@ jobs:
         shell: bash
         working-directory: ${{ runner.temp }}
         run: |
-          fuses=$(npx --yes @electron/fuses read --app "$GITHUB_WORKSPACE/apps/desktop/release/win-unpacked/Tesserafy.exe")
+          fuses=$(npx --yes @electron/fuses@1.8.0 read --app "$GITHUB_WORKSPACE/apps/desktop/release/win-unpacked/Tesserafy.exe")
           echo "$fuses"
           for expected in "RunAsNode is Disabled" \
                           "EnableNodeOptionsEnvironmentVariable is Disabled" \
@@ -112,7 +112,7 @@ jobs:
           [ "${#apps[@]}" -eq 2 ] && [ -d "${apps[0]}" ] || { echo "::error::expected two apps, found: ${apps[*]}"; exit 1; }
           for app in "${apps[@]}"; do
             echo "== $app"
-            fuses=$(npx --yes @electron/fuses read --app "$app")
+            fuses=$(npx --yes @electron/fuses@1.8.0 read --app "$app")
             echo "$fuses"
             for expected in "RunAsNode is Disabled" \
                             "EnableNodeOptionsEnvironmentVariable is Disabled" \

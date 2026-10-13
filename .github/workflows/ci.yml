@@ -16,6 +16,10 @@ concurrency:
 env:
   ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
 
+# Read the code, nothing more: no step here writes to the repository.
+permissions:
+  contents: read
+
 jobs:
   checks:
     name: Typecheck, unit tests, retrieval guard

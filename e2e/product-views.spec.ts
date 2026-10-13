@@ -9,9 +9,8 @@
  * what opening it is for.
  */
 import { expect, test, type Page } from '@playwright/test';
+import { PASSWORD, USERNAME } from './credentials';
 
-const USERNAME = process.env['E2E_USERNAME'] ?? 'kaeser';
-const PASSWORD = process.env['E2E_PASSWORD'] ?? 'tesserafy2026';
 
 async function signIn(page: Page): Promise<void> {
   await page.goto('/login');

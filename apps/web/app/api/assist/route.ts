@@ -16,6 +16,7 @@ import { LIVE_LIMITS, liveAllowedFor, liveTranscript, readScreen } from '@/lib/l
 import { hasKnowledge, knowledgeFor } from '@/lib/knowledge';
 import { briefText } from '@/lib/live-setup';
 import { PREP_COLUMNS, type PrepRow } from '@/lib/prep';
+import { ASSIST_LIVE_SECONDS, planExhausted, refund, spend } from '@/lib/plan';
 import { allowance, tooMany } from '@/lib/rate-limit';
 import { caller } from '@/lib/supabase/caller';
 
@@ -81,17 +82,18 @@ export async function POST(request: NextRequest) {
   // The gates, side by side rather than one after another: each is a round
   // trip to the database, and the seller is waiting on the answer. All must
   // pass; the order they are reported in is the order they were written in.
-  const [liveAllowed, limit, { data: live }, companyId] = await Promise.all([
+  const [liveAllowed, limit, companyId] = await Promise.all([
     liveAllowedFor(who.db, who.userId),
     allowance(who.db, 'api/assist'),
-    who.db.rpc('plan_has_allowance', { p_meter: 'live_seconds' }),
     myCompanyId(who.db, who.userId),
   ]);
   if (!liveAllowed) return NextResponse.json({ error: 'Live is not on your plan.' }, { status: 403 });
   if (!limit.allowed) return tooMany('api/assist', limit.retryAfterSeconds);
-  if (live !== true) {
-    return NextResponse.json({ error: 'Your plan has no live minutes left this month.' }, { status: 402 });
-  }
+  // Each answer spends a little of the live minutes (ASSIST_LIVE_SECONDS),
+  // given back if it fails. It used to need only some minutes left, which no
+  // press ever reduced (security review, 2026-10-12).
+  const spent = await spend(who.db, 'live_seconds', ASSIST_LIVE_SECONDS);
+  if (!spent.allowed) return planExhausted(spent);
 
   // Three lookups, side by side for the same reason.
   if (screen && companyId) {
@@ -151,6 +153,7 @@ export async function POST(request: NextRequest) {
           const result = await assist(input, options, (point) => send({ type: 'point', point }));
           send({ type: 'done', mode, points: result.points, dropped: result.dropped });
         } catch (error) {
+          await refund(who.db, spent);
           const failure = recordFailure(error, { db: who.db, source: 'api/assist', tier: 't2' });
           send({ type: 'error', error: failure.said });
         }
@@ -165,6 +168,7 @@ export async function POST(request: NextRequest) {
     const result = await assist(input, options);
     return NextResponse.json({ mode, points: result.points, dropped: result.dropped });
   } catch (error) {
+    await refund(who.db, spent);
     const failure = recordFailure(error, { db: who.db, source: 'api/assist', tier: 't2' });
     return NextResponse.json({ error: failure.said }, { status: 502 });
   }

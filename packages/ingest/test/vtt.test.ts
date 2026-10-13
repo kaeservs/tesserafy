@@ -101,4 +101,19 @@ describe('parseVtt', () => {
   it('rejects a file with no cues', () => {
     expect(() => parseVtt('WEBVTT\n\nNOTE just a comment\n')).toThrow(/no cues/);
   });
+
+  it('refuses a huge line without an arrow at once, and quotes only the start of it', () => {
+    // The old timing pattern backtracked quadratically here: 1.1 s at 40,000
+    // characters, most of an hour at 2 MB (security review, 2026-10-12).
+    const started = Date.now();
+    let message = '';
+    try {
+      parseVtt(`WEBVTT\n\n1\na${' '.repeat(200_000)}b\n`);
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(Date.now() - started).toBeLessThan(500);
+    expect(message).toMatch(/Expected a cue timing line/);
+    expect(message.length).toBeLessThan(200);
+  });
 });

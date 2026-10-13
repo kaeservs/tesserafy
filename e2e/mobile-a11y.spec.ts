@@ -7,9 +7,8 @@
  */
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { PASSWORD, USERNAME } from './credentials';
 
-const USERNAME = process.env['E2E_USERNAME'] ?? 'kaeser';
-const PASSWORD = process.env['E2E_PASSWORD'] ?? 'tesserafy2026';
 
 test.use({ viewport: { width: 375, height: 800 } });
 

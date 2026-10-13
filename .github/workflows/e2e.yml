@@ -18,6 +18,9 @@ on:
     - cron: '30 6 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   evidence:
     name: Every quote verbatim in its segment
@@ -46,11 +49,7 @@ jobs:
           ADMIN_BASE_URL: ${{ secrets.ADMIN_BASE_URL }}
         run: pnpm e2e
 
-      # Only on failure, and short-lived: a trace of a signed-in session holds
-      # meeting content, which is not something to leave in artifact storage.
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: playwright-trace
-          path: test-results/
-          retention-days: 3
+      # No artifacts. A trace of a signed-in session holds the session's
+      # cookies and meeting content, and this repository is public, so anyone
+      # can download what a run uploads (security review, 2026-10-12). A
+      # failure is reproduced locally with `pnpm e2e`, where the trace stays.

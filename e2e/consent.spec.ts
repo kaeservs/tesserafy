@@ -11,9 +11,8 @@
  * the microphone is never started.
  */
 import { expect, test } from '@playwright/test';
+import { PASSWORD, USERNAME } from './credentials';
 
-const USERNAME = process.env['E2E_USERNAME'] ?? 'kaeser';
-const PASSWORD = process.env['E2E_PASSWORD'] ?? 'tesserafy2026';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/login');

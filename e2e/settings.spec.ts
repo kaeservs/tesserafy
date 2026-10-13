@@ -9,9 +9,8 @@
  * It reads production and writes nothing.
  */
 import { expect, test } from '@playwright/test';
+import { PASSWORD, USERNAME } from './credentials';
 
-const USERNAME = process.env['E2E_USERNAME'] ?? 'kaeser';
-const PASSWORD = process.env['E2E_PASSWORD'] ?? 'tesserafy2026';
 
 test('a member sees how long calls are kept, and is not offered the choice', async ({ page }) => {
   await page.goto('/login');

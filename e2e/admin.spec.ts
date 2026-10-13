@@ -14,6 +14,7 @@
  * running teaches people to ignore it.
  */
 import { expect, test } from '@playwright/test';
+import { EMAIL, PASSWORD } from './credentials';
 
 const ADMIN = process.env['ADMIN_BASE_URL'];
 
@@ -33,8 +34,8 @@ test.describe('the console refuses everybody else', () => {
     // a customer is not being an operator, and the check that says so is in
     // the database, not in this app.
     await page.goto(`${ADMIN}/login`);
-    await page.getByLabel('Email').fill('kaeser@tesserafy.local');
-    await page.getByLabel('Password').fill('tesserafy2026');
+    await page.getByLabel('Email').fill(EMAIL);
+    await page.getByLabel('Password').fill(PASSWORD);
     await page.getByRole('button', { name: 'Sign in' }).click();
 
     await expect(page.getByText('That did not work.')).toBeVisible();

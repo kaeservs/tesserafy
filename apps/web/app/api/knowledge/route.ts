@@ -37,6 +37,18 @@ export async function POST(request: NextRequest) {
   const limit = await allowance(who.db, 'api/knowledge');
   if (!limit.allowed) return tooMany('api/knowledge', limit.retryAfterSeconds);
 
+  // Owners only, asked before the file is read: reading a document is the
+  // expensive part, and the database's own check comes after it.
+  const { data: membership } = await who.db
+    .from('company_members')
+    .select('role')
+    .eq('company_id', companyId)
+    .eq('user_id', who.userId)
+    .maybeSingle();
+  if (membership?.role !== 'owner') {
+    return NextResponse.json({ error: 'Only an owner can add to the knowledge.' }, { status: 403 });
+  }
+
   let text: string;
   let source: 'upload' | 'pasted';
   let fileName: string | null = null;

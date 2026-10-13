@@ -12,9 +12,8 @@
  * It reads production and writes nothing.
  */
 import { expect, test } from '@playwright/test';
+import { PASSWORD, USERNAME } from './credentials';
 
-const USERNAME = process.env['E2E_USERNAME'] ?? 'kaeser';
-const PASSWORD = process.env['E2E_PASSWORD'] ?? 'tesserafy2026';
 
 test('the pages a customer reads name no terminal command', async ({ page }) => {
   // Ten full page loads in one test. At the default 30 s it failed on time,

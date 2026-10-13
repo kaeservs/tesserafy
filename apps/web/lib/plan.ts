@@ -183,3 +183,14 @@ export function liveSeconds(window: readonly { startMs: number; endMs: number }[
   const seconds = Math.round((last.endMs - from) / 1000);
   return Math.min(60, Math.max(5, Number.isFinite(seconds) ? seconds : 5));
 }
+
+/**
+ * Seconds of live time one answer from the overlay's Assist spends: its four
+ * buttons and the ask box. A larger-model read of the call, pressed by a
+ * person a few times a call — ten presses in a half-hour call are under two
+ * minutes of it. Before 2026-10-12 a press needed only some minutes left and
+ * spent none, so an account could ask to the rate limit for as long as one
+ * minute remained (security review). Live suggestions ride on detections,
+ * which already pay for the call's time, and are tied to them instead.
+ */
+export const ASSIST_LIVE_SECONDS = 10;

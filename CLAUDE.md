@@ -156,6 +156,11 @@ internal — so a limit is a row, not a deploy. Paid plans are per seat (ADR
 0027): a company's limit is the plan's per-seat allowance times its seats
 (`private.company_limit`), nobody joins a company without a seat (a trigger
 on `company_members`), and new, cancelled and ended plans land on Free.
+Free is a trial, given once (ADR 0031): one meeting of up to fifteen minutes
+— fifteen live minutes and one imported call no longer than fifteen
+(`plans.renews` false, `plans.max_call_minutes`) — with a period that never
+ends, so used stays used. What a seat costs us at full use, plan by plan, is
+worked out in ADR 0031: live minutes (Deepgram) and Ask (Sonnet) decide it.
 Incognito is the plan whose overlay hides from screen sharing; the others
 show in a share. Live calls open to every plan once `DEEPGRAM_API_KEY` is set
 (`liveCallsAvailable`). Every AI route

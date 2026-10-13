@@ -61,7 +61,9 @@ function standing(o: PlanOverview, catalog: readonly CatalogPlan[]): string {
   if (o.plan === 'none') {
     return 'No plan. Reading, search, export and deleting still work; the AI features need a plan.';
   }
-  if (o.plan === 'free') return 'Free — one seat and a small allowance each month. Starter, Pro or Incognito for more.';
+  if (o.plan === 'free') {
+    return 'Free — a trial for one person: one meeting of up to 15 minutes, given once. Starter, Pro or Incognito to keep going.';
+  }
   if (o.plan === 'trial') return `Trial — ends ${day(o.period_end)}. After that you are on Free; choose a plan to keep more.`;
   if (o.plan === 'pilot' || o.plan === 'internal') return `${o.plan_name} — set by Tesserafy, with no monthly limits.`;
   if (o.cancel_at_period_end) {

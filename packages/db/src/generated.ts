@@ -2349,6 +2349,7 @@ export type Database = {
           id: string
           incognito: boolean
           live_minutes: number | null
+          max_call_minutes: number | null
           max_seats: number | null
           name: string
           pattern_runs: number | null
@@ -2356,6 +2357,7 @@ export type Database = {
           price_usd_cents: number | null
           questions: number | null
           rank: number
+          renews: boolean
           self_serve: boolean
           stripe_price_id: string | null
           trial_days: number | null
@@ -2366,6 +2368,7 @@ export type Database = {
           id: string
           incognito?: boolean
           live_minutes?: number | null
+          max_call_minutes?: number | null
           max_seats?: number | null
           name: string
           pattern_runs?: number | null
@@ -2373,6 +2376,7 @@ export type Database = {
           price_usd_cents?: number | null
           questions?: number | null
           rank: number
+          renews?: boolean
           self_serve?: boolean
           stripe_price_id?: string | null
           trial_days?: number | null
@@ -2383,6 +2387,7 @@ export type Database = {
           id?: string
           incognito?: boolean
           live_minutes?: number | null
+          max_call_minutes?: number | null
           max_seats?: number | null
           name?: string
           pattern_runs?: number | null
@@ -2390,6 +2395,7 @@ export type Database = {
           price_usd_cents?: number | null
           questions?: number | null
           rank?: number
+          renews?: boolean
           self_serve?: boolean
           stripe_price_id?: string | null
           trial_days?: number | null

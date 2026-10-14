@@ -243,6 +243,16 @@ describe('sampling', () => {
     expect(params['thinking']).toEqual({ type: 'disabled' });
   });
 
+  it('sends any other model no temperature it did not ask for', async () => {
+    // Sonnet 5 and Opus 5 answer a temperature other than 1 with a 400, as
+    // Haiku 5.5 does; a spike run on one of them got a zero nobody chose.
+    const { client, parse } = fakeClient();
+
+    await detectCriteria(WINDOW, { client, criteria: CRITERIA, model: 'claude-sonnet-5', onUsage: () => {} });
+
+    expect('temperature' in parse.mock.calls[0]![0]!).toBe(false);
+  });
+
   it('keeps Haiku 4.5 without a thinking setting', async () => {
     const { client, parse } = fakeClient();
 

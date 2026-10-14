@@ -89,6 +89,14 @@ export async function POST(request: NextRequest) {
   ]);
   if (!liveAllowed) return NextResponse.json({ error: 'Live is not on your plan.' }, { status: 403 });
   if (!limit.allowed) return tooMany('api/assist', limit.retryAfterSeconds);
+  // Refused before the charge: a press the company has switched off costs
+  // nothing.
+  if (screen && companyId) {
+    const { data: company } = await who.db.from('companies').select('screen_assist').eq('id', companyId).maybeSingle();
+    if (company?.screen_assist !== true) {
+      return NextResponse.json({ error: 'Your company has switched off Ask about your screen.' }, { status: 403 });
+    }
+  }
   // Each answer spends a little of the live minutes (ASSIST_LIVE_SECONDS),
   // given back if it fails. It used to need only some minutes left, which no
   // press ever reduced (security review, 2026-10-12).
@@ -96,12 +104,6 @@ export async function POST(request: NextRequest) {
   if (!spent.allowed) return planExhausted(spent);
 
   // Three lookups, side by side for the same reason.
-  if (screen && companyId) {
-    const { data: company } = await who.db.from('companies').select('screen_assist').eq('id', companyId).maybeSingle();
-    if (company?.screen_assist !== true) {
-      return NextResponse.json({ error: 'Your company has switched off Ask about your screen.' }, { status: 403 });
-    }
-  }
   const engagementType = typeof body.engagementType === 'string' ? body.engagementType.slice(0, 64) : 'discovery';
   const lookFor = mode === 'ask' ? question : transcript.slice(-3).map((segment) => segment.text).join(' ');
   const [brief, purpose, knowledge] = await Promise.all([

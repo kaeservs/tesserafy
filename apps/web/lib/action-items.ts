@@ -2,6 +2,9 @@ import Anthropic from '@anthropic-ai/sdk';
 import { awaitableDatabaseSink, extractActionItems, T3_ACTIONS_DETECTOR } from '@tesserafy/ai';
 import type { SupabaseClient } from '@tesserafy/db';
 import { ourSpeakerNames } from '@/lib/talk';
+import { readCallTranscript } from './call-transcript';
+import { AUTO_SCORE_MAX_WINDOWS } from './score-upload';
+import { windowCount } from './scoring-status';
 import { loadGuidance, purposeOf } from './guidance';
 
 /**
@@ -14,6 +17,7 @@ import { loadGuidance, purposeOf } from './guidance';
 export type ActionOutcome =
   | { readonly status: 'found'; readonly recorded: number; readonly rejected: number }
   | { readonly status: 'nothing_to_read' }
+  | { readonly status: 'too_long' }
   | { readonly status: 'not_found' };
 
 export async function findActionItems(
@@ -24,12 +28,15 @@ export async function findActionItems(
   const { data: call } = await db.from('conversations').select('id, company_id, engagement_type').eq('id', conversationId).maybeSingle();
   if (!call) return { status: 'not_found' };
 
-  const [{ data: rows }, { data: ours }] = await Promise.all([
-    db.from('segments').select('id, speaker, start_ms, text').eq('conversation_id', conversationId).order('start_ms'),
+  const [rows, { data: ours }] = await Promise.all([
+    readCallTranscript(db, conversationId),
     db.from('our_speakers').select('name').eq('company_id', call.company_id),
   ]);
-  const segments = (rows ?? []).map((row) => ({ id: row.id, speaker: row.speaker, startMs: row.start_ms, text: row.text }));
+  const segments = rows.map((row) => ({ id: row.id, speaker: row.speaker, startMs: row.start_ms, text: row.text }));
   if (segments.length === 0) return { status: 'nothing_to_read' };
+  // The ceiling extraction and scoring keep: the whole call goes to the
+  // model, and past it a call is one the product declines to read.
+  if (windowCount(segments.length) > AUTO_SCORE_MAX_WINDOWS) return { status: 'too_long' };
 
   const guidance = await loadGuidance(db, call.company_id, 'action_items', call.engagement_type, await purposeOf(db, call.company_id, call.engagement_type));
   const usage = awaitableDatabaseSink({ db, companyId: call.company_id, conversationId, detector: T3_ACTIONS_DETECTOR });

@@ -1,6 +1,6 @@
 import { recordFailure } from '@tesserafy/ai';
 import { NextResponse, type NextRequest } from 'next/server';
-import { draftCallFollowUp } from '@/lib/follow-up';
+import { draftCallFollowUp, type FollowUpOutcome } from '@/lib/follow-up';
 import { planExhausted, refund, spend } from '@/lib/plan';
 import { allowance, tooMany } from '@/lib/rate-limit';
 import { caller } from '@/lib/supabase/caller';
@@ -14,6 +14,12 @@ import { caller } from '@/lib/supabase/caller';
  * here, as the seller, never on its own.
  */
 export const runtime = 'nodejs';
+
+const REFUSED: Record<Exclude<FollowUpOutcome['status'], 'drafted'>, string> = {
+  not_found: 'That call was not found.',
+  nothing_to_read: 'This call has no transcript to read.',
+  too_long: 'This call is longer than the product reads automatically.',
+};
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -33,7 +39,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (outcome.status !== 'drafted') {
       await refund(who.db, spent);
       return NextResponse.json(
-        { error: outcome.status === 'not_found' ? 'That call was not found.' : 'This call has no transcript to read.' },
+        { error: REFUSED[outcome.status] },
         { status: outcome.status === 'not_found' ? 404 : 422 },
       );
     }

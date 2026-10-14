@@ -54,6 +54,8 @@ describe('tryScorecard', () => {
       column === 'conversation_id' ? chain(segments[value] ?? []) : self;
     self['then'] = (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
       resolve({ data: rows, error: null });
+    // A transcript is read in pages; everything comes on the first.
+    self['range'] = (from: number) => chain(from === 0 ? rows : []);
     return self;
   }
 

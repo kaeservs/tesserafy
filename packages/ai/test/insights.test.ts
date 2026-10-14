@@ -71,12 +71,23 @@ function fakeDb(options: FakeOptions = {}) {
       return Promise.resolve({ data: 'insight-1', error: null });
     },
     from(table: string) {
+      // A read pages with .order().range(); the rows are served once, from
+      // the first page, so a second page comes back empty as it would.
+      const paged = {
+        order() {
+          return paged;
+        },
+        range(from: number) {
+          const all = rowsFor(table, null);
+          return thenable({ ...all, data: from === 0 ? all.data : [] });
+        },
+      };
       const builder = {
         select() {
           return builder;
         },
         eq() {
-          return { ...builder, ...thenable(rowsFor(table, null)) };
+          return { ...builder, ...paged, ...thenable(rowsFor(table, null)) };
         },
         in(_column: string, values: string[]) {
           return thenable(rowsFor(table, values));

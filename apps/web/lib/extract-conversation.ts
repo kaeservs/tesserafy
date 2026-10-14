@@ -2,6 +2,7 @@ import { loadGuidance, purposeOf } from './guidance';
 import Anthropic from '@anthropic-ai/sdk';
 import { awaitableDatabaseSink, extractSignals, T3_DETECTOR, type ExtractableSegment } from '@tesserafy/ai';
 import type { SupabaseClient } from '@tesserafy/db';
+import { readCallTranscript } from './call-transcript';
 import { AUTO_SCORE_MAX_WINDOWS } from './score-upload';
 import { windowCount } from './scoring-status';
 
@@ -26,6 +27,9 @@ import { windowCount } from './scoring-status';
  * comes with the embedding change.
  */
 
+/** Every version of the extractor records as `t3-extract@<version>`. */
+const EXTRACTOR_FAMILY = T3_DETECTOR.slice(0, T3_DETECTOR.indexOf('@') + 1);
+
 export type ExtractOutcome =
   | { readonly status: 'extracted'; readonly recorded: number; readonly rejected: number }
   | { readonly status: 'already_extracted' }
@@ -44,26 +48,24 @@ export async function extractConversation(
     .single();
   if (conversationError) throw new Error(`Reading the conversation failed: ${conversationError.message}`);
 
-  // One run per call. A T3 usage row for this conversation is what the
-  // pipeline already counts as "extraction ran", including a run that found
+  // One run per call. An extractor's usage row for this conversation is what
+  // the pipeline counts as "extraction ran", including a run that found
   // nothing — and a call where the customer said nothing worth recording must
-  // not be re-extracted on T3 every time somebody presses the button.
+  // not be re-extracted on T3 every time somebody presses the button. Only
+  // the extractor's rows: action items and the follow-up are T3 as well, and
+  // counting them hid this button on every call they had been drafted for.
   const { count: runs, error: runsError } = await db
     .from('model_usage')
     .select('id', { count: 'exact', head: true })
     .eq('conversation_id', conversationId)
-    .eq('tier', 't3');
+    .eq('tier', 't3')
+    .or(`detector.is.null,detector.like.${EXTRACTOR_FAMILY}*`);
   if (runsError) throw new Error(`Reading extraction history failed: ${runsError.message}`);
   if ((runs ?? 0) > 0) return { status: 'already_extracted' };
 
-  const { data: rows, error: segmentsError } = await db
-    .from('segments')
-    .select('id, speaker, start_ms, text')
-    .eq('conversation_id', conversationId)
-    .order('start_ms', { ascending: true });
-  if (segmentsError) throw new Error(`Reading segments failed: ${segmentsError.message}`);
+  const rows = await readCallTranscript(db, conversationId);
 
-  const segments: ExtractableSegment[] = (rows ?? []).map((row) => ({
+  const segments: ExtractableSegment[] = rows.map((row) => ({
     id: row.id,
     speaker: row.speaker,
     startMs: row.start_ms,

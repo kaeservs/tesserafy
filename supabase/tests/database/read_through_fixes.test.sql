@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(10);
+select plan(13);
 
 -- 1. Only the extractor's runs count as extraction ------------------------------
 
@@ -146,6 +146,44 @@ set local role anon;
 select throws_ok($$ select public.in_support_session() $$, '42501', null,
   'and nobody signed out can ask');
 reset role;
+
+-- 5. Erasing a call lists the CRM note that carries its quotes -------------------
+
+insert into public.company_crms (company_id, provider, account_ref, token_ciphertext, token_hint)
+values ('00000000-0000-4000-8000-00000000000b', 'hubspot', '1234567', 'v1:sealed', 'abcd');
+insert into public.crm_logs (company_id, conversation_id, provider, external_id, crm_company_id)
+values ('00000000-0000-4000-8000-00000000000b', '00000000-0000-4000-8000-0000000000b1', 'hubspot', '555', '777');
+
+-- As the operator's script erases: no signed-in user.
+select set_config('request.jwt.claims', '', true);
+select public.erase_conversation('00000000-0000-4000-8000-0000000000b1', 'operator');
+
+select ok(
+  (select exported_tickets @> '[{"provider": "hubspot", "note_id": "555", "url": "https://app.hubspot.com/contacts/1234567/record/0-2/777"}]'::jsonb
+     from public.erasure_events where conversation_id = '00000000-0000-4000-8000-0000000000b1'),
+  'the HubSpot note is listed for a person to delete there'
+);
+select is((select count(*)::int from public.crm_logs where conversation_id = '00000000-0000-4000-8000-0000000000b1'), 0,
+  'and its record here went with the call');
+
+-- 6. Leaving a company takes the calendar there with it ---------------------------
+
+insert into public.calendar_connections (user_id, company_id, provider, account_email, token_ciphertext)
+values ('a7a7a7a7-0000-4000-8000-000000000001', '00000000-0000-4000-8000-00000000000a', 'google',
+        'reader@test.tesserafy.local', 'v1:sealed');
+insert into public.calendar_events (user_id, company_id, provider, external_id, title, starts_at, ends_at)
+values ('a7a7a7a7-0000-4000-8000-000000000001', '00000000-0000-4000-8000-00000000000a', 'google', 'ev-1',
+        'Northwind discovery', now() + interval '1 hour', now() + interval '2 hours');
+
+delete from public.company_members
+ where company_id = '00000000-0000-4000-8000-00000000000a' and user_id = 'a7a7a7a7-0000-4000-8000-000000000001';
+
+select is(
+  (select count(*)::int from public.calendar_connections where user_id = 'a7a7a7a7-0000-4000-8000-000000000001')
+  + (select count(*)::int from public.calendar_events where user_id = 'a7a7a7a7-0000-4000-8000-000000000001'),
+  0,
+  'the sealed token and the meetings it brought in are gone'
+);
 
 select * from finish();
 rollback;

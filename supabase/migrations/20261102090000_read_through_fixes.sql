@@ -22,6 +22,14 @@
 --      counted as one. The web app now asks before a password is set, with
 --      in_support_session(), the private check made callable for one's own
 --      session only.
+--   5. Erasing a call listed the tickets that already carried its quotes,
+--      for a person to delete there, and not the note logged to the
+--      company's CRM, which carries them too and whose record went with the
+--      call. It is listed with the tickets now.
+--   6. A person removed from a company, or everyone in a closed one, kept
+--      their calendar connection there: the sealed refresh token and the
+--      outside attendees' names and addresses stayed, and a sync could still
+--      write into the old company. Removal from a company now removes them.
 
 -- 1 ---------------------------------------------------------------------------
 
@@ -240,3 +248,135 @@ $$;
 
 revoke all on function public.in_support_session() from public, anon;
 grant execute on function public.in_support_session() to authenticated;
+
+
+-- 5 ---------------------------------------------------------------------------
+
+create or replace function private.erase_conversation_as(
+  p_conversation_id uuid,
+  p_reason          text,
+  p_requested_by    uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_company_id uuid;
+  v_segments   integer;
+  v_signals    integer;
+  v_events     integer;
+  v_insights   integer;
+  v_tickets    jsonb;
+  v_doomed     uuid[];
+begin
+  select c.company_id into v_company_id
+  from public.conversations c
+  where c.id = p_conversation_id;
+
+  if v_company_id is null then
+    raise exception 'erase_conversation: conversation % not found', p_conversation_id
+      using errcode = 'P0002';
+  end if;
+
+  select count(*) into v_segments
+  from public.segments s where s.conversation_id = p_conversation_id;
+  select count(*) into v_signals
+  from public.signals s where s.conversation_id = p_conversation_id;
+  select count(*) into v_events
+  from public.criterion_events e where e.conversation_id = p_conversation_id;
+
+  select coalesce(array_agg(d.insight_id), '{}') into v_doomed
+  from (
+    select ie.insight_id
+    from public.insight_evidence ie
+    join public.signals s on s.id = ie.signal_id
+    group by ie.insight_id
+    having bool_and(s.conversation_id = p_conversation_id)
+  ) d;
+
+  v_insights := coalesce(array_length(v_doomed, 1), 0);
+
+  select coalesce(jsonb_agg(distinct jsonb_build_object('provider', t.provider, 'url', t.url)), '[]'::jsonb)
+    into v_tickets
+  from public.insight_tickets t
+  where exists (
+    select 1
+    from public.insight_evidence ie
+    join public.signals s on s.id = ie.signal_id
+    where ie.insight_id = t.insight_id
+      and s.conversation_id = p_conversation_id
+  );
+
+  -- A note logged to the company's CRM carries the call's quotes into a
+  -- system this one does not control, as a ticket does, and goes with the
+  -- call's row here; so it is listed with the tickets, for a person to
+  -- delete there. A sent follow-up cannot be recalled by anyone and is not.
+  v_tickets := v_tickets || coalesce((
+    select jsonb_agg(jsonb_build_object(
+      'provider', l.provider,
+      'note_id', l.external_id,
+      'url', case
+        when l.crm_company_id is not null and m.account_ref is not null
+          then 'https://app.hubspot.com/contacts/' || m.account_ref || '/record/0-2/' || l.crm_company_id
+        else 'HubSpot note ' || l.external_id
+      end))
+      from public.crm_logs l
+      left join public.company_crms m on m.company_id = l.company_id and m.provider = l.provider
+     where l.conversation_id = p_conversation_id
+  ), '[]'::jsonb);
+
+  delete from public.insights i where i.id = any(v_doomed);
+  delete from public.conversations c where c.id = p_conversation_id;
+
+  update public.model_usage u
+  set conversation_id = null
+  where u.conversation_id = p_conversation_id;
+
+  insert into public.erasure_events
+    (company_id, conversation_id, reason, segments_removed, signals_removed,
+     events_removed, insights_removed, exported_tickets, requested_by)
+  values
+    (v_company_id, p_conversation_id, p_reason, v_segments, v_signals,
+     v_events, v_insights, v_tickets, p_requested_by);
+
+  return jsonb_build_object(
+    'conversation_id', p_conversation_id,
+    'segments_removed', v_segments,
+    'signals_removed', v_signals,
+    'events_removed', v_events,
+    'insights_removed', v_insights,
+    'exported_tickets', v_tickets
+  );
+end;
+$$;
+
+
+-- 6 ---------------------------------------------------------------------------
+
+-- Leaving a company, however it happens (removed by an owner, asking to be
+-- deleted, the company closed), takes the person's calendar with it: the
+-- connection there and the meetings it brought in. The grant itself stays
+-- with Google or Microsoft until the person revokes it, as disconnecting
+-- would have done; without the token there is nothing left to use it with.
+create or replace function private.forget_calendar_on_leaving()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  delete from public.calendar_events e
+   where e.user_id = old.user_id and e.company_id = old.company_id;
+  delete from public.calendar_connections c
+   where c.user_id = old.user_id and c.company_id = old.company_id;
+  return old;
+end;
+$$;
+
+revoke all on function private.forget_calendar_on_leaving() from public, anon, authenticated;
+
+create trigger company_members_forget_calendar
+  after delete on public.company_members
+  for each row execute function private.forget_calendar_on_leaving();

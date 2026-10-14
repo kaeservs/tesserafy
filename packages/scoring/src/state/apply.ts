@@ -70,7 +70,10 @@ function applyEvidence(
   }
 
   // A detector retry can report the same span twice. It is one piece of
-  // evidence; keep the higher confidence, and its original position.
+  // evidence; keep the higher confidence, and its original position. The
+  // same span means the same words: other words from the same segment are
+  // another quote (still one observation toward corroboration, which counts
+  // segments), and a person's correction quoting them is fresh evidence.
   const duplicate = current.evidence.find((r) => sameSpan(r.span, span));
   if (duplicate && duplicate.confidence >= confidence) {
     return state;
@@ -200,7 +203,7 @@ function confirmingSpans(
 }
 
 function sameSpan(a: EvidenceSpan, b: EvidenceSpan): boolean {
-  return a.segmentId === b.segmentId && a.startMs === b.startMs && a.endMs === b.endMs;
+  return a.segmentId === b.segmentId && a.startMs === b.startMs && a.endMs === b.endMs && a.quote === b.quote;
 }
 
 function assertConfidence(confidence: number): void {

@@ -93,8 +93,16 @@ function shortfallOf(
   current: CriterionState,
   definition: CriterionDefinition,
 ): CriterionShortfall {
-  const segments = new Set(current.evidence.map((recorded) => recorded.span.segmentId));
-  const best = current.evidence.reduce<number | null>(
+  // A contradicted criterion is carried back only by evidence newer than its
+  // latest contradiction (ADR 0006, rule 3), so only that evidence counts
+  // toward what it is waiting on. Counting all of it said "heard twice, needs
+  // two" of a criterion that still needed everything.
+  const counted =
+    current.status === 'contradicted'
+      ? current.evidence.filter((recorded) => recorded.seq > Math.max(...current.contradictions.map((r) => r.seq)))
+      : current.evidence;
+  const segments = new Set(counted.map((recorded) => recorded.span.segmentId));
+  const best = counted.reduce<number | null>(
     (highest, recorded) => (highest === null || recorded.confidence > highest ? recorded.confidence : highest),
     null,
   );

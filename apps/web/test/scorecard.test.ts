@@ -187,9 +187,37 @@ describe('scoring a conversation from stored evidence', () => {
     expect(card.scorecard.criteria.find((c) => c.key === 'budget_known')?.status).toBe('confirmed');
   });
 
+  it('confirms on a person’s "it was met" that quotes other words of the moment the detector took', async () => {
+    // The detector cited seg3; a person said that was not it; then the same
+    // person pointed at other words of seg3 that do say it. Every span of a
+    // stored call has its segment's own times, so the engine took the third
+    // for a re-report of the first and dropped it.
+    events = [
+      { ...evidence('budget_known', 'seg3', 0.9, 90000), quote: 'we have some money set aside' },
+      {
+        ...evidence('budget_known', 'seg3', 1, 90000),
+        quote: 'we have some money set aside',
+        kind: 'contradiction',
+        detector: 'person',
+        model: 'person',
+        created_at: '2026-09-23T08:00:00Z',
+      },
+      {
+        ...evidence('budget_known', 'seg3', 1, 90000),
+        quote: 'forty thousand is signed off for this',
+        detector: 'person',
+        model: 'person',
+        created_at: '2026-09-23T09:00:00Z',
+      },
+    ];
+
+    const card = await scoreConversation(db as never, conversation);
+    expect(card.scorecard.criteria.find((c) => c.key === 'budget_known')?.status).toBe('confirmed');
+  });
+
   it('replays in conversation order, not in the order rows came back', async () => {
-    // Latching makes the final status order-independent; the transitions are
-    // the audit trail and are not. "Confirmed at 04:12 by this quote" has to
+    // Without contradictions latching makes the final status
+    // order-independent; the transitions are the audit trail and are not. "Confirmed at 04:12 by this quote" has to
     // be the same answer every time it is asked.
     events = [
       evidence('pain_quantified', 'seg9', 0.6, 240000),

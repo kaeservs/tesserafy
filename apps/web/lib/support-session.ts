@@ -21,6 +21,21 @@ export async function supportSessionEnded(db: SupabaseClient, accessToken: strin
   return !error && data === true;
 }
 
+/**
+ * Whether this request's session began inside a support window: an operator
+ * looking at the account, not its owner. Asked before anything that would
+ * outlast the window — a password set there would let the operator sign in
+ * as the customer afterwards, as a password session nobody asks about.
+ *
+ * Fails closed, unlike supportSessionEnded: what it guards is the account
+ * itself, so a database error refuses rather than lets the change through.
+ */
+export async function inSupportSession(db: SupabaseClient, accessToken: string | null | undefined): Promise<boolean> {
+  if (!accessToken || !signedInByLink(accessToken)) return false;
+  const { data, error } = await db.rpc('in_support_session');
+  return Boolean(error) || data === true;
+}
+
 /** True unless every way this session was signed into was a password. */
 export function signedInByLink(accessToken: string): boolean {
   try {

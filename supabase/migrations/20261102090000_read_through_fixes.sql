@@ -12,6 +12,16 @@
 --      `pnpm health` (packages/db/src/health.ts; a test holds them together),
 --      and no longer counts access requests for closed companies, which the
 --      console already leaves out and nobody can resolve.
+--   3. The console's health page judged every company against one seat's
+--      allowance, so a team of five on Pro at 30 of its 125 calls read as
+--      30 of 25. It reads private.company_limit, as every other reader of a
+--      limit has since plans went per seat.
+--   4. A support session could set the customer's password, and then sign
+--      in with it after its window closed: a password session is never asked
+--      whether it is a support session, and one made after the window is not
+--      counted as one. The web app now asks before a password is set, with
+--      in_support_session(), the private check made callable for one's own
+--      session only.
 
 -- 1 ---------------------------------------------------------------------------
 
@@ -140,3 +150,93 @@ begin
   );
 end;
 $$;
+
+
+-- 3 ---------------------------------------------------------------------------
+
+create or replace function public.admin_company_health()
+returns table (
+  company_id         uuid,
+  name               text,
+  plan               text,
+  created_at         timestamptz,
+  closed_at          timestamptz,
+  members            bigint,
+  calls_7d           bigint,
+  calls_30d          bigint,
+  views_7d           bigint,
+  last_call_at       timestamptz,
+  last_view_at       timestamptz,
+  failures_7d        bigint,
+  -- This period's use against the company's limits (the plan's per seat,
+  -- times its seats), per meter; a null limit is unlimited.
+  calls_used         bigint,
+  calls_limit        integer,
+  extractions_used   bigint,
+  extractions_limit  integer,
+  live_used_seconds  bigint,
+  live_limit_seconds integer,
+  period_end         timestamptz
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  if not (select private.is_platform_admin()) then
+    raise exception 'admin_company_health: not a platform admin' using errcode = '42501';
+  end if;
+
+  return query
+  select
+    c.id,
+    c.name,
+    c.plan,
+    c.created_at,
+    c.closed_at,
+    (select count(*) from public.company_members m where m.company_id = c.id),
+    (select count(*) from public.conversations v where v.company_id = c.id and v.created_at > now() - interval '7 days'),
+    (select count(*) from public.conversations v where v.company_id = c.id and v.created_at > now() - interval '30 days'),
+    (select count(*) from public.conversation_views w
+      where w.company_id = c.id and not w.during_support and w.viewed_at > now() - interval '7 days'),
+    (select max(v.created_at) from public.conversations v where v.company_id = c.id),
+    (select max(w.viewed_at) from public.conversation_views w where w.company_id = c.id and not w.during_support),
+    (select count(*) from public.system_failures f where f.company_id = c.id and f.created_at > now() - interval '7 days'),
+    coalesce((select sum(l.amount) from public.usage_ledger l
+               where l.company_id = c.id and l.meter = 'calls' and l.refunded_at is null
+                 and l.period_start = s.period_start), 0),
+    coalesce(private.company_limit(c.id, 'calls'), p.calls),
+    coalesce((select sum(l.amount) from public.usage_ledger l
+               where l.company_id = c.id and l.meter = 'extractions' and l.refunded_at is null
+                 and l.period_start = s.period_start), 0),
+    coalesce(private.company_limit(c.id, 'extractions'), p.extractions),
+    coalesce((select sum(l.amount) from public.usage_ledger l
+               where l.company_id = c.id and l.meter = 'live_seconds' and l.refunded_at is null
+                 and l.period_start = s.period_start), 0),
+    coalesce(private.company_limit(c.id, 'live_seconds'), p.live_minutes * 60),
+    s.period_end
+  from public.companies c
+  left join public.subscriptions s on s.company_id = c.id
+  left join public.plans p on p.id = c.plan
+  order by c.name;
+end;
+$$;
+
+
+-- 4 ---------------------------------------------------------------------------
+
+-- Whether the caller's own session began inside a support window. It answers
+-- about the session asking and nothing else, so it can be asked by anyone.
+create or replace function public.in_support_session()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select private.in_support_session();
+$$;
+
+revoke all on function public.in_support_session() from public, anon;
+grant execute on function public.in_support_session() to authenticated;

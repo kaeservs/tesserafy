@@ -34,7 +34,7 @@ export const WORK_TABLES = [
   { key: 'coaching', table: 'coaching_assignments', columns: 'id, conversation_id, segment_id, assigned_by, assigned_to, note, reply, status, created_at, done_at' },
   { key: 'examples', table: 'moments', columns: 'id, conversation_id, segment_id, criterion_key, engagement_type, note, saved_by, created_at' },
   { key: 'ai_guidance', table: 'ai_guidance', columns: 'id, feature, kind, engagement_type, criterion_key, body, quote, result, conversation_id, prep_id, active, created_by, created_at' },
-  { key: 'scorecards', table: 'criteria_definitions', columns: 'id, engagement_type, version, key, label, definition, weight, position, candidate_threshold, confirm_threshold, corroborating_segments, published_by, created_at', ownOnly: true },
+  { key: 'scorecards', table: 'criteria_definitions', columns: 'id, engagement_type, version, key, label, definition, weight, position, candidate_threshold, confirm_threshold, corroborating_segments, published_by, created_at' },
   { key: 'scorecard_purposes', table: 'scorecard_purposes', columns: 'engagement_type, purpose, set_by, updated_at', order: 'engagement_type' },
   { key: 'criterion_goals', table: 'criterion_goals', columns: 'engagement_type, criterion_key, target, set_by, updated_at', order: 'criterion_key' },
   { key: 'our_speakers', table: 'our_speakers', columns: 'name, added_by, created_at', order: 'name' },

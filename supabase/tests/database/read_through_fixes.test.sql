@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(6);
+select plan(10);
 
 -- 1. Only the extractor's runs count as extraction ------------------------------
 
@@ -96,6 +96,55 @@ select is((select (d ->> 'alarming')::int from digest), 1,
 select is((select (d -> 'waiting' ->> 'access_requests')::int from digest), 1,
   'a closed company''s request is not waiting on anyone');
 
+reset role;
+
+-- 3. The console's health page counts seats --------------------------------------
+
+insert into auth.users (id, email, aud, role)
+values ('a7a7a7a7-0000-4000-8000-000000000002', 'operator@test.tesserafy.local',
+        'authenticated', 'authenticated');
+insert into public.platform_admins (user_id, note)
+values ('a7a7a7a7-0000-4000-8000-000000000002', 'test operator');
+update public.companies set plan = 'pro' where id = '00000000-0000-4000-8000-00000000000a';
+update public.subscriptions set seats = 5 where company_id = '00000000-0000-4000-8000-00000000000a';
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub":"a7a7a7a7-0000-4000-8000-000000000002","role":"authenticated"}', true);
+
+select is(
+  (select calls_limit from public.admin_company_health()
+    where company_id = '00000000-0000-4000-8000-00000000000a'),
+  (select calls * 5 from public.plans where id = 'pro'),
+  'five seats of Pro are five seats'' calls, not one'
+);
+
+reset role;
+
+-- 4. A session can ask whether it is a support visit ------------------------------
+
+insert into auth.users (id, email, aud, role) values
+  ('a7a7a7a7-0000-4000-8000-000000000003', 'customer@acme.test', 'authenticated', 'authenticated');
+insert into auth.sessions (id, user_id, created_at, updated_at) values
+  ('a7a7a7a7-0000-4000-8000-0000000000c1', 'a7a7a7a7-0000-4000-8000-000000000003', now() - interval '60 minutes', now()),
+  ('a7a7a7a7-0000-4000-8000-0000000000c2', 'a7a7a7a7-0000-4000-8000-000000000003', now() - interval '20 minutes', now());
+insert into public.support_access (admin_user_id, subject_user_id, reason, expires_at, created_at)
+values ('a7a7a7a7-0000-4000-8000-000000000002', 'a7a7a7a7-0000-4000-8000-000000000003',
+        'Investigating a ticket', now() - interval '5 minutes', now() - interval '25 minutes');
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub":"a7a7a7a7-0000-4000-8000-000000000003","role":"authenticated","session_id":"a7a7a7a7-0000-4000-8000-0000000000c2"}', true);
+select is(public.in_support_session(), true,
+  'a session begun inside a support window is one, even after the window closed');
+select set_config('request.jwt.claims',
+  '{"sub":"a7a7a7a7-0000-4000-8000-000000000003","role":"authenticated","session_id":"a7a7a7a7-0000-4000-8000-0000000000c1"}', true);
+select is(public.in_support_session(), false, 'the customer''s own session is not');
+reset role;
+
+set local role anon;
+select throws_ok($$ select public.in_support_session() $$, '42501', null,
+  'and nobody signed out can ask');
 reset role;
 
 select * from finish();

@@ -3593,6 +3593,7 @@ export type Database = {
         Args: { p_segments: Json; p_title: string }
         Returns: string
       }
+      in_support_session: { Args: never; Returns: boolean }
       ingest_transcript: {
         Args: {
           p_company_id: string

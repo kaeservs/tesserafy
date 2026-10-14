@@ -413,7 +413,10 @@ async function loadCriteria() {
 
 // The call being created on the server; ended() waits for it before offering the follow-up.
 let sessionStarting = Promise.resolve();
+/** Which call this is in the sitting, so a slow answer for the last one cannot become this one's. */
+let callNumber = 0;
 async function startSession() {
+  const forCall = callNumber;
   const when = new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
   const result = await api.liveStart({
     title: `Live call — ${when}`,
@@ -422,6 +425,7 @@ async function startSession() {
     ...(chosenAccount ? { accountId: chosenAccount } : {}),
   });
 
+  if (forCall !== callNumber) return;
   if (result.error || !result.conversationId) {
     // Not being able to keep the call must not stop it being run.
     conversationId = null;
@@ -573,16 +577,20 @@ function heardLine(text, speaker, detecting) {
 
 async function startListening() {
   sessionStart = performance.now();
-  if (setup?.transcription === 'deepgram' && (await startBothSides())) {
-    began(micOnly ? 'listening — your microphone only' : 'listening to both sides');
+  if (setup?.transcription === 'deepgram') {
+    if (await startBothSides()) {
+      began(micOnly ? 'listening — your microphone only' : 'listening to both sides');
+      return;
+    }
+    // startBothSides has said why — no live minutes left (with the plan
+    // page), Live not on the plan, no microphone — and that stays on screen.
+    if (setup?.engineFallback !== true) return;
+  } else if (setup?.engineFallback !== true) {
+    setStatus('Live transcription could not start. Try again in a moment.');
     return;
   }
   // The browser's own recognition sends the audio to its vendor: a stand-in
   // for our own company only, never a customer's call.
-  if (setup?.engineFallback !== true) {
-    setStatus('Live transcription could not start. Try again in a moment.');
-    return;
-  }
   startEngine();
 }
 
@@ -594,6 +602,14 @@ function began(status) {
   listeningNote = status;
   callStart = utterances.length;
   chargedTo = 0;
+  // A new call, so a new record. The previous call's id lasted until this
+  // one's arrived, and lines said in between were saved into the last call.
+  callNumber += 1;
+  conversationId = null;
+  serverIds.clear();
+  savedSegments = 0;
+  savedEvents = 0;
+  lostWrites = 0;
   currentSuggestion = null;
   el('meetingBanner').hidden = true;
   el('callBanner').hidden = true;
@@ -912,6 +928,12 @@ function offerUpgrade(message) {
   });
 }
 el('callDismiss').addEventListener('click', () => {
+  // Closing the auto-stop notice is "Keep listening": it used to hide the
+  // countdown and leave it running, and the call stopped with nothing on screen.
+  if (autoStop) {
+    cancelAutoStop();
+    setStatus(listeningNote);
+  }
   el('callBanner').hidden = true;
 });
 /*
@@ -1327,5 +1349,23 @@ el('signout').addEventListener('click', async () => {
 
 api.session().then((session) => {
   if (session.email) showSignedIn(session.email);
-  else showSignedOut(session.remembers);
+  else {
+    showSignedOut(session.remembers);
+    // A saved sign-in Auth could not be asked about yet: kept, and tried
+    // again every half minute; it signs itself in when Auth answers.
+    if (session.waiting) setStatus('could not reach Tesserafy; trying again');
+  }
+});
+
+api.onSessionChanged((session) => {
+  if (session.email) {
+    if (!signedIn) showSignedIn(session.email);
+    return;
+  }
+  // Auth refused to renew the sign-in: a call in progress has nowhere to
+  // save, so it stops here rather than failing line by line.
+  if (listening) stopListening();
+  state = null;
+  showSignedOut(session.remembers);
+  setStatus('signed out: sign in again to connect');
 });

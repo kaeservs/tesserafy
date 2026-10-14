@@ -10,11 +10,12 @@
  * customer's view of the call is worse than no overlay, so the answer decides
  * whether P7 is a transparent always-on-top window at all.
  *
- * Nothing here is assumed. The window starts protected, the renderer can
- * toggle it, and the label is deliberately loud so a screenshot of the share
- * settles the question without anyone squinting.
+ * Nothing here is assumed. The window starts protected, the tray toggles it
+ * on the Incognito plan (the page never can), and the label is deliberately
+ * loud so a screenshot of the share settles the question without anyone
+ * squinting.
  */
-import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, net, safeStorage, screen, shell } from 'electron';
+import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, nativeImage, net, safeStorage, screen, shell } from 'electron';
 import { execFile } from 'node:child_process';
 import { readFile, rm, writeFile } from 'node:fs/promises';
 import { release } from 'node:os';
@@ -30,6 +31,7 @@ import {
   type Rect,
 } from './appearance';
 import { scorecardName } from './scorecard';
+import { maskRect, overlayInShot } from './screenshot';
 import { Session, type Store } from './session';
 import {
   callChange,
@@ -238,7 +240,15 @@ async function captureScreen(): Promise<{ mediaType: 'image/jpeg'; data: string 
     const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize });
     const source = sources.find((candidate) => candidate.display_id === String(display.id)) ?? sources[0];
     if (!source || source.thumbnail.isEmpty()) return null;
-    return { mediaType: 'image/jpeg', data: source.thumbnail.toJPEG(75).toString('base64') };
+    let shot = source.thumbnail;
+    // Unprotected, the overlay is in its own screenshot: greyed out, so the
+    // model is not shown its own answers as "on your screen" (./screenshot).
+    if (overlay && !protection) {
+      const size = shot.getSize();
+      const bitmap = maskRect(shot.toBitmap(), size.width, size.height, overlayInShot(overlay.getBounds(), display.bounds, size));
+      shot = nativeImage.createFromBitmap(bitmap, { width: size.width, height: size.height });
+    }
+    return { mediaType: 'image/jpeg', data: shot.toJPEG(75).toString('base64') };
   } catch {
     return null;
   }
@@ -385,7 +395,8 @@ function createOverlay(): BrowserWindow {
   // The page is this app's own file and nothing else. It never navigates or
   // opens a window (a link or a file dropped on it would otherwise load in
   // its place, with the preload's API attached), and it may ask for the
-  // microphone — live speech recognition — and no other permission.
+  // microphone and the computer's sound output (a display capture whose
+  // picture is dropped, ADR 0022) and no other permission.
   window.webContents.on('will-navigate', (event) => event.preventDefault());
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   const own = (url: string) => url.startsWith('file://');
@@ -446,6 +457,25 @@ void app.whenReady().then(async () => {
   // Before the window asks who is signed in, so a returning user is not shown
   // a sign-in form for the half-second a refresh takes.
   const resumed = session.resume().catch(() => false);
+  // The page hears of a sign-in that ends without anyone signing out (Auth
+  // refused its renewal) and of one that comes back after Auth was out of
+  // reach at start-up; otherwise it went on showing a session it did not have,
+  // or a sign-in form for one it did.
+  const sessionChanged = () =>
+    overlay?.webContents.send('overlay:session-changed', { email: session.signedInAs, remembers: session.remembers });
+  session.onSignedOut = sessionChanged;
+  void resumed.then(() => {
+    if (!session.waiting) return;
+    const retry = setInterval(() => {
+      if (!session.waiting) return clearInterval(retry);
+      void session.bearer().then((token) => {
+        if (token) {
+          clearInterval(retry);
+          sessionChanged();
+        }
+      });
+    }, 30_000);
+  });
 
   // Before the window exists, so it opens where it was left rather than
   // appearing in the default corner and jumping.
@@ -567,7 +597,7 @@ void app.whenReady().then(async () => {
 
   ipcMain.handle('overlay:session', async () => {
     await resumed;
-    return { email: session.signedInAs, remembers: session.remembers };
+    return { email: session.signedInAs, remembers: session.remembers, waiting: session.waiting };
   });
 
   // The password crosses from the page to here once, goes to Auth, and is
@@ -687,7 +717,8 @@ void app.whenReady().then(async () => {
   // With the screen: one screenshot, taken here when the seller pressed for
   // it, of the display the overlay is on, and sent with this question alone.
   // The page never holds it, it is never written to disk, and the overlay is
-  // not in it (content protection keeps it out of every capture).
+  // not in it: on Incognito content protection keeps it out of the capture,
+  // and on any other plan its rectangle is greyed out (./screenshot).
   //
   // Streamed: each point is passed to the page the moment the server has
   // checked it ('overlay:assist-part', with the page's own sequence number so
@@ -813,9 +844,16 @@ void app.whenReady().then(async () => {
   );
   ipcMain.handle('overlay:transcribe-start', async () => {
     if (typeof WebSocket === 'undefined') return { error: 'This build cannot open a transcription stream.' };
-    const granted = (await post('/api/live/transcription-token', {})) as { token?: unknown; url?: unknown; error?: string };
+    const granted = (await post('/api/live/transcription-token', {})) as {
+      token?: unknown;
+      url?: unknown;
+      error?: string;
+      upgrade?: boolean;
+    };
     if (typeof granted.token !== 'string' || typeof granted.url !== 'string' || !granted.url.startsWith('wss://api.deepgram.com/')) {
-      return { error: granted.error ?? 'Transcription could not start.' };
+      // `upgrade` goes back with the refusal: out of live minutes, Start
+      // offers the plan page, as every other 402 in the overlay does.
+      return { error: granted.error ?? 'Transcription could not start.', ...(granted.upgrade ? { upgrade: true } : {}) };
     }
     streams.start(granted.url, granted.token);
     return { ok: true };

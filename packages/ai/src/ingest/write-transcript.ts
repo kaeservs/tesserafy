@@ -56,19 +56,24 @@ export async function writeTranscript(
   // with its own words by construction. Matching rows back by their contents
   // after the fact could mis-pair them, and a vector attached to somebody
   // else's words fails silently, as bad retrieval months later.
-  const segments: EmbeddedSegment[] = [];
-  for (const draft of input.segments) {
-    segments.push({
-      id: newId(),
-      speaker: draft.speaker,
-      startMs: draft.startMs,
-      endMs: draft.endMs,
-      text: draft.text,
-      // Sequential on purpose: a local Ollama serves one request at a time,
-      // so parallelism buys nothing here.
-      embedding: await opts.embedder.embed(draft.text),
-    });
-  }
+  // In batches where the embedder takes them (gte-small: sixteen a request),
+  // one at a time where it does not. Either way in order, so the i-th vector
+  // is the i-th segment's.
+  const texts = input.segments.map((draft) => draft.text);
+  const vectors = opts.embedder.embedMany
+    ? await opts.embedder.embedMany(texts)
+    : await texts.reduce<Promise<number[][]>>(
+        async (done, text) => [...(await done), await opts.embedder.embed(text)],
+        Promise.resolve([]),
+      );
+  const segments: EmbeddedSegment[] = input.segments.map((draft, i) => ({
+    id: newId(),
+    speaker: draft.speaker,
+    startMs: draft.startMs,
+    endMs: draft.endMs,
+    text: draft.text,
+    embedding: vectors[i]!,
+  }));
 
   const conversationId = await storeTranscript(
     companyId,

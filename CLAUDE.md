@@ -63,7 +63,7 @@ Do not break these without an ADR that supersedes the existing one.
 | Tier | Job | Model |
 |---|---|---|
 | T0 | Chunking, endpointing, redaction | none — pure TS |
-| T1 | Criterion detectors: live on the last 3 utterances (<= 700 ms); a stored call in 48-utterance windows | `claude-haiku-5-5`, thinking off (ADR 0030) |
+| T1 | Criterion detectors: live on the last 3 utterances (~2 s to a visible score, ADR 0010); a stored call in 48-utterance windows | `claude-haiku-5-5`, thinking off (ADR 0030) |
 | T2 | Live suggestions, and the overlay's Assist, What should I say?, Follow-up questions, Recap and Ask (<= 3.5 s) | `claude-sonnet-5` |
 | T3 | Post-call extraction and synthesis; action items and the follow-up email; a call prep's brief; the "Ask your calls" agent | `claude-sonnet-5` (ADR 0014, 0018) |
 | — | Embeddings | `gte-small` in a Supabase Edge Function, 384-dim |
@@ -187,7 +187,7 @@ the last charge (`chargeFromMs`, which the overlay and the live page send;
 paid for too — it used to charge each line five seconds, and a real hour cost
 twelve to twenty live minutes. Reading, search, export and deleting never need an allowance.
 The one AI path that is not charged is the sample call (`/api/sample-call`):
-a trial has three imported calls and a demonstration should not cost one, so
+Free's trial is one imported call and a demonstration should not cost it, so
 `import_sample_call` allows one per company, ever, and the route sends only
 the app's own sample text. Plan
 changes are made on Settings → Membership (`/settings/membership`, linked
@@ -200,7 +200,7 @@ billing; members see the plan and which owners to ask — a plan is the
 company's), and all go through `private.apply_plan`: owners start, upgrade (now),
 downgrade or cancel (at period end); the operator sets any plan; a nightly
 job rolls periods over. Payments are Stripe (ADR 0025), and plans stay free
-until an operator sets the webhook's signing secret and both prices (console
+until an operator sets the webhook's signing secret and every plan's price (console
 → Payments) and the web app has `STRIPE_SECRET_KEY`. Then a paid plan starts
 only at checkout (`billing_checkout`, owners only), a paying company changes
 and cancels in Stripe's billing page, and a free plan from before ends with
@@ -268,7 +268,8 @@ Documents are not redacted: redaction is for what customers say.
 
 "Ask about your screen" sends one screenshot with a question: taken by the
 overlay's main process only when the seller presses Screen, of the display
-the overlay is on (which content protection keeps it out of), never held by
+the overlay is on (content protection keeps the overlay out of it on Incognito;
+on every other plan its rectangle is greyed out), never held by
 the page, never stored — it goes to the model for that answer alone. A JPEG
 or PNG by its bytes, under 1.5 MB. Owners can switch it off for the company
 (`companies.screen_assist`, Settings → Calls); the overlay then does not offer it and
@@ -286,7 +287,8 @@ detector call. The dashboard counts `seller` as your side everywhere
 talk is shown (`ourSpeakerKeys`), so the call page, Home and Reports say what
 the overlay said without anyone marking it. On speakers the microphone hears the customer too, so a
 microphone line that repeats what the customer just said is dropped. Without
-a key the browser engine hears the microphone alone, as before. Deepgram bills
+a key, live calls are off for customers; only Tesserafy's own company falls
+back to the browser engine, which hears the microphone alone. Deepgram bills
 per streamed minute a side and the server never sees the audio, so the
 overlay stops after four hours and the Deepgram project needs a spending
 limit.
@@ -428,12 +430,16 @@ the public key and a token an operator makes on the console's Alerts page
 (only its hash is stored): counts and states only — no failure message, no
 company name, nothing from a call — because what it reads goes on to a chat
 app. Its judgement of what needs a person is the same as `pnpm health`'s, and
-a test fails if they drift (ADR 0019).
+a test fails if they drift (ADR 0019). A row from another company where one
+company's was asked for is its own kind, `tenant_boundary`, and raises the
+alarm the first time; the Ask agent stops a question on one rather than
+searching around it. Failure and usage rows the web app does not await are
+kept alive past the response (`lib/keep-alive`, Next's `after()`).
 
 The repository is public. No credential — real, test, or a fallback — goes
 in any file: the e2e specs read `E2E_USERNAME`/`E2E_PASSWORD` from the
 environment (`e2e/credentials.ts`) and fail without them. CI uploads no
-artifacts and records no traces, and `pnpm health` in Actions prints counts,
+artifacts but the overlay installers it builds, and records no traces, and `pnpm health` in Actions prints counts,
 kinds and route names, never a message. Every AI path spends an allowance:
 Assist spends live seconds a press, a suggestion only follows the caller's
 own charged detection, and a new route that calls a model without a meter is

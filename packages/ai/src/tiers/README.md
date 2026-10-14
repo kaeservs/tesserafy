@@ -1,6 +1,6 @@
 One module per latency tier — see docs/decisions/0002-tiered-ai-architecture.md.
 
-  t1-detectors   <= 700 ms   claude-haiku-5-5    evidence spans, never a score (ADR 0030)
+  t1-detectors   ~2 s        claude-haiku-5-5    evidence spans, never a score (ADR 0030; budget ADR 0010)
                                                   (a stored call: 48-utterance windows, ADR 0014)
   t2-suggest     <= 3.5 s    claude-sonnet-5     off the critical path
   t3-synthesis   unbounded   claude-sonnet-5     post-call, batchable (ADR 0014)

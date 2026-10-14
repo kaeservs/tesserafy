@@ -5,7 +5,9 @@ engineering decision here a data-protection decision too, so this file records
 what actually happens to that content — audited from the code, not from
 intent — and what is still open.
 
-Last audited: 2026-09-22.
+Last audited: 2026-09-22. Corrected against the code on 2026-10-14: live audio
+(flow 2), consent, erasure from the call page, CRM notes, calendars, and
+support sessions and passwords.
 
 ## What leaves the tenant
 
@@ -54,14 +56,19 @@ forgotten when the company is closed. The owner is asked for a token scoped to
 one repository with Issues read and write, so a stolen or misused token can do
 no more than raise issues there.
 
-### 2. Audio, to a browser vendor
+### 2. Audio, to the transcriber
 
-The live path uses `webkitSpeechRecognition`, so the customer's voice is
-streamed to Google or Microsoft. `apps/web/components/live-microphone.tsx`
-says so on the page rather than in a comment. Spike S2 exists to replace it.
+A live call's audio goes to Deepgram (ADR 0022): two streams, the seller's
+microphone and the computer's sound, opened by the overlay's main process
+with a one-minute token the web app mints. Every stream sends
+`mip_opt_out=true`, so Deepgram may not use it to improve its models, and the
+server never sees the audio. Deepgram's data processing agreement must be in
+place before customer calls go through it, and is still to be signed.
 
-Until S2 lands this is an instrument, not a product, and no customer call
-should run through it.
+The browser's own recognition (`webkitSpeechRecognition`, which streams to
+Google or Microsoft) remains only as a stand-in for Tesserafy's own company,
+on the web's live test bench and when Deepgram cannot start; no customer
+call runs through it.
 
 ### 3. Transcript windows, to Anthropic
 
@@ -156,7 +163,10 @@ Two limits, stated plainly:
   never holds; revoking globally would sign the customer out as well —
   measured, not assumed. So the duration is enforced on the record and the
   banner, and an operator who keeps working after it has run out is visible in
-  the record but not stopped by it.
+  the record but not stopped by it. The web app now signs such a session out
+  on its next page and refuses it on the API (`support_session_ended`), and a
+  support session cannot set the account's password, which would otherwise
+  let the operator sign in as the customer after the window closed.
 - **There is no consent step.** The customer is told, not asked.
 
 ## Where failures go, and why not to a vendor
@@ -227,7 +237,7 @@ or a note's words when it is opened — and every reference cascades, so
 erasing a call, a note or an insight erases the notifications about it too.
 
 What goes: the conversation, its segments, **their embeddings** — the copy
-people forget, since a 768-dimension vector of a sentence is still derived
+people forget, since a 384-dimension vector of a sentence is still derived
 from that sentence — its signals, their quotes, its criterion events, the
 notes colleagues left on its moments, the log of corrections to it (which
 holds old titles), and any insight left unevidenced. What stays: the cost telemetry, with its link to the
@@ -246,9 +256,10 @@ finishes the job.
     pnpm erase --log --company <uuid>
 
 Erasure is reachable by a company **owner** as well as an operator, so a
-customer request need not queue behind us. It is not offered as a button
-anywhere yet: it cannot be undone, and a confirmation dialog is a weaker guard
-than having to be an operator at a terminal.
+customer request need not queue behind us: an owner deletes a call from its
+page. A note logged to the company's CRM carries quotes out as a ticket does,
+and is listed with the tickets in the erasure log for a person to delete
+there. A sent follow-up email cannot be recalled by anyone.
 
 ## Closing a company
 
@@ -257,7 +268,9 @@ When a customer leaves, an operator closes the company from the console
 logic as an owner's erasure, each leaving its content-free erasure record;
 every member is removed, each recorded; and the company row stays as a closed
 tombstone — when, by whom, why, under its name. Tickets already exported to a
-tracker are listed for a person to delete there.
+tracker are listed for a person to delete there. Each person's calendar
+connection there goes with their membership — the sealed token and the
+meetings it brought in — as it does whenever anyone leaves a company.
 
 The row is kept because the records that prove the erasure happened point at
 it, several by cascade: deleting the company would delete the evidence that
@@ -408,12 +421,14 @@ To see what the job has done:
   across many at once. "Who opened this call" is answerable; "who ever saw
   this sentence" is not.
 - **Consent is recorded, and asked for before a call is kept.** Importing a
-  transcript and starting a live call (web microphone or overlay) both need a
-  box ticked first: "Everyone on this call was told it was being recorded,
-  transcribed and analysed, and agreed to it." One strict statement for every
-  call rather than a model of jurisdictions: it meets the strictest two-party
-  rule, and a product that guessed which rule applied would be guessing about
-  a law.
+  transcript needs a box ticked first: "Everyone on this call was told it was
+  being recorded, transcribed and analysed, and agreed to it." A live call
+  rests instead on a recording agreement the person makes once (ADR 0020):
+  the words, the Terms version and when are kept in `recording_agreements`,
+  and every live call's consent statement cites that agreement. One strict
+  statement rather than a model of jurisdictions: it meets the strictest
+  two-party rule, and a product that guessed which rule applied would be
+  guessing about a law.
 
   The call stores the words verbatim (`consent_statement`), who confirmed
   them (`consent_confirmed_by`, taken from the session inside the database,

@@ -1,5 +1,5 @@
 /**
- * T2: live suggestions. ADR 0002's fourth tier, on `claude-sonnet-5`.
+ * T2: live suggestions. ADR 0002's third tier, on `claude-sonnet-5`.
  *
  * What a suggestion is allowed to be is the whole design of this file.
  *

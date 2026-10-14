@@ -40,7 +40,7 @@ export interface ClusterOptions {
   /** A service-role client. */
   readonly db: SupabaseClient;
   readonly embedder: Embedder;
-  /** Cosine floor for a segment to be considered related. Default 0.6. */
+  /** Cosine floor for a segment to be considered related. Default RELATED_SIMILARITY (0.82). */
   readonly minSimilarity?: number;
   /** Signals a cluster needs before it is worth synthesising. Default 3. */
   readonly minSignals?: number;

@@ -1,4 +1,4 @@
-import { recordFailure } from '@tesserafy/ai';
+import { recordFailure } from '@/lib/keep-alive';
 import type { SupabaseClient } from '@tesserafy/db';
 import { NextResponse } from 'next/server';
 

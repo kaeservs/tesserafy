@@ -10,8 +10,9 @@
  * standing between an upstream error that quotes the request back at us and a
  * row containing a customer's sentence or a live key.
  */
-import { describe, expect, it } from 'vitest';
-import { classify, scrub } from '../src/telemetry/failures';
+import type { SupabaseClient } from '@tesserafy/db';
+import { describe, expect, it, vi } from 'vitest';
+import { classify, recordFailure, scrub } from '../src/telemetry/failures';
 
 /** What the Anthropic SDK throws: an Error carrying the HTTP status. */
 function apiError(status: number, message: string): Error {
@@ -170,5 +171,34 @@ describe('what must never reach the row', () => {
     const said = 'temperature is deprecated for this model';
 
     expect(scrub(said)).toBe(said);
+  });
+});
+
+describe('recording, kept alive past the response', () => {
+  it('hands its write to waitUntil, so the alarm does not lose a row to a frozen function', async () => {
+    const rpc = vi.fn(async () => ({ data: 'failure-1', error: null }));
+    const kept: Promise<unknown>[] = [];
+    recordFailure(new Error('boom'), {
+      db: { rpc } as unknown as SupabaseClient,
+      source: 'api/test',
+      waitUntil: (work) => kept.push(work),
+    });
+
+    expect(kept).toHaveLength(1);
+    await kept[0];
+    expect(rpc).toHaveBeenCalledWith('record_failure', expect.objectContaining({ p_source: 'api/test' }));
+  });
+
+  it('never throws, even when waitUntil does', () => {
+    const rpc = vi.fn(async () => ({ data: 'failure-1', error: null }));
+    expect(() =>
+      recordFailure(new Error('boom'), {
+        db: { rpc } as unknown as SupabaseClient,
+        source: 'api/test',
+        waitUntil: () => {
+          throw new Error('outside a request');
+        },
+      }),
+    ).not.toThrow();
   });
 });

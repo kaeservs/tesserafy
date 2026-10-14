@@ -6,11 +6,11 @@ import {
   createSupabaseEmbedder,
   databaseSink,
   QUESTION_MAX_CHARS,
-  recordFailure,
   toCompanyId,
   TracingEnabled,
   UnreadableAnswer,
 } from '@tesserafy/ai';
+import { keepAlive, recordFailure } from '@/lib/keep-alive';
 import { NextResponse, type NextRequest } from 'next/server';
 import { askFilters, askScope, shown, type AskFilters } from '@/lib/ask';
 import { myCompanyId } from '@/lib/company';
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
             scope ? { conversationIds: scope.conversationIds } : {},
           ),
           ...(scope ? { scope: scope.text } : {}),
-          onUsage: databaseSink({ db: who.db, companyId, detector: ASK_CALLS_AGENT }),
+          onUsage: databaseSink({ db: who.db, companyId, detector: ASK_CALLS_AGENT, waitUntil: keepAlive }),
           onStep: (text) => send({ type: 'step', text }),
           // The agent carries on after a search fails; this is where it is heard of.
           onToolError: (cause) => recordFailure(cause, { db: who.db, source: 'api/ask/search', tier: 't3', companyId }),

@@ -1,4 +1,4 @@
-import { recordFailure } from '@tesserafy/ai';
+import { recordFailure } from '@/lib/keep-alive';
 import { NextResponse, type NextRequest } from 'next/server';
 import { emailAvailable, isBody, isSenderName, isSubject, parseRecipients, sendEmail } from '@/lib/email';
 import { allowance, tooMany } from '@/lib/rate-limit';

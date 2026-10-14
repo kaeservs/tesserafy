@@ -152,6 +152,13 @@ export interface FailureContext {
   readonly conversationId?: string;
   /** Called when recording the failure itself fails. */
   readonly onError?: (error: Error) => void;
+  /**
+   * Keeps the write alive past the response. A serverless function can be
+   * frozen once it has answered, and a write nobody waits for is cut off with
+   * it; these rows are what `pnpm health` alarms on. The web app passes
+   * Next's after(); a script, which lives until it is done, passes nothing.
+   */
+  readonly waitUntil?: (work: Promise<unknown>) => void;
 }
 
 /**
@@ -165,7 +172,12 @@ export interface FailureContext {
  */
 export function recordFailure(cause: unknown, context: FailureContext): Classified {
   const classified = classify(cause);
-  void send(classified, context);
+  const sending = send(classified, context);
+  try {
+    context.waitUntil?.(sending);
+  } catch {
+    // Outside a request there is nothing to keep alive; the write still goes.
+  }
   return classified;
 }
 

@@ -1,4 +1,4 @@
-import { recordFailure } from '@tesserafy/ai';
+import { recordFailure } from '@/lib/keep-alive';
 import { readAll } from '@tesserafy/db';
 import { NextResponse, type NextRequest } from 'next/server';
 import {

@@ -1,5 +1,6 @@
 import { inflateRawSync } from 'node:zlib';
-import { createSupabaseEmbedder, recordFailure, retrieve, storeKnowledge, toCompanyId, type KnowledgePassage } from '@tesserafy/ai';
+import { createSupabaseEmbedder, retrieve, storeKnowledge, toCompanyId, type KnowledgePassage } from '@tesserafy/ai';
+import { recordFailure } from '@/lib/keep-alive';
 import type { SupabaseClient } from '@tesserafy/db';
 import { DOCUMENT_MAX_CHARS, toPassages } from '@tesserafy/ingest';
 import { publicSupabaseEnv } from './env';

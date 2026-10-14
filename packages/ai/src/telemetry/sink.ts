@@ -19,11 +19,22 @@ export interface UsageContext {
   readonly detector?: string;
   /** Called when recording fails; defaults to a console warning. */
   readonly onError?: (error: Error) => void;
+  /**
+   * Keeps the write alive past the response, as FailureContext.waitUntil
+   * does: the web app passes Next's after(), so a fire-and-forget row is not
+   * cut off when the function freezes. A script passes nothing.
+   */
+  readonly waitUntil?: (work: Promise<unknown>) => void;
 }
 
 export function databaseSink(context: UsageContext): UsageSink {
   return (event: UsageEvent) => {
-    void record(event, context);
+    const recording = record(event, context);
+    try {
+      context.waitUntil?.(recording);
+    } catch {
+      // Outside a request there is nothing to keep alive; the write still goes.
+    }
   };
 }
 

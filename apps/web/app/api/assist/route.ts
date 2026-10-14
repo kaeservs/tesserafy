@@ -3,12 +3,12 @@ import {
   assist,
   ASSIST_MODES,
   databaseSink,
-  recordFailure,
   T2_ASSISTER,
   type AssistMode,
   type KnowledgePassage,
   type SuggestableSegment,
 } from '@tesserafy/ai';
+import { keepAlive, recordFailure } from '@/lib/keep-alive';
 import { NextResponse, type NextRequest } from 'next/server';
 import { myCompanyId } from '@/lib/company';
 import { purposeOf } from '@/lib/guidance';
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
   const options = {
     client: new Anthropic(),
     guidance: { instructions: [], examples: [], purpose },
-    onUsage: databaseSink({ db: who.db, detector: T2_ASSISTER }),
+    onUsage: databaseSink({ db: who.db, detector: T2_ASSISTER, waitUntil: keepAlive }),
   };
 
   // Streamed, when the caller asks for it (the overlay from 0.1.11): one line

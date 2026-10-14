@@ -5,7 +5,7 @@ import {
   toSegments,
   TranscriptParseError,
 } from '@tesserafy/ingest';
-import { recordFailure } from '@tesserafy/ai';
+import { recordFailure } from '@/lib/keep-alive';
 import { after, NextResponse, type NextRequest } from 'next/server';
 import { CONSENT_REQUIRED, CONSENT_STATEMENTS, consentConfirmed } from '@/lib/consent';
 import { importTooLong, PLAN_PAGE, planExhausted, refund, spend } from '@/lib/plan';

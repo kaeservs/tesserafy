@@ -5,6 +5,7 @@
  */
 import type Anthropic from '@anthropic-ai/sdk';
 import { describe, expect, it, vi } from 'vitest';
+import { TenantBoundaryViolation } from '../src/retrieval/retrieve';
 import { askCalls, assertNoTracing, MAX_ROUNDS, TOOLS, TracingEnabled, UnreadableAnswer, type AskSources, type CallLine } from '../src/agents/ask-calls';
 
 const line = (id: string, text: string, startMs = 61_000): CallLine => ({
@@ -156,6 +157,43 @@ describe('ask your calls', () => {
     const shown = JSON.stringify(create.mock.calls[1]![0].messages);
     expect(shown).toContain('That search did not work.');
     expect(shown).not.toContain('secret detail');
+  });
+
+  it('tells whoever asked about a search that failed, so it can be recorded', async () => {
+    const { client } = scripted(
+      reply(toolUse('t1', 'search_calls', { query: 'x' })),
+      reply(toolUse('t2', 'answer', { points: [], note: 'The search did not work.' })),
+    );
+    const failed: unknown[] = [];
+    await askCalls('?', {
+      client,
+      sources: sources({ searchMeaning: async () => { throw new Error('embedder down'); } }),
+      onToolError: (error) => failed.push(error),
+    });
+    expect(failed).toHaveLength(1);
+    expect((failed[0] as Error).message).toBe('embedder down');
+  });
+
+  it("stops the question when a search returns another company's row, rather than searching around it", async () => {
+    const { client, create } = scripted(
+      reply(toolUse('t1', 'search_calls', { query: 'x' })),
+      reply(toolUse('t2', 'answer', { points: [], note: 'unused' })),
+    );
+    const failed: unknown[] = [];
+    await expect(
+      askCalls('?', {
+        client,
+        sources: sources({
+          searchMeaning: async () => {
+            throw new TenantBoundaryViolation('retrieve() got a row from another company');
+          },
+        }),
+        onToolError: (error) => failed.push(error),
+      }),
+    ).rejects.toBeInstanceOf(TenantBoundaryViolation);
+    // Not shown to the agent as a search that failed, and not asked again.
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(failed).toHaveLength(0);
   });
 
   it('refuses to run while LangSmith tracing would send meeting content away', () => {

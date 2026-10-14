@@ -26,6 +26,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
 import { z } from 'zod';
 import { logUsage, toUsageEvent, type UsageSink } from '../telemetry/usage';
+import { TenantBoundaryViolation } from '../retrieval/retrieve';
 import { locate } from '../tiers/evidence';
 
 export const ASK_CALLS_AGENT = 'ask-calls@2026-10-11';
@@ -106,6 +107,11 @@ export interface AskOptions {
    * was not allowed to search.
    */
   readonly scope?: string;
+  /**
+   * A search that failed. The agent is told only that it did not work and
+   * may try another, so without this nobody else would hear of it.
+   */
+  readonly onToolError?: (error: unknown) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -372,9 +378,14 @@ export function buildAskGraph(opts: AskOptions) {
         } else {
           content = `There is no tool ${call.name}.`;
         }
-      } catch {
-        // The failure is the route's to record; the agent is told only that
-        // this search did not work, and may try another.
+      } catch (error) {
+        // A row from another company is not a search that did not work: it
+        // is the boundary this product exists to keep, and the question
+        // stops here rather than carrying on around it.
+        if (error instanceof TenantBoundaryViolation) throw error;
+        // Anything else: the agent is told only that this search did not
+        // work, and may try another; the caller hears of it to record it.
+        opts.onToolError?.(error);
         content = 'That search did not work. Try another.';
       }
       results.push({ type: 'tool_result', tool_use_id: call.id, content });

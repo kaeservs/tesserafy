@@ -54,6 +54,16 @@ describe('what needs a person today', () => {
   });
 });
 
+describe('what is an incident', () => {
+  it("calls another company's row where one company's was asked for its own kind, and tells the customer nothing of it", () => {
+    const breach = Object.assign(new Error('retrieve() got a row for company b'), { name: 'TenantBoundaryViolation' });
+    const result = classify(breach);
+
+    expect(result.kind).toBe('tenant_boundary');
+    expect(result.said).not.toContain('company b');
+  });
+});
+
 describe('what fixes itself', () => {
   it('calls an overloaded model weather', () => {
     expect(classify(apiError(529, 'overloaded_error')).kind).toBe('model_unavailable');
@@ -126,6 +136,22 @@ describe('what must never reach the row', () => {
     expect(said).not.toContain(token);
     expect(said).toContain('Bearer');
     expect(said).toContain('[credential]');
+  });
+
+  it('removes the keys of the other services the web app talks to', () => {
+    // Assembled from pieces, as above: none of these is a real key.
+    const keys = [
+      `${'sk'}_${'live'}_${'A1b2'.repeat(6)}`,
+      `${'rk'}_${'test'}_${'Z9y8'.repeat(6)}`,
+      `${'whsec'}_${'Q'.repeat(32)}`,
+      `${'re'}_${'Abcd1234'}_${'Efgh5678ijkl'}`,
+      `${'pat'}-${'na1'}-${'0123abcd'}-${'4567-89ab-cdef-0123456789ab'}`,
+    ];
+    for (const key of keys) {
+      const said = scrub(`upstream said 401 for ${key} just now`);
+      expect(said).not.toContain(key);
+      expect(said).toContain('[credential]');
+    }
   });
 
   it('redacts a customer identifier the model quoted back', () => {

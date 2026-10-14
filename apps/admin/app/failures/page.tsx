@@ -32,6 +32,7 @@ const KIND: Record<string, string> = {
   database: 'our database refused',
   model_unavailable: 'model overloaded or down',
   input: 'unusable input from a caller',
+  tenant_boundary: "another company's row where one company's was asked for",
   unknown: 'unclassified',
 };
 

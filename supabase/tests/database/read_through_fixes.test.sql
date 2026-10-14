@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(3);
+select plan(6);
 
 -- 1. Only the extractor's runs count as extraction ------------------------------
 
@@ -63,6 +63,38 @@ select is(
   3,
   'a run from before detectors were recorded still counts'
 );
+
+reset role;
+
+-- 2. One row across tenants raises the alarm at once ---------------------------
+
+insert into private.ops_tokens (token_hash, hint)
+values (sha256(convert_to('ops_read_through_test', 'UTF8')), 'test');
+
+select lives_ok(
+  $$ insert into public.system_failures (source, kind, message)
+     values ('api/ask', 'tenant_boundary', 'retrieve() got a row from another company') $$,
+  'a row from another company is a kind of failure of its own'
+);
+
+-- Two open requests to add someone; one company is then closed.
+insert into public.access_requests (company_id, email, role) values
+  ('00000000-0000-4000-8000-00000000000a', 'new-a@acme.test', 'member'),
+  ('00000000-0000-4000-8000-00000000000b', 'new-b@globex.test', 'member');
+update public.companies
+   set closed_at = now(), closed_reason = 'test'
+ where id = '00000000-0000-4000-8000-00000000000b';
+
+create temporary table digest (d jsonb);
+grant all on digest to anon;
+set local role anon;
+select set_config('request.jwt.claims', '{"role":"anon"}', true);
+insert into digest select public.ops_digest('ops_read_through_test', 1);
+
+select is((select (d ->> 'alarming')::int from digest), 1,
+  'the first time is an alarm, where any other kind waits for a second');
+select is((select (d -> 'waiting' ->> 'access_requests')::int from digest), 1,
+  'a closed company''s request is not waiting on anyone');
 
 reset role;
 

@@ -13,6 +13,16 @@ that are architecturally meaningful, explain the problem, the options, the
 recommendation and the tradeoff before implementing. Trivial syntax needs no
 explanation.
 
+**Read `HANDOFF.md` too.** It holds the rest:
+- how the owner works with Claude: the PR routine, what to do when a PR is
+  merged, and ending every piece of work with the list of what is waiting on
+  the owner;
+- where things stand;
+- that list itself.
+
+Sessions on the web keep no memory between them, so updating that file's
+state and its list is the last step of any piece of work.
+
 ## Architectural invariants
 
 Do not break these without an ADR that supersedes the existing one.

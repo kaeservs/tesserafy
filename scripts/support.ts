@@ -7,6 +7,11 @@
  *   pnpm support --end <id>                       close one early
  *   pnpm support --history [--user <email>]       every time this has happened
  *
+ * Add `--code <6 digits>` from your authenticator once you have enrolled one
+ * (console → /mfa). The console asks for it at every sign-in, and once
+ * `operator_mfa_required` is on the database refuses every admin function to
+ * a session without it (ADR 0017), this one included.
+ *
  * This was always possible. Anyone holding the service-role key can mint a
  * session for any email through the Auth admin API — scripts/qa.ts does it for
  * the probe account, in about ten lines. What was missing was not capability
@@ -98,6 +103,42 @@ async function sessionFor(
   return token ? { token, link } : null;
 }
 
+/**
+ * The operator's session, raised to the second step with a code from their
+ * authenticator: the same challenge and verify the console makes at /mfa.
+ * Without it, an operator with an authenticator gets an aal1 session, which
+ * the database refuses once operator_mfa_required is on.
+ */
+async function secondStep(url: string, key: string, token: string, code: string | undefined): Promise<string> {
+  const auth = (path: string, init: RequestInit = {}) =>
+    fetch(new URL(`/auth/v1/${path}`, url), {
+      ...init,
+      headers: { apikey: key, authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    });
+  const user = (await (await auth('user')).json()) as { factors?: { id: string; factor_type: string; status: string }[] };
+  const factor = (user.factors ?? []).find((f) => f.factor_type === 'totp' && f.status === 'verified');
+  if (!factor) return token;
+  if (!code || !/^\d{6}$/.test(code)) {
+    console.error('support: this operator signs in with two steps; add --code <6 digits> from the authenticator');
+    process.exit(2);
+  }
+  const challenge = (await (await auth(`factors/${factor.id}/challenge`, { method: 'POST', body: '{}' })).json()) as { id?: string };
+  if (!challenge.id) {
+    console.error('support: Auth would not start the second step');
+    process.exit(1);
+  }
+  const verified = await auth(`factors/${factor.id}/verify`, {
+    method: 'POST',
+    body: JSON.stringify({ challenge_id: challenge.id, code }),
+  });
+  const raised = (await verified.json()) as { access_token?: string };
+  if (!verified.ok || !raised.access_token) {
+    console.error('support: that code was not accepted');
+    process.exit(1);
+  }
+  return raised.access_token;
+}
+
 async function main(): Promise<void> {
   const url = requireEnv('SUPABASE_URL');
   const serviceKey = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
@@ -110,7 +151,8 @@ async function main(): Promise<void> {
     console.error(`support: could not sign in as ${adminEmail}`);
     process.exit(1);
   }
-  const db: SupabaseClient = createTokenClient({ url, key: publishableKey, token: me.token });
+  const token = await secondStep(url, publishableKey, me.token, flag('code'));
+  const db: SupabaseClient = createTokenClient({ url, key: publishableKey, token });
 
   if (has('companies')) {
     const { data, error } = await db.rpc('admin_companies');

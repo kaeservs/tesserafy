@@ -14,7 +14,7 @@
  * scorecard decides what the answer is worth when the call happens.
  */
 import type Anthropic from '@anthropic-ai/sdk';
-import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
+import { tolerantOutputFormat } from './structured-output';
 import { z } from 'zod';
 import { logUsage, toUsageEvent, type UsageSink } from '../telemetry/usage';
 import { T3_MODEL } from './t3-extract';
@@ -200,7 +200,7 @@ export async function prepareBrief(input: PrepInput, opts: PrepOptions): Promise
     max_tokens: 4_000,
     system: isEmpty(opts.guidance) ? SYSTEM : `${SYSTEM}\n\n${renderInstructions(opts.guidance)}`,
     messages: [{ role: 'user', content: render(input) }],
-    output_config: { format: zodOutputFormat(ClaimedPrepSchema) },
+    output_config: { format: tolerantOutputFormat(ClaimedPrepSchema) },
   });
   sink(toUsageEvent('t3', model, response.usage, Date.now() - startedAt));
 

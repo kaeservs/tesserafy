@@ -8,7 +8,7 @@
  * `packages/scoring` does that from evidence, per invariant 1.
  */
 import type Anthropic from '@anthropic-ai/sdk';
-import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
+import { tolerantOutputFormat } from './structured-output';
 import { z } from 'zod';
 import { logUsage, toUsageEvent, type UsageSink } from '../telemetry/usage';
 import { resolveSignals, type ResolutionResult } from './evidence';
@@ -108,7 +108,7 @@ export async function extractSignals(
     ...(opts.temperature === undefined ? {} : { temperature: opts.temperature }),
     system: isEmpty(opts.guidance) ? SYSTEM : `${SYSTEM}\n\n${renderInstructions(opts.guidance)}`,
     messages: [{ role: 'user', content: renderTranscript(segments) }],
-    output_config: { format: zodOutputFormat(ExtractionSchema) },
+    output_config: { format: tolerantOutputFormat(ExtractionSchema) },
   });
 
   // Recorded before anything can throw on the response: a call that happened

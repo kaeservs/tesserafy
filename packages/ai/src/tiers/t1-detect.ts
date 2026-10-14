@@ -16,7 +16,7 @@
  * rather than as a surprise on a bill.
  */
 import type Anthropic from '@anthropic-ai/sdk';
-import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
+import { tolerantOutputFormat } from './structured-output';
 import type { DetectorEvent } from '@tesserafy/scoring';
 import { z } from 'zod';
 import { logUsage, toUsageEvent, type UsageEvent, type UsageSink } from '../telemetry/usage';
@@ -170,7 +170,7 @@ export async function detectCriteria(
       },
     ],
     messages: [{ role: 'user', content: renderWindow(window) }],
-    output_config: { format: zodOutputFormat(DetectionSchema) },
+    output_config: { format: tolerantOutputFormat(DetectionSchema) },
   });
 
   const usage = toUsageEvent('t1', model, response.usage, Date.now() - startedAt);

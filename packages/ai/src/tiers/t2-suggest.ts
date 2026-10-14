@@ -19,7 +19,7 @@
  * and a panel of five suggestions is a panel nobody reads.
  */
 import type Anthropic from '@anthropic-ai/sdk';
-import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
+import { tolerantOutputFormat } from './structured-output';
 import type { Scorecard } from '@tesserafy/scoring';
 import { z } from 'zod';
 import { logUsage, toUsageEvent, type UsageEvent, type UsageSink } from '../telemetry/usage';
@@ -129,7 +129,7 @@ export async function suggestNext(
           .join('\n')}`,
       },
     ],
-    output_config: { format: zodOutputFormat(SuggestionSchema) },
+    output_config: { format: tolerantOutputFormat(SuggestionSchema) },
   });
 
   const usage = toUsageEvent('t2', model, response.usage, Date.now() - startedAt);

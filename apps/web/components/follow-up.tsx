@@ -199,7 +199,8 @@ export function FollowUp({
                 {draft.lines.map((line, index) => (
                   <li key={index}>
                     {line.text}{' '}
-                    <a href={`#segment-${line.segmentId}`}>
+                    {/* This page has no transcript: the line is on the call's page. */}
+                    <a href={`/conversations/${conversationId}#segment-${line.segmentId}`}>
                       “{line.quote}” <span className="muted">at {line.at}</span>
                     </a>
                   </li>

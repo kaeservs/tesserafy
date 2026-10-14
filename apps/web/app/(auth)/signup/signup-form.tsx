@@ -17,7 +17,7 @@ export function SignupForm() {
       <div className="card">
         <p style={{ marginTop: 0 }}>
           <strong>Check your email.</strong> If {state.email} can sign up, a confirmation link is on
-          its way. Open it to name your company and start your fourteen-day trial.
+          its way. Open it to name your company and start your free trial.
         </p>
         <p className="muted" style={{ marginBottom: 0 }}>
           It can take a minute, and may land in spam. The link works once.

@@ -296,12 +296,15 @@ export default async function DashboardPage() {
   // The plans above this one, and the first-run steps (components/pricing-cards, components/onboarding).
   const [{ data: catalog }, { data: myPreferences }, { count: overlays }, offerSample, billing] = await Promise.all([
     supabase.from('plans').select(CATALOG_COLUMNS).order('rank'),
-    supabase.from('user_preferences').select('onboarded_at').eq('user_id', user?.id ?? '').maybeSingle(),
+    supabase.from('user_preferences').select('onboarded_at, display_name').eq('user_id', user?.id ?? '').maybeSingle(),
     supabase.from('overlay_seen').select('user_id', { count: 'exact', head: true }).eq('user_id', user?.id ?? ''),
     sampleCallOffered(supabase),
     companyId ? billingMode(supabase, companyId) : Promise.resolve('free' as const),
   ]);
   const currentPlan = catalog?.find((row) => row.id === planOverview?.plan) ?? null;
+  // The name the person gave (Your account), as the sidebar shows it; the
+  // address's first part only when they gave none.
+  const greeting = myPreferences?.display_name?.trim().split(/\s+/)[0] || name;
   const upgrades = (catalog ?? []).filter(
     (row) => row.per_seat && row.price_usd_cents !== null && row.rank > (currentPlan?.rank ?? 0),
   );
@@ -321,12 +324,18 @@ export default async function DashboardPage() {
 
   return (
     <main className="wide">
-      <h1>Hello {name} 👋,</h1>
+      <h1>Hello {greeting} 👋,</h1>
       <p className="muted">
         {now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })}
       </p>
       {planOverview ? (
-        <PlanStrip plan={planOverview.plan} planName={planOverview.plan_name} meters={planOverview.meters} isOwner={isOwner} />
+        <PlanStrip
+          plan={planOverview.plan}
+          planName={planOverview.plan_name}
+          meters={planOverview.meters}
+          isOwner={isOwner}
+          renews={currentPlan?.renews ?? true}
+        />
       ) : null}
       {plansFirst ? pricing : null}
       <Onboarding

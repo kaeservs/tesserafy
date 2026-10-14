@@ -35,11 +35,14 @@ export function PlanStrip({
   planName,
   meters,
   isOwner,
+  renews = true,
 }: {
   plan: string;
   planName: string;
   meters: readonly PlanStripMeter[];
   isOwner: boolean;
+  /** False for a plan given once (Free): its allowance is not "this month's". */
+  renews?: boolean;
 }) {
   if (plan === 'pilot' || plan === 'internal') return null;
   const nearest = nearestLimit(meters);
@@ -52,7 +55,9 @@ export function PlanStrip({
   return (
     <p className="card plan-strip" role="status">
       <strong>{plan === 'none' ? 'No plan' : planName}</strong>
-      {nearest ? ` · ${used} of ${limit} ${NOUN[nearest.meter.meter] ?? nearest.meter.meter} used this month.` : '.'}{' '}
+      {nearest
+        ? ` · ${used} of ${limit} ${NOUN[nearest.meter.meter] ?? nearest.meter.meter} used${renews ? ' this month' : ''}.`
+        : '.'}{' '}
       {isOwner ? (
         <Link href="/settings/membership">{starting ? 'Choose a plan' : 'Upgrade or add seats'}</Link>
       ) : (

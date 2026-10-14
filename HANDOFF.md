@@ -168,7 +168,7 @@ margins of about 64%, 51% and 81%. Payments will go through Dodo Payments
 | | Calendar (Google/Microsoft, read-only) | Built, off |
 | **Plans** | Allowances enforced in the database; a 402 names the plan page; plan announcements; three first-run steps | Live |
 | | Payments | Stripe built; moving to Dodo |
-| **Landing page** | Hero, the overlay demo drawn 1:1 with the real overlay, features, pricing, FAQ, early-access form | Live |
+| **Landing page** | Hero, the overlay demo drawn 1:1 with the real overlay, features, pricing, FAQ (the early-access form was removed in landing v2; the console still lists past requests) | Live |
 | **Sign-up** | Self-serve | Built, closed until email and payments work |
 
 ### The operator console
@@ -212,7 +212,8 @@ margins of about 64%, 51% and 81%. Payments will go through Dodo Payments
   transcribed.
 - **Pull requests:**
   1. Branch `pNNN/<slug>` from `main`, numbering on from the last (the last
-     was `p173`).
+     was `p173`). A cloud session may be handed a branch name of its own
+     (`claude/…`); then that branch is the one to use.
   2. Open the PR as a draft.
   3. Wait for CI.
   4. Mark it ready.
@@ -248,6 +249,44 @@ margins of about 64%, 51% and 81%. Payments will go through Dodo Payments
 - **Tests never send a real screen to the model;** use a rendered slide.
 
 ## 4. Where things stand (2026-10-14)
+
+**Open: [kaeservs/tesserafy#209](https://github.com/kaeservs/tesserafy/pull/209)**, fixes from a full read of the
+project (2026-10-14), every one traced in the code first:
+- **Production bugs:**
+  - a WebVTT pattern that 63 characters could hang;
+  - Find insights hidden after action items or a follow-up;
+  - long calls read only to their first 1,000 lines.
+- **Telemetry:**
+  - unparsable model replies now record their usage;
+  - failure and usage rows are kept alive past the response.
+- **Security:**
+  - a row across tenants alarms at once (`tenant_boundary`), and the Ask
+    agent stops on one;
+  - a support visit cannot set a password;
+  - the export reads only the exporter's company;
+  - `pnpm ingest:batch` redacts.
+- **Scoring:** a correction quoting other words of the same moment counts
+  (ADR 0006 addendum).
+- **Overlay (0.1.26):**
+  - a sign-in survives no network;
+  - each call keeps its own record;
+  - Start says why it failed;
+  - the screenshot greys out the overlay.
+- **Smaller:**
+  - charges and refunds;
+  - the console's seat-blind health page;
+  - erasure lists CRM notes;
+  - leaving a company takes its calendar;
+  - `pnpm support` takes a second-step code;
+  - stale copy and docs.
+
+Its migration `20261102090000_read_through_fixes.sql` needs `supabase db
+push` and `pnpm db:types` after merge. Every check was run locally against a
+Supabase stack:
+- unit tests;
+- pgTAP, 905 assertions;
+- integration;
+- both production builds.
 
 **Recently merged**
 - **#205:** scoring runs on Haiku 5.5. About 90% cheaper and more accurate
@@ -291,8 +330,8 @@ was added to the console's Vercel project, not the web app's; QA's line
 - no hard spending cap: prepaid credit with auto-reload on by default, so
   switch that off.
 
-**The overlay:** 0.1.25. The Mac test and the S1 screen-share check are not
-done.
+**The overlay:** 0.1.25 released; 0.1.26 is in #209, to be tagged after it
+merges. The Mac test and the S1 screen-share check are not done.
 
 **Sign-up** is closed until email (Resend) works and payments are live.
 
@@ -320,7 +359,10 @@ until real transcripts arrive.
 - **Anthropic Console:** a monthly spend limit, with auto-reload.
 - **Resend:** set it up, then open sign-up. The follow-up "send" has an open
   item to fix first; see the security review.
-- **Overlay 0.1.25:** the Mac test and the S1 screen-share check.
+- **#209:** review and merge it, then `supabase db push` and `pnpm db:types`
+  (or say so and Claude applies the migration).
+- **Overlay 0.1.26:** after #209 merges, push the tag `overlay-v0.1.26`.
+- **Overlay:** the Mac test and the S1 screen-share check.
 - **Ops alerts:** attach the credential and a chat node to "Tesserafy ops
   alerts" in n8n, then publish it.
 - **Legal:** the Terms and Privacy pages; set `TERMS_URL` and `PRIVACY_URL`.
@@ -360,6 +402,41 @@ Roughly in order. The owner sets the order.
    - settle `timeline_stated`.
 7. **Cluely parity:** check the overlay against Cluely's current release and
    close any gap.
+8. **Open from the 2026-10-14 read** (not fixed in #209; each needs a decision
+   or a design first):
+   - **Live evidence and metering trust the overlay.**
+     - `/api/live/sessions/:id/events` stores whatever events the client
+       sends. A modified overlay can confirm its seller's own criteria, which
+       feed the owners' seller reports.
+     - `chargeFromMs` is the client's word.
+     - The suggestion gate accepts Assist's charge as well as a detection's.
+     - Fix by binding events and charges to the server's own detections.
+   - **Redaction masks dates and some number formats as `[phone]`**
+     ("2026-10-14", "14.10.2026", "1 250 000"), which hides timelines from
+     `timeline_stated`. A number split across a chunk boundary escapes. This
+     is a product decision about what is protected.
+   - **The security review's open list,** unchanged (section 6, item 3).
+   - **The Ask agent** has no `stop_reason` handling: a refusal sends an
+     empty tool result and the next call is a 400.
+   - **Changing a call's scorecard** deletes people's corrections, and the AI
+     guidance learned from them.
+   - **Measurement gaps:**
+     - multi-window scoring has never been graded;
+     - Haiku 5.5 has never been timed server-side;
+     - `pnpm smoke:tiers` skips Assist, Ask, action items, the follow-up and
+       the prep brief.
+   - **Copy:**
+     - sign-up and welcome type prices out by hand;
+     - one meter has four names;
+     - "Customers" is "Accounts" on its own page;
+     - the landing page has no Sign in link while sign-up is closed, and
+       sells calendar and live calls, which are off.
+   - **Housekeeping:**
+     - ADRs 0006–0031 are all still "proposed";
+     - 20 migrations carry future dates;
+     - Actions are pinned to tags, not commit SHAs;
+     - `pnpm qa` hard-codes the production URL and an address;
+     - the overlay hard-codes the vercel.app domain.
 
 ## 7. What cannot carry over, and how to work without it
 

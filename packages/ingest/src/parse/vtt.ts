@@ -14,7 +14,12 @@ import { TranscriptParseError, withoutBom, type ParsedTranscript, type Turn } fr
 // with no arrow, and a 2 MB upload of one such line held a server for most of
 // an hour (security review, 2026-10-12).
 const TIMING = /^(\S+)\s+-->\s+(\S+)(?:\s.*)?$/;
-const VOICE_SPAN = /^<v(?:\.[^\s>]+)*\s+([^>]*)>([\s\S]*?)(?:<\/v>)?$/;
+// The same care for a voice span. A class may not contain a dot, so
+// `<v.a.b.c` splits into classes one way only, and one space (not `\s+`)
+// separates them from the name, which is trimmed afterwards. The old
+// `(?:\.[^\s>]+)*\s+` could split `.a.a.a…` every way there is: 63
+// characters of `<v.a.a…!` held a function for over a minute.
+const VOICE_SPAN = /^<v(?:\.[^\s>.]+)*\s([^>]*)>([\s\S]*?)(?:<\/v>)?$/;
 // A speaker label, not a sentence that happens to contain a colon. A name is
 // short, unpunctuated and at most a few words: "Grace Hopper", "Speaker 1",
 // "Grace Hopper (Acme)". "It comes down to this: we are late" is not one.

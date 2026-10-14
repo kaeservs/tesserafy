@@ -116,4 +116,28 @@ describe('parseVtt', () => {
     expect(message).toMatch(/Expected a cue timing line/);
     expect(message.length).toBeLessThan(200);
   });
+
+  it('reads a voice span that never closes in linear time', () => {
+    // The old voice-span pattern split `.a.a.a…` into classes every way
+    // there is: 24 pairs took 374 ms, each pair doubled it, and 30 held a
+    // function for over a minute, before any charge.
+    const hostile = [
+      `<v${'.a'.repeat(5_000)}!`,
+      `<v${' '.repeat(200_000)}x`,
+      `<v.a${' '.repeat(200_000)}x`,
+    ];
+    for (const cue of hostile) {
+      const started = Date.now();
+      const turns = parseVtt(`WEBVTT\n\n00:00.000 --> 00:01.000\n${cue}\n`).turns;
+      expect(Date.now() - started).toBeLessThan(500);
+      expect(turns).toHaveLength(1);
+    }
+  });
+
+  it('still reads a speaker whose name follows several spaces', () => {
+    const source = 'WEBVTT\n\n00:00.000 --> 00:01.000\n<v.customer   Ada Lovelace  >Right.</v>\n';
+
+    expect(parseVtt(source).turns[0]?.speaker).toBe('Ada Lovelace');
+    expect(parseVtt(source).turns[0]?.text).toBe('Right.');
+  });
 });

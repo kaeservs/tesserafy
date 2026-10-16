@@ -250,7 +250,7 @@ margins of about 64%, 51% and 81%. Payments will go through Dodo Payments
 
 ## 4. Where things stand (2026-10-16)
 
-**Open: [kaeservs/tesserafy#209](https://github.com/kaeservs/tesserafy/pull/209)**, fixes from a full read of the
+**Merged 2026-10-16: [kaeservs/tesserafy#209](https://github.com/kaeservs/tesserafy/pull/209)**, fixes from a full read of the
 project (2026-10-14), every one traced in the code first:
 - **Production bugs:**
   - a WebVTT pattern that 63 characters could hang;
@@ -280,16 +280,20 @@ project (2026-10-14), every one traced in the code first:
   - `pnpm support` takes a second-step code;
   - stale copy and docs.
 
-Its migration `20261102090000_read_through_fixes.sql` needs `supabase db
-push` and `pnpm db:types` after merge. Every check was run locally against a
+Its migration `20261102090000_read_through_fixes.sql` is not applied yet:
+it needs `supabase db push` and `pnpm db:types`. Until then production runs
+the new code on the old schema. A sign-in-link session cannot set a password
+(the check fails closed without `in_support_session()`), a `tenant_boundary`
+failure row is refused by the old kind constraint, and Find insights still
+hides after action items. Every check was run locally against a
 Supabase stack:
 - unit tests;
 - pgTAP, 905 assertions;
 - integration;
 - both production builds.
 
-**Also in #209, waiting on the owner's look (2026-10-16): the landing demo's
-new layout,** tried there before the overlay at the owner's word:
+**Also in #209, now live: the landing demo's new layout,** tried there
+before the overlay at the owner's word:
 - what to say is a conversation: the customer's line on the right, the words
   to say on the left, the same size as theirs (semibold, in the accent), with
   no advice about saying them;
@@ -345,8 +349,8 @@ was added to the console's Vercel project, not the web app's; QA's line
 - no hard spending cap: prepaid credit with auto-reload on by default, so
   switch that off.
 
-**The overlay:** 0.1.25 released; 0.1.26 is in #209, to be tagged after it
-merges. The Mac test and the S1 screen-share check are not done.
+**The overlay:** 0.1.25 released; 0.1.26 is on `main`, waiting for its
+tag. The Mac test and the S1 screen-share check are not done.
 
 **Sign-up** is closed until email (Resend) works and payments are live.
 
@@ -374,11 +378,10 @@ until real transcripts arrive.
 - **Anthropic Console:** a monthly spend limit, with auto-reload.
 - **Resend:** set it up, then open sign-up. The follow-up "send" has an open
   item to fix first; see the security review.
-- **#209:** review and merge it, then `supabase db push` and `pnpm db:types`
-  (or say so and Claude applies the migration).
-- **Overlay 0.1.26:** after #209 merges, push the tag `overlay-v0.1.26`.
-- **Landing demo:** look at the new layout on the #209 preview; if it is
-  right, the overlay follows.
+- **#209's migration:** run `supabase db push` and `pnpm db:types` (or say
+  so and Claude applies it).
+- **Overlay 0.1.26:** push the tag `overlay-v0.1.26`.
+- **Landing demo:** it is live; say whether the overlay should follow.
 - **Overlay:** the Mac test and the S1 screen-share check.
 - **Ops alerts:** attach the credential and a chat node to "Tesserafy ops
   alerts" in n8n, then publish it.

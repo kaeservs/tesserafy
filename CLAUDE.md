@@ -317,6 +317,11 @@ The landing page's demo (`components/landing/overlay-demo.tsx`) is the
 overlay drawn 1:1: the same layout, sizes in em of the same 13 px, themes and
 copy as `apps/desktop/src/renderer/index.html`, measured element by element
 to within a pixel (2026-10-09). A change to one is a change to the other.
+The exception, since 2026-10-16 and at the owner's word, is that the demo is
+ahead of the overlay. In the demo, what to say is a conversation: the
+customer's line on the right, the words to say on the left, with no advice
+about saying them. It also has three buttons: AI Assist, To Ask and Recap. It
+is tried there first; the overlay follows once the owner approves.
 
 When the last meeting app lets go of the microphone while listening, the
 overlay stops by itself after 15 seconds unless the call comes back or the

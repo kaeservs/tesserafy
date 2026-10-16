@@ -248,7 +248,7 @@ margins of about 64%, 51% and 81%. Payments will go through Dodo Payments
   - read Paragon / AI Paragon files.
 - **Tests never send a real screen to the model;** use a rendered slide.
 
-## 4. Where things stand (2026-10-14)
+## 4. Where things stand (2026-10-16)
 
 **Open: [kaeservs/tesserafy#209](https://github.com/kaeservs/tesserafy/pull/209)**, fixes from a full read of the
 project (2026-10-14), every one traced in the code first:
@@ -287,6 +287,20 @@ Supabase stack:
 - pgTAP, 905 assertions;
 - integration;
 - both production builds.
+
+**Also in #209, waiting on the owner's look (2026-10-16): the landing demo's
+new layout,** tried there before the overlay at the owner's word:
+- what to say is a conversation: the customer's line on the right, the words
+  to say on the left, in the largest type, with no advice about saying them;
+- three buttons, AI Assist, To Ask and Recap ("What should I say?" is gone:
+  the conversation already says it);
+- an answer replaces what to say until closed, so there is one place to read;
+- the demo no longer runs under How it looks at laptop widths (1080–1330 px).
+
+The overlay (`apps/desktop/src/renderer`) still has the four buttons. Once
+the owner approves the demo, the overlay follows. Its prompts in
+`t2-assist.ts` also have to give the words to say, not advice about them, and
+that change needs a measured probe first.
 
 **Recently merged**
 - **#205:** scoring runs on Haiku 5.5. About 90% cheaper and more accurate
@@ -362,6 +376,8 @@ until real transcripts arrive.
 - **#209:** review and merge it, then `supabase db push` and `pnpm db:types`
   (or say so and Claude applies the migration).
 - **Overlay 0.1.26:** after #209 merges, push the tag `overlay-v0.1.26`.
+- **Landing demo:** look at the new layout on the #209 preview; if it is
+  right, the overlay follows.
 - **Overlay:** the Mac test and the S1 screen-share check.
 - **Ops alerts:** attach the credential and a chat node to "Tesserafy ops
   alerts" in n8n, then publish it.

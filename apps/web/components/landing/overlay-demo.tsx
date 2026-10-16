@@ -22,18 +22,23 @@ import {
   talkShares,
   type Answer,
   type AssistMode,
+  type Reply,
   type Side,
 } from './sample-call';
 
 /**
  * The overlay on a sample call, to play with: a meeting with the desktop
- * overlay floating over it, drawn as the overlay draws itself
- * (apps/desktop/src/renderer/index.html) — the bar with the score, what to
- * say next first and largest, the four buttons and the ask box, and the
- * scorecard folded under one line — in the same choice of looks as Your
- * account → Overlay. It can be dragged anywhere over the meeting (by its grip
- * on a touch screen, or the arrow keys on the grip), and restyled from the
- * panel beside it.
+ * overlay floating over it — the bar with the score, what to say next first
+ * and largest, three buttons and the ask box, and the scorecard folded under
+ * one line — in the same choice of looks as Your account → Overlay. It can be
+ * dragged anywhere over the meeting (by its grip on a touch screen, or the
+ * arrow keys on the grip), and restyled from the panel beside it.
+ *
+ * Ahead of the overlay on purpose (2026-10-16, the owner's call): what to say
+ * is a conversation — the customer's line on the right, the words to say on
+ * the left — with no advice about saying it, and the buttons are AI Assist,
+ * To Ask and Recap. Tried here first; apps/desktop/src/renderer/index.html
+ * follows once it is approved, and the two are drawn alike again.
  *
  * Front end only. The call is written for the page (./sample-call), its
  * scorecard is packages/scoring's, and nothing is recorded, sent or kept. It
@@ -50,16 +55,19 @@ type Size = (typeof OVERLAY_SIZES)[number]['value'];
 /** The overlay's zoom for each size (apps/desktop/src/main/appearance.ts). */
 const SCALE: Record<Size, number> = { small: 0.85, normal: 1, large: 1.2 };
 
-/** The four buttons, as the overlay labels them, with the bubble each puts over its answer. */
+/** The three buttons. */
 const BUTTONS: readonly { mode: AssistMode; label: string; icon: string }[] = [
   {
     mode: 'assist',
-    label: 'Assist',
+    label: 'AI Assist',
     icon: 'M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8zM18.5 15.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z',
   },
-  { mode: 'say', label: 'What should I say?', icon: 'M4 20 15 9M14 4v2M19 9h2M17.5 5.5 19 4M9 4l.6 1.6L11 6l-1.4.4L9 8l-.6-1.6L7 6l1.4-.4z' },
-  { mode: 'followups', label: 'Follow-up questions', icon: 'M4 5h16v11H9.5L4 20z' },
-  { mode: 'recap', label: 'Recap', icon: 'M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4' },
+  {
+    mode: 'followups',
+    label: 'To Ask',
+    icon: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01',
+  },
+  { mode: 'recap', label: 'Recap', icon: 'M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01' },
 ];
 
 const SIDE_NAME: Record<Side, string> = { me: 'You', them: 'Them' };
@@ -72,8 +80,8 @@ function choose<T extends string>(options: readonly { value: T }[], wanted: stri
 }
 
 interface Shown {
-  /** What was asked: a button's label or the question typed, shown as a bubble. */
-  readonly asked: string;
+  /** The question typed, or null for a button: the button's answer names itself. */
+  readonly asked: string | null;
   readonly answer: Answer;
   /** Asked with Screen pressed. */
   readonly screen: boolean;
@@ -81,6 +89,7 @@ interface Shown {
 
 /** Before a call the overlay's box asks past calls; the sample has none. */
 const PAST_CALLS: Answer = {
+  kind: 'notes',
   title: 'Past calls with Northwind',
   points: [
     {
@@ -90,9 +99,46 @@ const PAST_CALLS: Answer = {
 };
 
 /** What Screen adds in the sample: there is no screen to read, and the app would send one screenshot. */
-const SCREEN_POINT = {
-  text: 'Nothing is on screen in this sample. In the app, Screen sends one screenshot of your display with the question, for that answer only, and keeps nothing.',
-};
+const SCREEN_NOTE =
+  'Nothing is on screen in this sample. In the app, Screen sends one screenshot of your display with the question, for that answer only, and keeps nothing.';
+
+/**
+ * One turn of the conversation: what the customer said on the right, what to
+ * say to it on the left, so the eye goes to one place for the words to say.
+ */
+function Exchange({ reply, label, big }: { reply: Reply; label: string | null; big: boolean }) {
+  return (
+    <div className="od-exchange">
+      {reply.them ? (
+        <div className="od-turn them">
+          <span className="od-who">Dana</span>
+          <p className="od-bubble">{reply.them}</p>
+        </div>
+      ) : null}
+      <div className={`od-turn me${big ? ' big' : ''}`}>
+        {label ? <span className="od-who">{label}</span> : null}
+        <p className="od-bubble">{reply.say}</p>
+      </div>
+    </div>
+  );
+}
+
+/** A button's answer or the box's: lines to say as a conversation, notes as a list quoting the call. */
+function AnswerBody({ answer }: { answer: Answer }) {
+  if (answer.kind === 'say') {
+    return answer.lines.map((line) => <Exchange key={line.say} reply={line} label={null} big={answer.lines.length === 1} />);
+  }
+  return (
+    <ul>
+      {answer.points.map((point) => (
+        <li key={point.text}>
+          {point.text}
+          {point.quote ? <span className="od-quote">“{point.quote}”</span> : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export function OverlayDemo() {
   const [theme, setTheme] = useState<Theme>(() => choose(OVERLAY_THEMES, DEFAULT_LOOK.theme, 'glass'));
@@ -289,16 +335,12 @@ export function OverlayDemo() {
   };
 
   // As the overlay does: an answer asked with Screen pressed says so, and Screen switches itself off after one.
-  const answerWith = (asked: string, answer: Answer) => {
-    setShown({
-      asked,
-      answer: screen ? { ...answer, points: [...answer.points, SCREEN_POINT] } : answer,
-      screen,
-    });
+  const answerWith = (asked: string | null, answer: Answer) => {
+    setShown({ asked, answer, screen });
     setScreen(false);
   };
 
-  const press = (button: (typeof BUTTONS)[number]) => answerWith(button.label, assist(button.mode, heard));
+  const press = (button: (typeof BUTTONS)[number]) => answerWith(null, assist(button.mode, heard));
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -310,7 +352,7 @@ export function OverlayDemo() {
     setQuestion('');
   };
 
-  // Ctrl+Enter in the box is Assist, as in the overlay.
+  // Ctrl+Enter in the box is AI Assist.
   const assistKey = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key !== 'Enter' || !(event.ctrlKey || event.metaKey)) return;
     event.preventDefault();
@@ -429,34 +471,37 @@ export function OverlayDemo() {
                 </p>
               ) : null}
 
-              {listening ? (
-                <section className={`od-say${next.waiting ? ' waiting' : ''}`} aria-label="What to say next">
-                  <p className="od-say-label">{next.label}</p>
-                  <p className="od-say-text">{next.text}</p>
-                  {next.why ? <p className="od-say-why">{next.why}</p> : null}
+              {/* One place to read: an answer asked for, else what to say next. */}
+              {shown ? (
+                <section className="od-answer" aria-live="polite" aria-label={shown.asked === null ? shown.answer.title : 'Answer'}>
+                  <div className="od-answer-head">
+                    {shown.asked === null ? (
+                      <span className="od-tag">{shown.answer.title}</span>
+                    ) : (
+                      <span className="od-tag asked">You asked: {shown.asked}</span>
+                    )}
+                    <button type="button" className="od-close" aria-label="Close the answer" onClick={() => setShown(null)}>
+                      ×
+                    </button>
+                  </div>
+                  <AnswerBody answer={shown.answer} />
+                  {shown.screen ? <p className="od-screen-note">{SCREEN_NOTE}</p> : null}
+                </section>
+              ) : listening ? (
+                <section className="od-say" aria-label="What to say next">
+                  {next.from === 'waiting' ? (
+                    <p className="od-waiting">{next.say}</p>
+                  ) : (
+                    <Exchange
+                      reply={next.them ? { say: next.say, them: next.them } : { say: next.say }}
+                      label={next.from === 'prep' ? 'From your prep' : 'Say'}
+                      big
+                    />
+                  )}
                 </section>
               ) : null}
 
-              <section className="od-assist" aria-label="Assist">
-                {shown ? (
-                  <div className="od-answer" aria-live="polite">
-                    <div className="od-answer-head">
-                      <span className="od-answer-state">{shown.screen ? 'With your screen' : ''}</span>
-                      <span className="od-asked">{shown.asked}</span>
-                      <button type="button" className="od-close" aria-label="Close the answer" onClick={() => setShown(null)}>
-                        ×
-                      </button>
-                    </div>
-                    <ul>
-                      {shown.answer.points.map((point) => (
-                        <li key={point.text}>
-                          {point.text}
-                          {point.quote ? <span className="od-quote">“{point.quote}”</span> : null}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
+              <section className="od-assist" aria-label="Help on the call">
                 <div className="od-actions">
                   {BUTTONS.map((button, index) => (
                     <span key={button.mode} className="od-action">
@@ -481,7 +526,7 @@ export function OverlayDemo() {
                     maxLength={200}
                     autoComplete="off"
                     onKeyDown={assistKey}
-                    placeholder={inCall || ended ? 'Ask about the call — or Ctrl+Enter for Assist' : 'Ask about past calls with Northwind'}
+                    placeholder={inCall || ended ? 'Ask about the call — or Ctrl+Enter for AI Assist' : 'Ask about past calls with Northwind'}
                     aria-label="Ask about the call"
                   />
                   <button
@@ -552,8 +597,8 @@ export function OverlayDemo() {
                       You {Math.round(talk.me * 100)}% · Them {Math.round(talk.them * 100)}% of the talking
                     </p>
                   ) : null}
-                  <section className="od-to-ask" aria-label="To ask">
-                    <p className="od-sub">To ask</p>
+                  <section className="od-to-ask" aria-label="From your prep">
+                    <p className="od-sub">From your prep</p>
                     <ol>
                       {TO_ASK.map((item) => {
                         const answered =

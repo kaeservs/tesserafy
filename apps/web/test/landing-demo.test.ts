@@ -15,9 +15,10 @@ import {
   suggestionAfter,
   talkShares,
   type Answer,
+  type Point,
 } from '@/components/landing/sample-call';
 
-const MODES = ['assist', 'say', 'followups', 'recap'] as const;
+const MODES = ['assist', 'followups', 'recap'] as const;
 const QUESTIONS = [
   'Who decides?',
   'What is their budget?',
@@ -30,6 +31,12 @@ const QUESTIONS = [
   'Tell me a joke',
 ];
 
+/** The points of an answer that is notes, as the box's answers are. */
+function notes(answer: Answer | null): readonly Point[] {
+  expect(answer?.kind).toBe('notes');
+  return answer?.kind === 'notes' ? answer.points : [];
+}
+
 /** What the customer has said in the first `heard` lines. */
 function customerSaid(heard: number): string[] {
   return SAMPLE_CALL.slice(0, heard)
@@ -39,6 +46,14 @@ function customerSaid(heard: number): string[] {
 
 function quotesOnlyWhatWasSaid(answer: Answer, heard: number): void {
   const said = customerSaid(heard);
+  if (answer.kind === 'say') {
+    // A line to say shows the customer's line it answers whole, as they said it.
+    for (const line of answer.lines) {
+      if (line.them === undefined) continue;
+      expect(said, `“${line.them}” after ${heard} lines`).toContain(line.them);
+    }
+    return;
+  }
   for (const point of answer.points) {
     if (point.quote === undefined) continue;
     expect(said.some((text) => text.includes(point.quote!)), `“${point.quote}” after ${heard} lines`).toBe(true);
@@ -65,6 +80,8 @@ describe('the landing page sample call', () => {
       }
       const suggestion = suggestionAfter(heard);
       if (suggestion) expect(customerSaid(heard).some((text) => text.includes(suggestion.because))).toBe(true);
+      const next = sayNextAfter(heard);
+      if (next.them !== null) expect(customerSaid(heard)).toContain(next.them);
     }
   });
 
@@ -89,20 +106,20 @@ describe('the landing page sample call', () => {
 
   it('answers who decides from the words that say so, and only once they are said', () => {
     const priya = SAMPLE_CALL.findIndex((line) => line.evidence?.criterion === 'decision_maker');
-    expect(ask('Who decides?', priya)?.points).toEqual([{ text: expect.stringMatching(/^Not said yet/) }]);
-    expect(ask('Who decides?', priya + 1)?.points[0]?.quote).toBe('run it past our CFO, Priya');
+    expect(notes(ask('Who decides?', priya))).toEqual([{ text: expect.stringMatching(/^Not said yet/) }]);
+    expect(notes(ask('Who decides?', priya + 1))[0]?.quote).toBe('run it past our CFO, Priya');
   });
 
   it('never gives our own price: it is not something the customer said', () => {
     for (const question of ['What is our price?', 'Is there a discount?', 'How much do we charge?']) {
-      const answer = ask(question, SAMPLE_CALL.length);
-      expect(answer?.points.every((point) => point.quote === undefined)).toBe(true);
-      expect(answer?.points[0]?.text).toMatch(/not in this call/);
+      const points = notes(ask(question, SAMPLE_CALL.length));
+      expect(points.every((point) => point.quote === undefined)).toBe(true);
+      expect(points[0]?.text).toMatch(/not in this call/);
     }
   });
 
   it('asks about the customer’s cost as the customer’s cost, not our price', () => {
-    expect(ask('How much does it cost them?', SAMPLE_CALL.length)?.points[0]?.quote).toBe('about eight thousand a month back');
+    expect(notes(ask('How much does it cost them?', SAMPLE_CALL.length))[0]?.quote).toBe('about eight thousand a month back');
   });
 
   it('crosses a prep question off once its criterion is confirmed', () => {
@@ -111,10 +128,30 @@ describe('the landing page sample call', () => {
   });
 
   it('puts what to say next first: the prep until a suggestion, then the suggestion', () => {
-    expect(sayNextAfter(0)).toMatchObject({ label: 'From your prep', text: TO_ASK[0]!.ask, waiting: false });
+    expect(sayNextAfter(0)).toEqual({ say: TO_ASK[0]!.ask, them: null, from: 'prep' });
     const pain = SAMPLE_CALL.findIndex((line) => line.evidence?.criterion === 'pain') + 1;
-    expect(sayNextAfter(pain)).toMatchObject({ label: 'Say next', why: 'because they said “takes us two full days every month”' });
-    expect(sayNextAfter(SAMPLE_CALL.length).label).toBe('Say next');
+    expect(sayNextAfter(pain)).toMatchObject({ them: SAMPLE_CALL[pain - 1]!.text, from: 'live' });
+    expect(sayNextAfter(SAMPLE_CALL.length).from).toBe('live');
+  });
+
+  it('gives the words to say, never advice about saying them', () => {
+    const advice = /^(ask|offer|confirm|propose|put|find|pin|open)\b|\b(is confirmed|build on it|still open|mentioned once|covered)\b/i;
+    for (let heard = 0; heard <= SAMPLE_CALL.length; heard++) {
+      expect(sayNextAfter(heard).say).not.toMatch(advice);
+      for (const mode of ['assist', 'followups'] as const) {
+        const answer = assist(mode, heard);
+        expect(answer.kind).toBe('say');
+        if (answer.kind === 'say') for (const line of answer.lines) expect(line.say).not.toMatch(advice);
+      }
+    }
+  });
+
+  it('answers AI Assist with one line, to the customer’s last words', () => {
+    const lastTheirs = SAMPLE_CALL.findLastIndex((line) => line.side === 'them');
+    const answer = assist('assist', SAMPLE_CALL.length);
+    expect(answer).toMatchObject({ kind: 'say', title: 'AI Assist', lines: [{ them: SAMPLE_CALL[lastTheirs]!.text }] });
+    expect(assist('assist', 0)).toMatchObject({ kind: 'say', lines: [{ say: TO_ASK[0]!.ask }] });
+    expect(assist('followups', 0)).toMatchObject({ kind: 'say', title: 'To Ask', lines: TO_ASK.map((item) => ({ say: item.ask })) });
   });
 
   it('splits the talking by words, both sides adding up to all of it', () => {

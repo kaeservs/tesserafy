@@ -106,7 +106,7 @@ const SCREEN_NOTE =
  * One turn of the conversation: what the customer said on the right, what to
  * say to it on the left, so the eye goes to one place for the words to say.
  */
-function Exchange({ reply, label, big }: { reply: Reply; label: string | null; big: boolean }) {
+function Exchange({ reply, label }: { reply: Reply; label: string | null }) {
   return (
     <div className="od-exchange">
       {reply.them ? (
@@ -115,7 +115,7 @@ function Exchange({ reply, label, big }: { reply: Reply; label: string | null; b
           <p className="od-bubble">{reply.them}</p>
         </div>
       ) : null}
-      <div className={`od-turn me${big ? ' big' : ''}`}>
+      <div className="od-turn me">
         {label ? <span className="od-who">{label}</span> : null}
         <p className="od-bubble">{reply.say}</p>
       </div>
@@ -126,7 +126,7 @@ function Exchange({ reply, label, big }: { reply: Reply; label: string | null; b
 /** A button's answer or the box's: lines to say as a conversation, notes as a list quoting the call. */
 function AnswerBody({ answer }: { answer: Answer }) {
   if (answer.kind === 'say') {
-    return answer.lines.map((line) => <Exchange key={line.say} reply={line} label={null} big={answer.lines.length === 1} />);
+    return answer.lines.map((line) => <Exchange key={line.say} reply={line} label={null} />);
   }
   return (
     <ul>
@@ -495,7 +495,6 @@ export function OverlayDemo() {
                     <Exchange
                       reply={next.them ? { say: next.say, them: next.them } : { say: next.say }}
                       label={next.from === 'prep' ? 'From your prep' : 'Say'}
-                      big
                     />
                   )}
                 </section>

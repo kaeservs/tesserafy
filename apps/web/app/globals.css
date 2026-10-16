@@ -2996,7 +2996,8 @@ main.auth {
 
 /* One place to read: what to say next, or the answer asked for. What to say
    is a conversation — the customer's line on the right, the words to say on
-   the left, the largest on the card — and nothing about how to say it. */
+   the left, the same size as theirs and set apart by colour and weight — and
+   nothing about how to say it. */
 .od-say,
 .od-answer {
   margin-top: 0.7692em;
@@ -3067,13 +3068,7 @@ main.auth {
   border-bottom-left-radius: 0.3077em;
   background: rgba(var(--o-accent), 0.16);
   color: var(--o-text);
-  font-size: 1.2308em;
   font-weight: 600;
-  line-height: 1.35;
-}
-
-.od-turn.me.big .od-bubble {
-  font-size: 1.5385em;
 }
 
 .od-assist {

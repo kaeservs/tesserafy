@@ -291,7 +291,8 @@ Supabase stack:
 **Also in #209, waiting on the owner's look (2026-10-16): the landing demo's
 new layout,** tried there before the overlay at the owner's word:
 - what to say is a conversation: the customer's line on the right, the words
-  to say on the left, in the largest type, with no advice about saying them;
+  to say on the left, the same size as theirs (semibold, in the accent), with
+  no advice about saying them;
 - three buttons, AI Assist, To Ask and Recap ("What should I say?" is gone:
   the conversation already says it);
 - an answer replaces what to say until closed, so there is one place to read;

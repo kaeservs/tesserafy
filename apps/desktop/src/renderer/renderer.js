@@ -19,6 +19,17 @@
 import { apply, defineCriteriaSet, initialState, score } from '@tesserafy/scoring';
 import { questionsToAsk } from './to-ask';
 import { sayNext } from './say-next';
+import {
+  BUTTON_LABELS,
+  isButtonMode,
+  pressAction,
+  quoted,
+  replyOf,
+  sinceLabel,
+  theirName,
+  toAskNeedsModel,
+  toAskReplies,
+} from './answers';
 import { EchoCheck, SELLER_HOLD_MS } from './hearing';
 import { Captions } from './captions';
 import { TalkMeter } from './talk-time';
@@ -200,23 +211,27 @@ function render() {
 }
 
 /*
- * What to say next, first and largest: the live suggestion, else the prep's
- * next unanswered question, else that it is listening (./say-next). Only
- * during a call.
+ * What to say next, first: the live suggestion, else the prep's next
+ * unanswered question, else that it is listening (./say-next), drawn as the
+ * customer's line and the words to say. Only during a call, and not while an
+ * answer asked for is open: there is one place to read.
  */
 let currentSuggestion = null;
 function showSayNext(card = state ? score(state) : null) {
   const box = el('suggestion');
-  if (!listening) {
+  if (!listening || !el('answer').hidden) {
     box.hidden = true;
     return;
   }
-  const next = sayNext(currentSuggestion, preparedQuestions, card?.criteria ?? []);
-  el('sayLabel').textContent = next.label;
-  el('suggestionAsk').textContent = next.text;
-  el('suggestionWhy').textContent = next.why ?? '';
-  el('suggestionWhy').hidden = !next.why;
-  box.classList.toggle('waiting', next.waiting);
+  const next = sayNext(currentSuggestion, preparedQuestions, card?.criteria ?? [], thisCall());
+  if (next.from === 'waiting') {
+    const note = document.createElement('p');
+    note.className = 'waiting-note';
+    note.textContent = next.say;
+    box.replaceChildren(note);
+  } else {
+    box.replaceChildren(exchangeEl({ say: next.say, them: next.them, source: null }, next.from === 'prep' ? 'From your prep' : 'Say'));
+  }
   box.hidden = false;
 }
 
@@ -611,6 +626,7 @@ function began(status) {
   savedEvents = 0;
   lostWrites = 0;
   currentSuggestion = null;
+  forgetAnswers();
   el('meetingBanner').hidden = true;
   el('callBanner').hidden = true;
   askPlaceholder();
@@ -872,7 +888,7 @@ void api.platform().then((p) => {
 
 // The keyboard shortcuts as they read on this system, and whether they are
 // ours — another app may own them (see src/main/shortcuts.ts). The tray lists
-// them all; the ask box says the one for Assist.
+// them all; the ask box says the one for AI Assist.
 let keys = { visible: null, clickThrough: null, assist: null, move: null };
 // Before a call the box asks past calls; during one, this call (askForm).
 function askPlaceholder() {
@@ -881,8 +897,8 @@ function askPlaceholder() {
     return;
   }
   el('askInput').placeholder = keys.assist?.available
-    ? `Ask about the call — or ${keys.assist.keys} for Assist`
-    : 'Ask about the call — or Ctrl+Enter here for Assist';
+    ? `Ask about the call — or ${keys.assist.keys} for AI Assist`
+    : 'Ask about the call — or Ctrl+Enter here for AI Assist';
 }
 void api.config().then((config) => {
   keys = config.shortcuts;
@@ -997,33 +1013,138 @@ api.onCall((call) => {
 });
 
 /*
- * Cluely's four buttons and ask box (/api/assist). Each reads the call so far
- * and the prep for it. A point about the call carries the words it rests on,
- * shown under it; the server has already dropped any whose words the call
- * did not say. A later press replaces an earlier answer still on its way.
+ * The three buttons and the ask box (/api/assist), and what each keeps
+ * (./answers). AI Assist is one line to say, answering what the customer just
+ * said (the "say" mode); To Ask is the prep's open questions, then ones the
+ * call prompted ("followups"); Recap is what was established, each point
+ * quoting the call. Each reads the call so far and the prep for it; the server
+ * has already dropped any point whose words the call did not say.
+ *
+ * Each button's last answer in this call is kept: going back to one shows it
+ * at once, saying how long ago it was written, and costs nothing. Pressing
+ * the button whose answer is on screen, or Refresh, asks again. An answer
+ * still on its way when another is asked for is kept when it arrives (it was
+ * paid for), and only shown if it is still the one asked for.
  */
-// What each press says it asked, in the bubble over its answer, as Cluely does.
-const ASKED = {
-  assist: 'Assist',
-  say: 'What should I say?',
-  followups: 'Follow-up questions',
-  recap: 'Recap',
-};
 let assistSeq = 0;
+/** Which button's answer is on screen; null for a typed question, or none. */
+let shownMode = null;
+/** Each button's last answer in this call: { replies } or { points }, with when and whether the screen was in it. */
+const kept = new Map();
+let ageTimer = null;
 
-/** An answer on its way: what was asked, and how it is going. */
-function showAnswer(asked, progress) {
-  el('answer').hidden = false;
-  el('answerAsk').textContent = asked;
-  el('answerTitle').textContent = progress;
-  el('answerPoints').replaceChildren();
+/** One turn of the conversation: what the customer said on the right, the words to say on the left. */
+function turnEl(side, label, text) {
+  const turn = document.createElement('div');
+  turn.className = `turn ${side}`;
+  if (label) {
+    const who = document.createElement('span');
+    who.className = 'who-said';
+    who.textContent = label;
+    turn.append(who);
+  }
+  const bubble = document.createElement('p');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+  turn.append(bubble);
+  return turn;
 }
 
-// Closing an answer also drops whatever is still on its way for it.
-el('answerClose').addEventListener('click', () => {
+function exchangeEl(reply, label) {
+  const box = document.createElement('div');
+  box.className = 'exchange';
+  if (reply.them) box.append(turnEl('them', theirName(setup?.prep?.person), reply.them));
+  const mine = turnEl('me', label, reply.say);
+  if (reply.source) {
+    const source = document.createElement('span');
+    source.className = 'source';
+    source.textContent = reply.source;
+    mine.append(source);
+  }
+  box.append(mine);
+  return box;
+}
+
+function pointItem(point) {
+  const li = document.createElement('li');
+  li.textContent = point.text;
+  // From the company's knowledge, the document says where; from the call,
+  // the quote is the customer's own words.
+  const words = quoted(point);
+  if (words) {
+    const quote = document.createElement('span');
+    quote.className = 'quote';
+    quote.textContent = words;
+    li.append(quote);
+  }
+  return li;
+}
+
+function note(text) {
+  const p = document.createElement('p');
+  p.className = 'waiting-note';
+  p.textContent = text;
+  return p;
+}
+
+/** An answer opening: which button or question, whether Refresh applies; the body empties. */
+function openAnswer(tag, { asked = false, refresh = false } = {}) {
+  stopAgeClock();
+  el('answer').hidden = false;
+  el('suggestion').hidden = true;
+  el('answerTag').textContent = tag;
+  el('answerTag').classList.toggle('asked', asked);
+  el('answerRefresh').hidden = !refresh;
+  el('answerAge').textContent = '';
+  el('answerBody').replaceChildren();
+}
+
+function showAnswerBody(answer, empty) {
+  if (answer.replies) {
+    el('answerBody').replaceChildren(...(answer.replies.length ? answer.replies.map((reply) => exchangeEl(reply, null)) : [note(empty)]));
+    return;
+  }
+  const list = document.createElement('ul');
+  if (answer.points.length) list.append(...answer.points.map(pointItem));
+  else list.append(Object.assign(document.createElement('li'), { textContent: empty }));
+  el('answerBody').replaceChildren(list);
+}
+
+/** How long ago the answer on screen was written, kept current while it is open. */
+function showAge(answer) {
+  stopAgeClock();
+  const tick = () => {
+    el('answerAge').textContent = `${sinceLabel(Date.now() - answer.at)}${answer.screen ? ' · with your screen' : ''}`;
+  };
+  tick();
+  ageTimer = setInterval(tick, 15_000);
+}
+
+function stopAgeClock() {
+  if (ageTimer) clearInterval(ageTimer);
+  ageTimer = null;
+}
+
+function closeAnswer() {
+  // Whatever is still on its way for it is not shown (it is still kept).
   assistSeq += 1;
+  shownMode = null;
+  stopAgeClock();
   el('answer').hidden = true;
+  showSayNext();
+}
+
+/** A new call forgets the last one's answers: one sitting can hold several calls. */
+function forgetAnswers() {
+  kept.clear();
+  closeAnswer();
+}
+
+el('answerClose').addEventListener('click', closeAnswer);
+el('answerRefresh').addEventListener('click', () => {
+  if (shownMode) void ask(shownMode);
 });
+
 let withScreen = false;
 
 function setScreen(on) {
@@ -1032,74 +1153,133 @@ function setScreen(on) {
 }
 el('screenToggle').addEventListener('click', () => setScreen(!withScreen));
 
-async function runAssist(mode, question) {
+const EMPTY = { say: 'Nothing worth saying yet.', followups: 'Nothing more to ask yet.', recap: 'Nothing said yet to sum up.' };
+
+function press(mode) {
   if (!signedIn) return;
-  const seq = ++assistSeq;
-  // One screenshot per press: the toggle switches itself off once used.
-  const screenshot = withScreen;
-  setScreen(false);
-  showAnswer(question ?? ASKED[mode], screenshot ? 'With your screen · thinking…' : 'Thinking…');
-  const result = await api.assist({
+  if (pressAction(mode, shownMode, kept.has(mode)) === 'recall') {
+    assistSeq += 1;
+    shownMode = mode;
+    const answer = kept.get(mode);
+    openAnswer(BUTTON_LABELS[mode], { refresh: true });
+    showAnswerBody(answer, EMPTY[mode]);
+    showAge(answer);
+    return;
+  }
+  void ask(mode);
+}
+
+function assistRequest(mode, question) {
+  return {
     mode,
     ...(question ? { question } : {}),
     transcript: thisCall().map(({ id, speaker, text }) => ({ id, speaker, text })),
     criteria: state ? score(state).criteria.map((c) => ({ key: c.key, label: c.label, status: c.status })) : [],
     ...(setup?.prep ? { prepId: setup.prep.id } : {}),
     engagementType: chosenScorecard ?? state?.criteriaSet?.engagementType ?? 'discovery',
-  }, screenshot, seq);
-  if (seq !== assistSeq) return;
+  };
+}
+
+/** The answer being streamed, so its points can be shown as they arrive. */
+let streaming = null;
+
+async function ask(mode) {
+  const seq = ++assistSeq;
+  const forCall = callNumber;
+  shownMode = mode;
+  // One screenshot per press: the toggle switches itself off once used.
+  const screen = withScreen;
+  setScreen(false);
+  openAnswer(BUTTON_LABELS[mode], { refresh: true });
+  const lines = thisCall();
+  const criteria = state ? score(state).criteria : [];
+  const prepOpen = questionsToAsk(preparedQuestions, criteria)
+    .filter((question) => !question.done)
+    .map((question) => question.ask);
+
+  const keep = (answer) => {
+    const done = { ...answer, at: Date.now(), screen };
+    if (forCall === callNumber) kept.set(mode, done);
+    if (seq !== assistSeq) return;
+    showAnswerBody(done, lines.length === 0 ? 'Nothing said yet to go on.' : EMPTY[mode]);
+    showAge(done);
+  };
+
+  // Without a screenshot, two answers need no model. AI Assist answers the
+  // customer: before they have said anything, the line to say is the prep's
+  // next question. And To Ask is full when the prep's open questions fill it.
+  if (!screen && mode === 'say' && !lines.some((line) => line.speaker !== 'seller')) {
+    keep({ replies: prepOpen.slice(0, 1).map((say) => ({ say, them: null, source: null })) });
+    return;
+  }
+  if (!screen && mode === 'followups' && !toAskNeedsModel(prepOpen)) {
+    keep({ replies: toAskReplies(prepOpen, []) });
+    return;
+  }
+
+  el('answerAge').textContent = screen ? 'with your screen · thinking…' : 'thinking…';
+  // The prep's questions first, while the call's own are on their way.
+  if (mode === 'followups' && prepOpen.length > 0) showAnswerBody({ replies: toAskReplies(prepOpen, []) }, '');
+  streaming = { seq, mode, lines, prepOpen, points: [] };
+  const result = await api.assist(assistRequest(mode), screen, seq);
   if (result.error) {
-    el('answerTitle').textContent = result.error;
+    if (seq !== assistSeq) return;
+    el('answerAge').textContent = result.error;
     if (result.upgrade) offerUpgrade(result.error);
     return;
   }
-  el('answerTitle').textContent = screenshot ? 'With your screen' : '';
+  // Set whole from the checked answer, which is exactly what was streamed.
   const points = result.points ?? [];
-  if (points.length === 0) {
-    const li = document.createElement('li');
-    li.textContent = thisCall().length === 0 ? 'Nothing said yet to go on.' : 'Nothing worth saying yet.';
-    el('answerPoints').replaceChildren(li);
-    return;
-  }
-  // The same points as arrived one by one; set whole so the list is exactly
-  // the checked answer.
-  el('answerPoints').replaceChildren(...points.map(pointItem));
+  if (mode === 'recap') keep({ points });
+  else if (mode === 'followups') keep({ replies: toAskReplies(prepOpen, points) });
+  else keep({ replies: points.map((point) => replyOf(point, lines)) });
 }
 
-function pointItem(point) {
-  const li = document.createElement('li');
-  li.textContent = point.text;
-  if (point.quote) {
-    const quote = document.createElement('span');
-    quote.className = 'quote';
-    // From the company's knowledge, the document says where; from the
-    // call, the quote is the customer's own words.
-    quote.textContent = point.fromScreen
-      ? `“${point.quote}” — on your screen`
-      : point.document
-        ? `“${point.quote}” — ${point.document}`
-        : `“${point.quote}”`;
-    li.append(quote);
+/** A typed question about the call: answered once, not kept, since each is its own. */
+async function askAbout(question) {
+  if (!signedIn) return;
+  const seq = ++assistSeq;
+  shownMode = null;
+  const screen = withScreen;
+  setScreen(false);
+  openAnswer(`You asked: ${question}`, { asked: true });
+  el('answerAge').textContent = screen ? 'with your screen · thinking…' : 'thinking…';
+  streaming = { seq, mode: 'ask', lines: thisCall(), prepOpen: [], points: [] };
+  const result = await api.assist(assistRequest('ask', question), screen, seq);
+  if (seq !== assistSeq) return;
+  if (result.error) {
+    el('answerAge').textContent = result.error;
+    if (result.upgrade) offerUpgrade(result.error);
+    return;
   }
-  return li;
+  el('answerAge').textContent = screen ? 'with your screen' : '';
+  showAnswerBody({ points: result.points ?? [] }, 'Nothing said so far answers that.');
 }
 
 // Points of the answer being written, shown as they are checked. A part for
-// an earlier question (a later press replaced it) is left out.
+// an earlier press (a later one replaced it) is left out.
 api.onAssistPart((part) => {
-  if (part.seq !== assistSeq) return;
-  el('answerPoints').append(pointItem(part.point));
+  if (part.seq !== assistSeq || streaming?.seq !== part.seq) return;
+  const { mode, lines, prepOpen, points } = streaming;
+  points.push(part.point);
+  if (mode === 'say') showAnswerBody({ replies: points.map((point) => replyOf(point, lines)) }, '');
+  // After the prep's questions, as many as To Ask holds.
+  else if (mode === 'followups') showAnswerBody({ replies: toAskReplies(prepOpen, points) }, '');
+  else showAnswerBody({ points }, '');
 });
 
 for (const button of document.querySelectorAll('[data-assist]')) {
-  button.addEventListener('click', () => void runAssist(button.dataset.assist));
+  button.addEventListener('click', () => {
+    const mode = button.dataset.assist;
+    if (isButtonMode(mode)) press(mode);
+  });
 }
 /*
  * Before a call, the box asks past calls ("Ask your calls"): what this
  * customer said last time, what was promised, what the documents say. It is
  * seconds rather than one, which is fine while getting ready and not while
  * someone is talking — so once listening, or once anything was said, the box
- * is Assist's Ask, about this call.
+ * asks about this call.
  */
 function askPointItem(point) {
   const li = document.createElement('li');
@@ -1125,29 +1305,33 @@ function askPointItem(point) {
 async function runAskCalls(question) {
   if (!signedIn) return;
   const seq = ++assistSeq;
+  shownMode = null;
   const about = setup?.account ? `Past calls with ${setup.account.name}` : 'Past calls';
-  showAnswer(question, `${about} · looking…`);
+  openAnswer(`You asked: ${question}`, { asked: true });
+  el('answerAge').textContent = `${about} · looking…`;
   const result = await api.askCalls(question, setup?.account?.id ?? null, seq);
   if (seq !== assistSeq) return;
   if (result.error) {
-    el('answerTitle').textContent = `${about} · ${result.error}`;
+    el('answerAge').textContent = `${about} · ${result.error}`;
     return;
   }
-  el('answerTitle').textContent = about;
+  el('answerAge').textContent = about;
   const items = (result.points ?? []).map(askPointItem);
   if (result.note || items.length === 0) {
     const li = document.createElement('li');
     li.textContent = result.note || 'Nothing in your past calls answers that.';
     items.push(li);
   }
-  el('answerPoints').replaceChildren(...items);
+  const list = document.createElement('ul');
+  list.append(...items);
+  el('answerBody').replaceChildren(list);
 }
 
-// What the agent is doing, in the title while it works.
+// What the agent is doing, beside the question while it works.
 api.onAskStep((step) => {
   if (step.seq !== assistSeq) return;
   const about = setup?.account ? `Past calls with ${setup.account.name}` : 'Past calls';
-  el('answerTitle').textContent = `${about} · ${step.text}…`;
+  el('answerAge').textContent = `${about} · ${step.text}…`;
 });
 
 el('askForm').addEventListener('submit', (event) => {
@@ -1156,17 +1340,17 @@ el('askForm').addEventListener('submit', (event) => {
   if (!question) return;
   el('askInput').value = '';
   if (!listening && utterances.length === 0) void runAskCalls(question);
-  else void runAssist('ask', question);
+  else void askAbout(question);
 });
-// Ctrl+Enter in the box is Assist, as in Cluely; the global shortcut is for
-// when the meeting, not the overlay, has the keyboard.
+// Ctrl+Enter in the box is AI Assist; the global shortcut is for when the
+// meeting, not the overlay, has the keyboard.
 el('askInput').addEventListener('keydown', (event) => {
   if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
     event.preventDefault();
-    void runAssist('assist');
+    press('say');
   }
 });
-api.onAssistKey(() => void runAssist('assist'));
+api.onAssistKey(() => press('say'));
 
 /*
  * Appearance: theme, accent and background, as set in the dashboard and
@@ -1287,7 +1471,7 @@ function renderToAsk(card) {
     return;
   }
   const heading = document.createElement('h2');
-  heading.textContent = 'To ask';
+  heading.textContent = 'From your prep';
   const list = document.createElement('ol');
   for (const question of questionsToAsk(preparedQuestions, card.criteria)) {
     const li = document.createElement('li');

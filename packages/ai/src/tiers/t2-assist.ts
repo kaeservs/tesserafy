@@ -1,11 +1,12 @@
 /**
- * T2: the overlay's on-demand help — Cluely's four buttons and its ask box.
+ * T2: the overlay's on-demand help — its three buttons and its ask box.
  *
- *   assist     the most useful thing to know or say right now
- *   say        "What should I say?" — one reply to what was just said
- *   followups  "Follow-up questions" — up to three, each from something said
+ *   say        "AI Assist" — one reply to what was just said, in the seller's words
+ *   followups  "To Ask", after the prep's open questions — up to three, each from something said
  *   recap      "Recap" — the call so far, point by point
  *   ask        a question the seller typed
+ *   assist     the most useful thing to know or say right now: the Assist
+ *              button of overlays before 0.1.27, kept for them
  *
  * Cluely answers in free text. Here the product's one rule still holds: what
  * the answer says about the call quotes the call. Every point may carry a

@@ -3083,7 +3083,6 @@ main.auth {
 }
 
 .od-tag {
-  flex: 1;
   min-width: 0;
   overflow: hidden;
   color: rgb(var(--o-accent));
@@ -3101,6 +3100,19 @@ main.auth {
   font-weight: 400;
   letter-spacing: 0;
   text-transform: none;
+}
+
+.od-age {
+  flex: 1;
+  min-width: 0;
+  color: var(--o-dim);
+  font-size: 0.77em;
+  white-space: nowrap;
+}
+
+.od-card .od-refresh {
+  padding: 0.1em 0.7em;
+  font-size: 0.77em;
 }
 
 .od-card .od-close {

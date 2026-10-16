@@ -712,8 +712,8 @@ void app.whenReady().then(async () => {
     return response.json();
   };
 
-  // The overlay's buttons and ask box (/api/assist): Assist, What should I
-  // say?, Follow-up questions, Recap, or a typed question.
+  // The overlay's buttons and ask box (/api/assist): AI Assist, To Ask,
+  // Recap, or a typed question.
   // With the screen: one screenshot, taken here when the seller pressed for
   // it, of the display the overlay is on, and sent with this question alone.
   // The page never holds it, it is never written to disk, and the overlay is

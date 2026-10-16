@@ -64,7 +64,7 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
       <h1>Knowledge</h1>
       <p className="muted">
         What the overlay answers from when a customer asks about your product — pricing, rollout, features, objections. When a
-        question comes up on a call, Assist and Ask find the passages that fit and quote them, naming the document. Without a
+        question comes up on a call, AI Assist and Ask find the passages that fit and quote them, naming the document. Without a
         passage that answers, the overlay never makes a fact up: it suggests confirming it instead.
       </p>
 

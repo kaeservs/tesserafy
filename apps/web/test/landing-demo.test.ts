@@ -10,7 +10,10 @@ import {
   TO_ASK,
   ask,
   assist,
+  callMsAfter,
+  pressAction,
   sayNextAfter,
+  sinceLabel,
   scorecardAfter,
   suggestionAfter,
   talkShares,
@@ -18,7 +21,7 @@ import {
   type Point,
 } from '@/components/landing/sample-call';
 
-const MODES = ['assist', 'followups', 'recap'] as const;
+const MODES = ['say', 'followups', 'recap'] as const;
 const QUESTIONS = [
   'Who decides?',
   'What is their budget?',
@@ -138,7 +141,7 @@ describe('the landing page sample call', () => {
     const advice = /^(ask|offer|confirm|propose|put|find|pin|open)\b|\b(is confirmed|build on it|still open|mentioned once|covered)\b/i;
     for (let heard = 0; heard <= SAMPLE_CALL.length; heard++) {
       expect(sayNextAfter(heard).say).not.toMatch(advice);
-      for (const mode of ['assist', 'followups'] as const) {
+      for (const mode of ['say', 'followups'] as const) {
         const answer = assist(mode, heard);
         expect(answer.kind).toBe('say');
         if (answer.kind === 'say') for (const line of answer.lines) expect(line.say).not.toMatch(advice);
@@ -148,10 +151,23 @@ describe('the landing page sample call', () => {
 
   it('answers AI Assist with one line, to the customer’s last words', () => {
     const lastTheirs = SAMPLE_CALL.findLastIndex((line) => line.side === 'them');
-    const answer = assist('assist', SAMPLE_CALL.length);
+    const answer = assist('say', SAMPLE_CALL.length);
     expect(answer).toMatchObject({ kind: 'say', title: 'AI Assist', lines: [{ them: SAMPLE_CALL[lastTheirs]!.text }] });
-    expect(assist('assist', 0)).toMatchObject({ kind: 'say', lines: [{ say: TO_ASK[0]!.ask }] });
+    expect(assist('say', 0)).toMatchObject({ kind: 'say', lines: [{ say: TO_ASK[0]!.ask }] });
     expect(assist('followups', 0)).toMatchObject({ kind: 'say', title: 'To Ask', lines: TO_ASK.map((item) => ({ say: item.ask })) });
+  });
+
+  it('shows the kept answer when going back to a button, and asks again for the one on screen', () => {
+    expect(pressAction('say', null, false)).toBe('ask');
+    expect(pressAction('say', 'followups', true)).toBe('recall');
+    expect(pressAction('say', 'say', true)).toBe('ask');
+  });
+
+  it('says how long ago an answer was written, on the call’s clock', () => {
+    expect(sinceLabel(callMsAfter(7) - callMsAfter(7))).toBe('just now');
+    expect(sinceLabel(callMsAfter(10) - callMsAfter(7))).toBe('27 s ago');
+    expect(sinceLabel(125_000)).toBe('2 min ago');
+    expect(callMsAfter(0)).toBe(0);
   });
 
   it('splits the talking by words, both sides adding up to all of it', () => {

@@ -185,8 +185,9 @@ export function liveSeconds(window: readonly { startMs: number; endMs: number }[
 }
 
 /**
- * Seconds of live time one answer from the overlay's Assist spends: its four
- * buttons and the ask box. A larger-model read of the call, pressed by a
+ * Seconds of live time one answer from the overlay's help spends: its
+ * buttons and the ask box. Going back to a button's kept answer asks nothing
+ * and spends nothing. A larger-model read of the call, pressed by a
  * person a few times a call — ten presses in a half-hour call are under two
  * minutes of it. Before 2026-10-12 a press needed only some minutes left and
  * spent none, so an account could ask to the rate limit for as long as one

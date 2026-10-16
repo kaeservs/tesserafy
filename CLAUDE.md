@@ -64,7 +64,7 @@ Do not break these without an ADR that supersedes the existing one.
 |---|---|---|
 | T0 | Chunking, endpointing, redaction | none — pure TS |
 | T1 | Criterion detectors: live on the last 3 utterances (~2 s to a visible score, ADR 0010); a stored call in 48-utterance windows | `claude-haiku-5-5`, thinking off (ADR 0030) |
-| T2 | Live suggestions, and the overlay's Assist, What should I say?, Follow-up questions, Recap and Ask (<= 3.5 s) | `claude-sonnet-5` |
+| T2 | Live suggestions, and the overlay's AI Assist, To Ask, Recap and Ask (<= 3.5 s) | `claude-sonnet-5` |
 | T3 | Post-call extraction and synthesis; action items and the follow-up email; a call prep's brief; the "Ask your calls" agent | `claude-sonnet-5` (ADR 0014, 0018) |
 | — | Embeddings | `gte-small` in a Supabase Edge Function, 384-dim |
 
@@ -235,7 +235,14 @@ calendar (on now, or within half an hour; the calendar is re-read if stale):
 the overlay says "Northwind discovery in 5 min", the prep made from it is the
 call's unless another was chosen, "Prepare" makes one in a press (never its
 brief, which spends allowance), and two minutes before it the overlay comes
-up without taking focus — not when the person switched call detection off. Its four buttons and ask box are `/api/assist` (t2-assist): a
+up without taking focus — not when the person switched call detection off. Its three buttons and ask box are `/api/assist` (t2-assist): AI
+Assist is the `say` mode, one line in the seller's words answering what the
+customer just said; To Ask is the prep's open questions, then `followups`,
+up to three (the model is not asked when the prep fills it); Recap is
+`recap`. Each button's last answer in a call is kept, so going back to one
+shows it with how long ago it was written and costs nothing; pressing the one
+on screen, or Refresh, asks again (`answers.ts`). The `assist` mode stays
+for overlays before 0.1.27. A
 point about the call quotes the call or is dropped, and the model is told it
 does not know the seller's product, so it never states a price or a rollout
 time (measured: before that rule Haiku said "4-6 weeks" and Sonnet "a few
@@ -293,11 +300,13 @@ per streamed minute a side and the server never sees the audio, so the
 overlay stops after four hours and the Deepgram project needs a spending
 limit.
 
-During a call the overlay puts one thing first, in its largest type: what
-to say next — the live suggestion, else the prep's next question the
-scorecard has not seen answered (`say-next.ts`). Under it are the four
-buttons and the ask box, and the score is a bar and a number in the top
-line. Everything else is folded under "Scorecard" until opened:
+During a call the overlay puts one thing first: what to say next — the
+live suggestion, else the prep's next question the scorecard has not seen
+answered (`say-next.ts`) — drawn as a conversation, the customer's line on
+the right and the words to say on the left at the same size, set apart by
+colour and weight. An answer asked for takes its place until closed, so
+there is one place to read. Under it are the three buttons and the ask box,
+and the score is a bar and a number in the top line. Everything else is folded under "Scorecard" until opened:
 - the criteria;
 - the prep's questions;
 - the last few lines as they are said, each side named (`captions.ts`; the
@@ -317,11 +326,9 @@ The landing page's demo (`components/landing/overlay-demo.tsx`) is the
 overlay drawn 1:1: the same layout, sizes in em of the same 13 px, themes and
 copy as `apps/desktop/src/renderer/index.html`, measured element by element
 to within a pixel (2026-10-09). A change to one is a change to the other.
-The exception, since 2026-10-16 and at the owner's word, is that the demo is
-ahead of the overlay. In the demo, what to say is a conversation: the
-customer's line on the right, the words to say on the left, with no advice
-about saying them. It also has three buttons: AI Assist, To Ask and Recap. It
-is tried there first; the overlay follows once the owner approves.
+The conversation layout, the three buttons and the kept answers (2026-10-16,
+the owner's design, tried in the demo first) were drawn to the same sizes in
+both, not re-measured pixel by pixel.
 
 When the last meeting app lets go of the microphone while listening, the
 overlay stops by itself after 15 seconds unless the call comes back or the

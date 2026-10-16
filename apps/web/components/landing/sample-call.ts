@@ -101,6 +101,29 @@ export const TO_ASK: readonly { readonly ask: string; readonly criterion: Key }[
   { ask: 'Who else signs off on a change like this?', criterion: 'decision_maker' },
 ];
 
+/** Into the call once `heard` lines have been said, in ms: the sample's own clock. */
+export function callMsAfter(heard: number): number {
+  return msOf(SAMPLE_CALL[heard - 1]?.at ?? '00:00');
+}
+
+/**
+ * What pressing a button does, as in the overlay (apps/desktop/src/renderer/
+ * answers.ts): ask again when its answer is already on screen, show the one
+ * kept from earlier in the call, or ask for the first.
+ */
+export function pressAction(mode: AssistMode, shown: AssistMode | null, kept: boolean): 'ask' | 'recall' {
+  if (shown === mode) return 'ask';
+  return kept ? 'recall' : 'ask';
+}
+
+/** How long ago an answer was written, as its header says it (the overlay's words). */
+export function sinceLabel(ms: number): string {
+  const seconds = Math.max(0, Math.floor(ms / 1000));
+  if (seconds < 10) return 'just now';
+  if (seconds < 60) return `${seconds} s ago`;
+  return `${Math.floor(seconds / 60)} min ago`;
+}
+
 function msOf(at: string): number {
   const [minutes = 0, seconds = 0] = at.split(':').map(Number);
   return (minutes * 60 + seconds) * 1000;
@@ -187,8 +210,8 @@ export function talkShares(heard: number): { me: number; them: number; words: nu
   return { me: words ? me / words : 0, them: words ? them / words : 0, words };
 }
 
-/** The three buttons: AI Assist, To Ask and Recap. */
-export type AssistMode = 'assist' | 'followups' | 'recap';
+/** The three buttons, by the overlay's names for them: AI Assist ("say"), To Ask and Recap. */
+export type AssistMode = 'say' | 'followups' | 'recap';
 
 export interface Point {
   readonly text: string;
@@ -208,7 +231,7 @@ export type Answer =
   | { readonly kind: 'notes'; readonly title: string; readonly points: readonly Point[] };
 
 const TITLES: Record<AssistMode, string> = {
-  assist: 'AI Assist',
+  say: 'AI Assist',
   followups: 'To Ask',
   recap: 'Recap',
 };
@@ -255,7 +278,7 @@ export function assist(mode: AssistMode, heard: number): Answer {
   const title = TITLES[mode];
 
   // AI Assist: the one thing to say now, answering their last words — what is half-said first, then what is not said.
-  if (mode === 'assist') {
+  if (mode === 'say') {
     const candidate = open.find((criterion) => criterion.status === 'candidate');
     const next = candidate ?? open[0];
     const say = !next ? CLOSE : candidate ? NEEDS[keyOf(candidate)].again : NEEDS[keyOf(next)].ask;

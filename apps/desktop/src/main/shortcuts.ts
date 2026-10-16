@@ -43,5 +43,5 @@ export const MOVE_SHORTCUTS = {
 
 export type MoveDirection = keyof typeof MOVE_SHORTCUTS;
 
-/** Assist from anywhere: the overlay reads the call so far and answers. */
+/** AI Assist from anywhere: the overlay reads the call so far and says what to say. */
 export const ASSIST_SHORTCUT = 'CommandOrControl+Alt+Shift+Enter';

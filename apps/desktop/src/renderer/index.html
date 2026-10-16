@@ -14,9 +14,10 @@
        * The overlay is read out of the corner of an eye during a conversation
        * someone is having. That is the whole design constraint:
        *
-       *   - one thing first: what to say next, in the largest type on the
-       *     card. The score is a line at the top; the scorecard, the prep's
-       *     questions and the transcript are folded away until opened;
+       *   - one thing first: what to say next, as the customer's line and
+       *     the words to say beside it. The score is a line at the top; the
+       *     scorecard, the prep's questions and the transcript are folded
+       *     away until opened;
        *   - quiet, so nothing animates and nothing is brighter than it needs
        *     to be — a card that pulls attention off the customer costs more
        *     than it gives;
@@ -150,30 +151,41 @@
                      font-size: 12px; background: rgba(var(--accent-rgb), 0.2); -webkit-app-region: no-drag; }
       .call-banner span { flex: 1; }
 
-      /* What to say next: the live suggestion, or the prep's next question
-         until there is one. The largest words on the card, alone. */
-      .say-next { margin-top: 10px; padding: 10px 12px; border-radius: 10px;
-                  border: 1px solid rgba(var(--accent-rgb), 0.4); background: rgba(var(--accent-rgb), 0.12); }
-      .say-label { margin: 0; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
-                   color: rgb(var(--accent-rgb)); }
-      .say-text { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.35; color: var(--text); }
-      .say-why { margin: 0; font-size: 11px; color: var(--dim); }
-      .say-next.waiting .say-text { font-size: 13px; font-weight: 400; color: var(--dim); }
+      /* One place to read: what to say next, or the answer asked for. Words
+         to say are a conversation — the customer's line on the right, the
+         words to say on the left, the same size, set apart by colour and
+         weight — and nothing about how to say them. */
+      .say-next, .answer { margin-top: 10px; }
+      .say-next p, .answer p { margin: 0; }
+      .waiting-note { color: var(--dim); }
+      .exchange { display: flex; flex-direction: column; gap: 6px; }
+      .exchange + .exchange { margin-top: 6px; }
+      .turn { display: flex; flex-direction: column; gap: 2px; max-width: 88%; }
+      .turn.them { align-self: flex-end; align-items: flex-end; }
+      .turn.me { align-self: flex-start; align-items: flex-start; }
+      .turn .who-said { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+      .turn.me .who-said { color: rgb(var(--accent-rgb)); }
+      .bubble { padding: 6px 10px; border-radius: 14px; line-height: 1.4; }
+      .turn.them .bubble { border-bottom-right-radius: 4px; background: rgba(var(--line), 0.16); color: var(--text-2); }
+      .turn.me .bubble { border: 1px solid rgba(var(--accent-rgb), 0.45); border-bottom-left-radius: 4px;
+                         background: rgba(var(--accent-rgb), 0.16); color: var(--text); font-weight: 600; }
+      .turn .source { font-size: 11px; color: var(--dim); }
 
-      /* Cluely's four buttons and ask box, and what came back: what was asked
-         as a bubble, then the points, each with the words it rests on. */
+      /* The three buttons and the ask box, and what came back: which button,
+         how long ago, Refresh, and the answer. */
       .assist { margin-top: 8px; -webkit-app-region: no-drag; }
-      .answer { padding: 4px 2px 6px; }
-      .answer-head { display: flex; align-items: center; gap: 8px; }
-      .answer-state { flex: 1; min-width: 0; font-size: 10px; letter-spacing: 0.04em; color: var(--dim);
-                      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .asked { max-width: 70%; padding: 3px 10px; border-radius: 12px 12px 3px 12px; background: rgb(var(--accent-lo));
-               color: #ffffff; font-size: 12px; text-shadow: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .answer-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+      .answer-tag { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+                    font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgb(var(--accent-rgb)); }
+      .answer-tag.asked { font-size: 11px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--dim); }
+      .answer-age { flex: 1; min-width: 0; font-size: 10px; color: var(--dim); white-space: nowrap; }
+      .answer .refresh { font-size: 10px; padding: 1px 7px; }
       .answer .close { border-color: transparent; padding: 0 4px; font-size: 14px; line-height: 1.1; color: var(--muted); }
-      .answer ul { list-style: disc; margin: 6px 0 0; padding-left: 18px; }
+      .answer ul { list-style: disc; margin: 0; padding-left: 18px; }
       .answer li { margin: 3px 0; font-size: 13px; line-height: 1.45; }
       .answer .quote { display: block; font-size: 11px; color: var(--dim); }
       .answer .link { background: none; border: 0; padding: 0; color: var(--dim); text-decoration: underline; cursor: pointer; font: inherit; font-size: 11px; }
+      .screen-note { margin-top: 6px; font-size: 11px; color: var(--dim); }
       .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
       .actions button { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-color: transparent;
                         border-radius: 7px; font-size: 12px; }
@@ -302,34 +314,33 @@
       <button type="button" id="callDismiss" aria-label="Dismiss">×</button>
     </div>
 
-    <!-- What to say next. One suggestion, or the prep's next question, or a
-         line saying it is listening: someone mid-conversation cannot read a
-         list, and a stale suggestion is worse than none. -->
-    <section class="say-next waiting" id="suggestion" aria-label="What to say next" hidden>
-      <p class="say-label" id="sayLabel">Listening</p>
-      <p class="say-text" id="suggestionAsk"></p>
-      <p class="say-why" id="suggestionWhy" hidden></p>
+    <!-- What to say next: one suggestion, or the prep's next question, or a
+         line saying it is listening — someone mid-conversation cannot read a
+         list, and a stale suggestion is worse than none. Drawn as the
+         customer's line and the words to say (renderer.js, showSayNext). An
+         answer asked for takes its place until closed: one place to read. -->
+    <section class="say-next" id="suggestion" aria-label="What to say next" hidden></section>
+
+    <section class="answer" id="answer" aria-live="polite" hidden>
+      <div class="answer-head">
+        <span class="answer-tag" id="answerTag"></span>
+        <span class="answer-age" id="answerAge"></span>
+        <button type="button" class="refresh" id="answerRefresh" title="Ask again, from everything said so far" hidden>Refresh</button>
+        <button type="button" class="close" id="answerClose" aria-label="Close the answer">×</button>
+      </div>
+      <div id="answerBody"></div>
     </section>
 
-    <!-- Cluely's four buttons and ask box. What comes back says what it
-         rests on: a point about the call quotes the call (t2-assist). -->
-    <section class="assist" id="assist" aria-label="Assist" hidden>
-      <div class="answer" id="answer" aria-live="polite" hidden>
-        <div class="answer-head">
-          <span class="answer-state" id="answerTitle"></span>
-          <span class="asked" id="answerAsk"></span>
-          <button type="button" class="close" id="answerClose" aria-label="Close the answer">×</button>
-        </div>
-        <ul id="answerPoints"></ul>
-      </div>
+    <!-- The three buttons and the ask box (/api/assist). A point about the
+         call quotes the call (t2-assist); each button's last answer in this
+         call is kept, so going back to one costs nothing (./answers). -->
+    <section class="assist" id="assist" aria-label="Help on the call" hidden>
       <div class="actions">
-        <button type="button" data-assist="assist"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8zM18.5 15.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" /></svg>Assist</button>
+        <button type="button" data-assist="say"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8zM18.5 15.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" /></svg>AI Assist</button>
         <span class="dot" aria-hidden="true">·</span>
-        <button type="button" data-assist="say"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20 15 9M14 4v2M19 9h2M17.5 5.5 19 4M9 4l.6 1.6L11 6l-1.4.4L9 8l-.6-1.6L7 6l1.4-.4z" /></svg>What should I say?</button>
+        <button type="button" data-assist="followups"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01" /></svg>To Ask</button>
         <span class="dot" aria-hidden="true">·</span>
-        <button type="button" data-assist="followups"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9.5L4 20z" /></svg>Follow-up questions</button>
-        <span class="dot" aria-hidden="true">·</span>
-        <button type="button" data-assist="recap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4" /></svg>Recap</button>
+        <button type="button" data-assist="recap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" /></svg>Recap</button>
       </div>
       <form class="ask" id="askForm">
         <input id="askInput" maxlength="500" autocomplete="off" placeholder="Ask about the call" aria-label="Ask about the call" />
@@ -386,7 +397,7 @@
         <summary id="detailsSummary">Scorecard</summary>
         <ul id="criteria"></ul>
         <p class="talk" id="talkTime" hidden></p>
-        <section class="to-ask" id="toAsk" aria-label="To ask" hidden></section>
+        <section class="to-ask" id="toAsk" aria-label="From your prep" hidden></section>
         <section class="captions" id="captions" aria-label="Live transcript" hidden></section>
         <!-- Whether the call is being kept. Deliberately its own line rather
              than folded into the status: the score and the saving fail

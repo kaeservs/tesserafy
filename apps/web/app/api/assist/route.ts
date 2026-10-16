@@ -21,9 +21,10 @@ import { allowance, tooMany } from '@/lib/rate-limit';
 import { caller } from '@/lib/supabase/caller';
 
 /**
- * POST /api/assist — the overlay's four buttons and ask box (T2, t2-assist):
- * Assist, What should I say?, Follow-up questions, Recap, or a typed
- * question, over the call so far and the prep for it.
+ * POST /api/assist — the overlay's buttons and ask box (T2, t2-assist): AI
+ * Assist ("say"), To Ask ("followups"), Recap, or a typed question, over the
+ * call so far and the prep for it. Overlays before 0.1.27 also send "assist"
+ * from their Assist button, so it stays.
  *
  * Like /api/suggest: live only (the plan says so, here as well as in the
  * pages), rate limited, and run only while the plan has live time left; the

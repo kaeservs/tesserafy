@@ -17,7 +17,10 @@ import {
   TO_ASK,
   ask,
   assist,
+  callMsAfter,
+  pressAction,
   sayNextAfter,
+  sinceLabel,
   scorecardAfter,
   talkShares,
   type Answer,
@@ -28,17 +31,15 @@ import {
 
 /**
  * The overlay on a sample call, to play with: a meeting with the desktop
- * overlay floating over it — the bar with the score, what to say next first
- * and largest, three buttons and the ask box, and the scorecard folded under
- * one line — in the same choice of looks as Your account → Overlay. It can be
+ * overlay floating over it, drawn as the overlay draws itself
+ * (apps/desktop/src/renderer/index.html) — the bar with the score, what to
+ * say next first, as the customer's line on the right and the words to say on
+ * the left, the three buttons (AI Assist, To Ask, Recap) and the ask box, and
+ * the scorecard folded under one line — in the same choice of looks as Your
+ * account → Overlay. Each button's last answer is kept, as in the overlay, so
+ * going back to one shows it with how long ago it was written. It can be
  * dragged anywhere over the meeting (by its grip on a touch screen, or the
  * arrow keys on the grip), and restyled from the panel beside it.
- *
- * Ahead of the overlay on purpose (2026-10-16, the owner's call): what to say
- * is a conversation — the customer's line on the right, the words to say on
- * the left — with no advice about saying it, and the buttons are AI Assist,
- * To Ask and Recap. Tried here first; apps/desktop/src/renderer/index.html
- * follows once it is approved, and the two are drawn alike again.
  *
  * Front end only. The call is written for the page (./sample-call), its
  * scorecard is packages/scoring's, and nothing is recorded, sent or kept. It
@@ -58,7 +59,7 @@ const SCALE: Record<Size, number> = { small: 0.85, normal: 1, large: 1.2 };
 /** The three buttons. */
 const BUTTONS: readonly { mode: AssistMode; label: string; icon: string }[] = [
   {
-    mode: 'assist',
+    mode: 'say',
     label: 'AI Assist',
     icon: 'M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8zM18.5 15.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z',
   },
@@ -80,11 +81,15 @@ function choose<T extends string>(options: readonly { value: T }[], wanted: stri
 }
 
 interface Shown {
-  /** The question typed, or null for a button: the button's answer names itself. */
+  /** Which button's answer this is; null for a typed question. */
+  readonly mode: AssistMode | null;
+  /** The question typed; null for a button, whose answer names itself. */
   readonly asked: string | null;
   readonly answer: Answer;
   /** Asked with Screen pressed. */
   readonly screen: boolean;
+  /** How many lines had been said when it was written: its age is on the call's clock. */
+  readonly heardAt: number;
 }
 
 /** Before a call the overlay's box asks past calls; the sample has none. */
@@ -149,6 +154,8 @@ export function OverlayDemo() {
   const [heard, setHeard] = useState(0);
   const [listening, setListening] = useState(false);
   const [shown, setShown] = useState<Shown | null>(null);
+  /** Each button's last answer in this call: going back to one shows it, and costs nothing. */
+  const [kept, setKept] = useState<Partial<Record<AssistMode, Shown>>>({});
   const [question, setQuestion] = useState('');
   const [hidden, setHidden] = useState(false);
   const [ended, setEnded] = useState(false);
@@ -310,6 +317,7 @@ export function OverlayDemo() {
     if (done) {
       setHeard(0);
       setShown(null);
+      setKept({});
     }
     setEnded(false);
     setListening(true);
@@ -326,6 +334,7 @@ export function OverlayDemo() {
     setEnded(false);
     setHeard(0);
     setShown(null);
+    setKept({});
     setQuestion('');
   };
 
@@ -335,12 +344,21 @@ export function OverlayDemo() {
   };
 
   // As the overlay does: an answer asked with Screen pressed says so, and Screen switches itself off after one.
-  const answerWith = (asked: string | null, answer: Answer) => {
-    setShown({ asked, answer, screen });
+  const askButton = (mode: AssistMode) => {
+    const answer: Shown = { mode, asked: null, answer: assist(mode, heard), screen, heardAt: heard };
+    setKept((all) => ({ ...all, [mode]: answer }));
+    setShown(answer);
     setScreen(false);
   };
 
-  const press = (button: (typeof BUTTONS)[number]) => answerWith(null, assist(button.mode, heard));
+  // As the overlay does (apps/desktop/src/renderer/answers.ts): going back to a
+  // button shows its kept answer; pressing the one on screen, or Refresh, asks again.
+  const shownMode = shown?.mode ?? null;
+  const press = (mode: AssistMode) => {
+    const earlier = kept[mode];
+    if (earlier && pressAction(mode, shownMode, true) === 'recall') setShown(earlier);
+    else askButton(mode);
+  };
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -348,7 +366,8 @@ export function OverlayDemo() {
     // As in the overlay: before anything is said, the box asks past calls; after, this call.
     const answer = inCall || ended ? ask(asked, heard) : asked ? PAST_CALLS : null;
     if (!answer) return;
-    answerWith(asked, answer);
+    setShown({ mode: null, asked, answer, screen, heardAt: heard });
+    setScreen(false);
     setQuestion('');
   };
 
@@ -356,8 +375,7 @@ export function OverlayDemo() {
   const assistKey = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key !== 'Enter' || !(event.ctrlKey || event.metaKey)) return;
     event.preventDefault();
-    const button = BUTTONS[0];
-    if (button) press(button);
+    press('say');
   };
 
   const status = listening ? 'listening to both sides' : ended ? 'call ended' : heard > 0 ? 'stopped' : 'idle';
@@ -480,6 +498,24 @@ export function OverlayDemo() {
                     ) : (
                       <span className="od-tag asked">You asked: {shown.asked}</span>
                     )}
+                    <span className="od-age">
+                      {[
+                        shown.mode === null ? null : sinceLabel(callMsAfter(heard) - callMsAfter(shown.heardAt)),
+                        shown.screen ? 'with your screen' : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
+                    {shownMode ? (
+                      <button
+                        type="button"
+                        className="od-refresh"
+                        title="Ask again, from everything said so far"
+                        onClick={() => askButton(shownMode)}
+                      >
+                        Refresh
+                      </button>
+                    ) : null}
                     <button type="button" className="od-close" aria-label="Close the answer" onClick={() => setShown(null)}>
                       ×
                     </button>
@@ -509,7 +545,7 @@ export function OverlayDemo() {
                           ·
                         </span>
                       ) : null}
-                      <button type="button" onClick={() => press(button)}>
+                      <button type="button" onClick={() => press(button.mode)}>
                         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                           <path d={button.icon} />
                         </svg>

@@ -302,10 +302,25 @@ before the overlay at the owner's word:
 - an answer replaces what to say until closed, so there is one place to read;
 - the demo no longer runs under How it looks at laptop widths (1080–1330 px).
 
-The overlay (`apps/desktop/src/renderer`) still has the four buttons. Once
-the owner approves the demo, the overlay follows. Its prompts in
-`t2-assist.ts` also have to give the words to say, not advice about them, and
-that change needs a measured probe first.
+**Open on `claude/great-cannon-al627p` (2026-10-16): the overlay follows
+the demo, and both keep each button's last answer.** The owner approved the
+demo and asked for both:
+- the overlay (0.1.27) has the same conversation layout and three buttons;
+  AI Assist asks the `say` mode, To Ask puts the prep's open questions before
+  `followups` and asks the model only when the prep leaves room, and Recap is
+  `recap`;
+- the prompts did not change: `say`, `followups` and live suggestions already
+  answer in the seller's words, quoting the line they answer. So no probe was
+  needed. `assist` stays in the API for older overlays;
+- each button's last answer in a call is kept (`answers.ts`). Going back to
+  one shows it with how long ago it was written and spends nothing; pressing
+  the one on screen, or Refresh, asks again. A new call forgets them;
+- the demo does the same, on the sample call's clock.
+
+Checked in a browser against the overlay's real page with Electron's side
+stubbed: going back to a kept answer made no request. Not checked in Electron
+itself or against the live API; the Mac and Windows installers come from the
+tag.
 
 **Recently merged**
 - **#205:** scoring runs on Haiku 5.5. About 90% cheaper and more accurate
@@ -350,7 +365,8 @@ was added to the console's Vercel project, not the web app's; QA's line
   switch that off.
 
 **The overlay:** 0.1.25 released; 0.1.26 is on `main`, waiting for its
-tag. The Mac test and the S1 screen-share check are not done.
+tag, and 0.1.27 (above) is open. Tagging 0.1.27 once it merges releases both,
+so 0.1.26 need not be tagged on its own. The Mac test and the S1 screen-share check are not done.
 
 **Sign-up** is closed until email (Resend) works and payments are live.
 
@@ -380,8 +396,10 @@ until real transcripts arrive.
   item to fix first; see the security review.
 - **#209's migration:** run `supabase db push` and `pnpm db:types` (or say
   so and Claude applies it).
-- **Overlay 0.1.26:** push the tag `overlay-v0.1.26`.
-- **Landing demo:** it is live; say whether the overlay should follow.
+- **The overlay's three buttons:** review and merge the PR from
+  `claude/great-cannon-al627p`.
+- **Overlay 0.1.27:** once it merges, push the tag `overlay-v0.1.27` (it
+  includes 0.1.26).
 - **Overlay:** the Mac test and the S1 screen-share check.
 - **Ops alerts:** attach the credential and a chat node to "Tesserafy ops
   alerts" in n8n, then publish it.

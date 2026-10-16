@@ -302,7 +302,7 @@ before the overlay at the owner's word:
 - an answer replaces what to say until closed, so there is one place to read;
 - the demo no longer runs under How it looks at laptop widths (1080–1330 px).
 
-**Open on `claude/great-cannon-al627p` (2026-10-16): the overlay follows
+**Merged 2026-10-16: [kaeservs/tesserafy#210](https://github.com/kaeservs/tesserafy/pull/210), the overlay follows
 the demo, and both keep each button's last answer.** The owner approved the
 demo and asked for both:
 - the overlay (0.1.27) has the same conversation layout and three buttons;
@@ -365,8 +365,8 @@ was added to the console's Vercel project, not the web app's; QA's line
   switch that off.
 
 **The overlay:** 0.1.25 released; 0.1.26 is on `main`, waiting for its
-tag, and 0.1.27 (above) is open. Tagging 0.1.27 once it merges releases both,
-so 0.1.26 need not be tagged on its own. The Mac test and the S1 screen-share check are not done.
+tag, and 0.1.27 (#210, above) is on `main` too. Tagging 0.1.27 releases
+both, so 0.1.26 need not be tagged on its own. The Mac test and the S1 screen-share check are not done.
 
 **Sign-up** is closed until email (Resend) works and payments are live.
 
@@ -396,10 +396,8 @@ until real transcripts arrive.
   item to fix first; see the security review.
 - **#209's migration:** run `supabase db push` and `pnpm db:types` (or say
   so and Claude applies it).
-- **The overlay's three buttons:** review and merge the PR from
-  `claude/great-cannon-al627p`.
-- **Overlay 0.1.27:** once it merges, push the tag `overlay-v0.1.27` (it
-  includes 0.1.26).
+- **Overlay 0.1.27:** push the tag `overlay-v0.1.27` (it includes 0.1.26
+  and #210's three buttons).
 - **Overlay:** the Mac test and the S1 screen-share check.
 - **Ops alerts:** attach the credential and a chat node to "Tesserafy ops
   alerts" in n8n, then publish it.

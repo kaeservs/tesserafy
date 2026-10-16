@@ -16,7 +16,7 @@
  *   Handing every signal to a model in one prompt works at ten signals and
  *   not at ten thousand, and gives a different answer each run.
  */
-import type { SupabaseClient } from '@tesserafy/db';
+import { readAll, type SupabaseClient } from '@tesserafy/db';
 import { RELATED_SIMILARITY, type Embedder } from '../providers/embedder';
 import { isCompanyId, type CompanyId } from '../retrieval/company-id';
 import { retrieve } from '../retrieval/retrieve';
@@ -40,7 +40,7 @@ export interface ClusterOptions {
   /** A service-role client. */
   readonly db: SupabaseClient;
   readonly embedder: Embedder;
-  /** Cosine floor for a segment to be considered related. Default 0.6. */
+  /** Cosine floor for a segment to be considered related. Default RELATED_SIMILARITY (0.82). */
   readonly minSimilarity?: number;
   /** Signals a cluster needs before it is worth synthesising. Default 3. */
   readonly minSignals?: number;
@@ -88,42 +88,37 @@ export async function loadSignals(
     throw new TypeError('loadSignals() requires a valid companyId');
   }
 
-  const { data: signals, error } = await db
-    .from('signals')
-    .select('id, conversation_id, kind, summary')
-    .eq('company_id', companyId);
-  if (error) throw new Error(`Loading signals failed: ${error.message}`, { cause: error });
-
-  const rows = (signals ?? []);
+  // Paged, as every company-wide read must be: PostgREST stops at a thousand
+  // rows without saying so, and past that a signal would be missed, or read
+  // as uncited and proposed for a second insight.
+  const rows = await readAll<{ id: string; conversation_id: string; kind: string; summary: string }>(
+    (from, to) =>
+      db.from('signals').select('id, conversation_id, kind, summary').eq('company_id', companyId).order('id').range(from, to),
+    'Loading signals',
+  );
   if (rows.length === 0) return [];
 
   let cited = new Set<string>();
   if (!opts.includeCited) {
-    const { data: citations, error: citedError } = await db
-      .from('insight_evidence')
-      .select('signal_id')
-      .eq('company_id', companyId);
-    if (citedError) {
-      throw new Error(`Loading insight citations failed: ${citedError.message}`, {
-        cause: citedError,
-      });
-    }
-    cited = new Set(((citations ?? [])).map((row) => row.signal_id));
+    const citations = await readAll<{ signal_id: string }>(
+      (from, to) =>
+        db.from('insight_evidence').select('signal_id').eq('company_id', companyId).order('id').range(from, to),
+      'Loading insight citations',
+    );
+    cited = new Set(citations.map((row) => row.signal_id));
   }
 
   const usable = rows.filter((row) => !cited.has(row.id));
   if (usable.length === 0) return [];
 
-  const { data: evidence, error: evidenceError } = await db
-    .from('signal_evidence')
-    .select('signal_id, quote')
-    .eq('company_id', companyId);
-  if (evidenceError) {
-    throw new Error(`Loading evidence failed: ${evidenceError.message}`, { cause: evidenceError });
-  }
+  const evidence = await readAll<{ signal_id: string; quote: string }>(
+    (from, to) =>
+      db.from('signal_evidence').select('signal_id, quote').eq('company_id', companyId).order('id').range(from, to),
+    'Loading evidence',
+  );
 
   const quoteFor = new Map<string, string>();
-  for (const row of (evidence ?? [])) {
+  for (const row of evidence) {
     if (!quoteFor.has(row.signal_id)) quoteFor.set(row.signal_id, row.quote);
   }
 

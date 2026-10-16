@@ -8,7 +8,8 @@
  * score, a criterion's "1/2" — is worked out from that by packages/scoring,
  * the same pure function the overlay runs on a real call. And as in the
  * product, every point an answer makes about the call quotes a line already
- * said: test/landing-demo.test.ts holds the page to that.
+ * said, and every line to say that answers the customer shows their words:
+ * test/landing-demo.test.ts holds the page to that.
  */
 import { defineCriteriaSet, replay, score, type CriterionScore, type DetectorEvent, type Scorecard } from '@tesserafy/scoring';
 
@@ -28,7 +29,8 @@ export const SAMPLE_CRITERIA = defineCriteriaSet({
 });
 
 export interface Suggestion {
-  readonly ask: string;
+  /** What the seller could say, in their own words: never advice about saying it. */
+  readonly say: string;
   /** The customer's words it answers to. */
   readonly because: string;
 }
@@ -51,7 +53,7 @@ export const SAMPLE_CALL: readonly SampleLine[] = [
     at: '00:11',
     text: 'Honestly, it’s a slog. Month-end reporting takes us two full days every month.',
     evidence: { criterion: 'pain', quote: 'takes us two full days every month', confidence: 0.91, means: 'Month-end reporting takes them two full days' },
-    suggests: { ask: 'Ask what those two days cost them.', because: 'takes us two full days every month' },
+    suggests: { say: 'Two days is a lot. What does that cost the team?', because: 'takes us two full days every month' },
   },
   { side: 'me', at: '00:24', text: 'Two days is a lot. What does that cost the team?' },
   {
@@ -65,7 +67,7 @@ export const SAMPLE_CALL: readonly SampleLine[] = [
     at: '00:40',
     text: 'If we closed in a day, that’s about eight thousand a month back.',
     evidence: { criterion: 'cost', quote: 'about eight thousand a month back', confidence: 0.86, means: 'Closing in a day is worth about eight thousand a month' },
-    suggests: { ask: 'Ask when it needs to be working.', because: 'about eight thousand a month back' },
+    suggests: { say: 'When would you want something in place?', because: 'about eight thousand a month back' },
   },
   { side: 'me', at: '00:52', text: 'When would you want something in place?' },
   {
@@ -73,14 +75,14 @@ export const SAMPLE_CALL: readonly SampleLine[] = [
     at: '00:58',
     text: 'We’d want it live before the Q3 board review.',
     evidence: { criterion: 'timeline', quote: 'live before the Q3 board review', confidence: 0.88, means: 'They want it live before the Q3 board review' },
-    suggests: { ask: 'Ask who else needs to sign off.', because: 'live before the Q3 board review' },
+    suggests: { say: 'Who else needs to sign off before the Q3 review?', because: 'live before the Q3 board review' },
   },
   {
     side: 'them',
     at: '01:09',
     text: 'And I’d have to run it past our CFO, Priya, first.',
     evidence: { criterion: 'decision_maker', quote: 'run it past our CFO, Priya', confidence: 0.9, means: 'Priya, their CFO, has to agree' },
-    suggests: { ask: 'Offer a call with Priya next week.', because: 'run it past our CFO, Priya' },
+    suggests: { say: 'Makes sense. Shall we set up time with Priya next week?', because: 'run it past our CFO, Priya' },
   },
   { side: 'me', at: '01:18', text: 'Makes sense. Shall we set up time with Priya next week?' },
   {
@@ -88,7 +90,7 @@ export const SAMPLE_CALL: readonly SampleLine[] = [
     at: '01:25',
     text: 'Yes, Thursday works for both of us.',
     evidence: { criterion: 'next_step', quote: 'Thursday works for both of us', confidence: 0.87, means: 'A call with Priya on Thursday' },
-    suggests: { ask: 'Confirm Thursday, and ask who joins from their side.', because: 'Thursday works for both of us' },
+    suggests: { say: 'Thursday it is. Who else should join from your side?', because: 'Thursday works for both of us' },
   },
 ];
 
@@ -134,33 +136,42 @@ export function suggestionAfter(heard: number): Suggestion | null {
   return current;
 }
 
+/** The whole of the customer's line, already said, that holds these words. */
+function theirLine(words: string, heard: number): string | null {
+  return SAMPLE_CALL.slice(0, heard).find((line) => line.side === 'them' && line.text.includes(words))?.text ?? null;
+}
+
+/** The customer's last line, if they have said anything yet. */
+function lastOfTheirs(heard: number): string | null {
+  return SAMPLE_CALL.slice(0, heard).findLast((line) => line.side === 'them')?.text ?? null;
+}
+
 export interface SayNext {
-  readonly label: string;
-  readonly text: string;
-  readonly why: string | null;
-  /** Nothing to say yet: shown quieter. */
-  readonly waiting: boolean;
+  /** What to say: the largest words on the card. */
+  readonly say: string;
+  /** The customer's line it answers, word for word; null when it answers nothing said. */
+  readonly them: string | null;
+  /** The live suggestion, the prep's next question, or nothing yet (shown quieter). */
+  readonly from: 'live' | 'prep' | 'waiting';
 }
 
 /**
  * What the overlay puts first after `heard` lines, by the overlay's own rule
  * (apps/desktop/src/renderer/say-next.ts): the live suggestion, else the
  * prep's next question the scorecard has not seen answered, else that it is
- * listening.
+ * listening. Shown as a conversation: their line, then what to say to it.
  */
 export function sayNextAfter(heard: number): SayNext {
   const suggestion = suggestionAfter(heard);
-  if (suggestion) {
-    return { label: 'Say next', text: suggestion.ask, why: `because they said “${suggestion.because}”`, waiting: false };
-  }
+  if (suggestion) return { say: suggestion.say, them: theirLine(suggestion.because, heard), from: 'live' };
   const confirmed = new Set(
     scorecardAfter(heard)
       .criteria.filter((criterion) => criterion.status === 'confirmed')
       .map((criterion) => criterion.key),
   );
   const open = TO_ASK.find((item) => !confirmed.has(item.criterion));
-  if (open) return { label: 'From your prep', text: open.ask, why: null, waiting: false };
-  return { label: 'Listening', text: 'What to say next shows here as the customer talks.', why: null, waiting: true };
+  if (open) return { say: open.ask, them: null, from: 'prep' };
+  return { say: 'What to say shows here as the customer talks.', them: null, from: 'waiting' };
 }
 
 /** Each side's share of the words said so far: arithmetic, as in the overlay's talk-time. */
@@ -176,7 +187,8 @@ export function talkShares(heard: number): { me: number; them: number; words: nu
   return { me: words ? me / words : 0, them: words ? them / words : 0, words };
 }
 
-export type AssistMode = 'assist' | 'say' | 'followups' | 'recap';
+/** The three buttons: AI Assist, To Ask and Recap. */
+export type AssistMode = 'assist' | 'followups' | 'recap';
 
 export interface Point {
   readonly text: string;
@@ -184,46 +196,39 @@ export interface Point {
   readonly quote?: string;
 }
 
-export interface Answer {
-  readonly title: string;
-  readonly points: readonly Point[];
+/** A line to say, and the customer's line it answers, word for word, when it answers one. */
+export interface Reply {
+  readonly say: string;
+  readonly them?: string;
 }
 
+/** What a button or the box gives back: lines to say, or notes about the call. */
+export type Answer =
+  | { readonly kind: 'say'; readonly title: string; readonly lines: readonly Reply[] }
+  | { readonly kind: 'notes'; readonly title: string; readonly points: readonly Point[] };
+
 const TITLES: Record<AssistMode, string> = {
-  assist: 'Assist',
-  say: 'What to say',
-  followups: 'Follow-up questions',
+  assist: 'AI Assist',
+  followups: 'To Ask',
   recap: 'Recap',
 };
 
-/** What each criterion needs said, in the seller's words. */
-const NEEDS: Record<Key, { readonly say: string; readonly again: string; readonly followup: string }> = {
-  pain: {
-    say: 'Open on month-end: “What does it take your team today?”',
-    again: 'Ask what month-end costs them in time once more: one more mention confirms it.',
-    followup: 'Where does month-end slow you down most?',
-  },
-  cost: {
-    say: 'Put a number on it: “What do those two days cost you?”',
-    again: 'Put a number on it: “What does the overtime come to in a month?”',
-    followup: 'What would getting those days back be worth?',
-  },
-  timeline: {
-    say: 'Ask when it has to work: “When would you want this in place?”',
-    again: 'Pin the date down: “What happens if it isn’t ready by then?”',
-    followup: 'When does this need to be live?',
-  },
-  decision_maker: {
-    say: 'Find who signs off: “Who else needs to see this before the Q3 review?”',
-    again: 'Ask who else has a say: “Is Priya the one who signs?”',
-    followup: 'Who else has a say in this?',
-  },
-  next_step: {
-    say: 'Propose the next step: “Shall we set up time with Priya next week?”',
-    again: 'Confirm the next step: “Can I send an invite for it now?”',
-    followup: 'What would a good next step look like?',
-  },
+/** What the seller could say to bring each criterion out: asking it, and once it has been mentioned once. */
+const NEEDS: Record<Key, { readonly ask: string; readonly again: string }> = {
+  pain: { ask: 'What does month-end take your team today?', again: 'Where does month-end slow you down the most?' },
+  cost: { ask: 'What would getting those days back be worth?', again: 'What does the overtime come to in a month?' },
+  timeline: { ask: 'When would you want something in place?', again: 'What happens if it isn’t ready by then?' },
+  decision_maker: { ask: 'Who else needs to sign off on this?', again: 'Is there anyone else who has to agree?' },
+  next_step: { ask: 'Shall we set up time next week to take this further?', again: 'Can I send the invite now, while we’re both here?' },
 };
+
+/** Once everything on the scorecard is covered. */
+const CLOSE = 'I’ll send the invite with a short agenda today. Anything you’d like on it?';
+const LAST_ASK = 'What would make Thursday a good use of Priya’s time?';
+
+function reply(say: string, them: string | null): Reply {
+  return them ? { say, them } : { say };
+}
 
 function keyOf(criterion: CriterionScore): Key {
   return criterion.key as Key;
@@ -243,48 +248,27 @@ function quoting(text: string, evidence: { quote: string } | undefined): Point {
   return evidence ? { text, quote: evidence.quote } : { text };
 }
 
-/** What the four buttons answer, from what has been said so far. */
+/** What the three buttons give, from what has been said so far. */
 export function assist(mode: AssistMode, heard: number): Answer {
   const criteria = scorecardAfter(heard).criteria;
   const open = criteria.filter((criterion) => criterion.status !== 'confirmed');
-  const confirmed = criteria.filter((criterion) => criterion.status === 'confirmed');
   const title = TITLES[mode];
 
-  if (mode === 'say') {
-    const next = open[0];
-    if (!next) {
-      const last = criteria.at(-1);
-      return { title, points: [quoting('Confirm Thursday, and say you will send the recap today.', last ? said(last)[0] : undefined)] };
-    }
-    if (next.status === 'candidate') return { title, points: [quoting(NEEDS[keyOf(next)].again, said(next)[0])] };
-    const before = criteria[criteria.indexOf(next) - 1];
-    return { title, points: [quoting(NEEDS[keyOf(next)].say, before ? said(before)[0] : undefined)] };
-  }
-
+  // AI Assist: the one thing to say now, answering their last words — what is half-said first, then what is not said.
   if (mode === 'assist') {
-    if (confirmed.length === 0 && open.every((criterion) => criterion.status === 'unobserved')) {
-      return { title, points: [{ text: 'Nothing on the scorecard yet: let Dana describe month-end in her own words.' }] };
-    }
-    const latest = [...confirmed].sort(
-      (a, b) => Math.max(...b.evidence.map((r) => r.seq)) - Math.max(...a.evidence.map((r) => r.seq)),
-    )[0];
-    const points: Point[] = [];
-    if (latest) points.push(quoting(`${latest.label} is confirmed — build on it.`, said(latest)[0]));
-    for (const candidate of open.filter((criterion) => criterion.status === 'candidate')) {
-      points.push(quoting(`${candidate.label} is mentioned once: one more mention confirms it.`, said(candidate)[0]));
-    }
-    const next = open.find((criterion) => criterion.status === 'unobserved');
-    if (next) points.push({ text: `Still open: ${next.label.toLowerCase()}. ${NEEDS[keyOf(next)].followup}` });
-    if (open.length === 0) points.push({ text: 'Everything on the scorecard is covered. Agree the agenda for Thursday.' });
-    return { title, points };
+    const candidate = open.find((criterion) => criterion.status === 'candidate');
+    const next = candidate ?? open[0];
+    const say = !next ? CLOSE : candidate ? NEEDS[keyOf(candidate)].again : NEEDS[keyOf(next)].ask;
+    return { kind: 'say', title, lines: [reply(say, lastOfTheirs(heard))] };
   }
 
+  // To Ask: the questions still worth asking — the prep's first, then whatever else the scorecard is missing.
   if (mode === 'followups') {
-    if (open.length === 0) {
-      const last = criteria.at(-1);
-      return { title, points: [quoting('Everything is covered: confirm Thursday, and who will be there.', last ? said(last)[0] : undefined)] };
-    }
-    return { title, points: open.slice(0, 3).map((criterion) => ({ text: NEEDS[keyOf(criterion)].followup })) };
+    if (open.length === 0) return { kind: 'say', title, lines: [{ say: LAST_ASK }] };
+    const keys = open.map(keyOf);
+    const fromPrep = TO_ASK.filter((item) => keys.includes(item.criterion));
+    const rest = keys.filter((key) => !fromPrep.some((item) => item.criterion === key)).map((key) => NEEDS[key].ask);
+    return { kind: 'say', title, lines: [...fromPrep.map((item) => item.ask), ...rest].slice(0, 3).map((say) => ({ say })) };
   }
 
   const recap = criteria.flatMap((criterion) => {
@@ -298,7 +282,7 @@ export function assist(mode: AssistMode, heard: number): Answer {
     }
     return [];
   });
-  return { title, points: recap.length ? recap : [{ text: 'Nothing has been said yet.' }] };
+  return { kind: 'notes', title, points: recap.length ? recap : [{ text: 'Nothing has been said yet.' }] };
 }
 
 const TOPICS: readonly { readonly key: Key; readonly words: RegExp }[] = [
@@ -316,10 +300,11 @@ const OUR_PRICE = /\b(price|pricing|discount|how much (is|does) tesserafy|how mu
 export function ask(question: string, heard: number): Answer | null {
   const asked = question.trim();
   if (!asked) return null;
-  const title = `Answer · ${asked}`;
+  const title = asked;
   const lower = asked.toLowerCase();
   if (OUR_PRICE.test(lower)) {
     return {
+      kind: 'notes',
       title,
       points: [{ text: 'Your own price is not in this call. In the app it comes from your pricing documents, quoted and named — never a guess.' }],
     };
@@ -328,10 +313,10 @@ export function ask(question: string, heard: number): Answer | null {
     .filter((topic) => topic.hits > 0)
     .sort((a, b) => b.hits - a.hits)[0];
   if (!best) {
-    return { title, points: [{ text: 'Nothing said so far answers that. Try asking who decides, what it costs them, or when they need it.' }] };
+    return { kind: 'notes', title, points: [{ text: 'Nothing said so far answers that. Try asking who decides, what it costs them, or when they need it.' }] };
   }
   const criterion = scorecardAfter(heard).criteria.find((c) => c.key === best.key);
   const evidence = criterion ? said(criterion) : [];
-  if (evidence.length === 0) return { title, points: [{ text: `Not said yet. Try: “${NEEDS[best.key].followup}”` }] };
-  return { title, points: evidence.map((piece) => quoting(piece.means, piece)) };
+  if (evidence.length === 0) return { kind: 'notes', title, points: [{ text: `Not said yet. Try: “${NEEDS[best.key].ask}”` }] };
+  return { kind: 'notes', title, points: evidence.map((piece) => quoting(piece.means, piece)) };
 }

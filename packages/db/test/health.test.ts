@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ACTIONABLE_KINDS, ALARM_AT, alarming, groupFailures, type FailureRow } from '../src/health';
+import { ACTIONABLE_KINDS, ALARM_AT, ALARM_AT_ONCE, alarming, groupFailures, type FailureRow } from '../src/health';
 
 function row(kind: string, source: string, at: string, extra: Partial<FailureRow> = {}): FailureRow {
   return { kind, source, tier: null, model: null, status: null, message: `${kind} at ${source}`, created_at: at, ...extra };
@@ -94,6 +94,12 @@ describe('alarming', () => {
     expect(alarming(groups)).toBe(2);
   });
 
+  it('raises the alarm the first time a row crosses from one company to another', () => {
+    const groups = groupFailures([row('tenant_boundary', 'api/ask', '2026-10-14T10:00:00Z')]);
+    expect(groups[0]?.needsAPerson).toBe(true);
+    expect(alarming(groups)).toBe(1);
+  });
+
   it('agrees with the alerting digest in the database about what needs a person', () => {
     // ops_digest (ADR 0019) repeats this judgement in SQL for the n8n alert; the two must not drift.
     const dir = join(__dirname, '../../../supabase/migrations');
@@ -110,5 +116,6 @@ describe('alarming', () => {
     expect(kinds.length).toBeGreaterThan(0);
     for (const list of kinds) expect(list).toEqual([...ACTIONABLE_KINDS].sort());
     expect(sql).toContain(`having count(*) >= ${ALARM_AT}`);
+    for (const kind of ALARM_AT_ONCE) expect(sql).toContain(`or f.kind = '${kind}'`);
   });
 });

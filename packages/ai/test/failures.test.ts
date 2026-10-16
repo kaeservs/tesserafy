@@ -10,8 +10,9 @@
  * standing between an upstream error that quotes the request back at us and a
  * row containing a customer's sentence or a live key.
  */
-import { describe, expect, it } from 'vitest';
-import { classify, scrub } from '../src/telemetry/failures';
+import type { SupabaseClient } from '@tesserafy/db';
+import { describe, expect, it, vi } from 'vitest';
+import { classify, recordFailure, scrub } from '../src/telemetry/failures';
 
 /** What the Anthropic SDK throws: an Error carrying the HTTP status. */
 function apiError(status: number, message: string): Error {
@@ -51,6 +52,16 @@ describe('what needs a person today', () => {
     });
 
     expect(result.kind).toBe('database');
+  });
+});
+
+describe('what is an incident', () => {
+  it("calls another company's row where one company's was asked for its own kind, and tells the customer nothing of it", () => {
+    const breach = Object.assign(new Error('retrieve() got a row for company b'), { name: 'TenantBoundaryViolation' });
+    const result = classify(breach);
+
+    expect(result.kind).toBe('tenant_boundary');
+    expect(result.said).not.toContain('company b');
   });
 });
 
@@ -128,6 +139,22 @@ describe('what must never reach the row', () => {
     expect(said).toContain('[credential]');
   });
 
+  it('removes the keys of the other services the web app talks to', () => {
+    // Assembled from pieces, as above: none of these is a real key.
+    const keys = [
+      `${'sk'}_${'live'}_${'A1b2'.repeat(6)}`,
+      `${'rk'}_${'test'}_${'Z9y8'.repeat(6)}`,
+      `${'whsec'}_${'Q'.repeat(32)}`,
+      `${'re'}_${'Abcd1234'}_${'Efgh5678ijkl'}`,
+      `${'pat'}-${'na1'}-${'0123abcd'}-${'4567-89ab-cdef-0123456789ab'}`,
+    ];
+    for (const key of keys) {
+      const said = scrub(`upstream said 401 for ${key} just now`);
+      expect(said).not.toContain(key);
+      expect(said).toContain('[credential]');
+    }
+  });
+
   it('redacts a customer identifier the model quoted back', () => {
     // An upstream 400 echoes the request, and the request is meeting content.
     const said = scrub('invalid_request: input contained priya.shah@northwind.co.uk');
@@ -144,5 +171,34 @@ describe('what must never reach the row', () => {
     const said = 'temperature is deprecated for this model';
 
     expect(scrub(said)).toBe(said);
+  });
+});
+
+describe('recording, kept alive past the response', () => {
+  it('hands its write to waitUntil, so the alarm does not lose a row to a frozen function', async () => {
+    const rpc = vi.fn(async () => ({ data: 'failure-1', error: null }));
+    const kept: Promise<unknown>[] = [];
+    recordFailure(new Error('boom'), {
+      db: { rpc } as unknown as SupabaseClient,
+      source: 'api/test',
+      waitUntil: (work) => kept.push(work),
+    });
+
+    expect(kept).toHaveLength(1);
+    await kept[0];
+    expect(rpc).toHaveBeenCalledWith('record_failure', expect.objectContaining({ p_source: 'api/test' }));
+  });
+
+  it('never throws, even when waitUntil does', () => {
+    const rpc = vi.fn(async () => ({ data: 'failure-1', error: null }));
+    expect(() =>
+      recordFailure(new Error('boom'), {
+        db: { rpc } as unknown as SupabaseClient,
+        source: 'api/test',
+        waitUntil: () => {
+          throw new Error('outside a request');
+        },
+      }),
+    ).not.toThrow();
   });
 });

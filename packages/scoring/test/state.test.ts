@@ -158,6 +158,19 @@ describe('contradiction', () => {
     expect(status(state, 'problem')).toBe('contradicted');
   });
 
+  it('is overturned by fresh words from a segment it already cited', () => {
+    // On a stored call every span carries its segment's own times, so a
+    // person's "it was met" quoting other words of the segment the detector
+    // quoted read as a re-report of the contradicted claim and was dropped.
+    const state = replay(discovery, [
+      evidence('problem', 0.9, span('seg-3', 1000, 'the words the detector took')),
+      contradiction('problem', 1, span('seg-3', 1000, 'the words the detector took')),
+      evidence('problem', 1, span('seg-3', 1000, 'the words that do say it')),
+    ]);
+    expect(status(state, 'problem')).toBe('confirmed');
+    expect(state.criteria.problem!.evidence).toHaveLength(2);
+  });
+
   it('is overturned by strong fresh evidence', () => {
     const state = replay(discovery, [
       evidence('problem', 0.9, span('seg-1')),

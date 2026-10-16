@@ -115,6 +115,32 @@ describe('databaseSink', () => {
   });
 });
 
+describe('databaseSink, kept alive past the response', () => {
+  it('hands its write to waitUntil, so a function that has answered waits for it', async () => {
+    const { db, rpc } = fakeDb();
+    const kept: Promise<unknown>[] = [];
+    databaseSink({ db, waitUntil: (work) => kept.push(work) })(EVENT);
+
+    expect(kept).toHaveLength(1);
+    await kept[0];
+    expect(rpc).toHaveBeenCalledOnce();
+  });
+
+  it('still records when waitUntil cannot be used, outside a request', async () => {
+    const { db, rpc } = fakeDb();
+    expect(() =>
+      databaseSink({
+        db,
+        waitUntil: () => {
+          throw new Error('after() was called outside a request scope');
+        },
+      })(EVENT),
+    ).not.toThrow();
+    await flush();
+    expect(rpc).toHaveBeenCalledOnce();
+  });
+});
+
 describe('both', () => {
   it('sends the same event to every sink', () => {
     const seen: string[] = [];

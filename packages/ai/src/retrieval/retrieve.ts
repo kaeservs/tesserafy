@@ -22,13 +22,13 @@ export type RetrievalQuery =
 export interface RetrieveOptions {
   /** Which corpus: the company's calls (default) or its knowledge. */
   readonly corpus?: 'calls' | 'knowledge';
-  /** A service-role client. */
+  /** The caller's client: a signed-in person's (RLS applies too), or the service role's in an operator script. */
   readonly db: SupabaseClient;
   /** Required when the query is text. */
   readonly embedder?: Embedder;
   /** 1–100. Default 10. */
   readonly limit?: number;
-  /** Cosine similarity floor, 0–1. Default 0.5. */
+  /** Cosine similarity floor, 0–1. Default RELATED_SIMILARITY (0.82). Ignored for knowledge, which ranks by meaning and words together. */
   readonly minSimilarity?: number;
   /**
    * Calls only: search just these calls' lines (at most 2000) — "only Acme's

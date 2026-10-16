@@ -20,7 +20,7 @@
  * suggestion, it never scores anything — the scorecard is context, read only.
  */
 import type Anthropic from '@anthropic-ai/sdk';
-import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
+import { tolerantOutputFormat } from './structured-output';
 import { z } from 'zod';
 import { logUsage, toUsageEvent, type UsageEvent, type UsageSink } from '../telemetry/usage';
 import { locate } from './evidence';
@@ -277,7 +277,7 @@ export async function assist(
           : render(input),
       },
     ],
-    output_config: { format: zodOutputFormat(ClaimedSchema) },
+    output_config: { format: tolerantOutputFormat(ClaimedSchema) },
   });
   if (onPoint) {
     stream.on('text', (delta) => {

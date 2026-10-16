@@ -136,6 +136,23 @@ describe('what a criterion is still waiting on', () => {
     expect(score(state).criteria[0]!.shortfall).not.toBeNull();
   });
 
+  it('after a contradiction, counts only evidence newer than it, as the confirm rule does', () => {
+    const state = [
+      evidence('s1', 0.95),
+      evidence('s2', 0.6),
+      {
+        kind: 'contradiction' as const,
+        criterionKey: 'pain',
+        confidence: 0.95,
+        span: { segmentId: 's3', startMs: 0, endMs: 1, quote: 'q' },
+      },
+      evidence('s4', 0.6),
+    ].reduce(apply, initialState(set));
+
+    expect(state.criteria['pain']!.status).toBe('contradicted');
+    expect(score(state).criteria[0]!.shortfall).toMatchObject({ segments: 1, bestConfidence: 0.6 });
+  });
+
   it('reports only evidence the engine kept', () => {
     // Anything under the candidate threshold is discarded rather than
     // recorded, so a shortfall never counts evidence the score ignored.

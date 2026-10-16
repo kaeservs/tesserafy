@@ -49,11 +49,11 @@ function report(summary: ErasureSummary): void {
   );
 
   if (summary.exported_tickets.length > 0) {
-    // The one thing this command cannot finish. Quotes reached a tracker
-    // before the erasure and no amount of SQL recalls them.
+    // The one thing this command cannot finish. Quotes reached a tracker or
+    // the company's CRM before the erasure and no amount of SQL recalls them.
     console.warn(
-      `\n  ${summary.exported_tickets.length} ticket(s) already carry quotes from this conversation ` +
-        `into an external tracker. Delete them by hand:`,
+      `\n  ${summary.exported_tickets.length} ticket(s) or CRM note(s) already carry quotes from this ` +
+        `conversation into a system we do not control. Delete them by hand:`,
     );
     for (const ticket of summary.exported_tickets) console.warn(`    ${ticket.url}`);
     console.warn('');

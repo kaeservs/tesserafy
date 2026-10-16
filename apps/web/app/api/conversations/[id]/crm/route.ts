@@ -1,4 +1,4 @@
-import { recordFailure } from '@tesserafy/ai';
+import { recordFailure } from '@/lib/keep-alive';
 import { NextResponse, type NextRequest } from 'next/server';
 import { crmKeyAvailable, logCallToCrm } from '@/lib/crm';
 import { allowance, tooMany } from '@/lib/rate-limit';

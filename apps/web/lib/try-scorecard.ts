@@ -6,7 +6,6 @@ import {
   windowCount,
   windowsOf,
   type ScanOptions,
-  type StoredSegment,
 } from '@tesserafy/ai';
 import type { SupabaseClient } from '@tesserafy/db';
 import {
@@ -16,6 +15,7 @@ import {
   type CriterionStatus,
   type DetectorEvent,
 } from '@tesserafy/scoring';
+import { readCallTranscript } from './call-transcript';
 import type { DraftCriterion } from './scorecard-draft';
 
 /**
@@ -142,13 +142,7 @@ export async function tryScorecard(
   let rejected = 0;
   const calls = await Promise.all(
     chosen.map(async (call): Promise<TriedCall> => {
-      const { data: rows, error: segmentsError } = await db
-        .from('segments')
-        .select('id, speaker, start_ms, end_ms, text')
-        .eq('conversation_id', call.id)
-        .order('start_ms', { ascending: true });
-      if (segmentsError) throw new Error(`Reading a transcript failed: ${segmentsError.message}`);
-      const segments = (rows ?? []) as StoredSegment[];
+      const segments = await readCallTranscript(db, call.id);
       const byId = new Map(segments.map((segment) => [segment.id, segment]));
 
       const windows = windowsOf(segments);

@@ -53,7 +53,7 @@ const FEATURES: readonly { icon: IconName; title: string; body: string }[] = [
   {
     icon: 'ask',
     title: 'What to say next, in one press',
-    body: 'Assist, What should I say?, Follow-up questions and Recap — grounded in what was just said, not in a script.',
+    body: 'AI Assist, To Ask and Recap — the words to say, answering what was just said, not a script.',
   },
   {
     icon: 'insights',

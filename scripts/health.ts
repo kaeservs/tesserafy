@@ -116,6 +116,9 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
+  if (groups.some((group) => group.kind === 'tenant_boundary')) {
+    console.log("\nA row from another company reached code that asked for one company's (invariant 4). Treat it as an incident.");
+  }
   if (groups.some((group) => group.kind === 'billing' && group.needsAPerson)) {
     console.log('\nThe model provider is refusing us for money: top up the Anthropic account (Plans & Billing).');
   }

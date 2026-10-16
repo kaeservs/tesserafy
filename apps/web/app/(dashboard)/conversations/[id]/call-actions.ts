@@ -1,6 +1,6 @@
 'use server';
 
-import { recordFailure } from '@tesserafy/ai';
+import { recordFailure } from '@/lib/keep-alive';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
 import { describeRefusal, refund, spend, type Spent } from '@/lib/plan';

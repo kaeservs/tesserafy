@@ -276,6 +276,12 @@ importers:
       '@tesserafy/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@tesserafy/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@tesserafy/ingest':
+        specifier: workspace:*
+        version: link:../../packages/ingest
       '@tesserafy/scoring':
         specifier: workspace:*
         version: link:../../packages/scoring

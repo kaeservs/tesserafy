@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@tesserafy/db';
+import { readAll, type SupabaseClient } from '@tesserafy/db';
 import { EMBEDDING_MODEL, type Embedder } from '../providers/embedder';
 
 /**
@@ -23,13 +23,20 @@ export async function embedConversation(
   conversationId: string,
   opts: { readonly db: SupabaseClient; readonly embedder: Embedder },
 ): Promise<{ readonly embedded: number }> {
-  const { data: segments, error } = await opts.db
-    .from('segments')
-    .select('id, text')
-    .eq('conversation_id', conversationId)
-    .order('start_ms', { ascending: true });
-  if (error) throw new Error(`Reading segments failed: ${error.message}`);
-  if (!segments || segments.length === 0) return { embedded: 0 };
+  // Paged: a call may hold five thousand lines and PostgREST returns a
+  // thousand without saying so, which left the rest of a long call unsearchable.
+  const segments = await readAll<{ id: string; text: string }>(
+    (from, to) =>
+      opts.db
+        .from('segments')
+        .select('id, text')
+        .eq('conversation_id', conversationId)
+        .order('start_ms')
+        .order('id')
+        .range(from, to),
+    'Reading segments',
+  );
+  if (segments.length === 0) return { embedded: 0 };
 
   const texts = segments.map((segment) => segment.text);
   const vectors = opts.embedder.embedMany

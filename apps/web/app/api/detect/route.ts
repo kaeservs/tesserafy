@@ -2,11 +2,11 @@ import Anthropic from '@anthropic-ai/sdk';
 import {
   databaseSink,
   detectCriteria,
-  recordFailure,
   T1_DETECTOR,
   type CriterionPrompt,
   type DetectableSegment,
 } from '@tesserafy/ai';
+import { keepAlive, recordFailure } from '@/lib/keep-alive';
 import { NextResponse, type NextRequest } from 'next/server';
 import { caller } from '@/lib/supabase/caller';
 import { liveGuidance } from '@/lib/live-guidance';
@@ -111,6 +111,8 @@ export async function POST(request: NextRequest) {
         // The prompt version, variant included. Without it a change in cost
         // cannot be attributed to the change that caused it.
         detector: variant === 'compact' ? `${T1_DETECTOR}-compact` : T1_DETECTOR,
+        // Not awaited, so kept alive past the response (lib/keep-alive).
+        waitUntil: keepAlive,
       }),
     });
 

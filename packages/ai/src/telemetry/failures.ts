@@ -31,6 +31,9 @@ export type FailureKind =
   | 'billing'
   | 'database'
   | 'input'
+  // A row from another company reached code that asked for one company's
+  // (invariant 4). Never weather, never the caller's fault: one is an incident.
+  | 'tenant_boundary'
   | 'unknown';
 
 export interface Classified {
@@ -49,6 +52,9 @@ export interface Classified {
 /** What a customer reads when the model provider has refused us for money. */
 export const BILLING_SAID = 'The AI is unavailable right now. We have been alerted and are fixing it; nothing was charged.';
 
+/** What a customer reads when the fault is ours and its details are not theirs to read. */
+export const GENERIC_SAID = 'Something went wrong on our side, and we have been alerted.';
+
 /** The provider refusing us for money, as its errors say it. */
 const BILLING = /credit balance is too low|insufficient (credit|funds|balance)|billing|spend(ing)? limit/i;
 
@@ -60,6 +66,12 @@ const CREDENTIALS: readonly RegExp[] = [
   // A Supabase service-role key is a JWT, and a JWT in a log is a live key.
   /eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]+/g,
   /(?<=[Bb]earer )[A-Za-z0-9._-]{12,}/g,
+  // The other services the web app holds a key for: Stripe's secret,
+  // restricted and webhook-signing keys, Resend's, a HubSpot private app's.
+  /\b(?:sk|rk)_(?:live|test)_[A-Za-z0-9]+/g,
+  /\bwhsec_[A-Za-z0-9+/=]+/g,
+  /\bre_[A-Za-z0-9]{8,}_[A-Za-z0-9]{8,}/g,
+  /\bpat-[a-z]{2}\d?-[0-9a-f]{8}-[0-9a-f-]{27}/gi,
 ];
 
 /** As long as a message stays useful to read, and no longer. */
@@ -95,6 +107,10 @@ export function classify(cause: unknown): Classified {
   const message = scrub(
     cause instanceof Error ? cause.message : typeof cause === 'string' ? cause : String(cause),
   );
+
+  // Before anything else: whatever else it looks like, a tenant's row where
+  // another's was asked for is the incident.
+  if (error?.name === 'TenantBoundaryViolation') return { kind: 'tenant_boundary', message, said: GENERIC_SAID };
 
   // PostgREST hands back a five-character SQLSTATE and a details field. Our own
   // database refusing us is never the same problem as a model refusing us.
@@ -136,6 +152,13 @@ export interface FailureContext {
   readonly conversationId?: string;
   /** Called when recording the failure itself fails. */
   readonly onError?: (error: Error) => void;
+  /**
+   * Keeps the write alive past the response. A serverless function can be
+   * frozen once it has answered, and a write nobody waits for is cut off with
+   * it; these rows are what `pnpm health` alarms on. The web app passes
+   * Next's after(); a script, which lives until it is done, passes nothing.
+   */
+  readonly waitUntil?: (work: Promise<unknown>) => void;
 }
 
 /**
@@ -149,7 +172,12 @@ export interface FailureContext {
  */
 export function recordFailure(cause: unknown, context: FailureContext): Classified {
   const classified = classify(cause);
-  void send(classified, context);
+  const sending = send(classified, context);
+  try {
+    context.waitUntil?.(sending);
+  } catch {
+    // Outside a request there is nothing to keep alive; the write still goes.
+  }
   return classified;
 }
 

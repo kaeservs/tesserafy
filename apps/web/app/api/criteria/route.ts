@@ -1,4 +1,4 @@
-import { recordFailure } from '@tesserafy/ai';
+import { recordFailure } from '@/lib/keep-alive';
 import { fetchCriteria } from '@tesserafy/db';
 import { NextResponse, type NextRequest } from 'next/server';
 import { myCompanyId } from '@/lib/company';

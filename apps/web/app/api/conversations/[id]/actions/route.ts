@@ -1,6 +1,6 @@
-import { recordFailure } from '@tesserafy/ai';
+import { recordFailure } from '@/lib/keep-alive';
 import { NextResponse, type NextRequest } from 'next/server';
-import { findActionItems } from '@/lib/action-items';
+import { findActionItems, type ActionOutcome } from '@/lib/action-items';
 import { planExhausted, refund, spend } from '@/lib/plan';
 import { allowance, tooMany } from '@/lib/rate-limit';
 import { caller } from '@/lib/supabase/caller';
@@ -13,6 +13,12 @@ import { caller } from '@/lib/supabase/caller';
  * larger model. Given back when nothing was read.
  */
 export const runtime = 'nodejs';
+
+const REFUSED: Record<Exclude<ActionOutcome['status'], 'found'>, string> = {
+  not_found: 'That call was not found.',
+  nothing_to_read: 'This call has no transcript to read.',
+  too_long: 'This call is longer than the product reads automatically.',
+};
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -32,7 +38,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (outcome.status !== 'found') {
       await refund(who.db, spent);
       return NextResponse.json(
-        { error: outcome.status === 'not_found' ? 'That call was not found.' : 'This call has no transcript to read.' },
+        { error: REFUSED[outcome.status] },
         { status: outcome.status === 'not_found' ? 404 : 422 },
       );
     }

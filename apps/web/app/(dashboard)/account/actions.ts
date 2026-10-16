@@ -2,6 +2,7 @@
 
 import { MIN_PASSWORD } from '@/lib/password';
 import { createClient } from '@/lib/supabase/server';
+import { inSupportSession } from '@/lib/support-session';
 
 export type PasswordState =
   | { status: 'idle' }
@@ -31,6 +32,12 @@ export async function setPassword(_prev: PasswordState, formData: FormData): Pro
   }
 
   const supabase = await createClient();
+  // An operator in a support session sees what the customer sees, this form
+  // included; a password set there would outlive the visit.
+  const { data: session } = await supabase.auth.getSession();
+  if (await inSupportSession(supabase, session.session?.access_token)) {
+    return { status: 'error', message: 'A support visit cannot change the password. Sign in yourself to change it.' };
+  }
   const { error } = await supabase.auth.updateUser({ password });
   if (error) {
     return {

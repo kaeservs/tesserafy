@@ -99,8 +99,8 @@ export default async function ConversationsPage({
         <p className="card" role="status">
           The call was deleted, with everything derived from it.
           {exported > 0
-            ? ` ${exported} ticket${exported === 1 ? ' was' : 's were'} exported from it to your ` +
-              'tracker earlier; those live in the tracker and were not deleted — remove them there ' +
+            ? ` ${exported} ticket${exported === 1 ? ' or CRM note was' : 's or CRM notes were'} made from it ` +
+              'earlier; those live in your tracker or CRM and were not deleted — remove them there ' +
               'if they should go too.'
             : ''}
         </p>

@@ -77,7 +77,7 @@ export default async function OverlaySettingsPage({ searchParams }: { searchPara
           </button>
         </p>
         <p className="muted" style={{ fontSize: '0.8rem' }}>
-          It never starts listening by itself: you confirm everyone agreed, then press Start. On Windows, and on a Mac
+          It never starts listening by itself: you press Start, under the recording agreement you made once. On Windows, and on a Mac
           with macOS 14.2 or later.
         </p>
       </form>

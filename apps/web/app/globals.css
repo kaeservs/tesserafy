@@ -2569,6 +2569,10 @@ main.auth {
 .od-stage {
   position: relative;
   aspect-ratio: 16 / 10;
+  /* A width of its own: without one the aspect ratio turned min-height into a
+     width of 61rem, and between about 1080 and 1330 px the meeting ran under
+     How it looks. */
+  width: 100%;
   min-height: 38rem;
   overflow: hidden;
   border-radius: 22px;
@@ -2990,81 +2994,113 @@ main.auth {
   font-size: 0.923em;
 }
 
-/* What to say next: the largest words on the card, alone. */
-.od-say {
+/* One place to read: what to say next, or the answer asked for. What to say
+   is a conversation — the customer's line on the right, the words to say on
+   the left, the same size as theirs and set apart by colour and weight — and
+   nothing about how to say it. */
+.od-say,
+.od-answer {
   margin-top: 0.7692em;
-  padding: 0.7692em 0.9231em;
-  border: 1px solid rgba(var(--o-accent), 0.4);
-  border-radius: 0.7692em;
-  background: rgba(var(--o-accent), 0.12);
 }
 
-.od-say p {
+.od-say p,
+.od-answer p {
   margin: 0;
 }
 
-.od-say-label {
-  color: rgb(var(--o-accent));
+.od-waiting {
+  color: var(--o-dim);
+}
+
+.od-exchange {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4615em;
+}
+
+.od-exchange + .od-exchange {
+  margin-top: 0.4615em;
+}
+
+.od-turn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1538em;
+  max-width: 88%;
+}
+
+.od-turn.them {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.od-turn.me {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.od-who {
+  color: var(--o-dim);
   font-size: 0.77em;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.od-say-text {
+.od-turn.me .od-who {
+  color: rgb(var(--o-accent));
+}
+
+.od-bubble {
+  padding: 0.4615em 0.7692em;
+  border-radius: 1.0769em;
+  line-height: 1.4;
+}
+
+.od-turn.them .od-bubble {
+  border-bottom-right-radius: 0.3077em;
+  background: rgba(var(--o-line), 0.16);
+  color: var(--o-text-2);
+}
+
+.od-turn.me .od-bubble {
+  border: 1px solid rgba(var(--o-accent), 0.45);
+  border-bottom-left-radius: 0.3077em;
+  background: rgba(var(--o-accent), 0.16);
   color: var(--o-text);
-  font-size: 1.2308em;
   font-weight: 600;
-  line-height: 1.35;
-}
-
-.od-say.waiting .od-say-text {
-  color: var(--o-dim);
-  font-size: 1em;
-  font-weight: 400;
-}
-
-.od-say-why {
-  color: var(--o-dim);
-  font-size: 0.846em;
 }
 
 .od-assist {
   margin-top: 0.6154em;
 }
 
-.od-answer {
-  padding: 0.3077em 0.1538em 0.4615em;
-}
-
 .od-answer-head {
   display: flex;
   align-items: center;
   gap: 0.62em;
+  margin-bottom: 0.4615em;
 }
 
-.od-answer-state {
+.od-tag {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  color: var(--o-dim);
+  color: rgb(var(--o-accent));
   font-size: 0.77em;
-  letter-spacing: 0.04em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-overflow: ellipsis;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
-.od-asked {
-  max-width: 70%;
-  overflow: hidden;
-  padding: 0.25em 0.8333em;
-  border-radius: 1em 1em 0.25em 1em;
-  background: rgb(var(--o-accent-lo));
-  color: #ffffff;
-  font-size: 0.923em;
-  text-overflow: ellipsis;
-  text-shadow: none;
-  white-space: nowrap;
+.od-tag.asked {
+  color: var(--o-dim);
+  font-size: 0.846em;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .od-card .od-close {
@@ -3076,7 +3112,7 @@ main.auth {
 }
 
 .od-answer ul {
-  margin: 0.4615em 0 0;
+  margin: 0;
   padding-left: 1.3846em;
 }
 
@@ -3087,6 +3123,12 @@ main.auth {
 
 .od-quote {
   display: block;
+  color: var(--o-dim);
+  font-size: 0.846em;
+}
+
+.od-screen-note {
+  margin-top: 0.4615em;
   color: var(--o-dim);
   font-size: 0.846em;
 }

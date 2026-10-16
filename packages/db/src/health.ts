@@ -16,7 +16,7 @@
  */
 
 /** The kinds that mean somebody must act today. */
-export const ACTIONABLE_KINDS: ReadonlySet<string> = new Set(['model_rejected', 'database', 'billing']);
+export const ACTIONABLE_KINDS: ReadonlySet<string> = new Set(['model_rejected', 'database', 'billing', 'tenant_boundary']);
 
 /**
  * Below this, an actionable failure is reported but does not raise the alarm.
@@ -24,6 +24,12 @@ export const ACTIONABLE_KINDS: ReadonlySet<string> = new Set(['model_rejected', 
  * payload. Two inside the window is a pattern.
  */
 export const ALARM_AT = 2;
+
+/**
+ * The kinds that raise the alarm the first time. One company's row where
+ * another's was asked for is never a fluke worth waiting for a second of.
+ */
+export const ALARM_AT_ONCE: ReadonlySet<string> = new Set(['tenant_boundary']);
 
 export interface FailureRow {
   readonly source: string;
@@ -87,10 +93,11 @@ export function groupFailures(rows: readonly FailureRow[]): FailureGroup[] {
 
 /**
  * How many failures raise the alarm: actionable groups that repeated at
- * least ALARM_AT times. Zero means nothing here needs a person.
+ * least ALARM_AT times, or of a kind that alarms at once. Zero means nothing
+ * here needs a person.
  */
 export function alarming(groups: readonly FailureGroup[]): number {
   return groups
-    .filter((group) => group.needsAPerson && group.count >= ALARM_AT)
+    .filter((group) => group.needsAPerson && (group.count >= ALARM_AT || ALARM_AT_ONCE.has(group.kind)))
     .reduce((sum, group) => sum + group.count, 0);
 }

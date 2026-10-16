@@ -1,4 +1,4 @@
-import { recordFailure } from '@tesserafy/ai';
+import { recordFailure } from '@/lib/keep-alive';
 import { NextResponse, type NextRequest } from 'next/server';
 import { findInsights, NoSingleCompany } from '@/lib/find-insights';
 import { planExhausted, refund, spend } from '@/lib/plan';
@@ -37,7 +37,11 @@ export async function POST(request: NextRequest) {
   if (!spent.allowed) return planExhausted(spent);
 
   try {
-    return NextResponse.json(await findInsights(who.db, who.userId, accessToken));
+    const found = await findInsights(who.db, who.userId, accessToken);
+    // No signals, or no group worth a write-up: the model was never asked,
+    // so the run is given back, as every other route gives back a refusal.
+    if (found.proposed + found.declined === 0) await refund(who.db, spent);
+    return NextResponse.json(found);
   } catch (error) {
     await refund(who.db, spent);
     if (error instanceof NoSingleCompany) {

@@ -16,7 +16,7 @@
  * rather than as a surprise on a bill.
  */
 import type Anthropic from '@anthropic-ai/sdk';
-import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
+import { tolerantOutputFormat } from './structured-output';
 import type { DetectorEvent } from '@tesserafy/scoring';
 import { z } from 'zod';
 import { logUsage, toUsageEvent, type UsageEvent, type UsageSink } from '../telemetry/usage';
@@ -170,7 +170,7 @@ export async function detectCriteria(
       },
     ],
     messages: [{ role: 'user', content: renderWindow(window) }],
-    output_config: { format: zodOutputFormat(DetectionSchema) },
+    output_config: { format: tolerantOutputFormat(DetectionSchema) },
   });
 
   const usage = toUsageEvent('t1', model, response.usage, Date.now() - startedAt);
@@ -238,17 +238,20 @@ export async function detectCriteria(
  * Haiku 5.5 answers a temperature other than 1 with a 400 and thinks unless
  * told not to, which this tier's budget cannot pay for, so it gets thinking
  * off and no temperature: whether its variance is acceptable without one is
- * the eval's question, not this function's. An explicit temperature is sent
- * to any model, so a spike that asks for one finds out what the API says.
+ * the eval's question, not this function's. Any other model gets no
+ * temperature unless one is asked for: Sonnet 5 and Opus 5 reject one too,
+ * and a spike that passed `--model claude-sonnet-5` used to get a 400 for a
+ * zero nobody asked for. An explicit temperature is sent to any model, so a
+ * spike that asks for one finds out what the API says.
  */
 export function samplingFor(
   model: string,
   temperature: number | undefined,
 ): { temperature?: number; thinking?: { type: 'disabled' } } {
-  if (model.startsWith('claude-haiku-5')) {
-    return { thinking: { type: 'disabled' }, ...(temperature === undefined ? {} : { temperature }) };
-  }
-  return { temperature: temperature ?? 0 };
+  const asked = temperature === undefined ? {} : { temperature };
+  if (model.startsWith('claude-haiku-5')) return { thinking: { type: 'disabled' }, ...asked };
+  if (model.startsWith('claude-haiku-4')) return { temperature: temperature ?? 0 };
+  return asked;
 }
 
 /** The volatile half of the request: everything after the cache breakpoint. */

@@ -9,7 +9,7 @@
  * make impossible.
  */
 import type Anthropic from '@anthropic-ai/sdk';
-import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
+import { tolerantOutputFormat } from '../tiers/structured-output';
 import { z } from 'zod';
 import { logUsage, toUsageEvent, type UsageSink } from '../telemetry/usage';
 import type { SignalCluster } from './cluster';
@@ -95,7 +95,7 @@ export async function synthesiseInsight(
     ...(opts.temperature === undefined ? {} : { temperature: opts.temperature }),
     system: SYSTEM,
     messages: [{ role: 'user', content: renderCluster(cluster) }],
-    output_config: { format: zodOutputFormat(InsightSchema) },
+    output_config: { format: tolerantOutputFormat(InsightSchema) },
   });
 
   sink(toUsageEvent('t3', model, response.usage, Date.now() - startedAt));

@@ -45,3 +45,19 @@ state diagram in `packages/scoring/src/state` already showed.
   meaningless: the evidence it contradicted would immediately re-confirm.
 - **Independence by time gap rather than segment.** Needs a tuning constant
   with no data to tune it; segments are already the evidence unit.
+
+## Addendum — the same span means the same words (2026-10-14)
+
+Rule 1 called a span reported twice one piece of evidence, and the engine
+decided "the same span" by segment and times alone. On a stored call every
+span carries its segment's own times, so any two quotes from one segment
+were "the same span". A person's "it was met", quoting other words of the
+segment whose detector claim they had just called wrong, was taken for a
+re-report of that contradicted claim, kept its old position, and could never
+overturn the contradiction (rule 3).
+
+The same span is now the same segment, times **and quote**. A detector retry
+still reports the same words and still counts once. Other words from the
+same segment are another quote, and still one observation toward
+corroboration, which counts segments. A contradicted criterion's shortfall
+counts only evidence newer than its latest contradiction, as rule 3 does.

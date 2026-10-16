@@ -10,7 +10,7 @@
  * honest answer rather than a guess.
  */
 import type Anthropic from '@anthropic-ai/sdk';
-import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
+import { tolerantOutputFormat } from './structured-output';
 import { z } from 'zod';
 import { logUsage, toUsageEvent, type UsageSink } from '../telemetry/usage';
 import { locate } from './evidence';
@@ -113,7 +113,7 @@ export async function extractActionItems(segments: readonly ExtractableSegment[]
     max_tokens: 4_000,
     system,
     messages: [{ role: 'user', content: renderTranscript(segments) }],
-    output_config: { format: zodOutputFormat(ClaimedSchema) },
+    output_config: { format: tolerantOutputFormat(ClaimedSchema) },
   });
   sink(toUsageEvent('t3', model, response.usage, Date.now() - startedAt));
 

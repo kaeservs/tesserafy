@@ -1,6 +1,6 @@
 'use server';
 
-import { recordFailure } from '@tesserafy/ai';
+import { recordFailure } from '@/lib/keep-alive';
 import { fetchCriteriaSets } from '@tesserafy/db';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';

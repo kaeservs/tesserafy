@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { fetchCriteria } from '@tesserafy/db';
 import { LiveScorecard, type PlayableSegment } from '@/components/live-scorecard';
+import { readCallTranscript } from '@/lib/call-transcript';
 import { toPrompts, toScorecard } from '@/lib/criteria';
 import { createClient } from '@/lib/supabase/server';
 
@@ -28,16 +29,7 @@ export default async function LivePage({ params }: { params: Promise<{ id: strin
     .maybeSingle();
   if (!conversation) notFound();
 
-  const { data, error } = await supabase
-    .from('segments')
-    .select('id, speaker, start_ms, end_ms, text')
-    .eq('conversation_id', id)
-    .order('start_ms');
-  if (error) throw new Error(`Could not load the transcript: ${error.message}`);
-
-  const segments: PlayableSegment[] = (
-    (data ?? [])
-  ).map((row) => ({
+  const segments: PlayableSegment[] = (await readCallTranscript(supabase, id)).map((row) => ({
     id: row.id,
     speaker: row.speaker,
     startMs: row.start_ms,

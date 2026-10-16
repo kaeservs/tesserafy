@@ -51,13 +51,26 @@ export type SignInResult = { ok: true; email: string } | { ok: false; message: s
 /** Renew this long before expiry, so a call in flight never carries a dead token. */
 const RENEW_BEFORE_MS = 60_000;
 
+/**
+ * Auth could not be asked, as distinct from Auth saying no: offline, a
+ * timeout, a 429 or a 5xx. A refresh token that could not be checked is not
+ * a refresh token that was refused, and throwing it away signed people out
+ * for good whenever the overlay started without a network.
+ */
+class Unreachable extends Error {}
+
+/** What a renewal came to. */
+type Renewal = 'renewed' | 'refused' | 'unreachable';
+
 export class Session {
   private config: ClientConfig | null = null;
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
   private expiresAt = 0;
   private email: string | null = null;
-  private renewing: Promise<boolean> | null = null;
+  private renewing: Promise<Renewal> | null = null;
+  /** Told when a session ends without the person signing out: Auth refused its renewal. */
+  onSignedOut: (() => void) | null = null;
 
   constructor(
     private readonly baseUrl: string,
@@ -75,6 +88,11 @@ export class Session {
     return this.store.persistent;
   }
 
+  /** A sign-in is held but could not be renewed yet: Auth was out of reach. */
+  get waiting(): boolean {
+    return this.accessToken === null && this.refreshToken !== null;
+  }
+
   private async clientConfig(): Promise<ClientConfig> {
     if (this.config) return this.config;
     const response = await fetch(new URL('/auth/client-config', this.baseUrl));
@@ -83,13 +101,22 @@ export class Session {
     return this.config;
   }
 
+  /** The tokens, or null when Auth refused them; throws Unreachable when Auth could not be asked. */
   private async token(grant: 'password' | 'refresh_token', body: object): Promise<TokenResponse | null> {
-    const config = await this.clientConfig();
-    const response = await fetch(new URL(`/auth/v1/token?grant_type=${grant}`, config.supabaseUrl), {
-      method: 'POST',
-      headers: { apikey: config.publishableKey, 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    let response: Response;
+    try {
+      const config = await this.clientConfig();
+      response = await fetch(new URL(`/auth/v1/token?grant_type=${grant}`, config.supabaseUrl), {
+        method: 'POST',
+        headers: { apikey: config.publishableKey, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    } catch (cause) {
+      throw new Unreachable(cause instanceof Error ? cause.message : 'could not reach Tesserafy');
+    }
+    if (response.status === 408 || response.status === 429 || response.status >= 500) {
+      throw new Unreachable(`Auth answered ${response.status}`);
+    }
     if (!response.ok) return null;
     return (await response.json()) as TokenResponse;
   }
@@ -106,14 +133,16 @@ export class Session {
     if (this.store.persistent) await this.store.write(tokens.refresh_token);
   }
 
-  /** At start-up: pick up where the last launch left off, if it can. */
+  /**
+   * At start-up: pick up where the last launch left off, if it can. A saved
+   * sign-in is forgotten only when Auth refuses it; out of reach, it is kept
+   * (`waiting`) and tried again on the next call that needs it.
+   */
   async resume(): Promise<boolean> {
     const saved = await this.store.read();
     if (!saved) return false;
     this.refreshToken = saved;
-    const ok = await this.renew();
-    if (!ok) await this.store.clear();
-    return ok;
+    return (await this.renew()) === 'renewed';
   }
 
   async signIn(identifier: string, password: string): Promise<SignInResult> {
@@ -126,7 +155,12 @@ export class Session {
     const trimmed = identifier.trim();
     // The web form's rule, so the same name works in both places.
     const email = trimmed.includes('@') ? trimmed : `${trimmed.toLowerCase()}@${config.usernameDomain}`;
-    const tokens = await this.token('password', { email, password });
+    let tokens: TokenResponse | null;
+    try {
+      tokens = await this.token('password', { email, password });
+    } catch (cause) {
+      return { ok: false, message: cause instanceof Error ? `Could not reach Tesserafy: ${cause.message}` : 'could not reach Tesserafy' };
+    }
     // One message for a wrong password and an unknown account, as the web
     // form gives: saying which would make this an account directory.
     if (!tokens) return { ok: false, message: 'That username and password did not match.' };
@@ -135,21 +169,30 @@ export class Session {
     return { ok: true, email: this.email };
   }
 
-  /** Renews the access token. Concurrent callers share one renewal. */
-  private renew(): Promise<boolean> {
+  /**
+   * Renews the access token. Concurrent callers share one renewal. Refused,
+   * the sign-in is over and forgotten, saved copy included, and onSignedOut
+   * says so; out of reach, it is kept for the next try.
+   */
+  private renew(): Promise<Renewal> {
     if (this.renewing) return this.renewing;
-    this.renewing = (async () => {
+    this.renewing = (async (): Promise<Renewal> => {
       try {
-        if (!this.refreshToken) return false;
+        if (!this.refreshToken) return 'refused';
         const tokens = await this.token('refresh_token', { refresh_token: this.refreshToken });
         if (!tokens) {
+          const wasSignedIn = this.accessToken !== null;
           this.forget();
-          return false;
+          await this.store.clear();
+          if (wasSignedIn) this.onSignedOut?.();
+          return 'refused';
         }
         await this.adopt(tokens);
-        return true;
+        return 'renewed';
       } catch {
-        return false;
+        // Unreachable, or the saved copy could not be written: the session
+        // is not known to be over, so nothing is forgotten.
+        return 'unreachable';
       } finally {
         this.renewing = null;
       }
@@ -161,7 +204,7 @@ export class Session {
   async bearer(): Promise<string | null> {
     if (!this.accessToken && !this.refreshToken) return null;
     if (!this.accessToken || this.now() > this.expiresAt - RENEW_BEFORE_MS) {
-      if (!(await this.renew())) return null;
+      if ((await this.renew()) !== 'renewed') return null;
     }
     return this.accessToken;
   }
@@ -186,7 +229,7 @@ export class Session {
     if (!token) return null;
     const first = await call(token);
     if (first.status !== 401) return first;
-    if (!(await this.renew()) || !this.accessToken) return first;
+    if ((await this.renew()) !== 'renewed' || !this.accessToken) return first;
     return call(this.accessToken);
   }
 

@@ -26,30 +26,39 @@ Every claim the system makes is traceable to a quoted span with a timestamp.
 
 ## Status
 
-**Phase 0 — Foundation.** Tenancy schema, guarded `retrieve()` and the
-cross-tenant tests are in; the web app is not yet scaffolded. See
-[docs/engineering/build-plan.md](docs/engineering/build-plan.md) for the phase
-sequence and the gate each phase must pass.
+Built and in production: the web app (dashboard), the Electron overlay
+(Windows and Mac installers from GitHub Releases) and the operator console.
+What is live, what waits on a key or an account, and what comes next is in
+[HANDOFF.md](HANDOFF.md); the architecture and its rules are in
+[CLAUDE.md](CLAUDE.md), and every lasting decision is an ADR in
+[docs/decisions](docs/decisions/README.md).
+[docs/engineering/build-plan.md](docs/engineering/build-plan.md) is the
+original phase plan, kept as history.
 
 ## Layout
 
-    apps/web/          Next.js — dashboard, review, insight inbox
-    apps/desktop/      Electron — the live HUD (Phase 7)
+    apps/web/          Next.js — the dashboard, and every API the overlay calls
+    apps/desktop/      Electron — the overlay that sits over a live call
+    apps/admin/        Next.js — the operator console, the one holder of the service-role key
     packages/scoring/  Pure TypeScript — criterion state machine + score. Zero deps.
-    packages/ai/       Provider abstraction, prompts, guarded retrieval
+    packages/ai/       Model tiers, the Ask agent, guarded retrieval, failure and usage records
+    packages/ingest/   Transcript parsing, chunking and redaction (T0)
     packages/db/       Generated Supabase types, query helpers
     services/eval/     Python — labelling CLI, evaluation harness
-    supabase/          Migrations
+    supabase/          Migrations, pgTAP tests, the embedding edge function
     docs/              Product, engineering, ADRs, experiments
 
 ## Getting started
 
     pnpm install
-    cp .env.example .env.local     # then fill it in
-    pnpm dev
+    cp .env.example .env     # operator scripts read it; pnpm env:check says what is missing
+    pnpm dev                 # the web app
+    pnpm test                # every workspace, unit only, no network
 
-Requires Node 24+, pnpm 12+, Python 3.12+ (for `services/eval`), and Ollama
-for local embeddings.
+Requires Node 24+, pnpm 12+, and Python 3.12+ for `services/eval`. Embeddings
+run inside Supabase (gte-small, `supabase/functions/embed`), so nothing runs
+locally for them. `pnpm exec supabase start` (Docker) gives a local stack for
+the pgTAP and integration tests. Every command is listed in CLAUDE.md.
 
 ## Non-negotiables
 

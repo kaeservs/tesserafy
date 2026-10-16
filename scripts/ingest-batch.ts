@@ -38,7 +38,7 @@ import {
   type ExtractableSegment,
 } from '@tesserafy/ai';
 import { createServiceClient } from '@tesserafy/db';
-import { parseTranscript, toSegments, TRANSCRIPT_EXTENSIONS, type ParsedTranscript } from '@tesserafy/ingest';
+import { parseTranscript, redactSegments, toSegments, TRANSCRIPT_EXTENSIONS, type ParsedTranscript } from '@tesserafy/ingest';
 import type { SupabaseClient } from '@tesserafy/db';
 
 
@@ -168,7 +168,9 @@ async function importOne(
   }
 
   const transcript = parseFile(path);
-  const segments = toSegments(transcript.turns);
+  // Identifiers go before anything is stored or embedded, as in `pnpm ingest`
+  // and every web path: this one stored, embedded and sent them to T3 as said.
+  const { segments } = redactSegments(toSegments(transcript.turns));
   const embedder = // gte-small inside Supabase, as the web app uses — one model for every
   // vector, because a query embedded by one model against rows embedded by
   // another returns confident nonsense.

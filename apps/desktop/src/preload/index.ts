@@ -109,7 +109,8 @@ contextBridge.exposeInMainWorld('overlay', {
   agree: (): Promise<{ agreedAt?: string; termsVersion?: string; error?: string }> => ipcRenderer.invoke('overlay:agree'),
   // Both sides of the call as text (ADR 0022): the main process holds the
   // streams; the page sends audio and is told what was heard.
-  transcribeStart: (): Promise<{ ok?: boolean; error?: string }> => ipcRenderer.invoke('overlay:transcribe-start'),
+  transcribeStart: (): Promise<{ ok?: boolean; error?: string; upgrade?: boolean }> =>
+    ipcRenderer.invoke('overlay:transcribe-start'),
   transcribeStop: (): Promise<void> => ipcRenderer.invoke('overlay:transcribe-stop'),
   sendAudio: (channel: 'me' | 'them', chunk: ArrayBuffer): void => ipcRenderer.send('overlay:audio', channel, chunk),
   onTranscript: (listener: (heard: { channel: 'me' | 'them'; kind: 'interim' | 'utterance'; text: string }) => void): void => {
@@ -157,8 +158,17 @@ contextBridge.exposeInMainWorld('overlay', {
       move: { keys: string; available: boolean };
     };
   }> => ipcRenderer.invoke('overlay:config'),
-  session: (): Promise<{ email: string | null; remembers: boolean }> =>
+  session: (): Promise<{ email: string | null; remembers: boolean; waiting?: boolean }> =>
     ipcRenderer.invoke('overlay:session'),
+  /** A sign-in that ended by itself, or came back once Auth could be reached. */
+  onSessionChanged: (listener: (session: { email: string | null; remembers: boolean }) => void): void => {
+    ipcRenderer.on('overlay:session-changed', (_event, session: { email?: unknown; remembers?: unknown }) =>
+      listener({
+        email: typeof session.email === 'string' ? session.email : null,
+        remembers: session.remembers === true,
+      }),
+    );
+  },
   signIn: (
     identifier: string,
     password: string,

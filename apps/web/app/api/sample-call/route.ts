@@ -1,5 +1,5 @@
 import { redactSegments, toSegments } from '@tesserafy/ingest';
-import { recordFailure } from '@tesserafy/ai';
+import { recordFailure } from '@/lib/keep-alive';
 import { after, NextResponse, type NextRequest } from 'next/server';
 import { allowance, tooMany } from '@/lib/rate-limit';
 import { embedUploadedConversation } from '@/lib/embed-upload';

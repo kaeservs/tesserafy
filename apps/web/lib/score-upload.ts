@@ -6,6 +6,7 @@ import {
   windowsOf,
 } from '@tesserafy/ai';
 import { fetchCriteria, type SupabaseClient } from '@tesserafy/db';
+import { readCallTranscript } from './call-transcript';
 import { loadGuidance, purposeOf } from './guidance';
 
 /**
@@ -62,14 +63,9 @@ export async function scoreUploadedConversation(
     .single();
   if (conversationError) throw new Error(`Reading the conversation failed: ${conversationError.message}`);
 
-  const { data: segments, error: segmentsError } = await db
-    .from('segments')
-    .select('id, speaker, start_ms, end_ms, text')
-    .eq('conversation_id', conversationId)
-    .order('start_ms', { ascending: true });
-  if (segmentsError) throw new Error(`Reading segments failed: ${segmentsError.message}`);
+  const segments = await readCallTranscript(db, conversationId);
 
-  const windows = windowsOf(segments ?? []);
+  const windows = windowsOf(segments);
   if (windows.length === 0) return { status: 'nothing_to_score' };
   if (windows.length > AUTO_SCORE_MAX_WINDOWS) return { status: 'too_long', windows: windows.length };
 

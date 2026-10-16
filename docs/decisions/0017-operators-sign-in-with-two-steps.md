@@ -51,3 +51,15 @@ the "admins read all" policies.
 - Operator scripts that act as the operator through PostgREST need an `aal2`
   session once it's on. The service-role scripts (`pnpm support` and the like)
   are unaffected.
+
+## Addendum — `pnpm support` asks for the code too (2026-10-14)
+
+The consequences above said the service-role scripts, `pnpm support` among
+them, are unaffected. `pnpm support` is not one of them in the way that
+matters: it mints the operator's own session and calls the admin functions
+as them, and that session is `aal1`, which the database refuses once the
+switch is on. It now takes `--code <6 digits>` and raises its session with
+the same challenge and verify the console makes; an operator with an
+authenticator who leaves it out is told to add it. The local stack has TOTP
+enrolment off, so this is checked by type and against the API's shape, not
+end to end, until an operator enrols.

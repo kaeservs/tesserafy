@@ -1,4 +1,4 @@
-import { recordFailure } from '@tesserafy/ai';
+import { recordFailure } from '@/lib/keep-alive';
 import { readAll } from '@tesserafy/db';
 import { NextResponse, type NextRequest } from 'next/server';
 import {
@@ -18,6 +18,7 @@ import {
   type WorkRow,
   WORK_TABLES,
 } from '@/lib/export';
+import { myCompanyId } from '@/lib/company';
 import { allowance, tooMany } from '@/lib/rate-limit';
 import { scoreConversations } from '@/lib/scorecard';
 import { siteUrl } from '@/lib/site-url';
@@ -53,6 +54,15 @@ export async function POST(request: NextRequest) {
   const limit = await allowance(who.db, 'api/export');
   if (!limit.allowed) return tooMany('api/export', limit.retryAfterSeconds);
 
+  // Every read below names the company, taken from the caller's own
+  // membership. RLS alone was not enough: an owner who is also an operator
+  // reads other companies' rows through the "admins read all" policies, and
+  // their export would have carried them (2026-10-14).
+  const companyId = await myCompanyId(who.db, who.userId);
+  if (!companyId) {
+    return NextResponse.json({ error: 'This account is not in exactly one company.' }, { status: 409 });
+  }
+
   const { data: exportId, error: refused } = await who.db.rpc('record_company_export');
   if (refused) {
     const status = refused.code === '42501' ? 403 : 502;
@@ -81,13 +91,13 @@ export async function POST(request: NextRequest) {
       edits,
     ] = await Promise.all([
       db.auth.getUser(),
-      db.from('companies').select('name').limit(1).single(),
+      db.from('companies').select('name').eq('id', companyId).single(),
       db.rpc('company_team'),
       readAll<ConversationRow>(
         (from, to) =>
           db
             .from('conversations')
-            .select('id, company_id, title, occurred_at, created_at, engagement_type, criteria_version, consent_statement, consent_confirmed_at, outcome, account_id')
+            .select('id, company_id, title, occurred_at, created_at, engagement_type, criteria_version, consent_statement, consent_confirmed_at, outcome, account_id').eq('company_id', companyId)
             .order('occurred_at', { ascending: true })
             .order('id')
             .range(from, to),
@@ -95,45 +105,45 @@ export async function POST(request: NextRequest) {
       ),
       readAll<SegmentRow>(
         (from, to) =>
-          db.from('segments').select('id, conversation_id, speaker, start_ms, end_ms, text').order('id').range(from, to),
+          db.from('segments').select('id, conversation_id, speaker, start_ms, end_ms, text').eq('company_id', companyId).order('id').range(from, to),
         'Exporting transcripts',
       ),
       readAll<CriterionEventRow>(
         (from, to) =>
           db
             .from('criterion_events')
-            .select('conversation_id, criterion_key, kind, confidence, segment_id, quote, detector, model, created_at')
+            .select('conversation_id, criterion_key, kind, confidence, segment_id, quote, detector, model, created_at').eq('company_id', companyId)
             .order('id')
             .range(from, to),
         'Exporting criterion evidence',
       ),
       readAll<SignalRow>(
-        (from, to) => db.from('signals').select('id, conversation_id, kind, summary, confidence').order('id').range(from, to),
+        (from, to) => db.from('signals').select('id, conversation_id, kind, summary, confidence').eq('company_id', companyId).order('id').range(from, to),
         'Exporting signals',
       ),
       readAll<SignalEvidenceRow>(
-        (from, to) => db.from('signal_evidence').select('signal_id, segment_id, quote').order('id').range(from, to),
+        (from, to) => db.from('signal_evidence').select('signal_id, segment_id, quote').eq('company_id', companyId).order('id').range(from, to),
         'Exporting signal evidence',
       ),
       readAll<InsightRow>(
         (from, to) =>
           db
             .from('insights')
-            .select('id, title, summary, status, created_at, decided_at')
+            .select('id, title, summary, status, created_at, decided_at').eq('company_id', companyId)
             .order('created_at')
             .order('id')
             .range(from, to),
         'Exporting insights',
       ),
       readAll<InsightEvidenceRow>(
-        (from, to) => db.from('insight_evidence').select('insight_id, signal_id').order('id').range(from, to),
+        (from, to) => db.from('insight_evidence').select('insight_id, signal_id').eq('company_id', companyId).order('id').range(from, to),
         'Exporting insight evidence',
       ),
       readAll<ErasureRow>(
         (from, to) =>
           db
             .from('erasure_events')
-            .select('conversation_id, reason, created_at, segments_removed, signals_removed')
+            .select('conversation_id, reason, created_at, segments_removed, signals_removed').eq('company_id', companyId)
             .order('created_at')
             .order('id')
             .range(from, to),
@@ -143,7 +153,7 @@ export async function POST(request: NextRequest) {
         (from, to) =>
           db
             .from('segment_notes')
-            .select('conversation_id, segment_id, author, body, created_at, updated_at')
+            .select('conversation_id, segment_id, author, body, created_at, updated_at').eq('company_id', companyId)
             .order('created_at')
             .order('id')
             .range(from, to),
@@ -153,7 +163,7 @@ export async function POST(request: NextRequest) {
         (from, to) =>
           db
             .from('conversation_edits')
-            .select('conversation_id, field, old_value, new_value, evidence_removed, actor, at')
+            .select('conversation_id, field, old_value, new_value, evidence_removed, actor, at').eq('company_id', companyId)
             .order('at')
             .order('id')
             .range(from, to),
@@ -171,8 +181,9 @@ export async function POST(request: NextRequest) {
             // (TS2590). Each is read the same way, into untyped rows, and the
             // names and columns come from WORK_TABLES, not from a caller.
             const table = spec.table as 'accounts';
-            let query = db.from(table).select(spec.columns as 'id');
-            if ('ownOnly' in spec) query = query.not('company_id', 'is', null);
+            // The company's own rows only, which for scorecards also leaves
+            // out the templates every company reads.
+            const query = db.from(table).select(spec.columns as 'id').eq('company_id', companyId);
             return query.order(('order' in spec ? spec.order : 'id') as 'id').range(from, to).returns<WorkRow[]>();
           }, `Exporting ${spec.key}`);
           return [spec.key, rows] as const;

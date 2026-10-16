@@ -32,7 +32,7 @@ export interface StoreTranscriptInput {
   readonly title: string;
   /** ISO 8601, or null when the source does not say when the call happened. */
   readonly occurredAt: string | null;
-  /** The model that produced the vectors, e.g. 'nomic-embed-text'. */
+  /** The model that produced the vectors, e.g. 'gte-small'. */
   readonly model: string;
   /**
    * Stable identifier for the import, unique per company. A re-run with the

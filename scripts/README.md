@@ -18,7 +18,7 @@ conversation or nothing at all.
 ## `pnpm score --company <uuid>`
 
 Gives a stored conversation a scorecard. Runs T1 over the saved segments in
-the same rolling windows the live path uses, and writes the resulting
+48-utterance windows, neighbours sharing two (ADR 0014), and writes the resulting
 DetectorEvents to `criterion_events`.
 
 It never writes a score. The score is computed on read by `packages/scoring`
@@ -45,7 +45,7 @@ and total: a live call scored and appeared on the dashboard, and could never
 become an insight, because insights are clustered from signals through a
 vector search and it had neither.
 
-Deliberately not automatic. T3 is Opus and an insight is a claim about a
+Deliberately not automatic. T3 is a paid model call (Sonnet 5, ADR 0014) and an insight is a claim about a
 customer, so spending that without a person asking is what "no auto-creation
 anywhere" rules out.
 
@@ -54,7 +54,7 @@ skips extraction. `--dry-run` prints the plan and pays none of it.
 
 Extraction is skipped once it has an answer, **including an empty one**. A
 check-in where the customer says everything is fine has no signals and never
-will; treating that as pending would re-run Opus over it on every pass to
+will; treating that as pending would re-run T3 over it on every pass to
 reconfirm a zero. Whether the pass has run comes from the usage telemetry,
 which records the conversation each model call was made against.
 
@@ -94,7 +94,7 @@ whether each cluster is one finding, and writes those that are.
 Signals that already back an insight are left out, so running this twice does
 not write the same finding twice. Clustering is deterministic over unchanged
 data: without the exclusion a second run re-derives a finding that exists,
-pays for the same Opus call, and leaves a person two near-identical insights
+pays for the same T3 call, and leaves a person two near-identical insights
 to approve.
 
 The tradeoff, stated plainly: a new signal that belongs to an existing insight

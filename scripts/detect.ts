@@ -181,7 +181,11 @@ async function main(): Promise<void> {
     for (const observation of observations) {
       const summary = `${observation.criterion_key}: ${observation.quote}`;
       const segment = byId.get(observation.segment_id);
-      if (!known.has(observation.criterion_key) || !segment) {
+      if (!known.has(observation.criterion_key)) {
+        rejected.push({ reason: 'unknown-criterion', summary, quote: observation.quote });
+        continue;
+      }
+      if (!segment) {
         rejected.push({ reason: 'unknown-segment', summary, quote: observation.quote });
         continue;
       }

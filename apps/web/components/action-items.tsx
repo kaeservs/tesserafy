@@ -6,7 +6,9 @@ import { toggleActionItem } from '@/app/(dashboard)/conversations/[id]/action-ac
 import { rejectActionItem } from '@/app/(dashboard)/conversations/[id]/feedback-actions';
 import { NotRight } from './not-right';
 
-const SIDE: Record<string, string> = { ours: 'Ours', theirs: 'Theirs', both: 'Both', unclear: 'Not said' };
+// Whose the item is. "Not said" for an unclear side read, beside the quote,
+// as if the item had not been said at all.
+const SIDE: Record<string, string> = { ours: 'Ours', theirs: 'Theirs', both: 'Both', unclear: 'Whose unclear' };
 
 export interface ShownActionItem {
   readonly id: string;

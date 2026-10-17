@@ -1156,7 +1156,9 @@ mark {
   color: var(--muted);
 }
 
-.field input {
+/* Not a radio or a checkbox: stretched, each became a dot centred on a line of
+   its own above its words (This score is wrong). */
+.field input:not([type='radio']):not([type='checkbox']) {
   width: 100%;
 }
 
@@ -1502,7 +1504,7 @@ input[type='search'] {
 
 .dispute textarea,
 .dispute select,
-.dispute .field input {
+.dispute .field input:not([type='radio']) {
   width: 100%;
 }
 

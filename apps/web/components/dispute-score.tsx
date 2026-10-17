@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useMemo, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import {
   disputeScore,
   withdrawDispute,
@@ -93,14 +93,19 @@ export function DisputeScore({
   const canUnmeet = (criterion?.claims.length ?? 0) > 0;
   const [kind, setKind] = useState<'evidence' | 'contradiction'>('evidence');
   const [claim, setClaim] = useState(0);
-  const [momentId, setMomentId] = useState(moments[0]?.id ?? '');
-  const moment = useMemo(() => moments.find((item) => item.id === momentId), [moments, momentId]);
-  const [quote, setQuote] = useState(moment?.text ?? '');
+  // No line is chosen for the person: the first line of a call is nearly
+  // always a greeting, and a correction accepted as it opened recorded the
+  // greeting as evidence — and taught the AI it, since corrections become
+  // its examples.
+  const [momentId, setMomentId] = useState('');
+  const [quote, setQuote] = useState('');
   const [reason, setReason] = useState('');
 
   useEffect(() => {
     if (state.status !== 'saved') return;
     setReason('');
+    setMomentId('');
+    setQuote('');
     setOpen(false);
   }, [state]);
 
@@ -187,6 +192,9 @@ export function DisputeScore({
                 setQuote(moments.find((item) => item.id === event.target.value)?.text ?? '');
               }}
             >
+              <option value="" disabled>
+                Choose the line it happened on
+              </option>
               {moments.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.at} · {item.speaker}: {item.text.length > 80 ? `${item.text.slice(0, 80)}…` : item.text}
@@ -218,7 +226,10 @@ export function DisputeScore({
         You, or an owner, can withdraw it.
       </p>
       <div className="toolbar">
-        <button type="submit" disabled={pending || reason.trim().length < 3}>
+        <button
+          type="submit"
+          disabled={pending || reason.trim().length < 3 || (kind === 'evidence' && (momentId === '' || quote.trim() === ''))}
+        >
           {pending ? 'Recording…' : 'Record correction'}
         </button>
         <button type="button" onClick={() => setOpen(false)}>

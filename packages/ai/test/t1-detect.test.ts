@@ -130,6 +130,9 @@ describe('detectCriteria', () => {
 
     expect(result.events).toHaveLength(0);
     expect(result.rejected).toHaveLength(1);
+    // Its own reason: counted as an unknown segment, an invented criterion
+    // was indistinguishable from an invented line in the rejection counts.
+    expect(result.rejected[0]).toMatchObject({ reason: 'unknown-criterion' });
   });
 
   it('drops a confidence outside 0..1', async () => {

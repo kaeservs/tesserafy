@@ -43,6 +43,7 @@ export interface ResolvedSignal {
 
 export type RejectionReason =
   | 'unknown-segment'
+  | 'unknown-criterion'
   | 'quote-not-found'
   | 'no-evidence'
   | 'empty-summary'

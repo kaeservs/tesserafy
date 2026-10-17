@@ -22,7 +22,7 @@ export function SignupSwitch({ open, changed }: { open: boolean; changed: string
         <strong>Self-serve sign-up is {open ? 'open' : 'closed'}.</strong>{' '}
         <span className="muted">
           {open
-            ? 'Anyone can create an account at /signup and start a fourteen-day trial after confirming their email.'
+            ? 'Anyone can create an account at /signup and start on Free — one meeting of up to fifteen minutes, given once — after confirming their email.'
             : 'Brands cannot sign up themselves; companies are created here. Open it once email sending works.'}
           {changed ? ` Last changed ${changed}.` : ''}
         </span>

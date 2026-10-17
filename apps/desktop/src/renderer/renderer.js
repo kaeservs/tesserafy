@@ -601,7 +601,9 @@ async function startListening() {
     // page), Live not on the plan, no microphone — and that stays on screen.
     if (setup?.engineFallback !== true) return;
   } else if (setup?.engineFallback !== true) {
-    setStatus('Live transcription could not start. Try again in a moment.');
+    // A setup that names no transcriber is not a moment's trouble: Tesserafy
+    // has live calls switched off, and trying again would not change that.
+    setStatus(setup ? 'Live calls are not open yet.' : 'Live transcription could not start. Try again in a moment.');
     return;
   }
   // The browser's own recognition sends the audio to its vendor: a stand-in
@@ -1456,6 +1458,8 @@ function showSignedIn(email) {
   el('password').value = '';
   el('signinError').textContent = '';
   el('assist').hidden = false;
+  // "sign in to connect" stayed after signing in until a call started.
+  if (!listening) setStatus('idle');
   void loadSetup().then(() => loadCriteria());
 }
 

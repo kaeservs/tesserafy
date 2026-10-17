@@ -6,7 +6,7 @@ import { requireOperatorMember } from '@/lib/admin';
 export type MfaState =
   | { status: 'idle' }
   | { status: 'enrolling'; factorId: string; qr: string; secret: string }
-  | { status: 'error'; message: string; factorId?: string; qr?: string; secret?: string };
+  | { status: 'error'; message: string };
 
 function text(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -34,17 +34,13 @@ export async function startEnrolment(_prev: MfaState): Promise<MfaState> {
  * the operator's existing one at sign-in. Passing it makes this session aal2,
  * which is what the database asks for.
  */
-export async function verifyCode(prev: MfaState, formData: FormData): Promise<MfaState> {
+export async function verifyCode(_prev: MfaState, formData: FormData): Promise<MfaState> {
   const { db } = await requireOperatorMember();
   const code = text(formData, 'code').replace(/\s+/g, '');
   const factorId = text(formData, 'factorId');
-  const again = (message: string): MfaState => ({
-    status: 'error',
-    message,
-    ...(factorId ? { factorId } : {}),
-    ...(prev.status !== 'idle' && prev.qr ? { qr: prev.qr } : {}),
-    ...(prev.status !== 'idle' && prev.secret ? { secret: prev.secret } : {}),
-  });
+  // The QR and key stay on screen from the enrolment's own state; this one
+  // only says what went wrong.
+  const again = (message: string): MfaState => ({ status: 'error', message });
   if (!/^\d{6}$/.test(code)) return again('The code is the six digits your authenticator shows.');
   if (!factorId) return again('Start again: there is no authenticator to check against.');
 

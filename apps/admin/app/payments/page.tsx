@@ -27,7 +27,7 @@ export default async function Payments() {
   const admin = await requireAdmin();
   const [{ data: statusData, error }, { data: plans }, { data: events }, { data: changes }] = await Promise.all([
     admin.db.rpc('admin_payments_status'),
-    admin.db.from('plans').select('id, name, price_usd_cents, stripe_price_id').eq('self_serve', true).order('rank'),
+    admin.db.from('plans').select('id, name, price_usd_cents, per_seat, stripe_price_id').eq('self_serve', true).order('rank'),
     admin.db.from('stripe_events').select('id, type, outcome, company_id, received_at').order('received_at', { ascending: false }).limit(25),
     admin.db.from('payment_setting_events').select('setting, detail, at').order('at', { ascending: false }).limit(10),
   ]);
@@ -85,7 +85,12 @@ export default async function Payments() {
       <section className="card" style={{ marginBottom: '1rem' }}>
         <h2 style={{ marginTop: 0 }}>Prices</h2>
         {(plans ?? []).map((plan) => (
-          <PriceForm key={plan.id} plan={plan.id} name={`${plan.name} ($${((plan.price_usd_cents ?? 0) / 100).toFixed(0)} a month)`} price={plan.stripe_price_id} />
+          <PriceForm
+            key={plan.id}
+            plan={plan.id}
+            name={`${plan.name} ($${((plan.price_usd_cents ?? 0) / 100).toFixed(2)} ${plan.per_seat ? 'a seat ' : ''}a month)`}
+            price={plan.stripe_price_id}
+          />
         ))}
       </section>
 

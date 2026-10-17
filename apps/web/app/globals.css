@@ -139,6 +139,14 @@ button {
   color: inherit;
 }
 
+/* A field in a row may shrink below its own natural width: without this, the
+   Ask box, a name or a question made a 360 px phone's page scroll sideways. */
+input,
+select,
+textarea {
+  min-width: 0;
+}
+
 button {
   cursor: pointer;
   font-weight: 500;
@@ -771,6 +779,9 @@ mark {
   margin-right: auto;
   max-width: 22rem;
   flex: 1;
+  /* Shrinks on a phone. It could not, and the bar is packed to the right,
+     so the box was pushed off the left edge, its icon and "Search" cut off. */
+  min-width: 0;
   padding: 0 0.8rem;
   border-radius: var(--radius);
   background: var(--surface);

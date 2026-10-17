@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { publicSupabaseEnv } from '../env';
+import { isAppHost } from '../hosts';
 import { siteUrl } from '../site-url';
 
 const PUBLIC_PATHS = ['/login', '/signup', '/auth/', '/terms', '/privacy'];
@@ -62,8 +63,13 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     return response;
   }
 
-  if (!user && !isPublic) {
-    const redirect = NextResponse.redirect(siteUrl(request, '/login'));
+  // On the app's own host there is no landing page: `/` is the dashboard, or
+  // signing in to it.
+  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
+  const appRoot = pathname === '/' && isAppHost(host, process.env.NEXT_PUBLIC_APP_URL);
+
+  if ((!user && !isPublic) || appRoot) {
+    const redirect = NextResponse.redirect(siteUrl(request, user ? '/dashboard' : '/login'));
     // Keep any refreshed or cleared auth cookies on the redirect.
     for (const cookie of response.cookies.getAll()) {
       redirect.cookies.set(cookie);

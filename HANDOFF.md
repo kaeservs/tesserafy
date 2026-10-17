@@ -253,7 +253,7 @@ margins of about 64%, 51% and 81%. Payments will go through Dodo Payments
   - read Paragon / AI Paragon files.
 - **Tests never send a real screen to the model;** use a rendered slide.
 
-## 4. Where things stand (2026-10-16)
+## 4. Where things stand (2026-10-17)
 
 **Merged 2026-10-16: [kaeservs/tesserafy#209](https://github.com/kaeservs/tesserafy/pull/209)**, fixes from a full read of the
 project (2026-10-14), every one traced in the code first:
@@ -393,6 +393,44 @@ its own. Its installers built and attached themselves as designed, the tag's
 own run showing as cancelled. The Mac test and the S1 screen-share check are
 not done.
 
+**Full QA (2026-10-17), [kaeservs/tesserafy#213](https://github.com/kaeservs/tesserafy/pull/213):**
+- **Production, through Actions:** e2e 34/34, health clean. A cloud session
+  cannot reach tesserafy.com or the vercel.app address, so the rest ran on a
+  local copy.
+- **The local copy:**
+  - Supabase in Docker, with the web app and console as production builds;
+  - the real Electron overlay on a virtual display (Xvfb), with audio and
+    Deepgram stood in for;
+  - every model call answered by a local stand-in, so nothing called Claude
+    or spent money;
+  - data made only through the app.
+- **Works:**
+  - sign-up through to Pro with seats, and a teammate added through the
+    console;
+  - two-step sign-in, plans, export, deletion and support sessions;
+  - imports and the sample call, scoring and quotes, insights and patterns,
+    Ask, preps, the follow-up email, coaching, scorecards, knowledge, search
+    and reports;
+  - a whole live call in the overlay, with AI Assist, To Ask, Recap, kept
+    answers, Screen and Stop.
+- **Fixed in #213:**
+  - support windows ended early (migration);
+  - Spend's price per seat (migration);
+  - the correction form's preselected greeting;
+  - the phone header;
+  - the console's two-step QR, plan picker and labels;
+  - a hydration error;
+  - the overlay's status line and its Start message with live calls off.
+- **Open for the owner:** the sample call mixes into insights, Ask, Reports
+  and Home; Markdown markers in knowledge passages; whether the AI routes
+  really run in iad1.
+- **Not testable from a session:**
+  - real audio on both sides through Deepgram;
+  - S1 screen-share invisibility;
+  - call detection on Windows and Mac;
+  - Stripe checkout, calendar OAuth, Resend sending and HubSpot;
+  - real model quality.
+
 **Sign-up** is closed until email (Resend) works and payments are live.
 
 **Data:** only synthetic calls so far. Every accuracy figure is provisional
@@ -400,9 +438,11 @@ until real transcripts arrive.
 
 ## 5. Waiting on the owner
 
-- **app.tesserafy.com:** click through it once: Sign in on www lands on
-  app.tesserafy.com/login, signing in reaches the dashboard, and Start free
-  opens app.tesserafy.com/signup. This session cannot reach the domain.
+- **#213 (fixes from the QA):** merge it, then run `supabase db push` and
+  `pnpm db:types` for its migration (and #209's, if not yet).
+- **The sample call:** decide whether its invented data should stay out of
+  insights, Ask, Reports and Home.
+- **Overlay 0.1.28:** a release for #213's overlay fixes, once merged.
 - **Rotate the e2e account's password.** It was committed to this public repo
   and stays in history. Set the new one in Actions secrets (`E2E_PASSWORD`)
   and in `.env`.
@@ -411,7 +451,8 @@ until real transcripts arrive.
   free Actions minutes, and Mac builds count extra.
 - **Live transcription:**
   - put `DEEPGRAM_API_KEY` on the web app's Vercel project (Production),
-    redeploy, and remove it from the console's;
+    redeploy, and remove it from the console's. Until then, the overlay's
+    Start fails for everyone;
   - ask Deepgram for the DPA;
   - switch auto-reload off;
   - make a first real call.
@@ -422,9 +463,9 @@ until real transcripts arrive.
 - **Anthropic Console:** a monthly spend limit, with auto-reload.
 - **Resend:** set it up, then open sign-up. The follow-up "send" has an open
   item to fix first; see the security review.
-- **#209's migration:** run `supabase db push` and `pnpm db:types` (or say
-  so and Claude applies it).
 - **Overlay:** the Mac test and the S1 screen-share check.
+- **Vercel regions:** check where the AI functions run. `preferredRegion` is
+  deprecated, and the deployment reports `sin1`.
 - **Ops alerts:** attach the credential and a chat node to "Tesserafy ops
   alerts" in n8n, then publish it.
 - **Legal:** the Terms and Privacy pages; set `TERMS_URL` and `PRIVACY_URL`.

@@ -369,9 +369,11 @@ was added to the console's Vercel project, not the web app's; QA's line
 - no hard spending cap: prepaid credit with auto-reload on by default, so
   switch that off.
 
-**The overlay:** 0.1.25 released; 0.1.26 is on `main`, waiting for its
-tag, and 0.1.27 (#210, above) is on `main` too. Tagging 0.1.27 releases
-both, so 0.1.26 need not be tagged on its own. The Mac test and the S1 screen-share check are not done.
+**The overlay:** 0.1.27 released 2026-10-17 from GitHub's website (#211),
+with 0.1.26's fixes and #210's three buttons; 0.1.26 was never released on
+its own. Its installers built and attached themselves as designed, the tag's
+own run showing as cancelled. The Mac test and the S1 screen-share check are
+not done.
 
 **Sign-up** is closed until email (Resend) works and payments are live.
 
@@ -401,9 +403,6 @@ until real transcripts arrive.
   item to fix first; see the security review.
 - **#209's migration:** run `supabase db push` and `pnpm db:types` (or say
   so and Claude applies it).
-- **Overlay 0.1.27:** publish the release `overlay-v0.1.27` from GitHub's
-  website, once the PR that lets the website do it is merged (or push the
-  tag). It includes 0.1.26 and #210's three buttons.
 - **Overlay:** the Mac test and the S1 screen-share check.
 - **Ops alerts:** attach the credential and a chat node to "Tesserafy ops
   alerts" in n8n, then publish it.

@@ -378,8 +378,11 @@ the `n8n` A record there is the owner's n8n server). Merged 2026-10-17:
 (Namecheap CNAME `app` → `cname.vercel-dns.com`), `NEXT_PUBLIC_APP_URL` is
 `https://app.tesserafy.com` on web (Production) and apps-admin, both
 redeployed, and Supabase's Site URL is the app's address with
-`https://app.tesserafy.com/**` beside the vercel.app entries. Next:
-`admin.tesserafy.com` on the apps-admin project. The overlay keeps calling the
+`https://app.tesserafy.com/**` beside the vercel.app entries.
+`admin.tesserafy.com` is on project apps-admin (CNAME `admin` →
+`cname.vercel-dns.com`). The console needs no Supabase redirect entry: it
+signs in by password and an authenticator code, and sends no email links;
+its support links land on the app's address. The overlay keeps calling the
 vercel.app address until a release moves it. The Vercel connector in cloud
 sessions is not authorised for the tesserafy team, so domain and environment
 changes are the owner's, in the dashboard.

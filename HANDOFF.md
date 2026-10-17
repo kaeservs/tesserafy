@@ -374,7 +374,11 @@ was added to the console's Vercel project, not the web app's; QA's line
 Namecheap holds an A record for `@` and a CNAME for `www`, as Vercel asked;
 the `n8n` A record there is the owner's n8n server). Merged 2026-10-17:
 [kaeservs/tesserafy#212](https://github.com/kaeservs/tesserafy/pull/212), the app on `app.tesserafy.com`
-(`lib/hosts.ts`), off until `NEXT_PUBLIC_APP_URL` is set. Then
+(`lib/hosts.ts`). Live the same day: `app.tesserafy.com` is on project web
+(Namecheap CNAME `app` → `cname.vercel-dns.com`), `NEXT_PUBLIC_APP_URL` is
+`https://app.tesserafy.com` on web (Production) and apps-admin, both
+redeployed, and Supabase's Site URL is the app's address with
+`https://app.tesserafy.com/**` beside the vercel.app entries. Next:
 `admin.tesserafy.com` on the apps-admin project. The overlay keeps calling the
 vercel.app address until a release moves it. The Vercel connector in cloud
 sessions is not authorised for the tesserafy team, so domain and environment
@@ -393,14 +397,9 @@ until real transcripts arrive.
 
 ## 5. Waiting on the owner
 
-- **app.tesserafy.com (#212 is merged):**
-  1. add the domain in Vercel (project web, Production) and its CNAME at
-     Namecheap;
-  2. once it shows Valid, set `NEXT_PUBLIC_APP_URL=https://app.tesserafy.com`
-     on web (Production) and redeploy;
-  3. in Supabase → Authentication → URL Configuration, make it the Site URL
-     and add `https://app.tesserafy.com/**`, keeping the vercel.app entry;
-  4. set the same `NEXT_PUBLIC_APP_URL` on apps-admin and redeploy.
+- **app.tesserafy.com:** click through it once: Sign in on www lands on
+  app.tesserafy.com/login, signing in reaches the dashboard, and Start free
+  opens app.tesserafy.com/signup. This session cannot reach the domain.
 - **Rotate the e2e account's password.** It was committed to this public repo
   and stays in history. Set the new one in Actions secrets (`E2E_PASSWORD`)
   and in `.env`.

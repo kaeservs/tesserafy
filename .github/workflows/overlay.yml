@@ -1,10 +1,19 @@
 # The overlay's installers, built where every build happens the same way.
 #
-# Pushing a tag `overlay-vX.Y.Z` builds Tesserafy-Setup-X.Y.Z.exe on Windows
-# and a .dmg for each Mac chip on macOS, and publishes them together as one
-# GitHub Release, whose download links are what a pilot is sent. On a pull
-# request that touches the overlay, or run by hand, it builds the same
-# installers and keeps them as run artifacts without publishing.
+# A release `overlay-vX.Y.Z` builds Tesserafy-Setup-X.Y.Z.exe on Windows and
+# a .dmg for each Mac chip on macOS, and attaches them to one GitHub Release,
+# whose download links are what a pilot is sent. Either way of making one
+# works:
+#   - on GitHub's website: Releases → Draft a new release → tag
+#     overlay-vX.Y.Z, created on publish from main → Publish. The installers
+#     are attached a few minutes later; until then the release has none;
+#   - from a terminal: push the tag, and the release is created once every
+#     platform has built.
+# Publishing on the website also creates the tag, so two runs may start for
+# it: the later cancels the earlier (it shows as cancelled) and finishes the
+# same way. On a pull request that touches the overlay, or run by hand, it
+# builds the same installers and keeps them as run artifacts without
+# publishing.
 #
 # Checks that fail the build rather than ship something wrong:
 #   - the tag must match apps/desktop/package.json's version, or the file
@@ -16,8 +25,8 @@
 #     binary, and a Mac app whose signature no longer matches is "damaged"
 #     rather than merely unsigned — it cannot be opened at all.
 #
-# The release is created only after every platform has built and passed, so
-# a pilot never finds a release with one platform missing.
+# Installers are attached only after every platform has built and passed,
+# so a release never has one platform's installer without the other's.
 #
 # Unsigned: Windows SmartScreen shows "unknown publisher" and macOS Gatekeeper
 # refuses the first open, until signing is configured in
@@ -28,6 +37,9 @@ name: Overlay installer
 on:
   push:
     tags: ['overlay-v*']
+  # A release published on the website, which creates its tag as it goes.
+  release:
+    types: [published]
   # Any change to the overlay or to this file builds the installers too, so a
   # packaging break is found in review rather than on release day. Nothing is
   # published from a pull request.
@@ -41,9 +53,17 @@ on:
 permissions:
   contents: read
 
+# One run at a time for a tag or a pull request: a release published on the
+# website starts one for the release and one for the tag it creates.
+concurrency:
+  group: overlay-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   windows:
     name: Build the Windows installer
+    # Other releases the repository might publish are not the overlay's.
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'overlay-v')
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
@@ -79,6 +99,7 @@ jobs:
 
   mac:
     name: Build the macOS installers
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'overlay-v')
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
@@ -142,7 +163,7 @@ jobs:
 
   publish:
     name: Publish the release
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/overlay-v')
     needs: [windows, mac]
     runs-on: ubuntu-latest
     permissions:
@@ -169,12 +190,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls -la installers
-          gh release create "$GITHUB_REF_NAME" installers/* \
-            --title "Tesserafy overlay ${GITHUB_REF_NAME#overlay-v}" \
-            --notes "The Tesserafy live scorecard overlay. Sign in with your usual Tesserafy username or email and password.
+          version="${GITHUB_REF_NAME#overlay-v}"
+          notes="The Tesserafy live scorecard overlay. Sign in with your usual Tesserafy username or email and password.
 
-          Windows: download Tesserafy-Setup-${GITHUB_REF_NAME#overlay-v}.exe. It is not yet code-signed, so Windows SmartScreen will say it is from an unknown publisher: choose More info, then Run anyway.
+          Windows: download Tesserafy-Setup-${version}.exe. It is not yet code-signed, so Windows SmartScreen will say it is from an unknown publisher: choose More info, then Run anyway.
 
           Mac: download the -mac-arm64.dmg for Apple silicon (M1 and later; Apple menu → About This Mac says Chip) or the -mac-x64.dmg for Intel. Open it and drag Tesserafy to Applications. It is not yet notarised by Apple, so the first open is refused: go to System Settings → Privacy & Security, scroll to Security, choose Open Anyway, then open it again. macOS asks once for the microphone, and may ask once to use the keychain, where the sign-in is kept — choose Always Allow.
 
           Not for customer calls until the screen-share check (S1 in docs/engineering/qa-checklist.md) has passed in Zoom, Meet and Teams, on each platform."
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            # Published on the website: the installers go onto it, and it gets
+            # the notes above only if it was published without any of its own.
+            gh release upload "$GITHUB_REF_NAME" installers/* --clobber
+            if [ -z "$(gh release view "$GITHUB_REF_NAME" --json body --jq .body)" ]; then
+              gh release edit "$GITHUB_REF_NAME" --title "Tesserafy overlay ${version}" --notes "$notes"
+            fi
+          else
+            gh release create "$GITHUB_REF_NAME" installers/* --title "Tesserafy overlay ${version}" --notes "$notes"
+          fi

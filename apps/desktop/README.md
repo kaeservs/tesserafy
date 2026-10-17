@@ -79,8 +79,8 @@ about the window and not about what it displays.
 
 For anyone who is not building it: a Windows installer, `Tesserafy-Setup-<version>.exe`,
 published to this repository's Releases by `.github/workflows/overlay.yml`
-whenever a tag `overlay-v<version>` is pushed (the tag must match `version` in
-`package.json`). It installs per user, with no administrator prompt, adds a
+whenever a release `overlay-v<version>` is published on GitHub's website or
+its tag is pushed (the tag must match `version` in `package.json`). It installs per user, with no administrator prompt, adds a
 Start-menu and desktop shortcut, and its uninstaller removes the app, the
 shortcuts and the saved sign-in.
 

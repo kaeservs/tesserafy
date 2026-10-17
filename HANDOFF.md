@@ -236,9 +236,14 @@ margins of about 64%, 51% and 81%. Payments will go through Dodo Payments
 - **The database changes only through `supabase/migrations/`:**
   - apply with `supabase db push`, then run `pnpm db:types`;
   - read-only SQL is for audits, never for changes.
-- **Overlay releases:** bump `apps/desktop/package.json`. The owner pushes the
-  tag `overlay-vX.Y.Z`, which must match that version; the workflow then
-  builds the Windows and Mac installers.
+- **Overlay releases:** bump `apps/desktop/package.json`. The owner releases
+  `overlay-vX.Y.Z`, which must match that version, in either of two ways:
+  - on GitHub's website: Releases → Draft a new release → tag
+    `overlay-vX.Y.Z`, "Create new tag on publish", target `main` → Publish.
+    The workflow attaches the installers about five minutes later;
+  - from a terminal: push the tag, and the workflow creates the release.
+  A cloud session cannot push a tag (the session's git access is refused with
+  a 403 for anything but its own branch), so the release is the owner's.
 - **Key rotations are deferred until launch,** by the owner's choice. The
   leaked e2e password is the exception.
 - **Don't:**
@@ -396,8 +401,9 @@ until real transcripts arrive.
   item to fix first; see the security review.
 - **#209's migration:** run `supabase db push` and `pnpm db:types` (or say
   so and Claude applies it).
-- **Overlay 0.1.27:** push the tag `overlay-v0.1.27` (it includes 0.1.26
-  and #210's three buttons).
+- **Overlay 0.1.27:** publish the release `overlay-v0.1.27` from GitHub's
+  website, once the PR that lets the website do it is merged (or push the
+  tag). It includes 0.1.26 and #210's three buttons.
 - **Overlay:** the Mac test and the S1 screen-share check.
 - **Ops alerts:** attach the credential and a chat node to "Tesserafy ops
   alerts" in n8n, then publish it.
@@ -488,7 +494,7 @@ Roughly in order. The owner sets the order.
 | **GitHub access** | Locally, PRs go through the REST API with a token in `.env` | Claude Code on the web opens PRs through its own GitHub connection; follow the routine in section 3 |
 | **Helper scripts**: wait for CI, run the post-merge checks, screenshot the overlay, compare it with the demo pixel by pixel, measure fps and accessibility | A local scratch folder, not committed | The post-merge routine is the commands in section 3. The overlay comparison needs a desktop. |
 | **Running the overlay**: Electron, screenshots, real meetings, S1 | A real Windows or Mac desktop | Not possible in the cloud. Leave it to the owner, or do it in a local session. Never capture a real screen. |
-| **Release tags and installers** | The owner pushes tags; GitHub Actions builds | Always the owner |
+| **Release tags and installers** | The owner publishes a release on GitHub's website or pushes a tag; GitHub Actions builds | Always the owner |
 | **Accounts and consoles**: Vercel, Supabase dashboard, Anthropic Console, Deepgram, GitHub settings, the n8n server, DNS for the domain, and later Dodo, Resend, Google, Microsoft and Apple developer accounts | The owner | Ask the owner. Never change account settings without being asked. |
 | **Windows quirks** | — | A stopped `pnpm start`/`dev` can leave node listening: kill it by port. Check that CSS loads before measuring a page. |
 
@@ -511,8 +517,8 @@ Roughly in order. The owner sets the order.
 - `ci.yml`: typecheck, tests, the retrieval guard and pgTAP on every PR.
 - `e2e.yml`: daily against production.
 - `health.yml`: every four hours.
-- `overlay.yml`: builds and publishes the installers when an `overlay-v*` tag
-  is pushed.
+- `overlay.yml`: builds the installers and attaches them to the release when
+  an `overlay-v*` release is published on the website or its tag is pushed.
 
 **Environment variable names** (values are never in the repo)
 

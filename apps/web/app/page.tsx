@@ -9,6 +9,7 @@ import { HowItWorks } from '@/components/landing/how-it-works';
 import { LandingNav, type LandingSection } from '@/components/landing/landing-nav';
 import { OverlayDemo } from '@/components/landing/overlay-demo';
 import { ScrollReveal } from '@/components/landing/scroll-reveal';
+import { appHref } from '@/lib/hosts';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -101,9 +102,9 @@ const SECTIONS: readonly LandingSection[] = [
 /** The closing card, one wide pane of glass over the same landscape. */
 const CTA_TILES: readonly GlassTile[] = [{ x: 50, y: 50, w: 760, h: 300, r: 28 }];
 
-/** Every button on the page: sign-up, which says plainly when it is not open yet. */
+/** Every button on the page: sign-up, which says plainly when it is not open yet, on the app's host. */
 const START = 'Start free';
-const START_HREF = '/signup';
+const START_HREF = appHref('/signup', process.env.NEXT_PUBLIC_APP_URL);
 
 const PRIVACY: readonly { title: string; body: string }[] = [
   { title: 'Nothing joins the meeting', body: 'No bot, no announcement. On Incognito the overlay is kept out of screen sharing too.' },

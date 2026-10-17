@@ -448,6 +448,16 @@ alarm the first time; the Ask agent stops a question on one rather than
 searching around it. Failure and usage rows the web app does not await are
 kept alive past the response (`lib/keep-alive`, Next's `after()`).
 
+Two addresses, one deployment (`apps/web/lib/hosts.ts`): `www.tesserafy.com`
+(`tesserafy.com` redirects to it) is the landing page, Terms and Privacy;
+`app.tesserafy.com` is everything a person signs in to, and its `/` opens the
+dashboard or sign-in. The proxy sends the app's paths from the landing host to
+the app host before any session check; the API answers on every host, since a
+webhook or the overlay may call any of them. It is on only where
+`NEXT_PUBLIC_APP_URL` is set (production), so the vercel.app address the
+overlay calls, previews and localhost are left alone. `admin.tesserafy.com` is
+the console's own project.
+
 The repository is public. No credential — real, test, or a fallback — goes
 in any file: the e2e specs read `E2E_USERNAME`/`E2E_PASSWORD` from the
 environment (`e2e/credentials.ts`) and fail without them. CI uploads no

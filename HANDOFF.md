@@ -480,9 +480,10 @@ until real transcripts arrive.
 
 ## 5. Waiting on the owner
 
-- **Database:** run `supabase db push`, then `pnpm db:types`. It applies the
-  2026-10-19 security migration together with #213's (and #209's, if not
-  yet). Never #213's alone: it ended a support window in a way that let the
+- **Database, once #216 is merged:** run `supabase db push` from `main`,
+  then `pnpm db:types`. It applies the 2026-10-19 security migration together
+  with #213's (and #209's, if not yet). Never #213's alone, so never before
+  #216 is in `main`: #213's ended a support window in a way that let the
   window's unused link outlive it, which the security migration replaces.
 - **Operator two-step sign-in:** enrol an authenticator on the console, then
   turn the requirement on. Until then one password opens the console.

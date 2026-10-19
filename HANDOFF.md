@@ -253,7 +253,7 @@ margins of about 64%, 51% and 81%. Payments will go through Dodo Payments
   - read Paragon / AI Paragon files.
 - **Tests never send a real screen to the model;** use a rendered slide.
 
-## 4. Where things stand (2026-10-17)
+## 4. Where things stand (2026-10-19)
 
 **Merged 2026-10-16: [kaeservs/tesserafy#209](https://github.com/kaeservs/tesserafy/pull/209)**, fixes from a full read of the
 project (2026-10-14), every one traced in the code first:
@@ -383,17 +383,20 @@ redeployed, and Supabase's Site URL is the app's address with
 `cname.vercel-dns.com`). The console needs no Supabase redirect entry: it
 signs in by password and an authenticator code, and sends no email links;
 its support links land on the app's address. The overlay keeps calling the
-vercel.app address until a release moves it. The Vercel connector in cloud
-sessions is not authorised for the tesserafy team, so domain and environment
-changes are the owner's, in the dashboard.
+vercel.app address until a release moves it. The Vercel connector works in
+cloud sessions: both domains were added through it, with no team slug. Its
+fetch of a deployment's page answers 403, and secret values stay the
+owner's to set.
 
 **The overlay:** 0.1.27 released 2026-10-17 from GitHub's website (#211),
 with 0.1.26's fixes and #210's three buttons; 0.1.26 was never released on
 its own. Its installers built and attached themselves as designed, the tag's
 own run showing as cancelled. The Mac test and the S1 screen-share check are
-not done.
+not done. **0.1.28** is #213's two overlay fixes (the status line after
+signing in, and Start's message while live calls are off); its version is
+bumped and it waits on the owner's release.
 
-**Full QA (2026-10-17), [kaeservs/tesserafy#213](https://github.com/kaeservs/tesserafy/pull/213):**
+**Full QA (2026-10-17), merged 2026-10-19 as [kaeservs/tesserafy#213](https://github.com/kaeservs/tesserafy/pull/213):**
 - **Production, through Actions:** e2e 34/34, health clean. A cloud session
   cannot reach tesserafy.com or the vercel.app address, so the rest ran on a
   local copy.
@@ -430,6 +433,11 @@ not done.
   - call detection on Windows and Mac;
   - Stripe checkout, calendar OAuth, Resend sending and HubSpot;
   - real model quality.
+- **After the merge (2026-10-19):** CI on main green, both production
+  deploys Ready, e2e 34/34 against production (16 quotes across 5 calls,
+  verbatim) and health clean. Everything but the migration is live; until
+  `supabase db push`, production keeps the old support-window and Spend
+  functions.
 
 **Sign-up** is closed until email (Resend) works and payments are live.
 
@@ -438,11 +446,13 @@ until real transcripts arrive.
 
 ## 5. Waiting on the owner
 
-- **#213 (fixes from the QA):** merge it, then run `supabase db push` and
-  `pnpm db:types` for its migration (and #209's, if not yet).
+- **#213's migration:** run `supabase db push`, then `pnpm db:types` (#209's
+  goes with it, if not yet). Until then a support window ended early still
+  counts, and Spend prices one seat.
 - **The sample call:** decide whether its invented data should stay out of
   insights, Ask, Reports and Home.
-- **Overlay 0.1.28:** a release for #213's overlay fixes, once merged.
+- **Overlay 0.1.28:** release `overlay-v0.1.28` on GitHub's website, target
+  `main` (section 3).
 - **Rotate the e2e account's password.** It was committed to this public repo
   and stays in history. Set the new one in Actions secrets (`E2E_PASSWORD`)
   and in `.env`.
@@ -634,6 +644,7 @@ Built from 2026-09-15 to now, in about two hundred pull requests, one feature ea
 | #71–#147 | Sep 23–29 | **Breadth:** consent, teams, plans and sign-up, reports, overlay appearance, Mac, tray and updates, account deletion, trackers, company scorecards, coaching, exports, notifications, customers, operator MFA, This week, disputes, the sample call, mobile and accessibility, call prep, dashboards |
 | #148–#178 | Sep 29–Oct 4 | **The Cluely direction:** AI guidance and feedback, action items, prep research, undetectability, the overlay slimmed to Cluely's controls, knowledge, screen, call detection, streaming Assist, "Ask your calls", the follow-up, the ops digest, the recording agreement, a design system, the landing page, early access, calendars |
 | #179–#207 | Oct 4–13 | **Launch readiness:** Deepgram transcription, sending follow-ups, CRM, payments (Stripe), live metering, plans per seat with Incognito, onboarding, Mac call detection, landing v2 with the overlay drawn 1:1, Haiku 5.5, the Free trial, the security review |
+| #208–#213 | Oct 14–19 | **Toward launch:** this file, fixes from a full read of the project, the overlay redrawn like the demo with each button's last answer kept, releases from GitHub's website, app.tesserafy.com, a full QA pass |
 
 `docs/engineering/build-plan.md` is the original phase plan, P0–P8 and spikes
 S1–S3. It is history now, where this file and the ADRs disagree with it. For

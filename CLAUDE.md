@@ -290,6 +290,9 @@ computer's sound output — `getDisplayMedia` with `loopback` audio, whose
 picture is the overlay's own page, dropped — is the customer, each its own Deepgram stream held by the overlay's
 main process with a one-minute token from `/api/live/transcription-token`
 (`DEEPGRAM_API_KEY` stays on the server; every stream sends `mip_opt_out`).
+A token is granted only for a live call the person started in the last twelve
+hours (`tokenFor`), so the overlay creates the call first and names it; an
+overlay before 0.1.29 names none and is told to update.
 Lines are saved as `seller` and `customer`, and only the customer's start a
 detector call. The dashboard counts `seller` as your side everywhere
 talk is shown (`ourSpeakerKeys`), so the call page, Home and Reports say what
@@ -352,12 +355,23 @@ read it, so a small Swift helper beside the app prints it
 
 A support session ends when its record does. The console's link starts an
 ordinary session; `support_session_ended()` says whether the caller's session
-began inside a support window (after the record, before its expiry) that has
-since ended or expired, and the web app signs it out on its next page
-(`/auth/support-ended`) and refuses it on the API (`lib/supabase/caller.ts`).
-Only sessions started by a sign-in link are asked — a password session never
-is one — so the overlay's detections pay nothing. The customer's own sessions
-from before the window are untouched.
+began inside a support window that has since ended or expired, and the web
+app signs it out on its next page (`/auth/support-ended`) and refuses it on
+the API (`lib/supabase/caller.ts`). A window's sessions are those begun after
+it opened and before the later of its expiry and its link's (an hour), until
+its sign-ins are revoked (`support_access.revoked_at`): End, or a sweep each
+minute once the window is over (`private.close_support_windows`), deletes the
+account's unused link and every session begun since the window opened, so a
+later sign-in really is the customer's own. Deleting a session ends its
+refresh token, not its access token's hour, which is why the web app still
+asks. While a window's sign-ins are live the account's password and email do
+not change at all, through Auth's own API too, and a support session is
+refused what only the customer should do: plans, retention, erasing, exports,
+trackers, the CRM, members, deletion, scorecards, screen assist and the
+recording agreement (`private.refuse_support_session`). Only sessions started
+by a sign-in link are asked — a password session never is one — so the
+overlay's detections pay nothing. The customer's own sessions from before the
+window are untouched.
 
 After a call, the seller can draft its follow-up email, on its own page
 (`/conversations/<id>/follow-up`, linked from the call page and Home; the
@@ -367,14 +381,15 @@ as everything else: the recap and the next steps are lines each quoting a
 segment, checked in code and again by `record_follow_up`; the subject,
 greeting, opening and closing are told to carry no facts; and it promises no
 price, date or term the call did not say, because the email goes out in the
-seller's name. One draft a call, charged like action items. It can be sent
-from its page (ADR 0023): through Resend, from our `EMAIL_FROM` with the
+seller's name. One draft a call, charged like action items. On a paid plan
+it can be sent from its page (ADR 0023): through Resend, from our `EMAIL_FROM` with the
 name the seller types, replies to the seller and the seller copied, plain
 text — never with the seller's address in From, which would be forging it.
-`begin_follow_up_send` records it before it leaves (a draft exists, one to
-ten addresses, not a support session, thirty a company an hour) and its id is
-Resend's idempotency key; `finish_follow_up_send` settles it. Without
-`RESEND_API_KEY`, Copy and "Open in your email app" are all there is.
+`begin_follow_up_send` records it before it leaves (a paid plan, a draft
+exists, one to ten addresses, not a support session, thirty a company an hour
+and forty a person a day) and its id is Resend's idempotency key;
+`finish_follow_up_send` settles it. Without `RESEND_API_KEY`, or on Free,
+Copy and "Open in your email app" are all there is.
 
 Calendars are each person's own (ADR 0021): Google or Microsoft, read-only,
 connected on the Account page. A sync keeps only the next 14 days' meetings
@@ -453,11 +468,18 @@ Two addresses, one deployment (`apps/web/lib/hosts.ts`): `www.tesserafy.com`
 (`tesserafy.com` redirects to it) is the landing page, Terms and Privacy;
 `app.tesserafy.com` is everything a person signs in to, and its `/` opens the
 dashboard or sign-in. The proxy sends the app's paths from the landing host to
-the app host before any session check; the API answers on every host, since a
-webhook or the overlay may call any of them. It is on only where
-`NEXT_PUBLIC_APP_URL` is set (production), so the vercel.app address the
-overlay calls, previews and localhost are left alone. `admin.tesserafy.com` is
-the console's own project.
+the app host before any session check, by setting the path on the app's
+address (a `//host` path is never read as another site's); the API answers on
+every host, since a webhook or the overlay may call any of them. It is on only
+where `NEXT_PUBLIC_APP_URL` is set (production), so the vercel.app address that
+overlays before 0.1.29 call (keep it assigned; 0.1.29 calls
+`app.tesserafy.com`), previews and localhost are left alone.
+`admin.tesserafy.com` is the console's own project. Session cookies are Secure
+and SameSite=Lax in both apps (`lib/supabase/cookies.ts`). Every host under
+tesserafy.com is the same site, so Lax does not keep a sibling's page from
+posting with a visitor's cookies: the proxy refuses a write to `/api/` whose
+Origin names another host (`fromAnotherHost`). A request with no Origin is a
+program's (the overlay's main process, Stripe), not a page's.
 
 The repository is public. No credential — real, test, or a fallback — goes
 in any file: the e2e specs read `E2E_USERNAME`/`E2E_PASSWORD` from the

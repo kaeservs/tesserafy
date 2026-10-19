@@ -35,7 +35,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         prep. Read-only. Only meetings with someone outside {user?.email?.split('@')[1] ?? 'your company'} are kept — the
         title, time, who and the meeting link, for the next {SYNC_DAYS} days. Descriptions are never read.
       </p>
-      {calendarNote ? <p role="status">{CALENDAR_NOTE[calendarNote] ?? null}</p> : null}
+      {calendarNote && Object.hasOwn(CALENDAR_NOTE, calendarNote) ? <p role="status">{CALENDAR_NOTE[calendarNote]}</p> : null}
       <ul className="calendar-list">
         {PROVIDERS.map((provider) => {
           const connected = (calendars ?? []).find((row) => row.provider === provider);

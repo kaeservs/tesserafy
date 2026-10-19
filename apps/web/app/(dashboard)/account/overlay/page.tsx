@@ -136,9 +136,9 @@ export default async function OverlaySettingsPage({ searchParams }: { searchPara
         see the call through it: Background is how dark it is. Light is frosted by Windows 11 and Mac instead. The overlay picks
         up a change when it next starts a call.
       </p>
-      {overlayNote ? (
+      {overlayNote === 'saved' || overlayNote === 'failed' ? (
         <p role="status" className="muted">
-          {overlayNote === 'saved' ? 'Saved.' : overlayNote}
+          {overlayNote === 'saved' ? 'Saved.' : 'That did not save. Try again in a moment.'}
         </p>
       ) : null}
     </section>

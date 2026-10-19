@@ -126,6 +126,13 @@ describe('updateSession on writes to /api from another host', () => {
     expect((await updateSession(request('/api/live/setup', { origin: 'https://n8n.example.com' }))).status).toBe(200);
   });
 
+  it('refuses signing out from another host, a route handler with no Origin check of its own', async () => {
+    signedIn = true;
+
+    expect((await updateSession(request('/auth/sign-out', { origin: 'https://n8n.example.com' }, 'POST'))).status).toBe(403);
+    expect((await updateSession(request('/auth/sign-out', { origin: 'https://app.example.com' }, 'POST'))).status).toBe(200);
+  });
+
   it('leaves Stripe’s webhook to its signature, by name rather than by its missing Origin', async () => {
     signedIn = false;
 

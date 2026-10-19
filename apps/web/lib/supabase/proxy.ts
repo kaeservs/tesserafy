@@ -19,6 +19,13 @@ const SIGNED_API_PATHS = new Set(['/api/stripe/webhook']);
 const WRITES = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 /**
+ * Writes outside /api/ that are route handlers, which have no Origin check
+ * of their own (a server action has Next's). Signing out is one: a sibling's
+ * page could otherwise sign a visitor out.
+ */
+const OTHER_WRITES = new Set(['/auth/sign-out']);
+
+/**
  * Refreshes the auth session cookie and turns signed-out visitors away from
  * everything except the login flow.
  *
@@ -36,7 +43,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   // before the auth server is asked anything. A request with no Origin is let
   // through (lib/hosts): the overlay calls from its main process without one.
   if (
-    pathname.startsWith('/api/') &&
+    (pathname.startsWith('/api/') || OTHER_WRITES.has(pathname)) &&
     WRITES.has(request.method) &&
     !SIGNED_API_PATHS.has(pathname) &&
     fromAnotherHost(request.headers.get('origin'), host ?? request.nextUrl.host)

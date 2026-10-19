@@ -5,12 +5,18 @@ import { createClient } from '@/lib/supabase/server';
 /**
  * Where a sign-in link lands.
  *
- * Three shapes arrive here, and the difference matters when one stops working:
+ * Two shapes arrive here, and the difference matters when one stops working:
  *
  *   ?code=…                 the PKCE flow, what signInWithOtp produces
- *   ?token_hash=…&type=…    the non-PKCE link shape, if the email template is
- *                           ever changed to send one
  *   ?error=…&error_code=…   Supabase declining, e.g. otp_expired
+ *
+ * A third, ?token_hash=…&type=…, was verified here too, for an email template
+ * that might one day send one. Nothing does: sign-in and sign-up links, and
+ * the console's, all go to /auth/confirm. And verifying one here signed the
+ * browser in at once, over whoever was signed in, without saying as whom — a
+ * link anyone can make for their own account would quietly sign a customer
+ * into it. When email is ours and a token_hash link is wanted, it belongs on
+ * /auth/confirm, which asks first.
  *
  * The reason is carried through to the login page rather than flattened into
  * one message. "Already used" and "older than an hour" send a person to
@@ -38,23 +44,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const tokenHash = params.get('token_hash');
-  const type = params.get('type');
-  if (tokenHash && type) {
-    const { error } = await supabase.auth.verifyOtp({
-      type: type as 'email' | 'magiclink' | 'recovery' | 'invite',
-      token_hash: tokenHash,
-    });
-    if (!error) {
-      return NextResponse.redirect(siteUrl(request, '/conversations'));
-    }
-    return NextResponse.redirect(
-      siteUrl(request, `/login?error=${encodeURIComponent(error.code ?? 'verify_failed')}`),
-    );
-  }
-
-  // No code, no token, no error: the link carried no credentials this side
-  // could read. That is what an implicit-flow fallback looks like — the token
-  // goes in the URL fragment, which a server never receives.
+  // No code and no error: the link carried no credentials this side could
+  // read. That is what an implicit-flow fallback looks like — the token goes
+  // in the URL fragment, which a server never receives.
   return NextResponse.redirect(siteUrl(request, '/login?error=no_credentials'));
 }

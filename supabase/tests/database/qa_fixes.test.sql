@@ -1,6 +1,7 @@
--- A support window ended early ends there: sessions that began after it are
--- the customer's own. And cost against price counts every seat a company pays
--- for. Runs with `supabase test db` (pgTAP). Everything rolls back.
+-- A support window ended early ends there: once End now has revoked what it
+-- started (20261104090000), sessions that began after it are the customer's
+-- own. And cost against price counts every seat a company pays for. Runs with
+-- `supabase test db` (pgTAP). Everything rolls back.
 
 begin;
 create extension if not exists pgtap with schema extensions;
@@ -11,11 +12,13 @@ insert into auth.users (id, email, aud, role) values
   ('9f000001-0000-4000-8000-000000000001', 'customer@acme.test', 'authenticated', 'authenticated'),
   ('9f000001-0000-4000-8000-000000000002', 'op@test.tesserafy.local', 'authenticated', 'authenticated');
 
--- A 240-minute window opened 60 minutes ago and ended 50 minutes ago; the
--- support session inside it, then the customer's own sign-in 30 minutes ago.
-insert into public.support_access (id, admin_user_id, subject_user_id, reason, expires_at, created_at, ended_at)
+-- A 240-minute window opened 60 minutes ago and ended, its sign-ins revoked,
+-- 50 minutes ago; the support session inside it, then the customer's own
+-- sign-in 30 minutes ago.
+insert into public.support_access (id, admin_user_id, subject_user_id, reason, expires_at, created_at, ended_at, revoked_at)
 values ('9f000001-0000-4000-8000-0000000000b1', '9f000001-0000-4000-8000-000000000002', '9f000001-0000-4000-8000-000000000001',
-        'Investigating a ticket', now() + interval '180 minutes', now() - interval '60 minutes', now() - interval '50 minutes');
+        'Investigating a ticket', now() + interval '180 minutes', now() - interval '60 minutes', now() - interval '50 minutes',
+        now() - interval '50 minutes');
 insert into auth.sessions (id, user_id, created_at, updated_at) values
   ('9f000001-0000-4000-8000-0000000000a1', '9f000001-0000-4000-8000-000000000001', now() - interval '58 minutes', now()),
   ('9f000001-0000-4000-8000-0000000000a2', '9f000001-0000-4000-8000-000000000001', now() - interval '30 minutes', now());

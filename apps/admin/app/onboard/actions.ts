@@ -15,7 +15,8 @@ export type ProvisionState =
       status: 'ready';
       recordId: string;
       email: string;
-      link: string;
+      /** The invite for a new account; none for an existing one, who signs in as usual. */
+      link: string | null;
       newAccount: boolean;
       landsElsewhere?: string;
       /** Set when the person was added but their request could not be closed. */

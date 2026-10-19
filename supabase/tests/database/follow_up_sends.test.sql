@@ -1,7 +1,8 @@
 -- Sending a follow-up (ADR 0023): only after a draft, to one to ten real
 -- addresses, recorded before it leaves and settled once by its sender; read by
 -- the company and no one else; never from a support session; at most thirty
--- an hour a company; gone with the call. Runs with `supabase test db` (pgTAP).
+-- an hour a company; gone with the call. Only a paid plan sends (security
+-- review, 2026-10-19, tested there). Runs with `supabase test db` (pgTAP).
 -- Everything rolls back.
 
 begin;
@@ -18,6 +19,8 @@ insert into public.company_members (company_id, user_id, role) values
   ('00000000-0000-4000-8000-00000000000a', 'f5e00000-0000-4000-8000-000000000001', 'member'),
   ('00000000-0000-4000-8000-00000000000a', 'f5e00000-0000-4000-8000-000000000002', 'member'),
   ('00000000-0000-4000-8000-00000000000b', 'f5e00000-0000-4000-8000-000000000003', 'owner');
+
+update public.companies set plan = 'pro' where id = '00000000-0000-4000-8000-00000000000a';
 
 create temporary table sent (n int, result jsonb);
 grant all on sent to authenticated;

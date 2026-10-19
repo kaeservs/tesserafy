@@ -1,6 +1,7 @@
 import { recordFailure } from '@/lib/keep-alive';
 import { NextResponse, type NextRequest } from 'next/server';
 import { emailAvailable, isBody, isSenderName, isSubject, parseRecipients, sendEmail } from '@/lib/email';
+import { PLAN_PAGE } from '@/lib/plan';
 import { allowance, tooMany } from '@/lib/rate-limit';
 import { caller } from '@/lib/supabase/caller';
 
@@ -16,12 +17,22 @@ import { caller } from '@/lib/supabase/caller';
  */
 export const runtime = 'nodejs';
 
-const REFUSED: Record<string, { status: number; error: string }> = {
+const REFUSED: Record<string, { status: number; error: string; upgrade?: string }> = {
   P0002: { status: 404, error: 'Draft the follow-up first.' },
   '42501': { status: 403, error: 'A support session does not send email in the customer’s name.' },
+  // Sending is for paid plans (security review, 2026-10-19); Copy and "Open in
+  // your email app" work on every plan.
+  '0A000': {
+    status: 402,
+    error: 'Sending from Tesserafy is on paid plans. Copy it, or open it in your email app.',
+    upgrade: PLAN_PAGE,
+  },
   '22023': { status: 400, error: 'Give one to ten email addresses.' },
   '23514': { status: 400, error: 'Check your name and the subject: no line breaks, quotes or angle brackets.' },
-  '54000': { status: 429, error: 'Your company has sent thirty follow-ups this hour. Try again later.' },
+  '54000': {
+    status: 429,
+    error: 'Too many follow-ups sent for now: thirty a company an hour, forty a person a day. Try again later.',
+  },
 };
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -53,7 +64,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   });
   if (refused) {
     const known = REFUSED[refused.code];
-    if (known) return NextResponse.json({ error: known.error }, { status: known.status });
+    if (known) {
+      return NextResponse.json({ error: known.error, ...(known.upgrade ? { upgrade: known.upgrade } : {}) }, { status: known.status });
+    }
     const failure = recordFailure(refused, { db: who.db, source: 'api/conversations/follow-up/send', conversationId: id });
     return NextResponse.json({ error: failure.said }, { status: 502 });
   }

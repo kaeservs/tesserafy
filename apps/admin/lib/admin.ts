@@ -156,13 +156,16 @@ export async function mintSessionFor(email: string): Promise<MintedSession | nul
  * exists. It never touches a table.
  *
  * An invite link creates the account; if one already exists for the address,
- * Auth refuses the invite and a sign-in link is made instead. The difference
- * matters to the person receiving it: an invite lands them on "choose a
+ * Auth refuses the invite, and a sign-in link is asked for only to learn the
+ * account's id. That link is not handed back: it would sign whoever opened it
+ * in as that person, with no support record, no banner and the password
+ * settable (security review, 2026-10-19). They already have an account, so
+ * they sign in as they always do. An invite lands a new person on "choose a
  * password", because an account made this way has none, and without one they
  * could only ever sign in again by email.
  */
 export type CreatedAccount =
-  | { ok: true; userId: string; link: string; newAccount: boolean; landsElsewhere?: string }
+  | { ok: true; userId: string; link: string | null; newAccount: boolean; landsElsewhere?: string }
   | { ok: false; message: string };
 
 export async function createAccountFor(email: string): Promise<CreatedAccount> {
@@ -214,9 +217,9 @@ export async function createAccountFor(email: string): Promise<CreatedAccount> {
   return {
     ok: true,
     userId,
-    link,
+    link: newAccount ? link : null,
     newAccount,
-    ...(going && going !== asked ? { landsElsewhere: going } : {}),
+    ...(newAccount && going && going !== asked ? { landsElsewhere: going } : {}),
   };
 }
 

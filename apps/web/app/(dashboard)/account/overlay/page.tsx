@@ -43,7 +43,10 @@ export default async function OverlaySettingsPage({ searchParams }: { searchPara
       </p>
       <h3>Your next call</h3>
       {setup.prep ? (
-        <p>
+        // A div, not a p: Clear is a form, and a form inside a paragraph is
+        // closed out of it by the browser — the page then no longer matched
+        // what the server sent, and React re-rendered it (error #418).
+        <div className="next-call">
           <a href={`/prep/${setup.prep.id}`}>{setup.prep.person}</a>
           {setup.account ? `, ${setup.account.name}` : ''}
           {setup.prep.callAt
@@ -58,7 +61,7 @@ export default async function OverlaySettingsPage({ searchParams }: { searchPara
               </button>
             </form>
           ) : null}
-        </p>
+        </div>
       ) : (
         <p className="muted">
           None. Prepare a call under <a href="/prep">Prepare</a> and choose <em>Use for my next call</em>, or give it a time: the

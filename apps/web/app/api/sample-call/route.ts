@@ -14,8 +14,8 @@ import { caller } from '@/lib/supabase/caller';
  * The same path as an upload — rate limit, redaction, the import function,
  * scoring, embedding — with two differences, both deliberate. It sends only
  * the sample's own words, never anything from the request; and it does not
- * spend the plan's allowance, because a trial has three imported calls and a
- * demonstration should not cost one. import_sample_call allows one per
+ * spend the plan's allowance, because Free's trial is one imported call
+ * (ADR 0031) and a demonstration should not cost it. import_sample_call allows one per
  * company, ever, so that exception stays one short scoring pass.
  *
  * Scored before answering, so the page it opens already has a scorecard.

@@ -193,7 +193,7 @@ export async function detectCriteria(
     if (!known.has(observation.criterion_key)) {
       // An invented criterion key would land in the scorecard as a criterion
       // nobody defined; apply() throws on it, so drop it here with a reason.
-      rejected.push({ reason: 'unknown-segment', summary, quote: observation.quote });
+      rejected.push({ reason: 'unknown-criterion', summary, quote: observation.quote });
       continue;
     }
     if (!(observation.confidence >= 0 && observation.confidence <= 1)) {

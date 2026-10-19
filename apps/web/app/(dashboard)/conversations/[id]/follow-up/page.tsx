@@ -96,10 +96,8 @@ export default async function FollowUpPage({ params }: { params: Promise<{ id: s
         <Link href={`/conversations/${id}`}>← {conversation.title}</Link>
       </p>
       <h1>Follow-up email</h1>
-      <p className="muted">
-        For “{conversation.title}”. Every line of the recap and the next steps quotes the call, and it promises nothing the
-        call did not say — it goes out in your name.
-      </p>
+      {/* What the email is, and that it goes out in the seller's name, is said
+          once, by FollowUp; the page said it as well, a line above. */}
       <FollowUp
         conversationId={id}
         draft={draft}

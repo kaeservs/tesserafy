@@ -23,13 +23,17 @@ export function SetPlan({
   const [state, action, pending] = useActionState(setPlan, START);
   const [plan, setChoice] = useState(current);
 
+  // React resets a form once its action finishes. A controlled select is
+  // reset to its first option behind React's back, so it read "No plan"
+  // right after a plan was set; an uncontrolled one goes back to its default,
+  // the plan the company is on, and a new plan remounts it to match.
   return (
-    <form action={action} className="row" style={{ flexWrap: 'nowrap', gap: '0.3rem' }}>
+    <form key={current} action={action} className="row" style={{ flexWrap: 'nowrap', gap: '0.3rem' }}>
       <input type="hidden" name="companyId" value={companyId} />
       <select
         name="plan"
         aria-label="Plan"
-        value={plan}
+        defaultValue={current}
         onChange={(event) => setChoice(event.target.value)}
         style={{ width: '9rem' }}
       >

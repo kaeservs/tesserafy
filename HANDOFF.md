@@ -461,7 +461,11 @@ and the overlay. The write-up is `docs/engineering/security-review-2026-10-19.md
   - provisioning gives a sign-in link only for an account it creates;
   - the overlay forgets a call at sign-out, and moves to app.tesserafy.com;
   - Electron's security patches;
-  - Secure cookies and an Origin check;
+  - Secure cookies, an Origin check, and sign-in links that say whose they
+    are;
+  - a PDF is measured before it is read. Password-protected and
+    "restricted" PDFs are now refused, with a message to save an
+    unprotected copy or paste the text;
   - CI actions pinned, and nothing from production in public logs;
   - more, listed in the write-up.
 - **Production checked:**

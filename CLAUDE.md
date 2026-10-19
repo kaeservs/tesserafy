@@ -268,7 +268,11 @@ split into passages (`packages/ingest`, `toPassages`), embedded by the same
 gte-small function as calls, and searched by `retrieve()` with
 `corpus: 'knowledge'` through `match_knowledge`, which merges meaning and
 keyword rank because gte-small alone ranks by phrasing. `knowledge_chunks` has
-no read policy and its names are in the retrieval guard. Assist and Ask get
+no read policy and its names are in the retrieval guard. A PDF is measured
+before pdf.js reads it (`pdfForText`): its streams may inflate to 64 MB
+together, images are blanked rather than counted, an encrypted or
+"restricted" one is refused with a way round it, and its pages are read one at
+a time, at most 1,000 in 45 seconds. Assist and Ask get
 the four passages that fit the question or what was just said; a fact about
 the seller's product may only come from one, quoted and named, and a question
 no document answers is still answered with "confirm it", not a guess.
@@ -478,8 +482,13 @@ overlays before 0.1.29 call (keep it assigned; 0.1.29 calls
 and SameSite=Lax in both apps (`lib/supabase/cookies.ts`). Every host under
 tesserafy.com is the same site, so Lax does not keep a sibling's page from
 posting with a visitor's cookies: the proxy refuses a write to `/api/` whose
-Origin names another host (`fromAnotherHost`). A request with no Origin is a
-program's (the overlay's main process, Stripe), not a page's.
+Origin names another host (`fromAnotherHost`), and the same of signing out.
+A request with no Origin is a program's (the overlay's main process, Stripe),
+not a page's. A sign-in link's account is the one Auth names for it
+(`sessionFromLink`), never its token's claims, which anyone can write;
+`/auth/confirm` says whose it is and asks before replacing another session,
+and `/auth/callback` takes only a code. A page says what its address carries
+only in its own words: a code it knows, never the text.
 
 The repository is public. No credential — real, test, or a fallback — goes
 in any file: the e2e specs read `E2E_USERNAME`/`E2E_PASSWORD` from the

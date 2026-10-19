@@ -75,10 +75,12 @@ go to production together.**
 
 | Finding | Severity | Fix |
 |---|---|---|
-| Every host under tesserafy.com is the same site, so SameSite=Lax did not keep a page on a sibling host (n8n's, or any later one) from posting to the API with a visitor's cookies | Medium | The proxy refuses a write to `/api/` whose Origin names another host, before Auth is asked anything. A request with no Origin is a program's (the overlay, Stripe) and passes. |
+| A link could sign a signed-in customer into someone else's account without their noticing, so their next upload went to a stranger. The confirm page took the account from an access token's claims, which anyone can write, and the callback verified any `token_hash` link without asking. | Medium | The confirm page learns the account from Auth, then names it and asks before switching. The callback no longer verifies `token_hash` links, which nothing sends. |
+| Every host under tesserafy.com is the same site, so SameSite=Lax did not keep a page on a sibling host (n8n's, or any later one) from posting to the API, or signing out, with a visitor's cookies | Medium | The proxy refuses a write to `/api/` or to sign-out whose Origin names another host, before Auth is asked anything. A request with no Origin is a program's (the overlay, Stripe) and passes. |
+| A PDF of half a megabyte took over a gigabyte to read: an owner's upload could take down the server instance reading it | Low | Its streams are measured before pdf.js reads them, against 64 MB together. Images are blanked rather than counted, an encrypted PDF is refused, and pages are read one at a time, at most 1,000 in 45 seconds. |
 | The session cookie was not Secure, so a browser would send it over plain http | Low | Secure in both apps, always, not decided per request |
 | The sign-in form told a stranger which addresses have accounts: only an existing account could be refused for asking twice within a minute | Low | Every answer is "sent"; a real failure is recorded for us, without the address |
-| The login page printed whatever text a link's address carried, under Tesserafy's own heading | Low | Only the codes the app sends, in its own words |
+| The login page, the overlay settings and a scorecard's page printed whatever text their address carried, under Tesserafy's own heading | Low | Only the codes the app sends, in its own words |
 | A landing-host path shaped like `//other.site` became a redirect to that site, wherever an edge in front of Next did not normalise it first | Low | The path is set on the app's address, never read as a link |
 
 **The overlay** (0.1.29)
@@ -128,6 +130,7 @@ go to production together.**
    - Delete Health runs from before 2026-10-12.
    - Move the e2e credentials into an environment that only `main` can use.
 6. **Code signing** for the overlay's installers.
+7. **Overlay 0.1.29.** Its fixes reach people only once it is released.
 
 **In code, not yet done** (named in general terms)
 
@@ -154,6 +157,10 @@ go to production together.**
   - check the sender of every IPC message.
 - **Health in Actions:** read the counts-only digest instead of using the
   service-role key.
+- **Knowledge PDFs:** read them in a separate process with a hard memory
+  limit. The check before reading catches the known shapes, not every one.
+- **Sign-in failures** reach the server's log, not the failure table: a
+  signed-out caller cannot write a row.
 
 **Decisions**
 

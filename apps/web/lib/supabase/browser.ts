@@ -1,5 +1,6 @@
 import { createBrowserClient } from '@supabase/ssr';
 import { publicSupabaseEnv } from '../env';
+import { SESSION_COOKIE } from './cookies';
 
 /**
  * A client in the page, which writes the session to cookies the server can
@@ -8,5 +9,5 @@ import { publicSupabaseEnv } from '../env';
  */
 export function createClient() {
   const { url, publishableKey } = publicSupabaseEnv();
-  return createBrowserClient(url, publishableKey);
+  return createBrowserClient(url, publishableKey, { cookieOptions: SESSION_COOKIE });
 }

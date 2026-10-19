@@ -2,6 +2,7 @@
 
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { recordFailure } from '@/lib/keep-alive';
 import { createClient } from '@/lib/supabase/server';
 import { createSignInClient } from '@/lib/supabase/sign-in';
 import { toEmail } from './identifier';
@@ -10,6 +11,13 @@ export interface LoginState {
   status: 'idle' | 'sent' | 'error';
   message?: string;
 }
+
+/**
+ * What Auth answers for an address with no account (invite-only, so it is
+ * not made one) or for something that is not an address: nothing went wrong,
+ * so nothing is recorded.
+ */
+const NO_ACCOUNT = new Set(['otp_disabled', 'signup_disabled', 'user_not_found', 'validation_failed', 'email_address_invalid']);
 
 /**
  * A text field, or nothing.
@@ -48,10 +56,22 @@ export async function sendMagicLink(_prev: LoginState, formData: FormData): Prom
     },
   });
 
-  // Same response whether or not the address has an account, so the form
-  // cannot be used to discover who the customers are.
-  if (error && error.status !== 400 && error.status !== 422) {
-    return { status: 'error', message: 'Something went wrong sending the link. Try again.' };
+  // Same response whatever Auth answered, so the form cannot be used to find
+  // out who the customers are. An address with no account is refused, and
+  // that refusal is the ordinary case. Only an address with an account can
+  // be refused for anything else — asked for again within Auth's minute
+  // (429), or the email not sent — and answering those with an error told
+  // whoever typed the address that it has one. So they answer "sent" too, and
+  // are recorded for us instead, without the address.
+  if (error && !NO_ACCOUNT.has(error.code ?? '')) {
+    const failure = recordFailure(error, {
+      db: supabase,
+      source: 'login/link',
+      // Signed out, which is how this form is used, the database refuses the
+      // row (record_failure is for signed-in callers), so the server's log
+      // keeps it instead: what kind of failure, never whose address.
+      onError: () => console.error(`login/link: ${failure.kind} ${failure.status ?? ''} ${failure.message}`),
+    });
   }
   return { status: 'sent' };
 }

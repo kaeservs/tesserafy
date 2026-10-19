@@ -8,7 +8,8 @@ import { dollars, planFacts, type CatalogRow } from '@/lib/plan-catalog';
 const START: PlanActionState = { status: 'idle' };
 
 /**
- * The plans above the company's, on Home (ADR 0027): the price a seat, what
+ * The plans above a paid company's, on Home (ADR 0027; a starting plan gets
+ * components/upgrade-cta instead): the price a seat, what
  * each seat brings, and for an owner the button that upgrades — at once while
  * plans are free, through Stripe's checkout once payments are on, in Stripe's
  * billing page once the company pays there. The full panel, with seats and

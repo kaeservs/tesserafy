@@ -192,7 +192,8 @@ Free's trial is one imported call and a demonstration should not cost it, so
 the app's own sample text. Plan
 changes are made on Settings → Membership (`/settings/membership`, linked
 as "Plan and billing"; `/profile` and `/membership` redirect there; Free has a banner on every page with its limits and
-Upgrade now, Home lists the plans above the company's with their prices, and
+Upgrade now, and Home one line with See plans (`components/upgrade-cta.tsx`);
+on a paid plan Home lists the plans above it with their prices, and
 shows a plan strip near a limit; every
 402 names Settings → Membership and carries `upgrade`, which the overlay
 offers as a button; the same plan panel: owners start, upgrade, move down, cancel or open Stripe's

@@ -3,6 +3,7 @@ import { engagementLabel, liveCallsAvailable, sampleCallOffered } from '@/lib/co
 import { Onboarding, TourButton } from '@/components/onboarding';
 import type { PlanOverview } from '@/components/plan-panel';
 import { PricingCards } from '@/components/pricing-cards';
+import { UpgradeCta } from '@/components/upgrade-cta';
 import { billingMode } from '@/lib/billing';
 import { CATALOG_COLUMNS } from '@/lib/plan-catalog';
 import Link from 'next/link';
@@ -317,10 +318,11 @@ export default async function DashboardPage() {
       billing={billing}
     />
   ) : null;
-  // First on Home while the plan is the small one or running out; at the foot otherwise.
-  const plansFirst =
-    planOverview !== null &&
-    (['none', 'free', 'trial'].includes(planOverview.plan) || (nearestLimit(planOverview.meters)?.share ?? 0) >= 0.8);
+  // A starting plan gets one call to action and the plans stay on Settings →
+  // Membership; a paid plan's upgrades come first when it is running out, at
+  // the foot otherwise.
+  const starting = planOverview !== null && ['none', 'free', 'trial'].includes(planOverview.plan);
+  const plansFirst = starting || (planOverview !== null && (nearestLimit(planOverview.meters)?.share ?? 0) >= 0.8);
 
   return (
     <main className="wide">
@@ -337,7 +339,7 @@ export default async function DashboardPage() {
           renews={currentPlan?.renews ?? true}
         />
       ) : null}
-      {plansFirst ? pricing : null}
+      {starting ? <UpgradeCta plans={upgrades} isOwner={isOwner} /> : plansFirst ? pricing : null}
       <Onboarding
         show={myPreferences?.onboarded_at == null}
         isOwner={isOwner}

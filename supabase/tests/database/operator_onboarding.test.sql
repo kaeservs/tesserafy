@@ -87,9 +87,11 @@ select is(
 -- The key creates the account (simulated as the superuser), then completion
 -- ---------------------------------------------------------------------------
 reset role;
-insert into auth.users (id, email, aud, role) values
-  ('aaaa0001-0000-4000-8000-000000000004', 'new@brand.example', 'authenticated', 'authenticated'),
-  ('aaaa0001-0000-4000-8000-000000000005', 'someone-else@brand.example', 'authenticated', 'authenticated');
+-- Confirmed, as a real account is: provisioning refuses one nobody confirmed
+-- (security review, 2026-10-19, tested there).
+insert into auth.users (id, email, aud, role, email_confirmed_at) values
+  ('aaaa0001-0000-4000-8000-000000000004', 'new@brand.example', 'authenticated', 'authenticated', now()),
+  ('aaaa0001-0000-4000-8000-000000000005', 'someone-else@brand.example', 'authenticated', 'authenticated', now());
 set local role authenticated;
 
 select set_config('request.jwt.claims',

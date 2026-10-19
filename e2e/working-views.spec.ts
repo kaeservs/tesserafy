@@ -31,7 +31,8 @@ test('Reports changes period, carries it into its CSV, and shows goals without l
   await expect(csv).toHaveAttribute('href', /weeks=26/);
   const response = await page.request.get((await csv.getAttribute('href'))!);
   expect(response.status()).toBe(200);
-  expect((await response.text()).split('\r\n').filter(Boolean)).toHaveLength(27);
+  // The length, not toHaveLength on the rows, which prints them all on a failure.
+  expect((await response.text()).split('\r\n').filter(Boolean).length, 'a header and a row for each of 26 weeks').toBe(27);
 
   const trends = page.locator('section:has(#criteria-trend-heading)');
   await expect(trends.getByRole('columnheader', { name: 'Goal' })).toBeVisible();
@@ -41,7 +42,8 @@ test('Reports changes period, carries it into its CSV, and shows goals without l
   if ((await sellers.locator('table').count()) > 0) {
     await expect(sellers.getByRole('columnheader', { name: 'Talked' })).toBeVisible();
   } else {
-    await expect(sellers).toContainText('in the last 6 months');
+    // Counted: toContainText prints the section on a failure, and it names sellers.
+    await expect(sellers.filter({ hasText: /in the last 6 months/ }), 'the sellers section says the period has none').toHaveCount(1);
   }
 });
 
@@ -69,7 +71,8 @@ test('a call says who talked, and every line can be linked to and saved as an ex
 
   const talk = page.locator('section:has(#talk-heading)');
   await expect(talk.getByRole('heading', { name: 'Who talked' })).toBeVisible();
-  await expect(talk.locator('tbody tr').first()).toContainText('%');
+  // Counted: toContainText prints the row on a failure, and the row is a speaker's name.
+  await expect(talk.locator('tbody tr').first().filter({ hasText: /%/ }), 'the first speaker in Who talked has a share').toHaveCount(1);
 
   const lines = page.locator('li.segment');
   const count = await lines.count();

@@ -42,6 +42,18 @@ function unquote(text: string): string {
   return normalise(text).replace(/^[“"]/, '').replace(/[”"]$/, '');
 }
 
+/**
+ * The id in a conversation's path, which is how a failure here names it.
+ *
+ * Failures name what they were looking at by id and position, never by its
+ * words: the words are a customer's, and a failure's output gets pasted and
+ * logged. So text is compared in the spec and expect is handed only the
+ * verdict, because expect prints whatever it is given.
+ */
+function conversationOf(href: string): string {
+  return href.slice('/conversations/'.length);
+}
+
 async function signIn(page: Page): Promise<void> {
   await page.goto('/login');
   await page.getByLabel('Username or email').fill(USERNAME);
@@ -88,6 +100,7 @@ test.describe('P1 — every signal links to the words behind it', () => {
 
     for (const href of hrefs) {
       await page.goto(href);
+      const conversation = conversationOf(href);
 
       // Only the Signals section. The scorecard cites evidence too, and it is
       // the same chain, but the gate is worded about signals and a test that
@@ -104,30 +117,28 @@ test.describe('P1 — every signal links to the words behind it', () => {
         // The gate says *every* displayed signal links to a quote. A signal
         // rendered with no evidence under it is the invariant breaking, not a
         // case to skip.
-        expect(quoteCount, `a signal in ${href} shows no evidence`).toBeGreaterThan(0);
+        expect(quoteCount, `signal ${index + 1} in conversation ${conversation} shows no evidence`).toBeGreaterThan(0);
 
         for (let q = 0; q < quoteCount; q += 1) {
           const quote = quotes.nth(q);
           const raw = normalise((await quote.innerText()) ?? '');
+          const which = `quote ${q + 1} of signal ${index + 1} in conversation ${conversation}`;
 
           // "at 01:01" — the timestamp the gate asks for, on the quote itself.
-          expect(raw, `a quote in ${href} carries no timestamp`).toMatch(/\bat \d{2}:\d{2}\b/);
+          expect(/\bat \d{2}:\d{2}\b/.test(raw), `${which} carries no timestamp`).toBe(true);
 
           const said = unquote(raw.replace(/\s*at \d{2}:\d{2}\s*$/, ''));
-          expect(said.length, `an empty quote in ${href}`).toBeGreaterThan(0);
+          expect(said.length, `${which} is empty`).toBeGreaterThan(0);
 
           const target = (await quote.getAttribute('href')) ?? '';
           // By attribute, not by `#id`: a uuid starting with a digit is not a
           // valid CSS id selector and would silently match nothing.
           const segment = page.locator(`li[id="${target.slice(1)}"]`);
-          await expect(segment, `${target} is not on the page`).toHaveCount(1);
+          await expect(segment, `${which} points at ${target.slice(1)}, which is not on the page`).toHaveCount(1);
 
           // The claim, checked against the words themselves.
           const transcript = normalise(await segment.innerText());
-          expect(
-            transcript,
-            `a quote in ${href} is not in the segment it points at:\n  quote: ${said}\n  segment: ${transcript}`,
-          ).toContain(said);
+          expect(transcript.includes(said), `${which} is not in ${target.slice(1)}, the segment it points at`).toBe(true);
 
           // And clicking it actually takes you there.
           await quote.click();
@@ -135,7 +146,7 @@ test.describe('P1 — every signal links to the words behind it', () => {
 
           // The phrase is marked inside the segment, not merely nearby.
           const marks = segment.locator('mark');
-          expect(await marks.count(), `${target} highlights nothing`).toBeGreaterThan(0);
+          expect(await marks.count(), `${target.slice(1)} highlights nothing for ${which}`).toBeGreaterThan(0);
 
           quotesChecked += 1;
         }
@@ -174,7 +185,12 @@ test.describe('P1 — every signal links to the words behind it', () => {
       await page.goto(href);
       const section = page.locator('section:has(h2#signals-heading)');
       if ((await section.locator('ul.signals > li.signal').count()) === 0) {
-        await expect(section).toContainText(/no signals|nothing/i);
+        // toContainText's check, counted: on a failure it would print the
+        // section's text, and a count prints a number.
+        await expect(
+          section.filter({ hasText: /no signals|nothing/i }),
+          `conversation ${conversationOf(href)} shows no signal and does not say so`,
+        ).toHaveCount(1);
         emptyFound = true;
         break;
       }

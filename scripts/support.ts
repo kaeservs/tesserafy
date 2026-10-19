@@ -65,17 +65,14 @@ function clock(iso: string | null): string {
 }
 
 /**
- * A session for an email, through the Auth admin API.
+ * A sign-in link for an email, through the Auth admin API: one use, and it
+ * signs in whoever opens it.
  *
  * The same call the QA script makes, and the same call anyone with the key
  * could make without this script. Its presence here is not what grants the
  * power; the audit row written before it is what makes using it accountable.
  */
-async function sessionFor(
-  url: string,
-  serviceKey: string,
-  email: string,
-): Promise<{ token: string; link: string } | null> {
+async function linkFor(url: string, serviceKey: string, email: string): Promise<string | null> {
   const generated = await fetch(new URL('/auth/v1/admin/generate_link', url), {
     method: 'POST',
     headers: {
@@ -94,13 +91,22 @@ async function sessionFor(
     action_link?: string;
     properties?: { action_link?: string };
   };
-  const link = body.action_link ?? body.properties?.action_link;
+  return body.action_link ?? body.properties?.action_link ?? null;
+}
+
+/**
+ * The operator's own session, for the calls below: a link, followed here
+ * rather than in a browser, for the access token it lands with. Following a
+ * link spends it, so only the operator's is followed; the person being
+ * opened gets theirs unused (see --as).
+ */
+async function sessionFor(url: string, serviceKey: string, email: string): Promise<string | null> {
+  const link = await linkFor(url, serviceKey, email);
   if (!link) return null;
 
   const verified = await fetch(link, { redirect: 'manual' });
   const location = verified.headers.get('location') ?? '';
-  const token = new URLSearchParams(location.split('#')[1] ?? '').get('access_token');
-  return token ? { token, link } : null;
+  return new URLSearchParams(location.split('#')[1] ?? '').get('access_token');
 }
 
 /**
@@ -151,7 +157,7 @@ async function main(): Promise<void> {
     console.error(`support: could not sign in as ${adminEmail}`);
     process.exit(1);
   }
-  const token = await secondStep(url, publishableKey, me.token, flag('code'));
+  const token = await secondStep(url, publishableKey, me, flag('code'));
   const db: SupabaseClient = createTokenClient({ url, key: publishableKey, token });
 
   if (has('companies')) {
@@ -235,17 +241,23 @@ async function main(): Promise<void> {
     });
     if (error) return fail(error.message);
 
-    const theirs = await sessionFor(url, serviceKey, subject);
-    if (!theirs) return fail(`recorded as ${access.id}, but no session could be minted`);
+    // Not followed here, as the operator's own link is: a link works once,
+    // and the session it starts is for the browser of whoever opens it. It
+    // used to be followed for a token nothing used, and printed already spent.
+    const link = await linkFor(url, serviceKey, subject);
+    if (!link) return fail(`recorded as ${access.id}, but no sign-in link could be made`);
 
     console.log(`\nsupport: recorded ${access.id}`);
     console.log(`         as ${subject}, for ${minutes} minutes, because: ${reason}`);
     console.log('\nOpen this to be signed in as them:\n');
-    console.log(`  ${theirs.link}\n`);
+    console.log(`  ${link}\n`);
     console.log('Two things to hold on to:');
     console.log('  - Everything you do will be attributed to THEM. The row above is the');
     console.log('    only thing that says otherwise.');
-    console.log('  - That link is a live credential and is now in your shell history.');
+    console.log('  - That link is unused and a live credential: it signs in whoever opens');
+    console.log('    it, once, until the window is ended or runs out, or Auth expires it');
+    console.log('    (an hour, by default). Open it yourself; keep it out of anything you');
+    console.log('    paste.');
     console.log(`\nWhen you are done:  pnpm support --end ${access.id}`);
     return;
   }

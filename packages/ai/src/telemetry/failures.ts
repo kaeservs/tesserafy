@@ -61,17 +61,46 @@ const BILLING = /credit balance is too low|insufficient (credit|funds|balance)|b
 const CREDENTIALS: readonly RegExp[] = [
   /sk-ant-[A-Za-z0-9_-]+/g,
   /sbp_[A-Za-z0-9]+/g,
+  // Supabase's newer secret key. The publishable one is public by design.
+  /\bsb_secret_[A-Za-z0-9_-]+/g,
   /gh[pousr]_[A-Za-z0-9]+/g,
   /github_pat_[A-Za-z0-9_]+/g,
   // A Supabase service-role key is a JWT, and a JWT in a log is a live key.
   /eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]+/g,
-  /(?<=[Bb]earer )[A-Za-z0-9._-]{12,}/g,
   // The other services the web app holds a key for: Stripe's secret,
   // restricted and webhook-signing keys, Resend's, a HubSpot private app's.
   /\b(?:sk|rk)_(?:live|test)_[A-Za-z0-9]+/g,
   /\bwhsec_[A-Za-z0-9+/=]+/g,
   /\bre_[A-Za-z0-9]{8,}_[A-Za-z0-9]{8,}/g,
   /\bpat-[a-z]{2}\d?-[0-9a-f]{8}-[0-9a-f-]{27}/gi,
+  // And the integrations': a Jira tracker's Atlassian API token, a Linear
+  // tracker's key, Apify's (call preps), and Google's access tokens, refresh
+  // tokens and OAuth client secret (calendars).
+  /\bATATT[A-Za-z0-9_=-]+/g,
+  /\blin_api_[A-Za-z0-9]+/g,
+  /\bapify_api_[A-Za-z0-9]+/g,
+  /\bya29\.[A-Za-z0-9_-]+/g,
+  /\b1\/\/[A-Za-z0-9_-]{20,}/g,
+  /\bGOCSPX-[A-Za-z0-9_-]+/g,
+  // A Deepgram key (live transcription) is forty hex digits, sent after
+  // `Token`. A commit hash looks the same and goes with it; a failure has no
+  // use for one.
+  /\b[0-9a-f]{40}\b/gi,
+  // After a word that announces a credential, the value that follows. Any
+  // case of Bearer, and a token may carry + / = (RFC 6750).
+  /(?<=\bbearer\s{1,8})[A-Za-z0-9._~+/=-]{12,}/gi,
+  // HTTP Basic's base64. The word after "Basic" is taken only when it looks
+  // encoded, a digit or + / = or a capital inside it, so "Basic
+  // authentication failed" keeps the word that says what failed.
+  /(?<=\b(?:[Bb]asic|BASIC)\s{1,8})(?=[A-Za-z0-9+/]*(?:\d|[+/=]|[a-z][A-Z]))[A-Za-z0-9+/]{8,}={0,2}/g,
+  // An authorization header's value, whatever its scheme or none: Linear's
+  // personal keys are sent bare, and an error that dumps a request's headers
+  // dumps them all. The scheme word stays; the value goes when it looks
+  // generated, as above, so "authorization: missing" still says so.
+  /(?<=\b(?:[Aa]uthorization|AUTHORIZATION)["']?\s{0,8}[:=]\s{0,8}["']?(?:[A-Za-z][A-Za-z0-9-]{0,30}\s{1,8})?)(?=[A-Za-z0-9._~+/=-]*(?:\d|[+/=]|[a-z][A-Z]))[A-Za-z0-9._~+/=-]{12,}/g,
+  // user:password in a URL, a database connection string's above all. The
+  // scheme and host stay, so the failure still says where it was going.
+  /(?<=\b[A-Za-z][A-Za-z0-9+.-]{0,30}:\/\/)[^\s/?#@:]+:[^\s/?#]*(?=@[^\s/?#@]*(?:[\s/?#]|$))/g,
 ];
 
 /** As long as a message stays useful to read, and no longer. */

@@ -111,6 +111,25 @@ describe('what must stay readable', () => {
     expect(said).toContain('e4778f12-3456-4a71-9fff-cb3afc3eb57b');
     expect(said).not.toContain('7946');
   });
+
+  it('does not take an ordinary word for a key because of the word before it', () => {
+    // The credential patterns that look at context: after Basic, Bearer or
+    // an authorization header, and in a URL. Each of these is read whole.
+    for (const said of [
+      'Basic authentication is not enabled for this account',
+      'the Basic plan has no imports left this month',
+      'Token expired; sign in again',
+      'bearer token missing',
+      'Missing authorization header',
+      'authorization: missing',
+      'authorization: invalid_request_error',
+      'GET https://example.com:8443/path?to=x failed',
+      'see https://docs.example.com/errors#auth-12 for details',
+      `sha256 ${'ab'.repeat(32)} does not match`,
+    ]) {
+      expect(scrub(said)).toBe(said);
+    }
+  });
 });
 
 describe('what must never reach the row', () => {
@@ -153,6 +172,58 @@ describe('what must never reach the row', () => {
       expect(said).not.toContain(key);
       expect(said).toContain('[credential]');
     }
+  });
+
+  it('removes the keys of the integrations, live transcription and Supabase’s newer secret', () => {
+    // Assembled from pieces, as above: none of these is a real key.
+    const keys = [
+      `${'sb'}_${'secret'}_${'N7UND0Ug'.repeat(4)}`,
+      `${'0123456789abcdef'.repeat(2)}${'01234567'}`, // Deepgram: forty hex digits
+      `${'ATATT'}3xFfGF0${'Tq9_Zk-1'.repeat(20)}=A1B2C3D4`, // Atlassian (Jira)
+      `${'lin'}_${'api'}_${'Ab12Cd34'.repeat(5)}`,
+      `${'apify'}_${'api'}_${'Xy98Wv76'.repeat(4)}`,
+      `${'ya29'}.${'a0AfH6SM'.repeat(6)}`, // Google access token
+      `${'1'}//${'0gAbCdEfGh'.repeat(5)}`, // Google refresh token
+      `${'GOCSPX'}-${'aB3dE5fG7hJ9kL1mN2pQ4rS6tU8'}`, // Google OAuth client secret
+    ];
+    for (const key of keys) {
+      // Exactly the key, whole: nothing of it left, nothing around it taken.
+      expect(scrub(`upstream said 401 for ${key} just now`)).toBe('upstream said 401 for [credential] just now');
+    }
+  });
+
+  it('removes a Deepgram key after Token, keeping the word', () => {
+    const key = `${'0123456789abcdef'.repeat(2)}${'01234567'}`;
+    expect(scrub(`Authorization: Token ${key}`)).toBe('Authorization: Token [credential]');
+  });
+
+  it('removes a bearer token however Bearer is written, + / = and all', () => {
+    const token = `${'AbC+dEf/gHi'}${'9'.repeat(8)}==`;
+    for (const word of ['Bearer', 'bearer', 'BEARER']) {
+      expect(scrub(`Authorization: ${word} ${token} was refused`)).toBe(`Authorization: ${word} [credential] was refused`);
+    }
+  });
+
+  it('removes HTTP Basic credentials, keeping the word Basic', () => {
+    const encoded = Buffer.from(`${'priya'}:${'hunter2-but-longer'}`).toString('base64');
+    expect(scrub(`Authorization: Basic ${encoded}`)).toBe('Authorization: Basic [credential]');
+    expect(scrub(`basic ${encoded} rejected`)).toBe('basic [credential] rejected');
+  });
+
+  it('removes an authorization header’s value whatever its scheme, as text, JSON or a dumped object', () => {
+    const key = `k${'9f8e7d6c5b4a'.repeat(2)}`;
+    expect(scrub(`authorization: ${key} rejected`)).toBe('authorization: [credential] rejected');
+    expect(scrub(`{"Authorization":"Token ${key}"}`)).toBe('{"Authorization":"Token [credential]"}');
+    expect(scrub(`headers: { authorization: '${key}' }`)).toBe("headers: { authorization: '[credential]' }");
+  });
+
+  it('removes the user and password from a URL, and keeps where it was going', () => {
+    // An @ inside the password too, which the address rule alone would split.
+    const password = `${'p@ss'}${'w0rd!'}`;
+    expect(scrub(`connect to postgres://postgres.abcd:${password}@db.example.supabase.co:5432/postgres failed`)).toBe(
+      'connect to postgres://[credential]@db.example.supabase.co:5432/postgres failed',
+    );
+    expect(scrub(`GET https://user:${password}@127.0.0.1:8080/x`)).toBe('GET https://[credential]@127.0.0.1:8080/x');
   });
 
   it('redacts a customer identifier the model quoted back', () => {

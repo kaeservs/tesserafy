@@ -20,7 +20,7 @@
  * failure mode this whole thing was built to end. Two false alarms teach an
  * operator to ignore the alarm, which is worse than not having one.
  */
-import { ALARM_AT, alarming, createServiceClient, groupFailures, readAll, type FailureRow } from '@tesserafy/db';
+import { ALARM_AT, alarming, createServiceClient, groupFailures, printableName, readAll, type FailureRow } from '@tesserafy/db';
 
 // Which failures need a person, and how they group, live in
 // packages/db/src/health.ts, shared with the operator console's Failures page:
@@ -102,11 +102,17 @@ async function main(): Promise<void> {
   // upstream error can quote the request back, and here the request is
   // meeting content (security review, 2026-10-12; ADR 0019's counts-only rule).
   const publicLog = process.env['GITHUB_ACTIONS'] === 'true';
+  // A tier and a model are names, and any member can write either through
+  // record_failure. Printed raw, a model holding a newline and `::error …::`
+  // is a workflow command: an annotation on this public repository and a line
+  // in the failure email. groupFailures already shows anything that is not a
+  // name as unrecognised; this is the line that prints, so it checks again.
+  const name = printableName;
   for (const group of groups) {
     const mark = group.needsAPerson ? '!' : '-';
     // A source is a route name; anything else in it was written by a caller.
     const source = group.source && /^[a-z0-9/_.[\]-]{1,64}$/.test(group.source) ? group.source : 'other';
-    const where = [source, group.tier, group.model, group.status].filter(Boolean).join(' ');
+    const where = [source, name(group.tier), name(group.model), group.status].filter(Boolean).join(' ');
     console.log(`  ${mark} ${group.kind}  ${where}  ×${group.count}  (last ${ago(group.last)})`);
     if (!publicLog) console.log(`      ${group.message.slice(0, 160)}`);
   }

@@ -1,0 +1,21 @@
+# Keeps the workflows' action pins current.
+#
+# Every `uses:` in .github/workflows names a full commit SHA, with its tag in
+# a comment, because a tag is only a pointer: whoever controls an action's
+# repository can move it to other code, and the next run here runs that code.
+# The Health workflow does so every four hours with the service-role key in
+# the environment of a step that follows pnpm/action-setup, and the overlay's
+# release job holds a token that can write to this repository.
+#
+# A pin nobody moves goes stale instead, missing its action's fixes. So once
+# a week Dependabot proposes the new SHAs, every action's in one pull request,
+# to be read and merged like any other change.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']

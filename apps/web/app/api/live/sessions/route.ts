@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { linkAccount } from '@/lib/account-link';
 import { AGREEMENT_REQUIRED, currentAgreement, liveConsentStatement } from '@/lib/consent';
 import { liveAllowedFor } from '@/lib/live-input';
+import { PLAN_PAGE } from '@/lib/plan';
 import { refused } from '@/lib/refusal';
 import { caller } from '@/lib/supabase/caller';
 
@@ -59,6 +60,13 @@ export async function POST(request: NextRequest) {
   }
   if (!(await liveAllowedFor(who.db, who.userId))) {
     return NextResponse.json({ error: 'Live is not on your plan.' }, { status: 403 });
+  }
+  // Asked before the call is made, not only when its transcription is: the
+  // overlay now creates the call first and asks for a token for it, and a
+  // call refused at the token for want of minutes was left behind empty.
+  const { data: live } = await who.db.rpc('plan_has_allowance', { p_meter: 'live_seconds' });
+  if (live !== true) {
+    return NextResponse.json({ error: 'Your plan has no live minutes left this month.', upgrade: PLAN_PAGE }, { status: 402 });
   }
 
   const { data, error } = await who.db.rpc('start_live_conversation', {

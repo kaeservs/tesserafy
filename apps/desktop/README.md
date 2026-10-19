@@ -21,8 +21,10 @@ from two minutes ago is worse than a seller with no prompt at all.
 It hears both sides of the call (ADR 0022): the microphone is the seller, the
 computer's sound output — what the meeting app plays — is the customer. Each
 is its own Deepgram stream, opened by the main process with a one-minute
-token from the web app (`src/main/transcribe.ts`); the page captures the audio
-and sends it over IPC, and never opens a connection or sees the token. On
+token from the web app (`src/main/transcribe.ts`). The token is granted for
+one call, which is created first and named when the token is asked for
+(`src/renderer/start-call.ts`). The page captures the audio and sends it over
+IPC, and never opens a connection or sees the token. On
 speakers the microphone hears the customer too, and a microphone line that
 repeats what the customer just said is dropped (`src/renderer/hearing.ts`).
 Where the deployment has no Deepgram key, the browser engine inside Electron
@@ -62,10 +64,17 @@ token is saved, encrypted by the operating system through Electron's
 `safeStorage` (DPAPI on Windows, the Keychain on macOS), in `session.bin`
 under the app's user-data folder; where that encryption is unavailable nothing
 is saved and the overlay asks each launch. *Sign out* ends this overlay's
-session only — the web app stays signed in — and deletes the file.
+session only — the web app stays signed in — and deletes the file. It renews
+the token first when it has to, so Auth still accepts the sign-out after an
+idle hour. Signing out, or signing in as someone else, also clears everything
+the overlay held about the last call and the next one's prep.
 
 It learns where Auth is from the web app's public `/auth/client-config`, so
-the only setting is where the product is. That defaults to production:
+the only setting is where the product is. An installed overlay sends the
+password and the refresh token only to Supabase Auth over https
+(`*.supabase.co`), whatever address that names; anywhere else counts as
+Tesserafy being out of reach. The product defaults to production
+(`https://app.tesserafy.com`):
 
     # PowerShell — only to point it somewhere else, e.g. a local web app
     $env:TESSERAFY_URL = 'http://localhost:3000'
@@ -90,8 +99,11 @@ It is not code-signed yet, so SmartScreen says "unknown publisher" (More info
 The shipped build turns off the Electron switches that let another program on
 the machine drive it — running the exe as Node, `NODE_OPTIONS`, the inspector
 — and checks its own package's integrity at start. The workflow refuses to
-publish a build whose fuses do not read that way. A side effect: automated
-tests cannot attach to the installed app; they run against the dev build.
+publish a build whose fuses do not read that way. No fuse covers the
+remote-debugging switches, so the installed overlay exits at once when started
+with one; it also has no DevTools, and no menu but Edit. A side effect:
+automated tests cannot attach to the installed app; they run against the dev
+build.
 
 To build one locally:
 

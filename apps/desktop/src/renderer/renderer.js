@@ -33,6 +33,7 @@ import {
 import { EchoCheck, SELLER_HOLD_MS } from './hearing';
 import { Captions } from './captions';
 import { TalkMeter } from './talk-time';
+import { isRefusal, startCall } from './start-call';
 
 const api = window.overlay;
 const WINDOW_SIZE = 3;
@@ -49,6 +50,14 @@ let clickThrough = false;
 let listening = false;
 // Whether the main process holds a session. Listen is offered only then.
 let signedIn = false;
+/** Who the page shows as signed in, so a session that changed hands is told from one that came back. */
+let shownEmail = null;
+/**
+ * Which sign-in the page is showing. Forgetting the call starts a new one,
+ * and a setup or a scorecard asked for under an earlier one is dropped when
+ * it answers: it is the last account's.
+ */
+let signInNumber = 0;
 let recognition = null;
 // Both sides being transcribed: how to stop the capture, and whether only the
 // microphone could be had (then no line can be said to be either side's).
@@ -314,7 +323,9 @@ let chosenScorecard = null;
  * each call, so a change made in the dashboard is picked up without asking.
  */
 async function loadSetup() {
+  const forSignIn = signInNumber;
   const result = await api.setup();
+  if (forSignIn !== signInNumber) return false;
   if (result.error) {
     setStatus(result.error);
     return false;
@@ -392,7 +403,9 @@ setInterval(() => {
 }, 30_000);
 
 async function loadCriteria() {
+  const forSignIn = signInNumber;
   const result = await api.criteria(chosenScorecard ?? undefined);
+  if (forSignIn !== signInNumber) return false;
   if (result.error) {
     setStatus(result.error);
     return false;
@@ -430,15 +443,24 @@ async function loadCriteria() {
 let sessionStarting = Promise.resolve();
 /** Which call this is in the sitting, so a slow answer for the last one cannot become this one's. */
 let callNumber = 0;
-async function startSession() {
-  const forCall = callNumber;
+/** Which call the lines being heard belong to: none of a call that was forgotten is kept. */
+let heardCall = 0;
+
+/** The call, created on the server against the scorecard it is scored on: its id, or why not. */
+function createCall() {
   const when = new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
-  const result = await api.liveStart({
+  return api.liveStart({
     title: `Live call — ${when}`,
     engagementType: state?.criteriaSet?.engagementType ?? 'discovery',
     criteriaVersion: state?.criteriaSet?.version ?? 1,
     ...(chosenAccount ? { accountId: chosenAccount } : {}),
   });
+}
+
+/** The browser engine's call, created alongside it rather than before. */
+async function startSession() {
+  const forCall = callNumber;
+  const result = await createCall();
 
   if (forCall !== callNumber) return;
   if (result.error || !result.conversationId) {
@@ -521,10 +543,14 @@ async function saveEvents(events, detector, model) {
 // minutes of call.
 let chargedTo = 0;
 async function detect(endedAt) {
+  const forCall = callNumber;
   const window_ = thisCall().slice(-WINDOW_SIZE);
   const chargeFromMs = chargedTo;
   chargedTo = window_.at(-1)?.endMs ?? chargedTo;
   const result = await api.detect({ criteria: prompts, window: window_, chargeFromMs });
+  // Its call was forgotten (signed out) or another has begun: this evidence
+  // is for neither the scorecard on screen nor the call now being kept.
+  if (forCall !== callNumber) return;
   if (result.error) {
     if (result.upgrade) offerUpgrade(result.error);
     else setStatus(result.error);
@@ -593,8 +619,9 @@ function heardLine(text, speaker, detecting) {
 async function startListening() {
   sessionStart = performance.now();
   if (setup?.transcription === 'deepgram') {
-    if (await startBothSides()) {
-      began(micOnly ? 'listening — your microphone only' : 'listening to both sides');
+    const call = await startBothSides();
+    if (call) {
+      began(micOnly ? 'listening — your microphone only' : 'listening to both sides', call);
       return;
     }
     // startBothSides has said why — no live minutes left (with the plan
@@ -614,15 +641,22 @@ async function startListening() {
 /** What the status line says while listening, for as long as nothing goes wrong. */
 let listeningNote = 'listening';
 
-function began(status) {
+/**
+ * A call has begun. `call` is its id when it was created first — both sides
+ * heard, whose transcription is granted for that call — and null for the
+ * browser engine, whose call is created alongside it.
+ */
+function began(status, call = null) {
   listening = true;
   listeningNote = status;
   callStart = utterances.length;
   chargedTo = 0;
-  // A new call, so a new record. The previous call's id lasted until this
+  // A new call, so a new record: the one just created, or none until the
+  // browser engine's arrives. The previous call's id used to last until this
   // one's arrived, and lines said in between were saved into the last call.
   callNumber += 1;
-  conversationId = null;
+  heardCall = callNumber;
+  conversationId = call;
   serverIds.clear();
   savedSegments = 0;
   savedEvents = 0;
@@ -641,9 +675,10 @@ function began(status) {
   showSayNext();
   setStatus(status);
 
-  // Not awaited. The first utterance can be detected before the conversation
-  // exists; its write simply finds no session and is skipped.
-  sessionStarting = startSession();
+  // The browser engine's call is created now and not awaited. Its first
+  // utterance can be detected before the conversation exists; that write
+  // simply finds no session and is skipped.
+  sessionStarting = call ? Promise.resolve() : startSession();
 }
 
 /*
@@ -718,16 +753,12 @@ function record(stream, channel) {
   return { recorder, stopped };
 }
 
-async function startBothSides() {
-  let mic = null;
-  try {
-    mic = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    });
-  } catch {
-    setStatus('the microphone is not available');
-    return false;
-  }
+/** The microphone, and the computer's sound output where the system gives it; or why not. */
+async function openAudio() {
+  const mic = await navigator.mediaDevices
+    .getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
+    .catch(() => null);
+  if (!mic) return { error: 'the microphone is not available' };
   let system = null;
   try {
     const shared = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: true });
@@ -738,16 +769,42 @@ async function startBothSides() {
     // still hears the seller, and the customer too when on speakers.
     system = null;
   }
+  return { mic, system };
+}
 
-  const opened = await api.transcribeStart();
-  if (opened.error) {
-    stopTracks(mic);
-    stopTracks(system);
-    if (opened.upgrade) offerUpgrade(opened.error);
-    else setStatus(opened.error);
-    return false;
+/**
+ * Both sides heard, started in the order ./start-call keeps: the audio, the
+ * call on the server, then its transcription, granted for that call alone.
+ * The call's id, or null once the status line says why not.
+ */
+async function startBothSides() {
+  const forSignIn = signInNumber;
+  const started = await startCall({
+    audio: openAudio,
+    call: createCall,
+    transcribe: (id) => api.transcribeStart(id),
+    release: ({ mic, system }) => {
+      stopTracks(mic);
+      stopTracks(system);
+    },
+  });
+  // Signed out while it was starting, which takes a round trip or two: it
+  // does not start, and nothing of it is left open.
+  if (forSignIn !== signInNumber) {
+    if (!isRefusal(started)) {
+      stopTracks(started.audio.mic);
+      stopTracks(started.audio.system);
+      void api.transcribeStop();
+    }
+    return null;
+  }
+  if (isRefusal(started)) {
+    if (started.upgrade) offerUpgrade(started.error);
+    else setStatus(started.error);
+    return null;
   }
 
+  const { mic, system } = started.audio;
   micOnly = system === null;
   echoes = new EchoCheck();
   captions.clear();
@@ -770,10 +827,14 @@ async function startBothSides() {
       stopTracks(system);
     },
   };
-  return true;
+  return started.conversationId;
 }
 
 api.onTranscript(({ channel, kind, text }) => {
+  // The last words of a call come back as its streams close, which after a
+  // sign-out is after the call was forgotten: they are not kept for whoever
+  // signs in next.
+  if (heardCall !== callNumber) return;
   const side = micOnly ? null : channel;
   // The seller's finished line waits for the echo check below before it is a
   // caption; everything else shows as it comes.
@@ -795,7 +856,9 @@ api.onTranscript(({ channel, kind, text }) => {
   // The seller's line waits for the customer's copy of it, in case it is one.
   const at = performance.now();
   const check = echoes;
+  const forCall = callNumber;
   setTimeout(() => {
+    if (forCall !== callNumber) return;
     const echo = check.isEcho(text, at);
     // An echo is the customer's sentence again: its live guess goes, and no line stays.
     captions.heard('me', echo ? 'interim' : 'utterance', echo ? '' : text, performance.now());
@@ -822,6 +885,8 @@ function startEngine() {
   recognition.lang = 'en-GB';
 
   recognition.onresult = (event) => {
+    // As for the streams: nothing heard after its call was forgotten is kept.
+    if (heardCall !== callNumber) return;
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const result = event.results[i];
       const text = result[0].transcript.trim();
@@ -1452,6 +1517,7 @@ el('quit').addEventListener('click', () => {
  */
 function showSignedIn(email) {
   signedIn = true;
+  shownEmail = email;
   el('signin').hidden = true;
   el('who').hidden = listening;
   el('whoEmail').textContent = email;
@@ -1490,13 +1556,77 @@ function renderToAsk(card) {
   section.hidden = false;
 }
 
+/*
+ * The last account's call, and the call it was getting ready for, forgotten:
+ * on signing out, and when the session turns out to be someone else's. All of
+ * it used to stay until the next call started, so whoever signed in next
+ * could press AI Assist, To Ask or Recap and be shown the last account's
+ * kept answer, or ask a question that sent the last account's whole call to
+ * /api/assist under their own name.
+ */
+function forgetCall() {
+  // Whatever is still on its way for that call — a detection, an answer, a
+  // suggestion, a setup, its last words — is neither kept nor shown when it
+  // arrives.
+  callNumber += 1;
+  signInNumber += 1;
+  suggestSeq += 1;
+  // The call: its lines, its score, its record on the server.
+  utterances.length = 0;
+  callStart = 0;
+  chargedTo = 0;
+  latencies.length = 0;
+  state = null;
+  prompts = [];
+  conversationId = null;
+  sessionStarting = Promise.resolve();
+  serverIds.clear();
+  savedSegments = 0;
+  savedEvents = 0;
+  lostWrites = 0;
+  currentSuggestion = null;
+  streaming = null;
+  captions.clear();
+  echoes = new EchoCheck();
+  talk = null;
+  // What the dashboard set up for it: the customer, the scorecard, the prep.
+  setup = null;
+  chosenAccount = null;
+  chosenScorecard = null;
+  preparedQuestions = [];
+  surfacedFor = null;
+  // The buttons' kept answers, the Screen toggle, and every notice about it.
+  forgetAnswers();
+  setScreen(false);
+  el('screenToggle').hidden = true;
+  cancelAutoStop();
+  callAction = null;
+  el('callBanner').hidden = true;
+  el('meetingBanner').hidden = true;
+  clearTimeout(nudgeTimer);
+  el('talkNudge').hidden = true;
+  el('talkTime').hidden = true;
+  el('askInput').value = '';
+  // And what was drawn from it, on screen or hidden, as it was at start.
+  for (const id of ['brief', 'criteria', 'toAsk', 'suggestion', 'captions', 'answerBody']) el(id).replaceChildren();
+  el('nextCall').textContent = '';
+  el('engagement').textContent = '…';
+  el('scoreValue').textContent = '0';
+  el('scoreFill').style.width = '';
+  el('scoreMeter').setAttribute('aria-valuenow', '0');
+  el('keeping').textContent = '';
+  askPlaceholder();
+}
+
 function showSignedOut(remembers) {
   signedIn = false;
+  shownEmail = null;
+  forgetCall();
   agreed = false;
+  el('whoEmail').textContent = '';
   el('agreement').hidden = true;
   el('listen').disabled = true;
   el('assist').hidden = true;
-  el('nextCall').textContent = '';
   el('brief').hidden = true;
   el('toAsk').hidden = true;
   el('details').hidden = true;
@@ -1530,7 +1660,6 @@ el('signout').addEventListener('click', async () => {
   // A call in progress is not carried across accounts.
   if (listening) stopListening();
   await api.signOut();
-  state = null;
   const session = await api.session();
   showSignedOut(session.remembers);
 });
@@ -1548,12 +1677,18 @@ api.session().then((session) => {
 api.onSessionChanged((session) => {
   if (session.email) {
     if (!signedIn) showSignedIn(session.email);
+    else if (session.email !== shownEmail) {
+      // Signed in, but as someone other than the person on screen: nothing
+      // of theirs carries over, and a call in progress is theirs too.
+      if (listening) stopListening();
+      forgetCall();
+      showSignedIn(session.email);
+    }
     return;
   }
   // Auth refused to renew the sign-in: a call in progress has nowhere to
   // save, so it stops here rather than failing line by line.
   if (listening) stopListening();
-  state = null;
   showSignedOut(session.remembers);
   setStatus('signed out: sign in again to connect');
 });

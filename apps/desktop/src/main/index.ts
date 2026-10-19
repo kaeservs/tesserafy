@@ -15,7 +15,7 @@
  * loud so a screenshot of the share settles the question without anyone
  * squinting.
  */
-import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, nativeImage, net, safeStorage, screen, shell } from 'electron';
+import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, Menu, nativeImage, net, safeStorage, screen, shell } from 'electron';
 import { execFile } from 'node:child_process';
 import { readFile, rm, writeFile } from 'node:fs/promises';
 import { release } from 'node:os';
@@ -32,7 +32,7 @@ import {
 } from './appearance';
 import { scorecardName } from './scorecard';
 import { maskRect, overlayInShot } from './screenshot';
-import { Session, type Store } from './session';
+import { isSupabaseAuth, Session, type Store } from './session';
 import {
   callChange,
   MAC_BUNDLE_ID,
@@ -47,6 +47,19 @@ import { ASSIST_SHORTCUT, MOVE_SHORTCUTS, SHORTCUTS, shortcutLabel, type MoveDir
 import { createTray, type OverlayTray } from './tray';
 import { isNewer, latestOverlayRelease, RELEASES_API, type Release } from './updates';
 import { isChannel, MAX_CHUNK_BYTES, Streams, type OpenSocket } from './transcribe';
+
+/*
+ * An installed overlay will not run with a remote-debugging switch. No fuse
+ * turns these two off (electron-builder.yml), and with either one any program
+ * running as this user could relaunch the overlay and drive its page over the
+ * DevTools protocol — calling window.overlay as whoever is signed in. So it
+ * exits here, before there is a window or a session to drive. A development
+ * build keeps them, for the tests that attach to it.
+ */
+const REMOTE_DEBUGGING = ['remote-debugging-port', 'remote-debugging-pipe'];
+if (app.isPackaged && REMOTE_DEBUGGING.some((name) => app.commandLine.hasSwitch(name))) {
+  app.exit(1);
+}
 
 let overlay: BrowserWindow | null = null;
 let tray: OverlayTray | null = null;
@@ -143,8 +156,11 @@ let placed: Rect | null = null;
  * Where the product is. A development build may be pointed elsewhere; an
  * installed one never is — the password and every token go to this address,
  * and any program running as the same user can set an environment variable.
+ * The app's own domain, which answers /auth/client-config and every /api/
+ * route the overlay calls; the vercel.app address still answers overlays
+ * released before it.
  */
-const PRODUCTION_URL = 'https://web-beta-khaki-cxdkp6udxk.vercel.app';
+const PRODUCTION_URL = 'https://app.tesserafy.com';
 const BASE_URL = (!app.isPackaged && process.env['TESSERAFY_URL']) || PRODUCTION_URL;
 /**
  * The scorecard to fall back on when the dashboard names none. Which one a
@@ -295,8 +311,12 @@ type MicrophoneReading = MicrophoneUser[] | 'unsupported' | null;
 /** How this computer says which apps are using the microphone, or null where it cannot. */
 function microphoneReader(): ((done: (now: MicrophoneReading) => void) => void) | null {
   if (process.platform === 'win32') {
+    // By its full path: a bare 'reg' is looked for in the current folder
+    // before PATH, and a reg.exe left in whatever folder the overlay was
+    // started from would run every four seconds.
+    const reg = join(process.env['SystemRoot'] ?? 'C:\\Windows', 'System32', 'reg.exe');
     return (done) =>
-      execFile('reg', ['query', MICROPHONE_KEY, '/s'], { windowsHide: true, maxBuffer: 1024 * 1024 }, (error, stdout) =>
+      execFile(reg, ['query', MICROPHONE_KEY, '/s'], { windowsHide: true, maxBuffer: 1024 * 1024 }, (error, stdout) =>
         done(error ? null : meetingMicrophoneUsers(stdout, process.execPath)),
       );
   }
@@ -375,6 +395,9 @@ function createOverlay(): BrowserWindow {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      // An installed overlay's page cannot be opened in DevTools, where its
+      // console would call window.overlay as whoever is signed in.
+      devTools: !app.isPackaged,
       zoomFactor: SCALE[appearance.size],
     },
   });
@@ -403,8 +426,20 @@ function createOverlay(): BrowserWindow {
   // The microphone, and the computer's sound output for transcribing the other
   // side (ADR 0022): only for the overlay's own page, never anything else.
   const allowed = (permission: string) => permission === 'media' || permission === 'display-capture';
-  window.webContents.session.setPermissionRequestHandler((contents, permission, allow) =>
-    allow(contents === window.webContents && allowed(permission) && own(contents.getURL())),
+  // 'media' is the camera as well as the microphone, and the overlay never
+  // needs a camera: a request is granted only when everything it asks for is
+  // sound. The capture of the sound output asks for no media type at all
+  // (measured on Electron 39), so it passes, and setDisplayMediaRequestHandler
+  // below decides what it gets.
+  const soundOnly = (details: { mediaTypes?: readonly string[] }) =>
+    (details.mediaTypes ?? []).every((type) => type === 'audio');
+  window.webContents.session.setPermissionRequestHandler((contents, permission, allow, details) =>
+    allow(
+      contents === window.webContents &&
+        allowed(permission) &&
+        own(contents.getURL()) &&
+        (permission !== 'media' || ('mediaTypes' in details && soundOnly(details))),
+    ),
   );
   window.webContents.session.setPermissionCheckHandler((contents, permission) =>
     contents === window.webContents && allowed(permission) && own(contents?.getURL() ?? ''),
@@ -453,7 +488,38 @@ void app.whenReady().then(async () => {
   // an installed build; this covers a development run.
   if (process.platform === 'darwin') app.dock?.hide();
   if (!firstInstance) return;
-  const session = new Session(BASE_URL, encryptedStore(), Date.now, `${app.getVersion()} ${process.platform}`);
+  // An app that sets no menu gets Electron's, whose Reload and Toggle
+  // Developer Tools answer their keys while the overlay has focus. An
+  // installed one has only what editing text needs: on a Mac, copy and paste
+  // work through these roles. The overlay's own shortcuts are global and not
+  // in any menu. A development build keeps Electron's.
+  if (app.isPackaged) {
+    Menu.setApplicationMenu(
+      Menu.buildFromTemplate([
+        {
+          label: 'Edit',
+          submenu: [
+            { role: 'undo' },
+            { role: 'redo' },
+            { type: 'separator' },
+            { role: 'cut' },
+            { role: 'copy' },
+            { role: 'paste' },
+            { role: 'selectAll' },
+          ],
+        },
+      ]),
+    );
+  }
+  // An installed overlay sends a password and a refresh token only to
+  // Supabase Auth, whatever address the web app names (./session).
+  const session = new Session(
+    BASE_URL,
+    encryptedStore(),
+    Date.now,
+    `${app.getVersion()} ${process.platform}`,
+    app.isPackaged ? isSupabaseAuth : undefined,
+  );
   // Before the window asks who is signed in, so a returning user is not shown
   // a sign-in form for the half-second a refresh takes.
   const resumed = session.resume().catch(() => false);
@@ -842,9 +908,13 @@ void app.whenReady().then(async () => {
     (channel, heard) => overlay?.webContents.send('overlay:transcript', { channel, kind: heard.kind, text: heard.text }),
     (channel, message) => overlay?.webContents.send('overlay:transcript-trouble', { channel, message }),
   );
-  ipcMain.handle('overlay:transcribe-start', async () => {
+  // The token is for one call: the server grants it only for a live call
+  // this person started and that is still going, so the page creates the
+  // call first and names it here.
+  ipcMain.handle('overlay:transcribe-start', async (_event, conversationId: unknown) => {
     if (typeof WebSocket === 'undefined') return { error: 'This build cannot open a transcription stream.' };
-    const granted = (await post('/api/live/transcription-token', {})) as {
+    if (!isId(conversationId)) return { error: 'Transcription is for a call: start the call first.' };
+    const granted = (await post('/api/live/transcription-token', { conversationId })) as {
       token?: unknown;
       url?: unknown;
       error?: string;

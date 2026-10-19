@@ -240,6 +240,9 @@ importers:
 
   apps/desktop:
     devDependencies:
+      '@electron/fuses':
+        specifier: 1.8.0
+        version: 1.8.0
       '@tesserafy/scoring':
         specifier: workspace:*
         version: link:../../packages/scoring
@@ -247,8 +250,8 @@ importers:
         specifier: 26.5.1
         version: 26.5.1
       electron:
-        specifier: 39.2.6
-        version: 39.2.6(supports-color@7.2.0)
+        specifier: 39.8.10
+        version: 39.8.10(supports-color@7.2.0)
       electron-builder:
         specifier: 26.15.3
         version: 26.15.3(electron-builder-squirrel-windows@26.15.3)(supports-color@7.2.0)
@@ -1781,8 +1784,8 @@ packages:
     resolution: {integrity: sha512-bO3y10YikuUwUuDUQRM4KfwNkKhnpVO7IPdbsrejwN9/AABJzzTQ4GeHwyzNSrVO+tEH3/Np255a3sVZpZDjvg==}
     engines: {node: '>=8.0.0'}
 
-  electron@39.2.6:
-    resolution: {integrity: sha512-dHBgTodWBZd+tL1Dt0PSh/CFLHeDkFCTKCTXu1dgPhlE9Z3k2zzlBQ9B2oW55CFsKanBDHiUomHJNw0XaSdQpA==}
+  electron@39.8.10:
+    resolution: {integrity: sha512-zbYtGPYUI7PzqLAzkk21Rk6j67WN0hxn0Mq/njErZo1d0HSf33is4f8ICI5fMLy5vYe0JtCtM5sYunNOaochSQ==}
     engines: {node: '>= 12.20.55'}
     hasBin: true
 
@@ -4353,7 +4356,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  electron@39.2.6(supports-color@7.2.0):
+  electron@39.8.10(supports-color@7.2.0):
     dependencies:
       '@electron/get': 2.0.3(supports-color@7.2.0)
       '@types/node': 22.20.3

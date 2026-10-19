@@ -108,9 +108,10 @@ contextBridge.exposeInMainWorld('overlay', {
   openTerms: (): Promise<void> => ipcRenderer.invoke('overlay:open-terms'),
   agree: (): Promise<{ agreedAt?: string; termsVersion?: string; error?: string }> => ipcRenderer.invoke('overlay:agree'),
   // Both sides of the call as text (ADR 0022): the main process holds the
-  // streams; the page sends audio and is told what was heard.
-  transcribeStart: (): Promise<{ ok?: boolean; error?: string; upgrade?: boolean }> =>
-    ipcRenderer.invoke('overlay:transcribe-start'),
+  // streams; the page sends audio and is told what was heard. The streams
+  // are for one call, already started, which the page names.
+  transcribeStart: (conversationId: string): Promise<{ ok?: boolean; error?: string; upgrade?: boolean }> =>
+    ipcRenderer.invoke('overlay:transcribe-start', conversationId),
   transcribeStop: (): Promise<void> => ipcRenderer.invoke('overlay:transcribe-stop'),
   sendAudio: (channel: 'me' | 'them', chunk: ArrayBuffer): void => ipcRenderer.send('overlay:audio', channel, chunk),
   onTranscript: (listener: (heard: { channel: 'me' | 'them'; kind: 'interim' | 'utterance'; text: string }) => void): void => {

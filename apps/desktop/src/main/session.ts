@@ -17,6 +17,9 @@
  * Auth's address and publishable key come from the web app's public
  * /auth/client-config, so the overlay is configured with one thing: where
  * the product is. Both values already ship to every browser that loads it.
+ * The address is still checked before anything is sent to it (`authAllowed`):
+ * the password and the refresh token go there, and a web app that named some
+ * other address would otherwise be sent both.
  *
  * Storage is passed in rather than imported so this module runs under plain
  * Node — which is how it is checked against the real Auth server without
@@ -59,8 +62,20 @@ const RENEW_BEFORE_MS = 60_000;
  */
 class Unreachable extends Error {}
 
-/** What a renewal came to. */
-type Renewal = 'renewed' | 'refused' | 'unreachable';
+/**
+ * Supabase Auth, over https: the only place an installed overlay sends a
+ * password or a refresh token (index.ts). A development build is pointed at
+ * a local stack, which is neither, so it is not held to this.
+ */
+export function isSupabaseAuth(url: URL): boolean {
+  return url.protocol === 'https:' && url.hostname.endsWith('.supabase.co');
+}
+
+/**
+ * What a renewal came to. Superseded: someone signed in or out while it was
+ * under way, so its answer belongs to a session that has ended.
+ */
+type Renewal = 'renewed' | 'refused' | 'unreachable' | 'superseded';
 
 export class Session {
   private config: ClientConfig | null = null;
@@ -68,7 +83,16 @@ export class Session {
   private refreshToken: string | null = null;
   private expiresAt = 0;
   private email: string | null = null;
-  private renewing: Promise<Renewal> | null = null;
+  /**
+   * Which session this is. Signing in, signing out and forgetting each start
+   * a new one, and a renewal begun under an earlier one adopts nothing and
+   * saves nothing when it comes back. Without it, account A's renewal landing
+   * after B signed in made the overlay A again, silently, and saved A's
+   * token; one landing after a sign-out undid it.
+   */
+  private generation = 0;
+  /** The renewal under way, shared by whoever asks while it is, and which session it is for. */
+  private renewing: { generation: number; done: Promise<Renewal> } | null = null;
   /** Told when a session ends without the person signing out: Auth refused its renewal. */
   onSignedOut: (() => void) | null = null;
 
@@ -78,6 +102,14 @@ export class Session {
     private readonly now: () => number = Date.now,
     /** Said on every API call: which overlay this is ("0.1.15 win32"), so the console can show who needs to update. */
     private readonly client: string | null = null,
+    /**
+     * Whether the Auth address the web app names may be sent a password and
+     * a refresh token. Anything, unless told otherwise: tests and a
+     * development build use addresses of their own. One that fails is
+     * treated as Auth out of reach, so nothing is sent and a saved sign-in is
+     * kept rather than forgotten.
+     */
+    private readonly authAllowed: (url: URL) => boolean = () => true,
   ) {}
 
   get signedInAs(): string | null {
@@ -97,8 +129,21 @@ export class Session {
     if (this.config) return this.config;
     const response = await fetch(new URL('/auth/client-config', this.baseUrl));
     if (!response.ok) throw new Error(`could not reach ${this.baseUrl} (${response.status})`);
-    this.config = (await response.json()) as ClientConfig;
+    const config = (await response.json()) as ClientConfig;
+    // Not kept when it fails, so the next try asks again.
+    if (!this.trusted(config.supabaseUrl)) {
+      throw new Unreachable('could not reach Tesserafy: it named a sign-in address this overlay does not use');
+    }
+    this.config = config;
     return this.config;
+  }
+
+  private trusted(supabaseUrl: unknown): boolean {
+    try {
+      return typeof supabaseUrl === 'string' && this.authAllowed(new URL(supabaseUrl));
+    } catch {
+      return false;
+    }
   }
 
   /** The tokens, or null when Auth refused them; throws Unreachable when Auth could not be asked. */
@@ -164,47 +209,66 @@ export class Session {
     // One message for a wrong password and an unknown account, as the web
     // form gives: saying which would make this an account directory.
     if (!tokens) return { ok: false, message: 'That username and password did not match.' };
+    // A new session from here, and only once the password was accepted: a
+    // mistyped one leaves whatever was there as it was.
+    this.generation += 1;
     this.email = tokens.user?.email ?? email;
     await this.adopt(tokens);
     return { ok: true, email: this.email };
   }
 
   /**
-   * Renews the access token. Concurrent callers share one renewal. Refused,
+   * Renews the access token. Concurrent callers share one renewal — unless a
+   * sign-in or sign-out has happened since it began: its answer is then not
+   * this session's, so a caller from now on gets a renewal of its own.
+   */
+  private renew(): Promise<Renewal> {
+    if (this.renewing?.generation === this.generation) return this.renewing.done;
+    const generation = this.generation;
+    const done = this.renewal(generation).finally(() => {
+      // A later renewal may have taken the slot; that one is not this one's to clear.
+      if (this.renewing?.done === done) this.renewing = null;
+    });
+    this.renewing = { generation, done };
+    return done;
+  }
+
+  /**
+   * One renewal, for the session that was current when it began. Refused,
    * the sign-in is over and forgotten, saved copy included, and onSignedOut
    * says so; out of reach, it is kept for the next try.
    */
-  private renew(): Promise<Renewal> {
-    if (this.renewing) return this.renewing;
-    this.renewing = (async (): Promise<Renewal> => {
-      try {
-        if (!this.refreshToken) return 'refused';
-        const tokens = await this.token('refresh_token', { refresh_token: this.refreshToken });
-        if (!tokens) {
-          const wasSignedIn = this.accessToken !== null;
-          this.forget();
-          await this.store.clear();
-          if (wasSignedIn) this.onSignedOut?.();
-          return 'refused';
-        }
-        await this.adopt(tokens);
-        return 'renewed';
-      } catch {
-        // Unreachable, or the saved copy could not be written: the session
-        // is not known to be over, so nothing is forgotten.
-        return 'unreachable';
-      } finally {
-        this.renewing = null;
+  private async renewal(generation: number): Promise<Renewal> {
+    try {
+      if (!this.refreshToken) return 'refused';
+      const tokens = await this.token('refresh_token', { refresh_token: this.refreshToken });
+      // Signed in or out while Auth was being asked: the answer, refusal or
+      // tokens, is about a session that is no longer this one. Adopting it
+      // would bring the last account back, or undo the sign-out, and save
+      // its refresh token.
+      if (generation !== this.generation) return 'superseded';
+      if (!tokens) {
+        const wasSignedIn = this.accessToken !== null;
+        this.forget();
+        await this.store.clear();
+        if (wasSignedIn) this.onSignedOut?.();
+        return 'refused';
       }
-    })();
-    return this.renewing;
+      await this.adopt(tokens);
+      return 'renewed';
+    } catch {
+      // Unreachable, or the saved copy could not be written: the session
+      // is not known to be over, so nothing is forgotten.
+      return 'unreachable';
+    }
   }
 
   /** A token good for at least the next minute, or null when signed out. */
   async bearer(): Promise<string | null> {
     if (!this.accessToken && !this.refreshToken) return null;
+    const generation = this.generation;
     if (!this.accessToken || this.now() > this.expiresAt - RENEW_BEFORE_MS) {
-      if ((await this.renew()) !== 'renewed') return null;
+      if ((await this.renew()) !== 'renewed' || generation !== this.generation) return null;
     }
     return this.accessToken;
   }
@@ -225,17 +289,33 @@ export class Session {
         },
       });
 
+    const generation = this.generation;
     const token = await this.bearer();
     if (!token) return null;
     const first = await call(token);
     if (first.status !== 401) return first;
-    if ((await this.renew()) !== 'renewed' || !this.accessToken) return first;
+    // Tried again only as whoever it was first sent as. After a sign-in or a
+    // sign-out since, a renewed token is someone else's, or nobody's, and
+    // this request still carries what the last person asked.
+    if (generation !== this.generation) return first;
+    if ((await this.renew()) !== 'renewed' || generation !== this.generation || !this.accessToken) return first;
     return call(this.accessToken);
   }
 
-  /** Signs this overlay out, and only this overlay: the web app stays signed in. */
+  /**
+   * Signs this overlay out, and only this overlay: the web app stays signed in.
+   *
+   * Auth ends the session only when asked with a token it still accepts, and
+   * the one held may have expired an hour ago — or, offline at start-up,
+   * there may be none yet. So a fresh one is had first where it can be; one
+   * Auth turned away left the refresh token alive on the server for good.
+   */
   async signOut(): Promise<void> {
-    const token = this.accessToken;
+    // A new session first: a renewal already under way adopts and saves
+    // nothing, so it cannot undo this, and any renewal the logout needs is
+    // the logout's own.
+    this.generation += 1;
+    const token = await this.bearer();
     if (token) {
       try {
         const config = await this.clientConfig();
@@ -253,6 +333,9 @@ export class Session {
   }
 
   private forget(): void {
+    // And a new session again: a renewal begun since (the logout's own, or
+    // a call made while it was out) brings nothing back.
+    this.generation += 1;
     this.accessToken = null;
     this.refreshToken = null;
     this.expiresAt = 0;

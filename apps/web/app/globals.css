@@ -1835,6 +1835,23 @@ input[type='search'] {
   padding: 0.75rem 1rem;
 }
 
+/* Home's one call to action on a starting plan: the words take the room, the button keeps to the right until a phone has none. */
+.upgrade-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.25rem;
+  margin-top: 1.25rem;
+  padding: 1rem 1.25rem;
+}
+
+.upgrade-cta > p {
+  flex: 1 1 0;
+  min-width: 16rem;
+  margin: 0;
+}
+
 /* Sending the follow-up from the call page, and what was sent. */
 .follow-up-send {
   margin-top: 1rem;

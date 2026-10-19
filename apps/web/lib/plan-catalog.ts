@@ -38,6 +38,12 @@ export function dollars(cents: number): string {
   return `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
 }
 
+/** The cheapest price among plans that have one, for "plans start at …"; null when none is priced. */
+export function startingPrice(plans: readonly CatalogRow[]): number | null {
+  const prices = plans.flatMap((plan) => (plan.price_usd_cents === null ? [] : [plan.price_usd_cents]));
+  return prices.length > 0 ? Math.min(...prices) : null;
+}
+
 /** "$19.99 a seat a month", "Free". */
 export function priceLine(plan: CatalogRow): string {
   if (plan.price_usd_cents === null) return plan.id === 'free' ? 'Free' : 'Set by Tesserafy';

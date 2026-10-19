@@ -3,7 +3,7 @@
  * plan changes — up from Free, across to Incognito, and down again.
  */
 import { describe, expect, it } from 'vitest';
-import { planChanges, planFacts, priceLine, type CatalogRow } from '../lib/plan-catalog';
+import { planChanges, planFacts, priceLine, startingPrice, type CatalogRow } from '../lib/plan-catalog';
 
 const row = (over: Partial<CatalogRow>): CatalogRow => ({
   id: 'x', name: 'X', price_usd_cents: null, rank: 0, incognito: false, per_seat: false, max_seats: null,
@@ -27,6 +27,16 @@ describe('planFacts', () => {
     expect(planFacts(incognito)[0]).toMatch(/a seat a month$/);
     expect(planFacts(incognito)).toContain('The overlay is hidden from screen sharing');
     expect(priceLine(incognito)).toBe('$59.99 a seat a month');
+  });
+});
+
+describe('startingPrice', () => {
+  it('is the cheapest priced plan, for Home’s one line on Free', () => {
+    expect(startingPrice([incognito, pro])).toBe(1999);
+  });
+  it('is null when no plan has a price, so the line names none', () => {
+    expect(startingPrice([free])).toBeNull();
+    expect(startingPrice([])).toBeNull();
   });
 });
 

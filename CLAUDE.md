@@ -493,13 +493,15 @@ only in its own words: a code it knows, never the text.
 The repository is public. No credential — real, test, or a fallback — goes
 in any file: the e2e specs read `E2E_USERNAME`/`E2E_PASSWORD` from the
 environment (`e2e/credentials.ts`) and fail without them. CI uploads no
-artifacts but the overlay installers it builds, and records no traces, and `pnpm health` in Actions prints counts,
-kinds and route names, never a message. Every AI path spends an allowance:
+artifacts but the overlay installers of a release or a run by hand, never a
+pull request's, and records no traces; `pnpm health` in Actions prints counts,
+kinds and route names, never a message, and the browser suite names tests,
+never a page's words (`e2e/quiet-reporter.ts`). Every AI path spends an allowance:
 Assist spends live seconds a press, a suggestion only follows the caller's
 own charged detection, and a new route that calls a model without a meter is
 the bug the 2026-10-12 review found
-(`docs/engineering/security-review-2026-10-12.md`, which lists what is still
-open).
+(`docs/engineering/security-review-2026-10-12.md`; what is still open is in
+its successor, `security-review-2026-10-19.md`).
 
 ## Commands
 

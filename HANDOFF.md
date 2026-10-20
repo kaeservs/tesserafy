@@ -253,7 +253,7 @@ margins of about 64%, 51% and 81%. Payments will go through Dodo Payments
   - read Paragon / AI Paragon files.
 - **Tests never send a real screen to the model;** use a rendered slide.
 
-## 4. Where things stand (2026-10-19)
+## 4. Where things stand (2026-10-20)
 
 **Merged 2026-10-16: [kaeservs/tesserafy#209](https://github.com/kaeservs/tesserafy/pull/209)**, fixes from a full read of the
 project (2026-10-14), every one traced in the code first:
@@ -446,7 +446,7 @@ starting plan shows one line, "Upgrade to keep going", with See plans, in
 place of the three plan cards (`components/upgrade-cta.tsx`). After it: CI
 on main green, deploys Ready, e2e 34/34 and health clean.
 
-**Security review (2026-10-19), [kaeservs/tesserafy#216](https://github.com/kaeservs/tesserafy/pull/216):** the owner asked for
+**Security review (2026-10-19), merged 2026-10-20 as [kaeservs/tesserafy#216](https://github.com/kaeservs/tesserafy/pull/216):** the owner asked for
 a full check of vulnerabilities, leaks and passwords. Five reviews ran, one
 each for the web app, the database, sign-in and sessions, secrets and CI,
 and the overlay. The write-up is `docs/engineering/security-review-2026-10-19.md`.
@@ -472,6 +472,15 @@ and the overlay. The write-up is `docs/engineering/security-review-2026-10-19.md
   - the service-role key is only on the console's Vercel project;
   - previews are behind Vercel's login and cannot spend;
   - one unused credential is on the web project (section 5).
+- **After the merge (2026-10-20):** CI on main green; both production
+  deploys succeeded (web 07:04, console 07:05 UTC, read from GitHub's
+  deployment records, since the Vercel connector had lost the team); e2e
+  34/34 against production, its log now names tests only; health clean.
+  Everything but the migration is live: until `supabase db push`,
+  production keeps the old support-window functions.
+- **Dependabot** opened its first pull request the same morning,
+  [kaeservs/tesserafy#217](https://github.com/kaeservs/tesserafy/pull/217): six action bumps, each a major version, all green. The
+  artifact steps run only on a release, which no pull request exercises.
 
 **Sign-up** is closed until email (Resend) works and payments are live.
 
@@ -480,20 +489,26 @@ until real transcripts arrive.
 
 ## 5. Waiting on the owner
 
-- **Database, once #216 is merged:** run `supabase db push` from `main`,
-  then `pnpm db:types`. It applies the 2026-10-19 security migration together
-  with #213's (and #209's, if not yet). Never #213's alone, so never before
-  #216 is in `main`: #213's ended a support window in a way that let the
-  window's unused link outlive it, which the security migration replaces.
+- **Database:** run `supabase db push` from `main` (#216 is in it), then
+  `pnpm db:types`. It applies the 2026-10-19 security migration together with
+  #213's (and #209's, if not yet). Never from a checkout older than #216:
+  #213's alone ended a support window in a way that let the window's unused
+  link outlive it, which the security migration replaces.
 - **Operator two-step sign-in:** enrol an authenticator on the console, then
   turn the requirement on. Until then one password opens the console.
 - **The sample call:** decide whether its invented data should stay out of
   insights, Ask, Reports and Home.
 - **Overlay 0.1.29:** release `overlay-v0.1.29` on GitHub's website, target
-  `main` (section 3), soon after #216 merges. It carries the security
-  review's overlay fixes, and from #216 the web app grants a transcription
-  token only for a call the overlay has started, which 0.1.29 is the first to
-  do: older overlays are told to update once Deepgram is on.
+  `main` (section 3), now that #216 is merged. It carries the security
+  review's overlay fixes, and the web app now grants a transcription token
+  only for a call the overlay has started, which 0.1.29 is the first to do:
+  older overlays are told to update once Deepgram is on.
+- **Dependabot's #217:** merge it after 0.1.29 is released, so that release
+  runs on the pins already proven; the next release then tries the new
+  artifact steps.
+- **The Vercel connector** no longer sees the tesserafy team. Reconnect it
+  at claude.ai/customize/connectors with that team, then start a new
+  session, so a session can check deploys and settings again.
 - **Rotate the e2e account's password.** It was committed to this public repo
   and stays in history. Sign that account out everywhere, then set the new
   one in Actions secrets (`E2E_PASSWORD`) and in `.env`.

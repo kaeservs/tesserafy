@@ -2,10 +2,21 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { recordFailure } from '@/lib/keep-alive';
 import { readLook } from '@/lib/overlay-look';
 import { createClient } from '@/lib/supabase/server';
 
 const reason = (message: string) => message.replace(/^[a-z_]+: /, '');
+
+/**
+ * A save that did not go through: recorded for us, and said on the page in
+ * its own words. The page used to print whatever the address carried, and
+ * the address is anyone's to write (security review, 2026-10-19).
+ */
+function failed(error: unknown, db: Awaited<ReturnType<typeof createClient>>, source: string): never {
+  recordFailure(error, { db, source });
+  redirect('/account/overlay?overlay=failed');
+}
 
 /**
  * How the overlay looks, set here rather than on the overlay. The overlay
@@ -21,7 +32,7 @@ export async function saveOverlayLook(formData: FormData): Promise<void> {
   });
   const supabase = await createClient();
   const { error } = await supabase.rpc('set_overlay_look', { p_look: { ...look } });
-  if (error) redirect(`/account/overlay?overlay=${encodeURIComponent(reason(error.message))}`);
+  if (error) failed(error, supabase, 'account/overlay/look');
   revalidatePath('/account/overlay');
   redirect('/account/overlay?overlay=saved');
 }
@@ -30,7 +41,7 @@ export async function saveOverlayLook(formData: FormData): Promise<void> {
 export async function saveDetectCalls(formData: FormData): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase.rpc('set_detect_calls', { p_on: formData.get('on') === 'on' });
-  if (error) redirect(`/account/overlay?overlay=${encodeURIComponent(reason(error.message))}`);
+  if (error) failed(error, supabase, 'account/overlay/detect');
   revalidatePath('/account/overlay');
   redirect('/account/overlay?overlay=saved');
 }

@@ -10,6 +10,9 @@
  * The audio goes to Deepgram for that call's transcript and nothing else:
  * every stream opts out of Deepgram's model improvement (`mip_opt_out`), as
  * calls are never used for anyone's own purposes.
+ *
+ * A token is for one call, named when it is asked for: a live call the
+ * caller started and that has not ended (`tokenFor`).
  */
 
 export function transcriptionAvailable(): boolean {
@@ -50,4 +53,38 @@ export async function grantToken(doFetch: typeof fetch = fetch): Promise<{ token
     throw new Error(`Deepgram refused a token: ${response.status} ${body.err_msg ?? ''}`.trim());
   }
   return { token: body.access_token, expiresIn: body.expires_in ?? 60 };
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isCallId(value: unknown): value is string {
+  return typeof value === 'string' && UUID.test(value);
+}
+
+/**
+ * How long a live call can still be going on. Nothing marks one as stopped:
+ * a call is live for as long as lines may be added to it, which
+ * append_live_segment allows for twelve hours after it starts. After that it
+ * has ended, as far as anything here can tell.
+ */
+export const LIVE_CALL_HOURS = 12;
+
+/** The call a token is asked for, as the caller can read it (RLS), or null when they cannot. */
+export interface CallForToken {
+  readonly added_by: string | null;
+  readonly captured_live: boolean;
+  readonly created_at: string;
+}
+
+/**
+ * Whether a token may be granted for this call: one started live, by this
+ * person, that could still be going on. A call the caller cannot read — in
+ * another company, or no such id — reads the same as a colleague's: not
+ * theirs.
+ */
+export function tokenFor(call: CallForToken | null, userId: string, now: Date = new Date()): 'going' | 'not theirs' | 'ended' {
+  if (!call || !call.captured_live || call.added_by !== userId) return 'not theirs';
+  const started = Date.parse(call.created_at);
+  if (!Number.isFinite(started) || now.getTime() - started > LIVE_CALL_HOURS * 3_600_000) return 'ended';
+  return 'going';
 }

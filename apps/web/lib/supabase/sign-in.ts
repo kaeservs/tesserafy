@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { publicSupabaseEnv } from '../env';
+import { SESSION_COOKIE } from './cookies';
 
 /**
  * The client that sends sign-in emails, and the only one using the implicit
@@ -22,6 +23,7 @@ export async function createSignInClient() {
 
   return createServerClient(url, publishableKey, {
     auth: { flowType: 'implicit' },
+    cookieOptions: SESSION_COOKIE,
     cookies: {
       getAll() {
         return cookieStore.getAll();

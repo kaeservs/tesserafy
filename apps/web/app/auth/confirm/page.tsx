@@ -1,9 +1,10 @@
 'use client';
 
+import type { Session } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { parseAuthFragment } from '@/lib/auth-fragment';
-import { createClient } from '@/lib/supabase/browser';
+import { createClient, sessionFromLink } from '@/lib/supabase/browser';
 
 /**
  * Where an emailed sign-in link lands.
@@ -24,33 +25,52 @@ import { createClient } from '@/lib/supabase/browser';
  * a fragment here (catch-session), so a link could sign someone into an
  * account that is not theirs — their next upload landing in a stranger's
  * company. Someone already signed in as another account is asked first, and
- * the address a link signs in as is always shown. The token_hash link, once
- * email is ours, removes the fragment altogether.
+ * the address a link signs in as is always shown. Both are decided by the
+ * account Auth says the link is for (sessionFromLink), never by the claims in
+ * its access token, which anyone can write: a forged one naming the person's
+ * own account once skipped the question and showed their own address. The
+ * token_hash link, once email is ours, removes the fragment altogether.
  */
 
-/** Who a sign-in link is for, read from its access token. Nothing is trusted from it. */
-function subjectOf(accessToken: string): { id: string | null; email: string | null } {
-  try {
-    const part = accessToken.split('.')[1] ?? '';
-    const json = atob(part.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(part.length / 4) * 4, '='));
-    const claims = JSON.parse(json) as { sub?: unknown; email?: unknown };
-    return {
-      id: typeof claims.sub === 'string' ? claims.sub : null,
-      email: typeof claims.email === 'string' ? claims.email : null,
-    };
-  } catch {
-    return { id: null, email: null };
-  }
+/** A link's session, from Auth, waiting on the go-ahead to replace another account's. */
+interface Pending {
+  session: Session;
+  invited: boolean;
 }
+
 export default function ConfirmPage() {
   const router = useRouter();
   const [failure, setFailure] = useState<string | null>(null);
   const [linkFor, setLinkFor] = useState<string | null>(null);
-  // Signed in as someone else: who, and the go-ahead to switch.
+  // Signed in as someone else: who, and the link's session until they decide.
   const [already, setAlready] = useState<string | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
+  const [pending, setPending] = useState<Pending | null>(null);
+  const started = useRef(false);
+
+  const signIn = useCallback(
+    async ({ session, invited }: Pending) => {
+      const { error: sessionError } = await createClient().auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
+      if (sessionError) {
+        setFailure(sessionError.code ?? 'session_failed');
+        return;
+      }
+      // An invited account was made by an operator and has no password;
+      // without one the person could only sign in again by email.
+      router.replace(invited ? '/account?invited=1' : '/conversations');
+    },
+    [router],
+  );
 
   useEffect(() => {
+    // Once. The link's refresh token is spent below, and spending it again —
+    // React runs effects twice in development — can make Auth revoke the
+    // session the first spend opened.
+    if (started.current) return;
+    started.current = true;
+
     const result = parseAuthFragment(window.location.hash);
 
     if (result.kind === 'error') {
@@ -62,36 +82,26 @@ export default function ConfirmPage() {
       return;
     }
 
-    const subject = subjectOf(result.session.accessToken);
-    setLinkFor(subject.email);
-    const supabase = createClient();
+    // Drop the fragment at once, so the tokens do not sit in the address bar
+    // or in history, and a reload does not try to spend them again.
+    window.history.replaceState(null, '', '/auth/confirm');
     void (async () => {
-      if (!confirmed) {
-        const { data } = await supabase.auth.getUser();
-        if (data.user && data.user.id !== subject.id) {
-          setAlready(data.user.email ?? 'another account');
-          return;
-        }
+      const link = await sessionFromLink(result.session.refreshToken);
+      if ('error' in link) {
+        setFailure(link.error);
+        return;
       }
-      await supabase.auth
-      .setSession({
-        access_token: result.session.accessToken,
-        refresh_token: result.session.refreshToken,
-      })
-      .then(({ error: sessionError }) => {
-        if (sessionError) {
-          setFailure(sessionError.code ?? 'session_failed');
-          return;
-        }
-        // Drop the fragment before navigating, so the tokens do not sit in the
-        // address bar or get carried into the next page's history entry.
-        window.history.replaceState(null, '', '/auth/confirm');
-        // An invited account was made by an operator and has no password;
-        // without one the person could only sign in again by email.
-        router.replace(result.session.invited ? '/account?invited=1' : '/conversations');
-      });
+      setLinkFor(link.session.user.email ?? null);
+      const { data } = await createClient().auth.getUser();
+      const opened = { session: link.session, invited: result.session.invited };
+      if (data.user && data.user.id !== link.session.user.id) {
+        setAlready(data.user.email ?? 'another account');
+        setPending(opened);
+        return;
+      }
+      await signIn(opened);
     })();
-  }, [router, confirmed]);
+  }, [signIn]);
 
   // In an effect, not in the render body. Navigating while rendering updates
   // the router mid-render, which React warns about and, under Strict Mode,
@@ -100,7 +110,7 @@ export default function ConfirmPage() {
     if (failure) router.replace(`/login?error=${encodeURIComponent(failure)}`);
   }, [failure, router]);
 
-  if (already && !confirmed) {
+  if (already && pending) {
     return (
       <main>
         <h1>Switch accounts?</h1>
@@ -112,7 +122,13 @@ export default function ConfirmPage() {
           <button type="button" onClick={() => router.replace('/conversations')}>
             Stay as {already}
           </button>
-          <button type="button" onClick={() => setConfirmed(true)}>
+          <button
+            type="button"
+            onClick={() => {
+              setAlready(null);
+              void signIn(pending);
+            }}
+          >
             Switch to {linkFor ?? 'the other account'}
           </button>
         </div>

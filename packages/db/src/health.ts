@@ -42,11 +42,33 @@ export interface FailureRow {
   readonly company_id?: string | null;
 }
 
+/** What a tier or a model name is made of. */
+const NAME = /^[a-z0-9._-]{1,64}$/i;
+
+/** Shown in place of a tier or a model that is not a name. */
+export const UNRECOGNISED = '(unrecognised)';
+
+/**
+ * A tier or a model as it may be shown: the name itself, or UNRECOGNISED.
+ *
+ * Both are written by whoever calls record_failure, and any signed-in member
+ * can. `pnpm health` prints them into a public Actions log, where a line that
+ * starts with `::` is an instruction to the runner: a model holding a newline
+ * and `::error title=…::…` would be an annotation on this repository and in
+ * the failure email. A name has no newline, no colon and no space in it, so
+ * anything else is shown as unrecognised rather than as written.
+ */
+export function printableName(value: string | null): string | null {
+  return value === null || NAME.test(value) ? value : UNRECOGNISED;
+}
+
 export interface FailureGroup {
   readonly kind: string;
   readonly source: string;
   readonly status: number | null;
+  /** A name, or UNRECOGNISED: see printableName. */
   readonly tier: string | null;
+  /** A name, or UNRECOGNISED: see printableName. */
   readonly model: string | null;
   readonly count: number;
   /** The most recent occurrence. */
@@ -78,8 +100,10 @@ export function groupFailures(rows: readonly FailureRow[]): FailureGroup[] {
         kind: latest.kind,
         source: latest.source,
         status: latest.status,
-        tier: latest.tier,
-        model: latest.model,
+        // Checked here, once, so the console's Failures page and the alarm
+        // show the same thing, and neither shows what a caller made up.
+        tier: printableName(latest.tier),
+        model: printableName(latest.model),
         count: sorted.length,
         last: latest.created_at,
         first: sorted.at(-1)!.created_at,

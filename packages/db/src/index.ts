@@ -72,6 +72,7 @@ export {
   ALARM_AT,
   alarming,
   groupFailures,
+  printableName,
   type FailureGroup,
   type FailureRow,
 } from './health';

@@ -22,7 +22,7 @@ interface Need {
 
 /** Kept by hand next to the scripts it describes. A new script adds a line. */
 const COMMANDS: Record<string, Need> = {
-  qa: { required: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'], optional: ['TESSERAFY_URL', 'SUPABASE_PUBLISHABLE_KEY'] },
+  qa: { required: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'QA_EMAIL', 'TESSERAFY_URL'], optional: ['SUPABASE_PUBLISHABLE_KEY'] },
   health: { required: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'] },
   support: { required: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPPORT_ADMIN_EMAIL'], optional: ['SUPABASE_PUBLISHABLE_KEY'] },
   costs: { required: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'] },

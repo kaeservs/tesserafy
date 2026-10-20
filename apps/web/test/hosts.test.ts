@@ -5,7 +5,7 @@
  */
 import { NextRequest } from 'next/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { appHref, appRedirect, isAppHost } from '../lib/hosts';
+import { appHref, appRedirect, fromAnotherHost, isAppHost } from '../lib/hosts';
 
 vi.mock('../lib/env', () => ({
   publicSupabaseEnv: () => ({ url: 'https://example.supabase.co', publishableKey: 'sb_publishable_x' }),
@@ -55,6 +55,58 @@ describe('appRedirect', () => {
     expect(appRedirect(at('/dashboard'), 'www.tesserafy.com', undefined)).toBeNull();
     expect(appRedirect(at('/dashboard'), 'www.tesserafy.com', 'not a url')).toBeNull();
   });
+
+  it('never sends a path that reads as another site’s address anywhere but the app', () => {
+    // Read as a link relative to the app, each of these was the address of
+    // evil.example: an open redirect from the landing page.
+    for (const path of ['//evil.example/x', '/\\evil.example', '/\t/evil.example', '///evil.example']) {
+      const target = appRedirect(at(path), 'www.tesserafy.com', APP);
+      expect(target?.origin, JSON.stringify(path)).toBe(APP);
+    }
+    expect(appRedirect(at('//evil.example/x?next=%2Fask'), 'www.tesserafy.com', APP)?.toString()).toBe(
+      'https://app.tesserafy.com//evil.example/x?next=%2Fask',
+    );
+  });
+
+  it('keeps an encoded slash or backslash encoded, on the app', () => {
+    expect(appRedirect(at('/%2F%2Fevil.example/x'), 'www.tesserafy.com', APP)?.toString()).toBe(
+      'https://app.tesserafy.com/%2F%2Fevil.example/x',
+    );
+    expect(appRedirect(at('/%5C%5Cevil.example'), 'www.tesserafy.com', APP)?.toString()).toBe(
+      'https://app.tesserafy.com/%5C%5Cevil.example',
+    );
+  });
+
+  it('holds for a path no parser has normalised, as an edge in front of Next might hand one over', () => {
+    // A URL parser turns `\` into `/` before this sees it; this is the shape
+    // the old code was exposed to when nothing had.
+    for (const pathname of ['/\\evil.example', '//evil.example', '/\\\\evil.example/x']) {
+      const raw = { pathname, search: '' } as URL;
+      expect(appRedirect(raw, 'www.tesserafy.com', APP)?.origin, JSON.stringify(pathname)).toBe(APP);
+    }
+  });
+});
+
+describe('fromAnotherHost', () => {
+  it('is false for a page on the host the request went to, however its host is written', () => {
+    expect(fromAnotherHost('https://app.tesserafy.com', 'app.tesserafy.com')).toBe(false);
+    expect(fromAnotherHost('https://app.tesserafy.com', 'APP.tesserafy.com:443')).toBe(false);
+    expect(fromAnotherHost('http://localhost:3000', 'localhost:3000')).toBe(false);
+    expect(fromAnotherHost('http://127.0.0.1:3000', '127.0.0.1:3000')).toBe(false);
+  });
+
+  it('is true for a sibling subdomain, another port, an opaque origin or nonsense', () => {
+    expect(fromAnotherHost('https://n8n.tesserafy.com', 'app.tesserafy.com')).toBe(true);
+    expect(fromAnotherHost('https://tesserafy.com', 'app.tesserafy.com')).toBe(true);
+    expect(fromAnotherHost('http://localhost:3001', 'localhost:3000')).toBe(true);
+    expect(fromAnotherHost('null', 'app.tesserafy.com')).toBe(true);
+    expect(fromAnotherHost('not an origin', 'app.tesserafy.com')).toBe(true);
+    expect(fromAnotherHost('https://app.tesserafy.com', null)).toBe(true);
+  });
+
+  it('is false when there is no Origin at all: a program, not a page', () => {
+    expect(fromAnotherHost(null, 'app.tesserafy.com')).toBe(false);
+  });
 });
 
 describe('isAppHost and appHref', () => {
@@ -79,6 +131,11 @@ describe('the proxy, by host', () => {
   it('sends the landing page’s sign-in to the app', async () => {
     const response = await visit('www.tesserafy.com', '/login');
     expect(response.headers.get('location')).toBe('https://app.tesserafy.com/login');
+  });
+
+  it('sends a path shaped like another site’s address to the app, not to that site', async () => {
+    const response = await visit('www.tesserafy.com', '//evil.example/x');
+    expect(new URL(response.headers.get('location') ?? '').origin).toBe(APP);
   });
 
   it('serves the landing page on its own host', async () => {

@@ -392,9 +392,11 @@ owner's to set.
 with 0.1.26's fixes and #210's three buttons; 0.1.26 was never released on
 its own. Its installers built and attached themselves as designed, the tag's
 own run showing as cancelled. The Mac test and the S1 screen-share check are
-not done. **0.1.28** is #213's two overlay fixes (the status line after
-signing in, and Start's message while live calls are off); its version is
-bumped and it waits on the owner's release.
+not done. **0.1.28,** #213's two overlay fixes (the status line after
+signing in, and Start's message while live calls are off), was released
+2026-10-19: both builds green, the fuses checked, and the Windows and both
+Mac installers attached. **0.1.29** carries the security review's overlay
+fixes (below).
 
 **Full QA (2026-10-17), merged 2026-10-19 as [kaeservs/tesserafy#213](https://github.com/kaeservs/tesserafy/pull/213):**
 - **Production, through Actions:** e2e 34/34, health clean. A cloud session
@@ -439,6 +441,38 @@ bumped and it waits on the owner's release.
   `supabase db push`, production keeps the old support-window and Spend
   functions.
 
+**Merged 2026-10-19: [kaeservs/tesserafy#215](https://github.com/kaeservs/tesserafy/pull/215),** the owner's ask: Home on a
+starting plan shows one line, "Upgrade to keep going", with See plans, in
+place of the three plan cards (`components/upgrade-cta.tsx`). After it: CI
+on main green, deploys Ready, e2e 34/34 and health clean.
+
+**Security review (2026-10-19), [kaeservs/tesserafy#216](https://github.com/kaeservs/tesserafy/pull/216):** the owner asked for
+a full check of vulnerabilities, leaks and passwords. Five reviews ran, one
+each for the web app, the database, sign-in and sessions, secrets and CI,
+and the overlay. The write-up is `docs/engineering/security-review-2026-10-19.md`.
+- **It found a regression in #213's own migration**, not yet in production:
+  ending a support window early let its unused sign-in link start an
+  untracked session. `20261104090000_security_review.sql` replaces it, so
+  the two must be pushed together.
+- **Fixed:**
+  - support windows end what they started, and support sessions refuse
+    the customer's acts;
+  - follow-up sending is for paid plans only;
+  - provisioning gives a sign-in link only for an account it creates;
+  - the overlay forgets a call at sign-out, and moves to app.tesserafy.com;
+  - Electron's security patches;
+  - Secure cookies, an Origin check, and sign-in links that say whose they
+    are;
+  - a PDF is measured before it is read. Password-protected and
+    "restricted" PDFs are now refused, with a message to save an
+    unprotected copy or paste the text;
+  - CI actions pinned, and nothing from production in public logs;
+  - more, listed in the write-up.
+- **Production checked:**
+  - the service-role key is only on the console's Vercel project;
+  - previews are behind Vercel's login and cannot spend;
+  - one unused credential is on the web project (section 5).
+
 **Sign-up** is closed until email (Resend) works and payments are live.
 
 **Data:** only synthetic calls so far. Every accuracy figure is provisional
@@ -446,19 +480,28 @@ until real transcripts arrive.
 
 ## 5. Waiting on the owner
 
-- **#213's migration:** run `supabase db push`, then `pnpm db:types` (#209's
-  goes with it, if not yet). Until then a support window ended early still
-  counts, and Spend prices one seat.
+- **Database, once #216 is merged:** run `supabase db push` from `main`,
+  then `pnpm db:types`. It applies the 2026-10-19 security migration together
+  with #213's (and #209's, if not yet). Never #213's alone, so never before
+  #216 is in `main`: #213's ended a support window in a way that let the
+  window's unused link outlive it, which the security migration replaces.
+- **Operator two-step sign-in:** enrol an authenticator on the console, then
+  turn the requirement on. Until then one password opens the console.
 - **The sample call:** decide whether its invented data should stay out of
   insights, Ask, Reports and Home.
-- **Overlay 0.1.28:** release `overlay-v0.1.28` on GitHub's website, target
-  `main` (section 3).
+- **Overlay 0.1.29:** release `overlay-v0.1.29` on GitHub's website, target
+  `main` (section 3), soon after #216 merges. It carries the security
+  review's overlay fixes, and from #216 the web app grants a transcription
+  token only for a call the overlay has started, which 0.1.29 is the first to
+  do: older overlays are told to update once Deepgram is on.
 - **Rotate the e2e account's password.** It was committed to this public repo
-  and stays in history. Set the new one in Actions secrets (`E2E_PASSWORD`)
-  and in `.env`.
-- **Decide whether the repository stays public.** If it goes private: Claude's
-  GitHub connection works with private repos, but private repos have limited
-  free Actions minutes, and Mac builds count extra.
+  and stays in history. Sign that account out everywhere, then set the new
+  one in Actions secrets (`E2E_PASSWORD`) and in `.env`.
+- **Decide whether the repository stays public.** The 2026-10-19 review
+  recommends private: this file, the reviews and the Actions logs say a lot
+  about the product to anyone. If it goes private: Claude's GitHub
+  connection works with private repos, but private repos have limited free
+  Actions minutes, and Mac builds count extra.
 - **Live transcription:**
   - put `DEEPGRAM_API_KEY` on the web app's Vercel project (Production),
     redeploy, and remove it from the console's. Until then, the overlay's
@@ -469,10 +512,32 @@ until real transcripts arrive.
 - **Haiku 5.5 for Ask and suggestions:** OK for the ~25¢ comparison?
 - **Dodo Payments:** set it up and share the details. Open sign-up only once
   payments are live.
-- **Supabase:** turn on leaked-password protection.
+- **Supabase Auth settings to confirm** (from the 2026-10-19 review, which
+  could not read them):
+  - Confirm email on;
+  - Auth's own sign-up off while the app's is closed;
+  - secure email change and secure password change on;
+  - minimum password length 8 or more, and leaked-password protection on;
+  - email codes 8 digits, with a short expiry;
+  - JWT expiry an hour or less, with a session time-box and inactivity
+    timeout;
+  - redirect URLs exact, with no wildcards.
+- **Vercel:** delete `GITHUB_TOKEN` and `GITHUB_TICKET_REPO` from the web
+  project (unused since ADR 0015), and revoke that token on GitHub.
+- **GitHub settings:**
+  - secret scanning with push protection, and Dependabot alerts;
+  - protect `overlay-v*` tags, and require approval for workflows from forks;
+  - delete Health runs from before 2026-10-12;
+  - put the e2e secrets in an environment that only `main` can use.
+- **Two decisions from the security review:**
+  - whether "Find action items", "Find insights" and the follow-up draft on a
+    colleague's call are for the call's owner and the company's owners only
+    (today any member can, and running one again replaces what was there);
+  - whether the overlay outside Incognito comes up folded when a call starts.
+    It shows in a screen share, brief included.
 - **Anthropic Console:** a monthly spend limit, with auto-reload.
-- **Resend:** set it up, then open sign-up. The follow-up "send" has an open
-  item to fix first; see the security review.
+- **Resend:** set it up, then open sign-up. Sending a follow-up is for paid
+  plans only since the 2026-10-19 review.
 - **Overlay:** the Mac test and the S1 screen-share check.
 - **Vercel regions:** check where the AI functions run. `preferredRegion` is
   deprecated, and the deployment reports `sin1`.
@@ -484,8 +549,7 @@ until real transcripts arrive.
 - **Calendar:** register the Google and Microsoft OAuth apps.
 - **HubSpot:** `CRM_TOKEN_KEY`.
 - **Call-prep research:** `APIFY_TOKEN`.
-- **Other key rotations, at launch:** the GitHub token, operator MFA, the n8n
-  MCP key.
+- **Other key rotations, at launch:** the n8n MCP key.
 - **Zoom app,** so calls arrive without an upload.
 - **Real transcripts,** and a decision on the two proposed insights.
 - **Skipped for now, at the owner's word:** trackers (`TRACKER_TOKEN_KEY`) and
@@ -498,15 +562,18 @@ Roughly in order. The owner sets the order.
 1. **Haiku 5.5 for Ask and suggestions**, if the comparison holds. It is the
    largest remaining cost lever.
 2. **Dodo Payments**, once the account is shared. Then open sign-up.
-3. **Security items before launch** (the review lists them):
-   - make sending follow-ups safe before Resend is switched on;
-   - end support sessions in the database;
-   - bind transcription tokens to a live call (needs an overlay release);
+3. **Security items before launch** (`docs/engineering/security-review-2026-10-19.md`
+   lists them; its predecessor's are done or carried into it):
+   - mint a support session on the server, so no link outlives its window,
+     and end its access token, not only its refresh token;
    - take the consent record's words from the server;
-   - an edit check on colleagues' calls;
-   - Electron 39 to a supported major;
-   - a script CSP;
-   - a catalogue-wide pgTAP guard.
+   - a per-person limit on spending the company's allowance, and a dedicated
+     path for the tenant-boundary alarm;
+   - Electron to a supported major, in its own release;
+   - a script CSP with nonces, cookies the page cannot read, a time limit on
+     operator sessions, and a CAPTCHA on sign-in;
+   - Health in Actions on the counts-only digest instead of the service-role
+     key.
 4. **After Resend:** the weekly email ("This week"), invites, opening sign-up.
 5. **A Zoom app,** so recordings arrive by themselves.
 6. **Real transcripts:**
@@ -629,7 +696,8 @@ Its README is the index. The ones that shape day-to-day work:
 Also worth reading:
 - `services/eval/benchmarks/results.md`: every measurement, and how far to
   trust it;
-- `docs/engineering/security-review-2026-10-12.md`;
+- `docs/engineering/security-review-2026-10-19.md` (and its predecessor,
+  `security-review-2026-10-12.md`);
 - `docs/engineering/qa-checklist.md`: what a machine can't check;
 - `docs/experiments/`: spikes S1 and S3, and a load run.
 

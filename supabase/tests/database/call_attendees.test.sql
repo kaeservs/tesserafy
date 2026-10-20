@@ -34,9 +34,12 @@ select public.record_calendar_sync('google', format('[
 select public.agree_to_recording('2026-10-02', 'I will tell everyone on every call I record that it is recorded, and that is my responsibility.', 'overlay');
 insert into made select 1, public.start_live_conversation('Live call', p_consent_statement => 'test');
 
--- A colleague starting the link finds nothing of theirs: another person's calendar is never used.
+-- A colleague cannot link the seller's call at all: attendees go on a call only
+-- from someone who may change it (security review, 2026-10-19), and another
+-- person's calendar is never used.
 select set_config('request.jwt.claims', '{"sub":"ca7e0000-0000-4000-8000-000000000002","role":"authenticated"}', true);
-select is(public.link_call_to_meeting((select id from made where n = 1)), 0, 'a colleague''s calendar has no meeting, and the seller''s is not theirs to use');
+select throws_ok($$ select public.link_call_to_meeting((select id from made where n = 1)) $$, '42501', null,
+  'a colleague cannot put attendees on the seller''s call, and the seller''s calendar is not theirs to use');
 
 select set_config('request.jwt.claims', '{"sub":"ca7e0000-0000-4000-8000-000000000001","role":"authenticated"}', true);
 select is(public.link_call_to_meeting((select id from made where n = 1)), 2, 'the caller''s meeting under way is found, and its real addresses kept');

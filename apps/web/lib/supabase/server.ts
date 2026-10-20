@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import type { Database } from '@tesserafy/db';
 import { cookies } from 'next/headers';
 import { publicSupabaseEnv } from '../env';
+import { SESSION_COOKIE } from './cookies';
 
 /**
  * A per-request client acting as the signed-in user. Every query it makes is
@@ -14,6 +15,7 @@ export async function createClient() {
   const { url, publishableKey } = publicSupabaseEnv();
 
   return createServerClient<Database>(url, publishableKey, {
+    cookieOptions: SESSION_COOKIE,
     cookies: {
       getAll() {
         return cookieStore.getAll();

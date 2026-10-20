@@ -54,7 +54,9 @@ test('Meetings filters by score and outcome, and its CSV link keeps the filters'
   const response = await page.request.get((await csv.getAttribute('href'))!);
   expect(response.status()).toBe(200);
   expect(response.headers()['content-type']).toContain('text/csv');
-  expect((await response.text()).split('\r\n')[0]).toContain('date,title,customer,scorecard');
+  // Matched here: were the header missing, toContain would print the first
+  // meeting's row, its title and customer, on the failure.
+  expect((await response.text()).split('\r\n')[0]?.includes('date,title,customer,scorecard'), 'the CSV starts with its header').toBe(true);
 });
 
 test('Reports shows what goes with a win, and a member cannot open another seller’s page', async ({ page }) => {

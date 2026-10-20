@@ -11,9 +11,12 @@
 #     platform has built.
 # Publishing on the website also creates the tag, so two runs may start for
 # it: the later cancels the earlier (it shows as cancelled) and finishes the
-# same way. On a pull request that touches the overlay, or run by hand, it
-# builds the same installers and keeps them as run artifacts without
-# publishing.
+# same way. Run by hand, it builds the same installers and keeps them as run
+# artifacts without publishing. On a pull request that touches the overlay it
+# builds and checks them and keeps nothing: a pull request's build is code
+# nobody has reviewed yet (a fork's, once its run is approved), and this
+# repository's artifacts are public, so an installer kept from one would be an
+# unreviewed build that anyone could download from us.
 #
 # Checks that fail the build rather than ship something wrong:
 #   - the tag must match apps/desktop/package.json's version, or the file
@@ -42,7 +45,7 @@ on:
     types: [published]
   # Any change to the overlay or to this file builds the installers too, so a
   # packaging break is found in review rather than on release day. Nothing is
-  # published from a pull request.
+  # published or kept from a pull request.
   pull_request:
     paths:
       - 'apps/desktop/**'
@@ -66,9 +69,11 @@ jobs:
     if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'overlay-v')
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -77,11 +82,13 @@ jobs:
       - name: Build
         run: pnpm --filter @tesserafy/desktop dist:win
 
+      # The reader comes from the workspace, at the version the lockfile pins
+      # and checks, rather than from npx at run time: otherwise whatever the
+      # registry served that minute would be what judges the build.
       - name: The fuses are hardened
         shell: bash
-        working-directory: ${{ runner.temp }}
         run: |
-          fuses=$(npx --yes @electron/fuses@1.8.0 read --app "$GITHUB_WORKSPACE/apps/desktop/release/win-unpacked/Tesserafy.exe")
+          fuses=$(pnpm --filter @tesserafy/desktop exec electron-fuses read --app "$GITHUB_WORKSPACE/apps/desktop/release/win-unpacked/Tesserafy.exe")
           echo "$fuses"
           for expected in "RunAsNode is Disabled" \
                           "EnableNodeOptionsEnvironmentVariable is Disabled" \
@@ -91,7 +98,10 @@ jobs:
             echo "$fuses" | grep -q "$expected" || { echo "::error::expected '$expected'"; exit 1; }
           done
 
-      - uses: actions/upload-artifact@v4
+      # Kept for publishing and for a run by hand, never from a pull request
+      # (see the top of this file). The build and its checks above still run.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: github.event_name != 'pull_request'
         with:
           name: overlay-windows
           path: apps/desktop/release/Tesserafy-Setup-*.exe
@@ -102,9 +112,11 @@ jobs:
     if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'overlay-v')
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -116,7 +128,11 @@ jobs:
       # Signed on pull requests too. electron-builder skips all signing on a
       # PR by default — the ad-hoc signature included — which builds exactly
       # the "damaged" app the check below exists to refuse; and a PR's build
-      # is what gets tested before a release.
+      # is what gets tested before a release. The signature is ad hoc (no
+      # identity, nothing secret), and nothing from a PR is kept. When real
+      # certificates come, they sign only in tag and release runs, from an
+      # environment pull requests cannot reach (security review, 2026-10-19):
+      # this switch also lets a certificate sign a PR's build.
       - name: Build
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -125,15 +141,15 @@ jobs:
           pnpm --filter @tesserafy/desktop build
           pnpm --filter @tesserafy/desktop exec electron-builder --mac --publish never
 
+      # The fuse reader from the workspace, as on Windows.
       - name: The fuses are hardened, and the signature verifies
         shell: bash
-        working-directory: ${{ runner.temp }}
         run: |
           apps=("$GITHUB_WORKSPACE"/apps/desktop/release/mac*/Tesserafy.app)
           [ "${#apps[@]}" -eq 2 ] && [ -d "${apps[0]}" ] || { echo "::error::expected two apps, found: ${apps[*]}"; exit 1; }
           for app in "${apps[@]}"; do
             echo "== $app"
-            fuses=$(npx --yes @electron/fuses@1.8.0 read --app "$app")
+            fuses=$(pnpm --filter @tesserafy/desktop exec electron-fuses read --app "$app")
             echo "$fuses"
             for expected in "RunAsNode is Disabled" \
                             "EnableNodeOptionsEnvironmentVariable is Disabled" \
@@ -155,7 +171,9 @@ jobs:
           done
           ls -la "$GITHUB_WORKSPACE"/apps/desktop/release/*.dmg
 
-      - uses: actions/upload-artifact@v4
+      # As on Windows: never kept from a pull request.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: github.event_name != 'pull_request'
         with:
           name: overlay-mac
           path: apps/desktop/release/Tesserafy-*-mac-*.dmg
@@ -169,7 +187,9 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: The tag matches the app's version
         run: |
@@ -180,7 +200,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: installers
           merge-multiple: true
@@ -198,13 +218,29 @@ jobs:
           Mac: download the -mac-arm64.dmg for Apple silicon (M1 and later; Apple menu → About This Mac says Chip) or the -mac-x64.dmg for Intel. Open it and drag Tesserafy to Applications. It is not yet notarised by Apple, so the first open is refused: go to System Settings → Privacy & Security, scroll to Security, choose Open Anyway, then open it again. macOS asks once for the microphone, and may ask once to use the keychain, where the sign-in is kept — choose Always Allow.
 
           Not for customer calls until the screen-share check (S1 in docs/engineering/qa-checklist.md) has passed in Zoom, Meet and Teams, on each platform."
+          # Each installer's SHA-256, so a download can be checked against what
+          # was built here. They follow a marker this step finds again: a
+          # re-run uploads new installers over the old ones (--clobber), and a
+          # sum that no longer matches its download is worse than none.
+          marker='<!-- installer checksums -->'
+          sums="$marker
+          To check that a download is the one built here, compare its SHA-256 with the line for it below: on Windows, Get-FileHash and the file's name in PowerShell; on a Mac, shasum -a 256 and the file's name in Terminal.
+
+          \`\`\`
+          $(cd installers && sha256sum -- *)
+          \`\`\`"
           if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
             # Published on the website: the installers go onto it, and it gets
             # the notes above only if it was published without any of its own.
+            # The sums go on either way, in place of any an earlier run wrote.
             gh release upload "$GITHUB_REF_NAME" installers/* --clobber
-            if [ -z "$(gh release view "$GITHUB_REF_NAME" --json body --jq .body)" ]; then
-              gh release edit "$GITHUB_REF_NAME" --title "Tesserafy overlay ${version}" --notes "$notes"
+            body=$(gh release view "$GITHUB_REF_NAME" --json body --jq .body)
+            body=$(printf '%s' "${body%%"$marker"*}")
+            if [ -z "${body//[[:space:]]/}" ]; then
+              gh release edit "$GITHUB_REF_NAME" --title "Tesserafy overlay ${version}" --notes "$notes"$'\n\n'"$sums"
+            else
+              gh release edit "$GITHUB_REF_NAME" --notes "$body"$'\n\n'"$sums"
             fi
           else
-            gh release create "$GITHUB_REF_NAME" installers/* --title "Tesserafy overlay ${version}" --notes "$notes"
+            gh release create "$GITHUB_REF_NAME" installers/* --title "Tesserafy overlay ${version}" --notes "$notes"$'\n\n'"$sums"
           fi

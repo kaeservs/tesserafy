@@ -20,6 +20,9 @@
  * check creates a conversation, writes an utterance and an observation to it,
  * and erases the whole thing again in a finally. Everything else is reads,
  * plus a session minted for the probe account through the admin API.
+ *
+ * Needs SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, QA_EMAIL (the probe account)
+ * and TESSERAFY_URL (the deployed web app; --url overrides it).
  */
 import { scrub } from '@tesserafy/ai';
 import { createServiceClient, fetchCriteria, fetchCriterionEvents } from '@tesserafy/db';
@@ -41,10 +44,10 @@ function record(name: string, ok: boolean, detail: string): void {
   console.info(`${ok ? '  ok  ' : ' FAIL '} ${name}${detail ? ` — ${detail}` : ''}`);
 }
 
-function requireEnv(name: string): string {
+function requireEnv(name: string, what?: string): string {
   const value = process.env[name];
   if (!value) {
-    console.error(`qa: ${name} is not set`);
+    console.error(`qa: ${name} is not set${what ? `: ${what}` : ''}`);
     process.exit(2);
   }
   return value;
@@ -76,10 +79,13 @@ async function accessToken(url: string, key: string, email: string): Promise<str
 }
 
 async function main(): Promise<void> {
-  const baseUrl = flag('--url', process.env['TESSERAFY_URL'] ?? 'https://web-beta-khaki-cxdkp6udxk.vercel.app');
+  // Both from the environment, never a default written here. The repository
+  // is public, and the fallbacks were a person's own address, an account this
+  // script mints sessions for, and the production host.
+  const baseUrl = flag('--url', '') || requireEnv('TESSERAFY_URL', 'the address of the deployed web app to check (or pass --url)');
   const supabaseUrl = requireEnv('SUPABASE_URL');
   const serviceKey = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
-  const email = process.env['QA_EMAIL'] ?? 'kaeservs@gmail.com';
+  const email = requireEnv('QA_EMAIL', 'the address of the probe account this script signs in as');
 
   console.info(`Checking ${baseUrl}\n`);
   console.info('The auth boundary');
@@ -511,18 +517,6 @@ async function checkLiveCapture(baseUrl: string, token: string): Promise<void> {
       agreement.error ?? `agreed ${agreement.agreedAt?.slice(0, 10)} under Terms ${agreement.termsVersion}`,
     );
 
-    // Both sides of a call are heard through Deepgram (ADR 0022), switched on
-    // by DEEPGRAM_API_KEY on the deployment, which a build reads only after a
-    // redeploy. Granting the overlay's one-minute token costs nothing; only a
-    // stream that runs is billed. The token itself is never printed.
-    const granted = await post('/api/live/transcription-token', {});
-    const grant = (await granted.json().catch(() => ({}))) as { token?: string; url?: string; error?: string };
-    record(
-      'live transcription is switched on: Deepgram grants the overlay a token',
-      granted.status === 200 && Boolean(grant.token) && Boolean(grant.url),
-      granted.status === 200 ? 'granted' : `${granted.status} ${grant.error ?? ''}`.trim(),
-    );
-
     const started = await post('/api/live/sessions', { title: 'QA PROBE — erased immediately' });
     const startedBody = (await started.json()) as { conversationId?: string; error?: string };
     conversationId = startedBody.conversationId ?? null;
@@ -532,6 +526,20 @@ async function checkLiveCapture(baseUrl: string, token: string): Promise<void> {
       startedBody.error ?? (conversationId ? 'created' : 'no id returned'),
     );
     if (!conversationId) return;
+
+    // Both sides of a call are heard through Deepgram (ADR 0022), switched on
+    // by DEEPGRAM_API_KEY on the deployment, which a build reads only after a
+    // redeploy. The token is granted for one live call, so it is asked for
+    // once the call exists, as the overlay does (security review,
+    // 2026-10-19). Granting it costs nothing; only a stream that runs is
+    // billed. The token itself is never printed.
+    const granted = await post('/api/live/transcription-token', { conversationId });
+    const grant = (await granted.json().catch(() => ({}))) as { token?: string; url?: string; error?: string };
+    record(
+      'live transcription is switched on: Deepgram grants the overlay a token for its call',
+      granted.status === 200 && Boolean(grant.token) && Boolean(grant.url),
+      granted.status === 200 ? 'granted' : `${granted.status} ${grant.error ?? ''}`.trim(),
+    );
 
     const text = 'We reconcile the ledger by hand every month and it takes two days.';
     const appended = await post(`/api/live/sessions/${conversationId}/segments`, {

@@ -100,7 +100,7 @@ export default async function ScorecardPage({
         {chosen.version !== versions[0]!.version ? ' (not the newest)' : ''} · published {day(chosen.publishedAt)}
       </p>
 
-      {published ? (
+      {published && /^\d{1,6}$/.test(published) ? (
         <p role="status" className="card">
           Version {published} is published. New calls can be scored with it; calls already scored keep
           the version they were scored with.

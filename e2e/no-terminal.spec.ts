@@ -37,6 +37,8 @@ test('the pages a customer reads name no terminal command', async ({ page }) => 
   for (const path of paths) {
     await page.goto(path);
     const visible = await page.locator('main').innerText();
-    expect(visible, `${path} tells a customer to run a command`).not.toMatch(/\bpnpm\b/);
+    // Matched here, not by expect: a failure would print the whole page, and
+    // a call's page is a customer's words. The path names it (an id, for a call).
+    expect(/\bpnpm\b/.test(visible), `${path} tells a customer to run a command`).toBe(false);
   }
 });

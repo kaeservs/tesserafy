@@ -25,7 +25,12 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: Boolean(process.env['CI']),
   retries: process.env['CI'] ? 1 : 0,
-  reporter: process.env['CI'] ? [['github'], ['list']] : [['list']],
+  // In CI the log is public, as this repository is, and the suite reads
+  // production, so a failure must not carry a page's words into it: no
+  // annotations from `github`, no Expected and Received from `list`. The quiet
+  // reporter names each test, how it ended and the spec line, and nothing
+  // else (e2e/quiet-reporter.ts). A local run keeps `list`, which says it all.
+  reporter: process.env['CI'] ? [['./e2e/quiet-reporter.ts']] : [['list']],
 
   use: {
     baseURL,

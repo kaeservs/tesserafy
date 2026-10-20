@@ -1,6 +1,6 @@
-/** The overlay's transcription token: Deepgram's key stays here, and every stream opts out of model training. */
+/** The overlay's transcription token: Deepgram's key stays here, every stream opts out of model training, and a token is for one live call. */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { grantToken, streamUrl, transcriptionAvailable } from '@/lib/transcription';
+import { grantToken, isCallId, LIVE_CALL_HOURS, streamUrl, tokenFor, transcriptionAvailable } from '@/lib/transcription';
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -25,5 +25,32 @@ describe('transcription', () => {
     expect(url.protocol).toBe('wss:');
     expect(url.searchParams.get('mip_opt_out')).toBe('true');
     expect(url.searchParams.get('interim_results')).toBe('true');
+  });
+});
+
+describe('which call a token is for', () => {
+  const now = new Date('2026-10-19T12:00:00Z');
+  const startedAt = (hours: number) => new Date(now.getTime() - hours * 3_600_000).toISOString();
+  const mine = { added_by: 'u1', captured_live: true, created_at: startedAt(1) };
+
+  it('is a live call this person started, while lines may still be added to it', () => {
+    expect(tokenFor(mine, 'u1', now)).toBe('going');
+    expect(tokenFor({ ...mine, created_at: startedAt(LIVE_CALL_HOURS - 0.01) }, 'u1', now)).toBe('going');
+    expect(tokenFor({ ...mine, created_at: startedAt(LIVE_CALL_HOURS + 0.01) }, 'u1', now)).toBe('ended');
+    expect(tokenFor({ ...mine, created_at: 'not a date' }, 'u1', now)).toBe('ended');
+  });
+
+  it('is never a colleague’s call, an imported one, or one this person cannot read', () => {
+    expect(tokenFor({ ...mine, added_by: 'u2' }, 'u1', now)).toBe('not theirs');
+    expect(tokenFor({ ...mine, added_by: null }, 'u1', now)).toBe('not theirs');
+    expect(tokenFor({ ...mine, captured_live: false }, 'u1', now)).toBe('not theirs');
+    expect(tokenFor(null, 'u1', now)).toBe('not theirs');
+  });
+
+  it('is named by an id and nothing else', () => {
+    expect(isCallId('6F1C2B8E-3D4A-4F5B-9C6D-7E8F9A0B1C2D')).toBe(true);
+    for (const value of [undefined, null, 42, '', '6f1c2b8e-3d4a-4f5b-9c6d', '------------------------------------', '6f1c2b8e-3d4a-4f5b-9c6d-7e8f9a0b1c2d/x']) {
+      expect(isCallId(value), String(value)).toBe(false);
+    }
   });
 });

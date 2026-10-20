@@ -55,9 +55,25 @@ for (const file of files) {
 // whole reason it is a separate deployment. Naming the exception means the
 // next app added under apps/ is refused by default rather than by whether
 // anyone remembered to think about it.
-const SERVICE_ROLE = /\b(SUPABASE_SERVICE_ROLE_KEY|createServiceClient)\b/;
+//
+// By more than the two names the code uses today. Supabase's newer secret key
+// is SUPABASE_SECRET_KEY in its own docs and begins sb_secret_, and the role
+// itself is service_role: in a JWT, in `supabase status`, and in any variable
+// someone names after it. Without case or word boundaries, so a
+// NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY, the worst of them since Next puts it
+// in the browser bundle, is caught as well.
+const SERVICE_ROLE_NAMES = ['SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SECRET_KEY', 'createServiceClient', 'service_role', 'sb_secret_'];
 const serviceRoleViolations = [];
 const KEY_HOLDERS = [/^apps\/admin\//];
+// The failure scrubber spells the secret key's prefix in order to remove the
+// key from what is recorded, which is the opposite of holding it. It may
+// name that prefix and nothing else: exempting the whole file would open a
+// hole in a shared package, the very place this check exists to watch.
+const MAY_NAME = new Map([['packages/ai/src/telemetry/failures.ts', ['sb_secret_']]]);
+const namesFor = (file) => {
+  const allowed = MAY_NAME.get(file) ?? [];
+  return new RegExp(SERVICE_ROLE_NAMES.filter((name) => !allowed.includes(name)).join('|'), 'i');
+};
 // And the shared packages' own source, other than packages/db, which defines
 // createServiceClient for the console and the operator scripts. Otherwise a
 // helper in, say, packages/ai could wrap the key and apps/web import it
@@ -74,8 +90,9 @@ for (const file of appFiles) {
   } catch {
     continue;
   }
+  const serviceRole = namesFor(file);
   text.split('\n').forEach((line, index) => {
-    if (SERVICE_ROLE.test(line)) serviceRoleViolations.push(`${file}:${index + 1}: ${line.trim()}`);
+    if (serviceRole.test(line)) serviceRoleViolations.push(`${file}:${index + 1}: ${line.trim()}`);
   });
 }
 

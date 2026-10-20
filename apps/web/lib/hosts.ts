@@ -38,7 +38,36 @@ export function appRedirect(url: URL, host: string | null, appUrl: string | unde
   if (!app || !name || !SITE_HOSTS.has(name) || name === app.hostname) return null;
   const path = url.pathname;
   if (SITE_PATHS.has(path) || path.startsWith('/api/')) return null;
-  return new URL(`${path}${url.search}`, app.origin);
+  // The path is set on the app's address, never read as a link relative to
+  // it: read that way, `//evil.example/x` is another site's address, and the
+  // landing page redirected anyone who followed such a link there. Next's own
+  // server rewrites `//` and `\` before this runs; whether every edge in front
+  // of it does is not something this code can know.
+  const target = new URL(app.origin);
+  target.pathname = path;
+  target.search = url.search;
+  return target.origin === app.origin ? target : null;
+}
+
+/**
+ * Whether a request was sent by a page on another host: its Origin names a
+ * host other than the one it was sent to. `null`, the Origin of a sandboxed
+ * frame or a local file, is another host. No Origin at all is not: a browser
+ * sends one with every POST, PUT, PATCH and DELETE, so a request without one
+ * was sent by a program — the overlay's main process, Stripe — and not by a
+ * page acting with a visitor's cookies.
+ */
+export function fromAnotherHost(origin: string | null, host: string | null): boolean {
+  if (origin === null) return false;
+  if (!host) return true;
+  try {
+    const from = new URL(origin);
+    // The request's host read the way the Origin was, so a default port, a
+    // capital letter or a punycoded name compares equal to itself.
+    return new URL(`${from.protocol}//${host}`).host !== from.host;
+  } catch {
+    return true;
+  }
 }
 
 /** Whether this is the app's own host, where `/` is the dashboard rather than the landing page. */

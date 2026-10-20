@@ -3,6 +3,7 @@ import type { Database } from '@tesserafy/db';
 import { NextResponse, type NextRequest } from 'next/server';
 import { publicSupabaseEnv } from '../env';
 import { siteUrl } from '../site-url';
+import { SESSION_COOKIE } from './cookies';
 
 const PUBLIC_PATHS = ['/login', '/auth/'];
 
@@ -18,6 +19,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient<Database>(url, publishableKey, {
+    cookieOptions: SESSION_COOKIE,
     cookies: {
       getAll() {
         return request.cookies.getAll();

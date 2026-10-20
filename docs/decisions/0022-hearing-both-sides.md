@@ -42,7 +42,12 @@ app mints.**
     seconds (`/v1/auth/grant`), plus the stream address with every setting
     already chosen by the server.
   - It is only for someone whose plan includes Live and has live minutes left.
-  - It is rate limited (10 a minute, 200 a day).
+  - It is rate limited (10 a minute, 200 a day; 4 and 30 since the
+    2026-10-12 security review).
+  - It is for one call (from overlay 0.1.29, security review 2026-10-19). The
+    request names a live call the caller started in the last twelve hours,
+    so the overlay creates the call first, then asks. Before, a token was for
+    no call at all. An overlay that names none is told to update.
   - A stream opened with the token stays open after the token expires.
 - **The streams.**
   - The main process holds them (`src/main/transcribe.ts`).
@@ -77,7 +82,11 @@ app mints.**
     overlay uses the browser engine on the microphone, as before.
   - If no sound output can be had, the overlay streams the microphone alone,
     with no side named.
-  - If the token is refused, the overlay falls back to the browser engine.
+  - If the token is refused, the overlay falls back to the browser engine
+    (for Tesserafy's own company; a customer is told why). A token refused
+    after its call was created, for the rate limit or a Deepgram failure,
+    leaves that call empty. A call is refused before it is created when the
+    plan has no live minutes left, so the usual refusal leaves nothing.
 
 ## Consequences
 

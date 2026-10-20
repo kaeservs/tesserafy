@@ -14,19 +14,23 @@ vi.mock('../lib/env', () => ({
 }));
 
 let signedIn = false;
+let asked = 0;
 
 vi.mock('@supabase/ssr', () => ({
   createServerClient: () => ({
     auth: {
-      getUser: async () => ({ data: { user: signedIn ? { id: 'u1' } : null }, error: null }),
+      getUser: async () => {
+        asked += 1;
+        return { data: { user: signedIn ? { id: 'u1' } : null }, error: null };
+      },
     },
   }),
 }));
 
 const { updateSession } = await import('../lib/supabase/proxy');
 
-function request(path: string, headers: Record<string, string> = {}): NextRequest {
-  return new NextRequest(`https://app.example.com${path}`, { headers });
+function request(path: string, headers: Record<string, string> = {}, method = 'GET'): NextRequest {
+  return new NextRequest(`https://app.example.com${path}`, { headers, method });
 }
 
 describe('updateSession on /api routes', () => {
@@ -63,6 +67,76 @@ describe('updateSession on /api routes', () => {
     signedIn = true;
 
     const response = await updateSession(request('/api/detect'));
+
+    expect(response.status).toBe(200);
+  });
+});
+
+/**
+ * SameSite=Lax keeps the session cookie off another site's POST, but a page
+ * on n8n.tesserafy.com, or any sibling host, is the same site, and its POST
+ * arrives with the visitor's cookies. Its Origin is what gives it away.
+ */
+describe('updateSession on writes to /api from another host', () => {
+  it('refuses one, before asking the auth server who is signed in', async () => {
+    signedIn = true;
+    asked = 0;
+
+    const response = await updateSession(request('/api/detect', { origin: 'https://n8n.example.com' }, 'POST'));
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get('content-type')).toContain('application/json');
+    expect(asked).toBe(0);
+  });
+
+  it('refuses every method that changes something, and an Origin that names no host', async () => {
+    signedIn = true;
+
+    for (const method of ['PUT', 'PATCH', 'DELETE']) {
+      expect((await updateSession(request('/api/preps/p1', { origin: 'https://n8n.example.com' }, method))).status, method).toBe(403);
+    }
+    // A sandboxed frame's Origin.
+    expect((await updateSession(request('/api/detect', { origin: 'null' }, 'POST'))).status).toBe(403);
+  });
+
+  it('lets the app’s own pages write, on the host the request was sent to', async () => {
+    signedIn = true;
+
+    expect((await updateSession(request('/api/detect', { origin: 'https://app.example.com' }, 'POST'))).status).toBe(200);
+    // Behind Vercel, the host the visitor used arrives forwarded.
+    const forwarded = request(
+      '/api/detect',
+      { origin: 'https://app.tesserafy.com', 'x-forwarded-host': 'app.tesserafy.com', host: 'internal.example' },
+      'POST',
+    );
+    expect((await updateSession(forwarded)).status).toBe(200);
+  });
+
+  it('lets a write with no Origin through: the overlay calls from its main process, which sends none', async () => {
+    signedIn = false;
+
+    const response = await updateSession(request('/api/detect', { authorization: 'Bearer token' }, 'POST'));
+
+    expect(response.status).toBe(200);
+  });
+
+  it('leaves reads alone', async () => {
+    signedIn = true;
+
+    expect((await updateSession(request('/api/live/setup', { origin: 'https://n8n.example.com' }))).status).toBe(200);
+  });
+
+  it('refuses signing out from another host, a route handler with no Origin check of its own', async () => {
+    signedIn = true;
+
+    expect((await updateSession(request('/auth/sign-out', { origin: 'https://n8n.example.com' }, 'POST'))).status).toBe(403);
+    expect((await updateSession(request('/auth/sign-out', { origin: 'https://app.example.com' }, 'POST'))).status).toBe(200);
+  });
+
+  it('leaves Stripe’s webhook to its signature, by name rather than by its missing Origin', async () => {
+    signedIn = false;
+
+    const response = await updateSession(request('/api/stripe/webhook', { origin: 'https://n8n.example.com' }, 'POST'));
 
     expect(response.status).toBe(200);
   });

@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ACTIONABLE_KINDS, ALARM_AT, ALARM_AT_ONCE, alarming, groupFailures, type FailureRow } from '../src/health';
+import {
+  ACTIONABLE_KINDS,
+  ALARM_AT,
+  ALARM_AT_ONCE,
+  alarming,
+  groupFailures,
+  printableName,
+  UNRECOGNISED,
+  type FailureRow,
+} from '../src/health';
 
 function row(kind: string, source: string, at: string, extra: Partial<FailureRow> = {}): FailureRow {
   return { kind, source, tier: null, model: null, status: null, message: `${kind} at ${source}`, created_at: at, ...extra };
@@ -58,6 +67,43 @@ describe('groupFailures', () => {
       row('unknown', 'script/score', '2026-09-27T10:00:00Z', { message: 'first line\nstack trace\nmore' }),
     ]);
     expect(group?.message).toBe('first line');
+  });
+});
+
+describe('what a group shows of its tier and model', () => {
+  it('shows a name as it was recorded', () => {
+    const [group] = groupFailures([
+      row('model_rejected', 'api/detect', '2026-10-19T10:00:00Z', { tier: 't1', model: 'claude-haiku-5-5' }),
+    ]);
+    expect(group).toMatchObject({ tier: 't1', model: 'claude-haiku-5-5' });
+  });
+
+  it('shows anything else as unrecognised, so a caller cannot write a command into the public log', () => {
+    // Any signed-in member can call record_failure with any p_model. Printed
+    // as written, this would be an annotation on the repository, and in the
+    // email a failing scheduled run sends.
+    const [group] = groupFailures([
+      row('model_rejected', 'api/detect', '2026-10-19T10:00:00Z', {
+        tier: 't1\n::warning::look here',
+        model: 'claude-haiku-5-5\n::error title=Production is down::rotate every key now',
+      }),
+    ]);
+    expect(group?.tier).toBe(UNRECOGNISED);
+    expect(group?.model).toBe(UNRECOGNISED);
+  });
+
+  it('keeps an absent tier or model absent', () => {
+    const [group] = groupFailures([row('unknown', 'script/score', '2026-10-19T10:00:00Z')]);
+    expect(group).toMatchObject({ tier: null, model: null });
+  });
+
+  it('takes letters, digits, dots, dashes and underscores, up to 64 of them, and nothing else', () => {
+    for (const name of ['t3', 'claude-sonnet-5', 'gte-small', 'claude-haiku-4-5-20251001', 'model_v2.1', 'A'.repeat(64)]) {
+      expect(printableName(name)).toBe(name);
+    }
+    for (const junk of ['', 'two words', 'a::b', 'line\nbreak', 'carriage\r', 'naïve', '%0A::error::x', 'A'.repeat(65)]) {
+      expect(printableName(junk)).toBe(UNRECOGNISED);
+    }
   });
 });
 

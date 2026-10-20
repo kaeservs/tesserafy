@@ -36,7 +36,7 @@ export default async function FollowUpPage({ params }: { params: Promise<{ id: s
   if (unrecorded) throw new Error(`Could not record opening this call: ${unrecorded.message}`);
   const user = auth.user;
 
-  const [{ data: followUpRow }, { data: sendRows }, { data: attendeeRows }, { data: preferences }] = await Promise.all([
+  const [{ data: followUpRow }, { data: sendRows }, { data: attendeeRows }, { data: preferences }, { data: planData }] = await Promise.all([
     supabase
       .from('follow_ups')
       .select('id, subject, greeting, opening, closing, created_at, follow_up_lines(position, kind, text, segment_id, quote)')
@@ -52,7 +52,12 @@ export default async function FollowUpPage({ params }: { params: Promise<{ id: s
     supabase.from('call_attendees').select('email').eq('conversation_id', id).order('email'),
     // The name on the person's profile, for the follow-up's sender.
     supabase.from('user_preferences').select('display_name').eq('user_id', user?.id ?? '').maybeSingle(),
+    // Sending is for paid plans; on a starting plan, Copy and "Open in your
+    // email app" are the way (begin_follow_up_send refuses it either way).
+    supabase.rpc('plan_overview'),
   ]);
+  const plan = (planData as { plan?: string } | null)?.plan ?? 'none';
+  const paid = !['none', 'free', 'trial'].includes(plan);
 
   const lines = [...(followUpRow?.follow_up_lines ?? [])]
     .sort((a, b) => a.position - b.position)
@@ -88,7 +93,7 @@ export default async function FollowUpPage({ params }: { params: Promise<{ id: s
     byYou: row.sent_by === user?.id,
     status: row.status === 'sent' ? ('sent' as const) : row.status === 'failed' ? ('failed' as const) : ('sending' as const),
   }));
-  const from = emailAvailable() ? sendingAddress() : null;
+  const from = emailAvailable() && paid ? sendingAddress() : null;
 
   return (
     <main>

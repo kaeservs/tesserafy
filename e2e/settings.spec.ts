@@ -42,7 +42,9 @@ test('a member sees who has access, themselves included, and cannot remove anyon
 
   await page.goto('/settings/team');
   const team = page.getByRole('region', { name: 'Who has access' });
-  await expect(team.getByRole('row', { name: /\(you\)/ })).toContainText('member');
+  // Counted rather than toContainText, which on a failure prints the row: the
+  // test account's own name and address, which are kept in secrets.
+  await expect(team.getByRole('row', { name: /\(you\)/ }).filter({ hasText: /member/ }), 'your own row says member').toHaveCount(1);
   // At least one owner, or nobody could ever remove anyone.
   await expect(team.getByRole('row').filter({ hasText: 'owner' }).first()).toBeVisible();
   await expect(team.getByRole('button', { name: 'Remove' })).toHaveCount(0);
